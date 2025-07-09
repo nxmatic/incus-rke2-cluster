@@ -1,0 +1,62 @@
+name: ${INSTANCE_ID}
+architecture: aarch64
+profiles: [ "control-node" ]
+config:
+  raw.lxc: |
+    lxc.cap.drop =
+    lxc.apparmor.profile = unconfined
+    lxc.mount.auto = proc:rw sys:rw cgroup-full:rw
+    lxc.cgroup.devices.allow = c *:* rwm
+    lxc.cgroup.devices.allow = b *:* rwm
+    # lxc.seccomp.profile =
+  security.privileged: "true"
+  security.nesting: "true"
+  environment.RKE2_DEBUG: "true"
+devices:
+  eth0:
+    name: eth0
+    network: control-plane
+    type: nic
+    hwaddr: 10:66:6a:e0:18:af
+  kmsg.dev:
+    type: unix-char
+    source: /dev/kmsg
+    path: /dev/kmsg
+  zfs.dev:
+    type: unix-char
+    source: /dev/zfs
+    path: /dev/zfs
+  rke2-agent.dev:
+    type: unix-block
+    source: /dev/zvol/tank/rke2/control-nodes/master/root
+    path: /dev/zvol/tank/rke2/control-nodes/master/root
+  secrets.dir:
+    type: disk
+    source: .secrets.d
+    path: /.secrets.d
+    readonly: "true"
+  shared.dir:
+    type: disk
+    source: .shared.d
+    path: /.shared.d
+    readonly: "false"
+  kubeconfig.dir:
+    type: disk
+    source: .kubeconfig.d
+    path: /.kubeconfig.d
+  modules.dir:
+    type: disk
+    source: $(realpath /run/booted-system/kernel-modules/lib/modules)
+    path: /usr/lib/modules
+  helm.bin:
+    type: disk
+    source: $(realpath .flox/run/aarch64-linux.incus.run/bin/helm)
+    path: /usr/bin/helm
+  user.metadata:
+    type: disk
+    source: /run/incus/master-control-node.meta-data
+    path: /var/lib/cloud/seed/nocloud/meta-data
+  user.user-data:
+    type: disk
+    source: /run/incus/master-control-node.user-data
+    path: /var/lib/cloud/seed/nocloud/user-data
