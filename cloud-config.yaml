@@ -204,7 +204,7 @@ write_files:
       etcd-expose-metrics: true
       cni:
         - cilium
-      ingress-controller: ingress-nginx
+      ingress-controller: traefik
   - path: /etc/rancher/rke2/config.yaml.d/disable.yaml
     content: |
       # Disable the default snapshot controller (replaced with openebs-zfs)
@@ -212,6 +212,7 @@ write_files:
         - rke2-snapshot-controller
         - rke2-snapshot-controller-crd
         - rke2-snapshot-validation-webhook
+        - rke2-ingress-nginx
   - path: /var/lib/rancher/rke2/agent/etc/kubelet.conf.d/00-disable-gc.conf
     content: |
       kubelet-arg: 
@@ -219,6 +220,23 @@ write_files:
       kind: KubeletConfiguration
       imageGCHighThresholdPercent: 100
       imageGCLowThresholdPercent: 99
+  # Traefik Ingress Controller
+  - path: /var/lib/rancher/rke2/server/manifests/rke2-traefik-config.yaml
+    content: |
+      apiVersion: helm.cattle.io/v1
+      kind: HelmChartConfig
+      metadata:
+        name: rke2-traefik
+        namespace: kube-system
+      spec:
+        valuesContent: |-
+          additionalArguments:
+            - "--api.insecure=true"
+          ports:
+            web:
+              expose: true
+            websecure:
+              expose: true
   # Cilium
   - path: /var/lib/rancher/rke2/server/manifests/rke2-cilium-config.yaml
     content: |
@@ -259,23 +277,6 @@ write_files:
             hostNamespaceOnly: true
           operator:
             hostNetwork: true
-      ---
-      apiVersion: helm.cattle.io/v1
-      kind: HelmChartConfig
-      metadata:
-        name: rke2-ingress-nginx
-        namespace: kube-system
-      spec:
-        valuesContent: |-
-          controller:
-            metrics:
-              service:
-                annotations:
-                  prometheus.io/scrape: "true"
-                  prometheus.io/port: "10254"
-            config:
-              use-forwarded-headers: "true"
-            allowSnippetAnnotations: "true"  
       ---
         apiVersion: "cilium.io/v2alpha1"
         kind: CiliumLoadBalancerIPPool
@@ -422,26 +423,6 @@ write_files:
       reclaimPolicy: Delete
       volumeBindingMode: WaitForFirstConsumer
       allowVolumeExpansion: true
-
-  # ingress configuration
-  - path: /var/lib/rancher/rke2/server/manifests/rke2-ingress-nginx-config.yaml
-    content: |
-      apiVersion: helm.cattle.io/v1
-      kind: HelmChartConfig
-      metadata:
-        name: rke2-ingress-nginx
-        namespace: kube-system
-      spec:
-        valuesContent: |-
-          controller:
-            metrics:
-              service:
-                annotations:
-                  prometheus.io/scrape: "true"
-                  prometheus.io/port: "10254"
-            config:
-              use-forwarded-headers: "true"
-            allowSnippetAnnotations: "true"
 
   # tailscale operator
   - path: /var/lib/rancher/rke2/server/manifests/tailscale-operator.yaml
