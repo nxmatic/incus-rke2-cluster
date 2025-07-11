@@ -34,6 +34,9 @@ openssl.pkg-path = "openssl"
 ethtool.pkg-path = "ethtool"
 ethtool.systems = ["aarch64-linux", "x86_64-linux"]
 gnumake.pkg-path = "gnumake"
+dnsmasq.pkg-path = "dnsmasq"
+remake.pkg-path = "remake"
+k9s.pkg-path = "k9s"
 # gum.pkg-path = "gum"
 # gum.version = "^0.14.5"
 
