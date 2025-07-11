@@ -1,11 +1,11 @@
 #cloud-config
 # This is a cloud-init configuration for setting up RKE2 with Cilium and other necessary configurations.
-hostname: __HOSTNAME__
-fqdn: __HOSTNAME__.mammoth-skate.ts.net
+hostname: bioskop-master-control-node
+fqdn: bioskop-master-control-node.mammoth-skate.ts.net
 manage_resolv_conf: true
-# resolv_conf:
-#   searchdomains:
-#     - mammoth-skate.ts.net
+resolv_conf:
+  searchdomains:
+  - mammoth-skate.ts.net
 
 write_files:
 

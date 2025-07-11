@@ -1,47 +1,70 @@
 # Makefile for Incus RKE2 Cluster
-# @codebase
+#-----------------------------
+# Shell, Project, and Run Directory Variables
+#-----------------------------
+SHELL := /bin/bash -exuo pipefail
+export PATH := /run/wrappers/bin:$(PATH)
 
-SHELL := /bin/bash -x
-
+# Project and Instance Names
 PROJECT_NAME := $(shell incus project get-current)
-IMAGE_NAME := $(shell yq -r '.name' ./config.yaml)
+IMAGE_NAME := master-control-node
 INSTANCE_NAME := $(IMAGE_NAME)
+INSTANCE_HOSTNAME := $(LIMA_HOSTNAME)-$(IMAGE_NAME)
+INSTANCE_FQDN := $(INSTANCE_HOSTNAME).$(LIMA_DN)
 
-
-INSTANCE_HOST_DN := $(LIMA_HOST:-none)-$(INSTANCE_NAME)
-INSTANCE_HOST_FQDN := $(INSTANCE_HOST_DN).mammoth-skate.ts.net
-
-BUILD_PACKAGES := build-packages.yaml
-
+# Run directory and all derived paths
+SECRETS_DIR := $(PWD)/.secrets.d
 RUN_DIR := /run/incus/$(PROJECT_NAME)/$(INSTANCE_NAME)
-BUILD_MARKER := $(RUN_DIR)/build.image
+BUILD_MARKER_FILE := $(RUN_DIR)/build
+INIT_MARKER_FILE := $(RUN_DIR)/init
+ZFS_ALLOW_MARKER_FILE := $(RUN_DIR)/zfs.allow
+INSTANCE_CONFIG_FILENAME := instance-config.yaml
+INSTANCE_CONFIG_FILE := $(RUN_DIR)/$(INSTANCE_CONFIG_FILENAME)
+CLOUD_CONFIG_FILENAME := cloud-config.yaml
+CLOUD_CONFIG_FILE := $(RUN_DIR)/$(CLOUD_CONFIG_FILENAME)
+METADATA_FILENAME := meta-data
+METADATA_FILE := $(RUN_DIR)/$(METADATA_FILENAME)
+SHARED_DIR := $(PWD)/.shared.d
+KUBECONFIG_DIR := $(PWD)/.kubeconfig.d
 
+BUILD_PACKAGES_FILE := build-packages.yaml
 
-.PHONY: all build stop remove start clean patch-config patch-cloud-config
+#-----------------------------
+# Main Targets
+#-----------------------------
+.PHONY: all build init start stop remove clean
+#.INTERMEDIATE: $(INSTANCE_CONFIG_FILE)
 
 all: build start
 
-build: $(BUILD_PACKAGES)
-build: $(BUILD_MARKER)
+#-----------------------------
+# Build Targets
+#-----------------------------
 
-$(BUILD_MARKER):
-	: "[+] (Re)building image if not present or build-packages.yaml changed..."
-	incus rm -f $(IMAGE_NAME) || true
-	incus image delete $(IMAGE_NAME) || true
+build: $(BUILD_MARKER_FILE)
+
+$(BUILD_MARKER_FILE): $(BUILD_PACKAGES_FILE)
+$(BUILD_MARKER_FILE): | $(RUN_DIR)/
+$(BUILD_MARKER_FILE):
+	: [+] Building instance $(INSTANCE_NAME)...
 	env -i -S \
-		TSID=$$(cat .secrets.d/tsid) \
-		TSKEY=$$(cat .secrets.d/tskey) \
-		PATH=$$PATH \
-		sudo distrobuilder --debug --disable-overlay \
-			build-incus --import-into-incus=$(IMAGE_NAME) $(BUILD_PACKAGES)
-	touch $(MARKER)
+    	TSID=$(file <$(SECRETS_DIR)/tsid) \
+    	TSKEY=$(file <$(SECRETS_DIR)/tskey) \
+    	PATH=$$PATH \
+    	sudo distrobuilder --debug --disable-overlay \
+      		build-incus --import-into-incus=${IMAGE_NAME} $(BUILD_PACKAGES_FILE) 2>&1 | \
+			tee -a distrobuilder.log
+	touch $@
 
-INSTANCE_CONFIG_FILE := $(RUN_DIR)/config.yaml
-CLOUD_CONFIG_FILE := $(RUN_DIR)/cloud-config.yaml
 
-init: build
-init: $(INSTANCE_CONFIG_FILE) $(CLOUD_CONFIG_FILE)
-init:
+#-----------------------------
+# Instance Lifecycle Targets
+#-----------------------------
+init: $(INIT_MARKER_FILE)
+
+$(INIT_MARKER_FILE): $(BUILD_MARKER_FILE) $(METADATA_FILE) $(INSTANCE_CONFIG_FILE) $(CLOUD_CONFIG_FILE)
+$(INIT_MARKER_FILE): | $(SHARED_DIR)/ $(KUBECONFIG_DIR)/
+$(INIT_MARKER_FILE):
 	$(if $(TSKEY),,$(error TSKEY must be set))
 	$(if $(TSID),,$(error TSID must be set))
 	: "[+] Initializing instance $(INSTANCE_NAME)..."
@@ -51,73 +74,93 @@ init:
 	incus config set $(INSTANCE_NAME) environment.CLUSTER_ID "$(CLUSTER_ID)"
 	incus config set $(INSTANCE_NAME) environment.TSKEY "$(TSKEY)"
 	incus config set $(INSTANCE_NAME) environment.TSID "$(TSID)"
+	touch $@
 
-INSTANCE_YQ_FILE := $(RUN_DIR)/config.yq
-
-$(INSTANCE_CONFIG_FILE): instance-config.yaml
-$(INSTANCE_CONFIG_FILE): $(INSTANCE_YQ_FILE)
-$(INSTANCE_CONFIG_FILE): $(RUN_DIR)/
-$(INSTANCE_CONFIG_FILE):
-	yq eval --from-file=$(INSTANCE_YQ_FILE) instance-config.yaml > $(@)
-
-define INSTANCE_YQ_EXPR
-. |
-  .name =  "$(INSTANCE_NAME)" |
-  .devices["user.metadata"].source = "$(RUN_DIR)/meta-data" |
-  .devices["user.user-data"].source = "$(RUN_DIR)/user-data" |
-  .devices["secrets.dir"].source = "$(PWD)/.secrets.d" |
-  .devices["shared.dir"].source = "$(PWD)/.shared.d" |
-  .devices["kubeconfig.dir"].source = "$(PWD)/.kubeconfig.d" |
-  .devices["modules.dir"].source = "$(shell realpath /run/booted-system/kernel-modules/lib/modules)" |
-  .devices["helm.bin"].source = "$(shell realpath $(PWD)/.flox/run/aarch64-linux.incus.run/bin/helm)"
-endef
-
-$(INSTANCE_YQ_FILE): $(RUN_DIR)/
-$(INSTANCE_YQ_FILE): 
-	: $(file >$(@), $(INSTANCE_YQ_EXPR))
-
-define CLOUD_CONFIG_INLINE
-hostname: $(INSTANCE_HOST_DN)
-fqdn: $(INSTANCE_HOST_FQDN)
-manage_resolv_conf: true
-endef
-
-$(CLOUD_CONFIG_FILE): $(RUN_DIR)/
-$(CLOUD_CONFIG_FILE): /dev/stdin cloud-config.yaml
-$(CLOUD_CONFIG_FILE): export inline=$(CLOUD_CONFIG_INLINE)
-$(CLOUD_CONFIG_FILE):
-	echo "$${inline}" | yq eval-all . /dev/stdin cloud-config.yaml > $(@)
-
-start: init
-start: zfs.allow
+start: init zfs.allow
 start:
-	: "[+] Starting instance $(IMAGE_NAME)..."
-	incus start $(IMAGE_NAME)
+	: "[+] Starting instance $(INSTANCE_NAME)..."
+	incus start $(IMAGE_NAME) $(INSTANCE_NAME)
+
+shell:
+	: "[+] Opening a shell in instance $(INSTANCE_NAME)..."
+	incus exec $(INSTANCE_NAME) -- bash
 
 stop:
-	: "[+] Stopping instance $(IMAGE_NAME) if running..."
-	incus stop $(IMAGE_NAME) || true
+	: "[+] Stopping instance $(INSTANCE_NAME) if running..."
+	incus stop $(INSTANCE_NAME) || true
 
 remove: stop
 	: "[+] Removing instance and image if present..."
 	incus rm -f $(INSTANCE_NAME) || true
 	incus image delete $(IMAGE_NAME) || true
 	rm -fr $(RUN_DIR)
-	
+
 clean: remove
 	: "[+] Cleaned up all artifacts."
 
-zfs.allow: $(RUN_DIR)/tank
+#-----------------------------
+# ZFS Permissions Target
+#-----------------------------
+zfs.allow: $(ZFS_ALLOW_MARKER_FILE)
 
-$(RUN_DIR)/tank: $(RUN_DIR)/
-$(RUN_DIR)/tank:
-	sudo zfs allow -s @allperm allow,clone,create,destroy,mount,promote,receive,rename,rollback,send,share,snapshot tank
+$(ZFS_ALLOW_MARKER_FILE):| $(RUN_DIR)/
+	: "[+] Allowing ZFS permissions for tank..."
+	sudo zfs allow -s @allperms allow,clone,create,destroy,mount,promote,receive,rename,rollback,send,share,snapshot tank
 	sudo zfs allow -e @allperms tank
-	touch $(RUN_DIR)/tank
+	touch $@
 
+#-----------------------------
+# Generate cloud-config.yaml using yq for YAML correctness
+#-----------------------------
+define INSTANCE_YQ
+. |
+	.name =  "$(INSTANCE_NAME)" |
+	.devices["user.metadata"].source = "$(METADATA_FILE)" |
+	.devices["user.user-data"].source = "$(CLOUD_CONFIG_FILE)" |
+	.devices["secrets.dir"].source = "$(SECRETS_DIR)" |
+	.devices["shared.dir"].source = "$(SHARED_DIR)" |
+	.devices["kubeconfig.dir"].source = "$(KUBECONFIG_DIR)" |
+	.devices["helm.bin"].source = "$(PWD)/$(HELM_BIN)"
+endef
+
+$(INSTANCE_CONFIG_FILE): $(INSTANCE_CONFIG_FILENAME)
+$(INSTANCE_CONFIG_FILE): export INSTANCE_YQ := $(INSTANCE_YQ)
+$(INSTANCE_CONFIG_FILE):
+	yq eval --from-file=<(echo "$$INSTANCE_YQ") $(INSTANCE_CONFIG_FILENAME) > $(@)
+
+#-----------------------------
+# Generate meta-data file
+#-----------------------------
+
+define METADATA_INLINE :=
+instance-id: $(INSTANCE_NAME)
+local-hostname: $(INSTANCE_HOSTNAME)
+endef
+
+$(METADATA_FILE): | $(RUN_DIR)/
+$(METADATA_FILE): export METADATA_INLINE := $(METADATA_INLINE)
+$(METADATA_FILE):
+	: "[+] Generating meta-data file for instance $(INSTANCE_NAME)..."
+	echo "$$METADATA_INLINE" > $(@)
+
+#-----------------------------
+# Generate cloud-config.yaml using yq for YAML correctness
+#-----------------------------
+define CLOUD_CONFIG_YQ
+.hostname = "$(INSTANCE_HOSTNAME)" |
+.fqdn = "$(INSTANCE_FQDN)"
+endef
+
+$(CLOUD_CONFIG_FILE): $(CLOUD_CONFIG_FILENAME) | $(RUN_DIR)/
+$(CLOUD_CONFIG_FILE): export CLOUD_CONFIG_YQ := $(CLOUD_CONFIG_YQ)
+$(CLOUD_CONFIG_FILE):
+	: "[+] Generating cloud-config.yaml for instance $(INSTANCE_NAME)..."
+	yq eval --from-file=<(echo "$$CLOUD_CONFIG_YQ") \
+        $(CLOUD_CONFIG_FILENAME) > $@
+
+#-----------------------------
+# Create necessary directories
+#-----------------------------
 %/:
 	mkdir -p $(@)
 
-.INTERMEDIATE: $(INSTANCE_CONFIG_FILE)
-.INTERMEDIATE: $(CLOUD_CONFIG_FILE)
-.INTERMEDIATE: $(INSTANCE_YQ_FILE)

@@ -1,6 +1,6 @@
 name: ${INSTANCE_ID}
 architecture: aarch64
-profiles: [ "control-node" ]
+profiles: [ "rke2" ]
 config:
   raw.lxc: |
     lxc.cap.drop =
@@ -15,7 +15,7 @@ config:
 devices:
   eth0:
     name: eth0
-    network: control-plane
+    network: rke2-br
     type: nic
     hwaddr: 10:66:6a:e0:18:af
   kmsg.dev:
@@ -44,10 +44,6 @@ devices:
     type: disk
     source: .kubeconfig.d
     path: /.kubeconfig.d
-  modules.dir:
-    type: disk
-    source: $(realpath /run/booted-system/kernel-modules/lib/modules)
-    path: /usr/lib/modules
   helm.bin:
     type: disk
     source: $(realpath .flox/run/aarch64-linux.incus.run/bin/helm)
