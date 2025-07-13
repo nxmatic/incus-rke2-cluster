@@ -167,16 +167,6 @@ actions:
       mkdir -p /etc/systemd/system/cloud-init.service.wants
       ln -sf /etc/systemd/system/rke2-mount-root-fs.service /etc/systemd/system/cloud-init.service.wants/rke2-mount-root-fs.service
 
-  # - trigger: post-files
-  #   action: |
-  #     #!/usr/bin/env -S bash -exu -o pipefail
-
-  #     # Create the cloud-init nocloud metadata file
-  #     cat <<EoF > /var/lib/cloud/seed/nocloud/metadata
-  #     instance-id: ${CLUSTER_NAME}-master-control-node
-  #     hostname: ${CLUSTER_NAME}-master-control-node
-  #     EoF
-
 files:
   # Cloud init nocloud datasource configuration
   - name: cloud-init-nocloud

@@ -380,7 +380,7 @@ write_files:
         version: 0.5.0
         targetNamespace: envoy-gateway-system
         createNamespace: true
-        ---                                                                                                                                                                
+      ---                                                                                                                                                                
         apiVersion: gateway.networking.k8s.io/v1                                                                                                                             
         kind: GatewayClass                                                                                                                                                   
         metadata:                                                                                                                                                            
@@ -697,7 +697,7 @@ write_files:
       systemctl daemon-reload
       systemctl enable rke2-install
       systemctl start rke2-install
-      systemctl start rke2-server
+      : systemctl start rke2-server
 
 # Enable and start systemd units
 runcmd:

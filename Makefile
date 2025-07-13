@@ -5,75 +5,160 @@
 SHELL := /bin/bash -exuo pipefail
 export PATH := /run/wrappers/bin:$(PATH)
 
+empty :=
+colon := :
+space := $(empty) $(empty)
+
 # Project and Instance Names
-PROJECT_NAME := $(shell incus project get-current)
 IMAGE_NAME := master-control-node
 INSTANCE_NAME := $(IMAGE_NAME)
 INSTANCE_HOSTNAME := $(LIMA_HOSTNAME)-$(IMAGE_NAME)
 INSTANCE_FQDN := $(INSTANCE_HOSTNAME).$(LIMA_DN)
+CLUSTER_NAME := $(LIMA_HOSTNAME)
 
-# Run directory and all derived paths
+# Directories
 SECRETS_DIR := $(PWD)/.secrets.d
-RUN_DIR := /run/incus/$(PROJECT_NAME)/$(INSTANCE_NAME)
+RUN_DIR := $(PWD)/.run.d
+SHARED_DIR := $(PWD)/.shared.d
+KUBECONFIG_DIR := $(PWD)/kubeconfig.d
+LOGS_DIR := $(PWD)/.logs.d
+
+# Config Paths
+DISTROBUILDER_FILE := $(PWD)/distrobuilder.yaml
+PROJECT_MARKER_FILE := $(RUN_DIR)/project
 BUILD_MARKER_FILE := $(RUN_DIR)/build
 INIT_MARKER_FILE := $(RUN_DIR)/init
 ZFS_ALLOW_MARKER_FILE := $(RUN_DIR)/zfs.allow
-INSTANCE_CONFIG_FILENAME := instance-config.yaml
+INSTANCE_CONFIG_FILENAME := incus-instance.yaml
 INSTANCE_CONFIG_FILE := $(RUN_DIR)/$(INSTANCE_CONFIG_FILENAME)
 CLOUD_CONFIG_FILENAME := cloud-config.yaml
 CLOUD_CONFIG_FILE := $(RUN_DIR)/$(CLOUD_CONFIG_FILENAME)
 METADATA_FILENAME := meta-data
 METADATA_FILE := $(RUN_DIR)/$(METADATA_FILENAME)
-SHARED_DIR := $(PWD)/.shared.d
-KUBECONFIG_DIR := $(PWD)/.kubeconfig.d
+DISTRIBUILDER_LOGFILE := $(LOGS_DIR)/distrobuilder.log
+PRESEED_FILENAME := incus-preseed.yaml
+PRESEED_FILE := $(RUN_DIR)/${PRESEED_FILENAME}
 
-BUILD_PACKAGES_FILE := build-packages.yaml
+#-----------------------------
+# rke2 Cluster MAC and IP addresses configuration
+#-----------------------------
+
+PRIMARY_MAC := $(shell cat /sys/class/net/enp0s1/address)
+PRIMARY_WORDS := $(subst $(colon),$(space),$(PRIMARY_MAC))
+PRIMARY_WORDS_NETWORK_PART := $(wordlist 4,6,$(PRIMARY_WORDS))
+NETWORK_PART := $(subst $(space),$(colon),$(PRIMARY_WORDS_NETWORK_PART))
+RKE2_MAC := 10:66:6a:$(NETWORK_PART)
+
+
+define CLUSTER_NET
+# Shared /16 subnet for all clusters
+CLUSTER_SUPERNET := 172.31.0.0/16
+ifeq ($(strip $(1)),bioskop)
+CLUSTER_SUBNET := 1
+else ifeq ($(strip $(1)),alcide)
+CLUSTER_SUBNET := 2
+else
+$$(error CLUSTER_NAME='$(1)' must be set to alcide or bioskop)
+endif
+# Per-cluster /24 subnet and IP assignment
+CLUSTER_CIDR := 172.31.$$(CLUSTER_SUBNET).1/24
+CLUSTER_IP := 172.31.$$(CLUSTER_SUBNET).2
+endef
+$(eval $(call CLUSTER_NET,$(CLUSTER_NAME)))
+
+#-----------------------------
+
+all: start
+
+#-----------------------------
+# Preseed Rendering Targets
+#-----------------------------
+
+.PHONY: preseed
+
+preseed: $(PRESEED_FILE)
+
+define DNSMASQ_RAW
+dumpfile=/var/log/incus/dnsmasq.rke2-br.pcap
+dumpmask=0x5000
+endef
+
+define PRESEED_YQ
+. |
+  .networks[0].config."raw.dnsmasq" = "$(DNSMASQ_RAW)" |
+  .networks[0].config."ipv4.address" = "$(CLUSTER_CIDR)"
+endef
+
+$(PRESEED_FILE): $(PRESEED_FILENAME) | $(RUN_DIR)/
+$(PRESEED_FILE): export PRESEED_YQ := $(PRESEED_YQ)
+$(PRESEED_FILE):
+	: [+] Generating preseed file ...
+	yq eval --from-file=<(echo "$$PRESEED_YQ") $(PRESEED_FILENAME) > $@
+	incus admin init --preseed < $(PRESEED_FILE)
+
+#-----------------------------
+# Project Management Target with Marker
+#-----------------------------
+
+.PHONY: project
+
+project: preseed
+project: $(PROJECT_MARKER_FILE) | $(RUN_DIR)/
+project:
+	: [+] Switching to project $(CLUSTER_NAME)
+	incus project switch rke2
+
+$(PROJECT_MARKER_FILE): | $(RUN_DIR)/
+	: [+] Creating incus project rke2
+	incus project create rke2
+	incus profile show rke2 | \
+	  incus profile create rke2 --project rke2 || true
+	touch $@
 
 #-----------------------------
 # Main Targets
 #-----------------------------
-.PHONY: all build init start stop remove clean
-#.INTERMEDIATE: $(INSTANCE_CONFIG_FILE)
+MAIN_TARGETS := build init start stop remove clean shell
+$(MAIN_TARGETS): preseed project
 
-all: build start
-
-#-----------------------------
-# Build Targets
-#-----------------------------
+.PHONY: $(MAIN_TARGETS)
 
 build: $(BUILD_MARKER_FILE)
 
-$(BUILD_MARKER_FILE): $(BUILD_PACKAGES_FILE)
-$(BUILD_MARKER_FILE): | $(RUN_DIR)/
+$(BUILD_MARKER_FILE): $(DISTRIBUILDER_FILE) | $(RUN_DIR)/ $(LOGS_DIR)/
+$(BUILD_MARKER_FILE): $(SECRETS_DIR)/tsid $(SECRETS_DIR)/tskey
 $(BUILD_MARKER_FILE):
+	$(if $(TSKEY),,$(error TSKEY must be set))
+	$(if $(TSID),,$(error TSID must be set))
 	: [+] Building instance $(INSTANCE_NAME)...
 	env -i -S \
-    	TSID=$(file <$(SECRETS_DIR)/tsid) \
-    	TSKEY=$(file <$(SECRETS_DIR)/tskey) \
-    	PATH=$$PATH \
-    	sudo distrobuilder --debug --disable-overlay \
-      		build-incus --import-into-incus=${IMAGE_NAME} $(BUILD_PACKAGES_FILE) 2>&1 | \
-			tee -a distrobuilder.log
+		TSID=$(file <$(SECRETS_DIR)/tsid) \
+		TSKEY=$(file <$(SECRETS_DIR)/tskey) \
+		PATH=$$PATH \
+		  sudo distrobuilder --debug --disable-overlay \
+		      build-incus $(DISTROBUILDER_FILE) 2>&1 | \
+			tee $(DISTRIBUILDER_LOGFILE)
+	incus image import incus.tar.xz rootfs.squashfs --alias $(IMAGE_NAME) --reuse
 	touch $@
 
+#-----------------------------
+# Lifecycle Targets
+#-----------------------------
 
-#-----------------------------
-# Instance Lifecycle Targets
-#-----------------------------
 init: $(INIT_MARKER_FILE)
 
 $(INIT_MARKER_FILE): $(BUILD_MARKER_FILE) $(METADATA_FILE) $(INSTANCE_CONFIG_FILE) $(CLOUD_CONFIG_FILE)
 $(INIT_MARKER_FILE): | $(SHARED_DIR)/ $(KUBECONFIG_DIR)/
 $(INIT_MARKER_FILE):
-	$(if $(TSKEY),,$(error TSKEY must be set))
-	$(if $(TSID),,$(error TSID must be set))
 	: "[+] Initializing instance $(INSTANCE_NAME)..."
 	incus init $(IMAGE_NAME) $(INSTANCE_NAME) < $(INSTANCE_CONFIG_FILE)
 	incus config set $(INSTANCE_NAME) cloud-init.user-data - < $(CLOUD_CONFIG_FILE)
 	incus config set $(INSTANCE_NAME) environment.CLUSTER_NAME "$(CLUSTER_NAME)"
-	incus config set $(INSTANCE_NAME) environment.CLUSTER_ID "$(CLUSTER_ID)"
+	incus config set $(INSTANCE_NAME) environment.CLUSTER_CIDR "$(CLUSTER_CIDR)"
 	incus config set $(INSTANCE_NAME) environment.TSKEY "$(TSKEY)"
 	incus config set $(INSTANCE_NAME) environment.TSID "$(TSID)"
+	incus config device set $(INSTANCE_NAME) eth0 hwaddr "$(RKE2_MAC)"
+	incus config device set $(INSTANCE_NAME) eth0 ipv4.address "$(CLUSTER_IP)"
 	touch $@
 
 start: init zfs.allow
@@ -89,14 +174,16 @@ stop:
 	: "[+] Stopping instance $(INSTANCE_NAME) if running..."
 	incus stop $(INSTANCE_NAME) || true
 
-remove: stop
-	: "[+] Removing instance and image if present..."
+clean: stop
+	: [+] Removing instance and image if present...
+
 	incus rm -f $(INSTANCE_NAME) || true
 	incus image delete $(IMAGE_NAME) || true
-	rm -fr $(RUN_DIR)
+	incus project switch default || true
+	incus project delete rke2 || true
+	: [+] Cleaning up run directory...
 
-clean: remove
-	: "[+] Cleaned up all artifacts."
+	rm -fr $(RUN_DIR)
 
 #-----------------------------
 # ZFS Permissions Target
@@ -115,6 +202,7 @@ $(ZFS_ALLOW_MARKER_FILE):| $(RUN_DIR)/
 define INSTANCE_YQ
 . |
 	.name =  "$(INSTANCE_NAME)" |
+	.devices["eth0"].hwaddr = "$(RKE2_MAC)" |
 	.devices["user.metadata"].source = "$(METADATA_FILE)" |
 	.devices["user.user-data"].source = "$(CLOUD_CONFIG_FILE)" |
 	.devices["secrets.dir"].source = "$(SECRETS_DIR)" |
@@ -156,7 +244,7 @@ $(CLOUD_CONFIG_FILE): export CLOUD_CONFIG_YQ := $(CLOUD_CONFIG_YQ)
 $(CLOUD_CONFIG_FILE):
 	: "[+] Generating cloud-config.yaml for instance $(INSTANCE_NAME)..."
 	yq eval --from-file=<(echo "$$CLOUD_CONFIG_YQ") \
-        $(CLOUD_CONFIG_FILENAME) > $@
+		$(CLOUD_CONFIG_FILENAME) > $@
 
 #-----------------------------
 # Create necessary directories
