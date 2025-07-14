@@ -136,7 +136,9 @@ actions:
 
       : set default locale
       cat <<EoF | tee /etc/default/locale
-      LANG=LC_ALL
+      LANG=En_US.UTF-8
+      LANGUAGE=en_US.UTF-8
+      LC_ALL=en_US.UTF-8
       EoF
 
 
@@ -147,7 +149,9 @@ actions:
       : Create a one-shot systemd service to mount the RKE2 root zvol
       :   incus block devices cannot be exposed as a systemd mounts
 
+      systemctl mask zfs-load-module
       systemctl mask zfs-volume-wait.service
+      systemctl mask systemd-rfkill.service
 
       cat <<EoF > /etc/systemd/system/rke2-mount-root-fs.service
       [Unit]

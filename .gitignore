@@ -1,3 +1,4 @@
 incus.tar.xz
 rootfs.squashfs
 .run.d
+kubeconfig.d

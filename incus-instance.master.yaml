@@ -15,7 +15,8 @@ config:
 devices:
   eth0:
     name: eth0
-    network: rke2-br
+    nictype: bridged
+    parent: rke2-br
     type: nic
     hwaddr: 10:66:6a:e0:18:af
   kmsg.dev:

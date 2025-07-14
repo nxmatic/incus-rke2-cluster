@@ -1,88 +1,94 @@
 #cloud-config
 # This is a cloud-init configuration for setting up RKE2 with Cilium and other necessary configurations.
-hostname: bioskop-master-control-node
+hostname: master-control-node
 fqdn: bioskop-master-control-node.mammoth-skate.ts.net
 manage_resolv_conf: true
 resolv_conf:
   searchdomains:
-  - mammoth-skate.ts.net
+    - mammoth-skate.ts.net
 
 write_files:
-
-
   # RKE2 profile with robust PATH and env setup
   - path: /etc/rancher/rke2/profile
     permissions: "0644"
-    content: |
-      #!/usr/bin/env bash 
-
-      set -a
+    content: |-
+      #!/usr/bin/env bash
 
       : load the container environment variables
+      set -a
       source <( cat /proc/1/environ | tr '\0' '\n' | grep -E '^(CLUSTER_|TSID|TSKEY)' )
+      set +a
 
       : set the environment variables for RKE2
+      set -a
       ARCH=$( dpkg --print-architecture )
       KUBECONFIG=/etc/rancher/rke2/rke2.yaml
       CONTAINERD_CONFIG_FILE="/var/lib/rancher/rke2/agent/etc/containerd/config.toml"
       CONTAINERD_ADDRESS=/run/k3s/containerd/containerd.sock
-      CONTAINERD_NAMESPACE=k8s.io
-      CRI_CONFIG_FILE=/var/lib/rancher/rke2/agent/etc/crictl.yaml
+      CONTAINERD_NAMESPACE=k8s.ioe
+      CRI_CONFIG_FILE=/var/lib/rancher/rke2/agent/etc/crictl.yamlema
       INSTALL_RKE2_TYPE=${INSTALL_RKE2_TYPE:-server}
+      set +a
 
       : set the PATH for RKE2 and Cilium
-      PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      set -a
       PATH="$PATH:/var/lib/rancher/rke2/bin"
       PATH="$PATH:/var/lib/rancher/.flox/run/aarch64-linux.rancher.run/bin/"
+      set +a
 
+      : Get the node inet address
+      set -a
+      source <(ip --json addr show eth0 |
+               yq -p json -o shell '.[0].addr_info.[] | select(.family == "inet") | { "CLUSTER_NODE_INET": .local }')
       set +a
 
       : Only eval direnv if interactive shell and direnv is present
       if [[ $- == *i* ]] && type -P direnv >/dev/null 2>&1; then
         eval "$(direnv hook bash)"
       fi
- 
+
   # Kubelet cgroup driver override
   - path: /var/lib/rancher/rke2/agent/etc/kubelet.conf.d/01-cgroup-override.conf
-    content: |
+    content: |-
       apiVersion: kubelet.config.k8s.io/v1beta1
       kind: KubeletConfiguration
       cgroupDriver: systemd
 
   # RKE2 and Cilium configuration (source profile)
-  - path: /usr/local/sbin/rke2-pre-start.sh
+  - path: /usr/local/sbin/rke2-pre-start
     permissions: "0755"
-    content: |
+    content: |-
       #!/usr/bin/env -S bash -exu -o pipefail
 
-      : Load the RKE2 profile 
+      : Load the RKE2 profile
       source /etc/rancher/rke2/profile
 
       : Patch the cilium config with cluster environment variables
-      yq --inplace --from-file=<( cat <<EoE | tee /tmp/kube-system.yq
+      yq --inplace --from-file=<( cat <<EoE
       ( select( .kind == "CiliumBGPAdvertisement" ) | .spec ) |=
         ( .advertisements[0].advertisementType = "PodCIDR" ) |
       ( select( .kind == "CiliumBGPNodeConfigOverride" ) | .spec ) |=
         ( .bgpInstances[0].localPort = 179 ) |
       ( select( .kind == "CiliumBGPNodeConfigOverride" ) | .spec.bgpInstances[0].peers[] ) |=
-        ( .peerAddress = "172.31.${CLUSTER_ID}.2" ) |
+        ( .peerAddress = "${CLUSTER_NODE_INET}" ) |
       ( select( .kind == "HelmChartConfig") | .spec ) |=
-        ( .valuesContent |= ( from_yaml | 
+        ( .valuesContent |= ( from_yaml |
                                .cluster.name = "${CLUSTER_NAME}" |
-                               .cluster.id = ${CLUSTER_ID} |
+                               .cluster.id = ${CLUSTER_SUBNET} |
                                to_yaml ) ) |
       ( select( .kind == "CiliumLoadBalancerIPPool" ) | .spec ) |=
-        ( .blocks[0] = { "cidr": "172.31.${CLUSTER_ID}.128/25", "min": "129", "max": "254" } ) |
+        ( .blocks[0] = { "cidr": "${CLUSTER_LOADBALANCERS_CIDR}", "min": "129", "max": "254" } ) |
       ( select( .kind == "CiliumBGPClusterConfig" ) | .spec ) |=
-        with( .bgpInstances[] | select( .name == "instance-65000" ); 
-          with( .peers[] | select( .name == "master"); .peerAddress = "172.31.${CLUSTER_ID}.2" ) |
-          with( .peers[] | select( .name == "peer1");  .peerAddress = "172.31.${CLUSTER_ID}.3" ) |
-          with( .peers[] | select( .name == "peer2");  .peerAddress = "172.31.${CLUSTER_ID}.4" ) |
-          with( .peers[] | select( .name == "peer3");  .peerAddress = "172.31.${CLUSTER_ID}.5" ) )
+        with( .bgpInstances[] | select( .name == "instance-65000" );
+          with( .peers[] | select( .name == "master"); .peerAddress = "${CLUSTER_NODE_INET}" )
+          # with( .peers[] | select( .name == "peer1");  .peerAddress = "172.31.${CLUSTER_SUBNET}.3" ) |
+          # with( .peers[] | select( .name == "peer2");  .peerAddress = "172.31.${CLUSTER_SUBNET}.4" ) |
+          # with( .peers[] | select( .name == "peer3");  .peerAddress = "172.31.${CLUSTER_SUBNET}.5" ) 
+        )
       EoE
       ) /var/lib/rancher/rke2/server/manifests/rke2-cilium-config.yaml
       : Generate the tailscale operator config
-      cat <<EoF | tee /var/lib/rancher/rke2/server/manifests/tailscale-operator.yaml                  
+      cat <<EoF | tee /var/lib/rancher/rke2/server/manifests/tailscale-operator.yaml
       apiVersion: helm.cattle.io/v1
       kind: HelmChart
       metadata:
@@ -106,22 +112,21 @@ write_files:
       metadata:
         name: ts-controlplane-lb-routes
       spec:
-        hostname: ${CLUSTER_NAME}-controlplane-lb-routes  # Name visible in Tailscale admin
+        hostname: ${CLUSTER_NAME}-controlplane-lb-routes
         subnetRouter:
           advertiseRoutes:
       EoF
       : Patch the tailscale operator config with cluster environment variables
       yq --inplace --from-file=<( cat <<EoE
-      ( select( .kind == "Connector" ) | .spec ) |=
-        ( .subnetRouter.advertiseRoutes = 
-          [ "172.31.${CLUSTER_ID}.0/28", "172.31.${CLUSTER_ID}.128/25" ] )
+      select(.kind == "Connector") |
+        .spec.subnetRouter.advertiseRoutes = [ "${CLUSTER_NODES_CIDR}" ]
       EoE
       ) /var/lib/rancher/rke2/server/manifests/tailscale-operator.yaml
       : Configure the cluster CIDR and service CIDR
       mkdir -p /etc/rancher/rke2/config.yaml.d
       touch /etc/rancher/rke2/config.yaml.d/cidr.yaml
       yq --inplace --from-file=<( cat <<EoF
-      . += { "cluster-cidr": "10.${CLUSTER_ID}.0.0/17", "service-cidr": "10.${CLUSTER_ID}.128.0/17" }
+      . += { "cluster-cidr": "${CLUSTER_CIDR}", "service-cidr": "${CLUSTER_SERVICES_CIDR}" }
       EoF
       ) /etc/rancher/rke2/config.yaml.d/cidr.yaml
       : Reconfigure the names resolution and the system in read-write mode
@@ -130,7 +135,7 @@ write_files:
       mount -o remount,rw /sys
 
   # Configure RKE2
-  - path: /usr/local/sbin/rke2-post-start.sh
+  - path: /usr/local/sbin/rke2-post-start
     permissions: "0755"
     content: |
       #!/usr/bin/env -S bash -exu -o pipefail
@@ -142,21 +147,17 @@ write_files:
       mkdir -p /etc/profile.d
       ln -fs /etc/rancher/rke2/profile /etc/profile.d/rke2-env.sh
 
-      : Get current IP address
-      source <(ip --json addr show eth0 |
-               yq -p json -o shell '.[0].addr_info.[] | select(.family == "inet") | { "inet": .local }')
-
       : Create working copy of kubeconfig
       KUBECONFIG="/.kubeconfig.d/rke2-${CLUSTER_NAME}.yaml"
-
+               
       mkdir -p $( dirname "$KUBECONFIG" )
       cp /etc/rancher/rke2/rke2.yaml "$KUBECONFIG"
-      chmod 600 "$KUBECONFIG"
+      chmod 644 "$KUBECONFIG"
 
       : Apply modifications to working copy
       yq --inplace --from-file=<(cat <<EoE
       .clusters[0].cluster.name = "${CLUSTER_NAME}" |
-      .clusters[0].cluster.server = "https://${inet}:6443" |
+      .clusters[0].cluster.server = "https://${CLUSTER_NODE_INET}:6443" |
       .clusters[0].name = "${CLUSTER_NAME}" |
       .contexts[0].context.cluster = "${CLUSTER_NAME}" |
       .contexts[0].context.namespace = "kube-system" |
@@ -168,13 +169,13 @@ write_files:
       ) "$KUBECONFIG"
 
   # RKE2 installation script from https://get.rke2.io
-  - path: /usr/local/sbin/rke2-install.sh
+  - path: /usr/local/sbin/rke2-install
     permissions: "0755"
     content: |
       #!/usr/bin/env -S bash -exu -o pipefail
 
       : Install the RKE2 server binaries
-      curl -sfL https://get.rke2.io | 
+      curl -sfL https://get.rke2.io |
         env DEBUG=1 sh -
 
       source /etc/rancher/rke2/profile
@@ -198,6 +199,7 @@ write_files:
         - master-control-node
         - peer-control-node1
         - peer-control-node2
+
   - path: /etc/rancher/rke2/config.yaml.d/core.yaml
     content: |
       write-kubeconfig-mode: "0640"
@@ -205,21 +207,21 @@ write_files:
       cni:
         - cilium
       ingress-controller: traefik
+  # Disable the default snapshot controller (replaced with openebs-zfs)
   - path: /etc/rancher/rke2/config.yaml.d/disable.yaml
     content: |
-      # Disable the default snapshot controller (replaced with openebs-zfs)
       disable:
         - rke2-snapshot-controller
         - rke2-snapshot-controller-crd
         - rke2-snapshot-validation-webhook
         - rke2-ingress-nginx
   - path: /var/lib/rancher/rke2/agent/etc/kubelet.conf.d/00-disable-gc.conf
-    content: |
-      kubelet-arg: 
+    content: |-
       apiVersion: kubelet.config.k8s.io/v1beta1
       kind: KubeletConfiguration
-      imageGCHighThresholdPercent: 100
-      imageGCLowThresholdPercent: 99
+      kubelet-arg:
+        imageGCHighThresholdPercent: 100
+        imageGCLowThresholdPercent: 99
   # Traefik Ingress Controller
   - path: /var/lib/rancher/rke2/server/manifests/rke2-traefik-config.yaml
     content: |
@@ -234,9 +236,11 @@ write_files:
             - "--api.insecure=true"
           ports:
             web:
-              expose: true
+              expose:
+                default: true
             websecure:
-              expose: true
+              expose:
+                default: true
   # Cilium
   - path: /var/lib/rancher/rke2/server/manifests/rke2-cilium-config.yaml
     content: |
@@ -284,7 +288,9 @@ write_files:
           name: "pool"
         spec:
           blocks:
-            -  cidr: "172.31.255.128/25"
+            - cidr: "${CLUSTER_LOADBALANCERS_CIDR}"
+              min: "129"
+              max: "254"
       ---
       apiVersion: "cilium.io/v2alpha1"
       kind: CiliumL2AnnouncementPolicy
@@ -380,12 +386,12 @@ write_files:
         version: 0.5.0
         targetNamespace: envoy-gateway-system
         createNamespace: true
-      ---                                                                                                                                                                
-        apiVersion: gateway.networking.k8s.io/v1                                                                                                                             
-        kind: GatewayClass                                                                                                                                                   
-        metadata:                                                                                                                                                            
-          name: envoy                                                                                                                                                        
-        spec:                                                                                                                                                                
+      ---
+        apiVersion: gateway.networking.k8s.io/v1
+        kind: GatewayClass
+        metadata:
+          name: envoy
+        spec:
           controllerName: gateway.envoyproxy.io/gatewayclass-controller
 
   # OpenEBS ZFS PVC
@@ -464,7 +470,7 @@ write_files:
       DefaultDependencies=no
       [Service]
       Type=oneshot
-      ExecStart=/usr/local/sbin/rke2-remount-shared.sh
+      ExecStart=/usr/local/sbin/rke2-remount-shared
       RemainAfterExit=true
       [Install]
       WantedBy=multi-user.target
@@ -474,7 +480,7 @@ write_files:
       [Unit]
       Description=Run RKE2 Installation Script
       After=network.target
-      ConditionPathExists=/usr/local/sbin/rke2-install.sh
+      ConditionPathExists=/usr/local/sbin/rke2-install
       ConditionPathExists=!/etc/systemd/system/rke2-server.service
 
       [Install]
@@ -483,9 +489,31 @@ write_files:
 
       [Service]
       Type=oneshot
-      ExecStartPre=/usr/local/sbin/rke2-install-pre.sh
-      ExecStart=/usr/bin/env -S bash -c 'rke2-install.sh && systemctl disable rke2-install.service'
+      ExecStartPre=/usr/local/sbin/rke2-install-pre
+      ExecStart=/usr/bin/env -S bash -c 'rke2-install && systemctl disable rke2-install.service'
       RemainAfterExit=true
+
+  - path: /usr/local/sbin/rke2-install-pre
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+
+      : Initialize the flox environment
+      [[ ! -d /var/lib/rancher/.flox ]] &&
+        flox init --dir=/var/lib/rancher
+
+      : install tools in the flox environment
+      flox install --dir=/var/lib/rancher ceph-client
+      flox install --dir=/var/lib/rancher cilium-cli
+      flox install --dir=/var/lib/rancher direnv
+      flox install --dir=/var/lib/rancher gh
+      flox install --dir=/var/lib/rancher git
+      flox install --dir=/var/lib/rancher kubernetes-helm
+      flox install --dir=/var/lib/rancher yq-go
+
+
+      mkdir -p "~root/.config/direnv/lib"
+      curl -o "~root/.config/direnv/lib/flox-direnv.rc" "https://raw.githubusercontent.com/flox/flox-direnv/v1.1.0/direnv.rc"
 
   - path: /etc/systemd/system/rke2-server.service.d/override.conf
     content: |
@@ -496,47 +524,25 @@ write_files:
       [Install]
       WantedBy=multi-user.target
 
-  - path: /usr/local/sbin/rke2-install-pre.sh
-    permissions: "0755"
-    content: |
-      #!/usr/bin/env -S bash -exu -o pipefail
-
-      : Initialize the flox environment
-      [[ ! -d /var/lib/rancher/.flox ]] && 
-        flox init --dir=/var/lib/rancher
-
-      : install tools in the flox environment
-      flox install --dir=/var/lib/rancher direnv
-      flox install --dir=/var/lib/rancher yq-go
-      flox install --dir=/var/lib/rancher kubernetes-helm
-      flox install --dir=/var/lib/rancher cilium-cli
-      flox install --dir=/var/lib/rancher ceph-client
-
-      : allow direnv to load flox environment variables
-      flox install --dir=/var/lib/rancher direnv
-
-      mkdir -p "~root/.config/direnv/lib"
-      curl -o "~root/.config/direnv/lib/flox-direnv.sh" "https://raw.githubusercontent.com/flox/flox-direnv/v1.1.0/direnv.rc"
-
   - path: /etc/systemd/system/rke2-server.service.d/start.conf
     content: |
       [Unit]
-      Requires=rke2-remount-shared.service
+      Requires=rke2-remount-shared.service rke2-install.service
       Wants=rke2-remount-shared.service
-      After=rke2-remount-shared.service
+      After=rke2-remount-shared.service rke2-install.service
 
       [Service]
-      ExecStartPre=/usr/local/sbin/rke2-pre-start.sh
-      ExecStartPost=/usr/local/sbin/rke2-post-start.sh
+      ExecStartPre=/bin/sh -xc '/usr/local/sbin/rke2-pre-start'
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-post-start'
 
   - path: /etc/systemd/system/rke2-agent.service.d/start.conf
     content: |
       [Service]
-      ExecStartPre=/usr/local/sbin/rke2-pre-start.sh
-      ExecStartPost=/usr/local/sbin/rke2-post-start.sh
+      ExecStartPre=/usr/local/sbin/rke2-pre-start
+      ExecStartPost=/usr/local/sbin/rke2-post-start
 
   # Scripts (preserve executable bit)
-  - path: /usr/local/sbin/rke2-remount-shared.sh
+  - path: /usr/local/sbin/rke2-remount-shared
     permissions: "0755"
     content: |
       #!/usr/bin/env -S bash -exu -o pipefail
@@ -544,131 +550,13 @@ write_files:
       mount --make-shared -t bpf bpf /sys/fs/bpf
       mount --make-shared /run
 
-  - path: /usr/local/sbin/iscsiadm
-    permissions: "0755"
-    content: |
-      #!/usr/bin/env -S bash -exu -o pipefail
-      exec chroot /host /usr/bin/env -i PATH="/sbin:/bin:/usr/bin" iscsiadm "${@:1}"
+  # - path: /usr/local/sbin/iscsiadm
+  #   permissions: "0755"
+  #   content: |
+  #     #!/usr/bin/env -S bash -exu -o pipefail
+  #     exec chroot /host /usr/bin/env -i PATH="/sbin:/bin:/usr/bin" iscsiadm "${@:1}"
 
-  - path: /usr/local/sbin/rke2-pre-start.sh
-    permissions: "0755"
-    content: |
-      #!/usr/bin/env -S bash -exu -o pipefail
-
-      : Load the RKE2 profile 
-      source /etc/rancher/rke2/profile
-
-      : Patch the cilium config with cluster environment variables
-      yq --inplace --from-file=<( cat <<EoE | tee /tmp/kube-system.yq
-      ( select( .kind == "CiliumBGPAdvertisement" ) | .spec ) |=
-        ( .advertisements[0].advertisementType = "PodCIDR" ) |
-      ( select( .kind == "CiliumBGPNodeConfigOverride" ) | .spec ) |=
-        ( .bgpInstances[0].localPort = 179 ) |
-      ( select( .kind == "CiliumBGPNodeConfigOverride" ) | .spec.bgpInstances[0].peers[] ) |=
-        ( .peerAddress = "172.31.${CLUSTER_ID}.2" ) |
-      ( select( .kind == "HelmChartConfig") | .spec ) |=
-        ( .valuesContent |= ( from_yaml | 
-                               .cluster.name = "${CLUSTER_NAME}" |
-                               .cluster.id = ${CLUSTER_ID} |
-                               to_yaml ) ) |
-      ( select( .kind == "CiliumLoadBalancerIPPool" ) | .spec ) |=
-        ( .blocks[0] = { "cidr": "172.31.${CLUSTER_ID}.128/25", "min": "129", "max": "254" } ) |
-      ( select( .kind == "CiliumBGPClusterConfig" ) | .spec ) |=
-        with( .bgpInstances[] | select( .name == "instance-65000" ); 
-          with( .peers[] | select( .name == "master"); .peerAddress = "172.31.${CLUSTER_ID}.2" ) |
-          with( .peers[] | select( .name == "peer1");  .peerAddress = "172.31.${CLUSTER_ID}.3" ) |
-          with( .peers[] | select( .name == "peer2");  .peerAddress = "172.31.${CLUSTER_ID}.4" ) |
-          with( .peers[] | select( .name == "peer3");  .peerAddress = "172.31.${CLUSTER_ID}.5" ) )
-      EoE
-      ) /var/lib/rancher/rke2/server/manifests/rke2-cilium-config.yaml
-      : Generate the tailscale operator config
-      cat <<EoF | tee /var/lib/rancher/rke2/server/manifests/tailscale-operator.yaml                  
-      apiVersion: helm.cattle.io/v1
-      kind: HelmChart
-      metadata:
-        namespace: kube-system
-        name: tailscale-operator
-      spec:
-        repo: https://pkgs.tailscale.com/helmcharts
-        chart: tailscale-operator
-        version: 1.82.0
-        targetNamespace: tailscale-system
-        createNamespace: true
-        valuesContent: |-
-          oauth:
-            clientId: "${TSID}"
-            clientSecret: "${TSKEY}"
-          operatorConfig:
-            hostname: "${CLUSTER_NAME}-tailscale-operator"
-      ---
-      apiVersion: tailscale.com/v1alpha1
-      kind: Connector
-      metadata:
-        name: ts-controlplane-lb-routes
-      spec:
-        hostname: ${CLUSTER_NAME}-controlplane-lb-routes  # Name visible in Tailscale admin
-        subnetRouter:
-          advertiseRoutes:
-      EoF
-      : Patch the tailscale operator config with cluster environment variables
-      yq --inplace --from-file=<( cat <<EoE
-      ( select( .kind == "Connector" ) | .spec ) |=
-        ( .subnetRouter.advertiseRoutes = 
-          [ "172.31.${CLUSTER_ID}.0/28", "172.31.${CLUSTER_ID}.128/25" ] )
-      EoE
-      ) /var/lib/rancher/rke2/server/manifests/tailscale-operator.yaml
-      : Configure the cluster CIDR and service CIDR
-      mkdir -p /etc/rancher/rke2/config.yaml.d
-      touch /etc/rancher/rke2/config.yaml.d/cidr.yaml
-      yq --inplace --from-file=<( cat <<EoF
-      . += { "cluster-cidr": "10.${CLUSTER_ID}.0.0/17", "service-cidr": "10.${CLUSTER_ID}.128.0/17" }
-      EoF
-      ) /etc/rancher/rke2/config.yaml.d/cidr.yaml
-      : Reconfigure the names resolution and the system in read-write mode
-      ln -fs /run/NetworkManager/resolv.conf /etc/resolv.conf
-      mount -o remount,rw /proc
-      mount -o remount,rw /sys
-
-  - path: /usr/local/sbin/rke2-post-start.sh
-    permissions: "0755"
-    content: |
-      #!/usr/bin/env -S bash -exu -o pipefail
-
-      : Load RKE2 environment
-      source /etc/rancher/rke2/profile
-
-      : Configure system-wide RKE2 environment
-      cat <<'EoRC' | tee -a /etc/bash.profile >/dev/null
-      : RKE2 server environment variables
-      source /etc/rancher/rke2/profile
-      EoRC
-
-      : Get current IP address
-      source <(ip --json addr show eth0 |
-               yq -p json -o shell '.[0].addr_info.[] | select(.family == "inet") | { "inet": .local }')
-
-      : Create working copy of kubeconfig
-      KUBECONFIG="/.kubeconfig.d/rke2-${CLUSTER_NAME}.yaml"
-
-      mkdir -p $( dirname "$KUBECONFIG" )
-      cp /etc/rancher/rke2/rke2.yaml "$KUBECONFIG"
-      chmod 600 "$KUBECONFIG"
-
-      : Apply modifications to working copy
-      yq --inplace --from-file=<(cat <<EoE
-      .clusters[0].cluster.name = "${CLUSTER_NAME}" |
-      .clusters[0].cluster.server = "https://${inet}:6443" |
-      .clusters[0].name = "${CLUSTER_NAME}" |
-      .contexts[0].context.cluster = "${CLUSTER_NAME}" |
-      .contexts[0].context.namespace = "kube-system" |
-      .contexts[0].context.user = "${CLUSTER_NAME}" |
-      .contexts[0].name = "${CLUSTER_NAME}" |
-      .users[0].name = "${CLUSTER_NAME}" |
-      .current-context = "${CLUSTER_NAME}"
-      EoE
-      ) "$KUBECONFIG"
-
-  - path: /usr/local/sbin/rke2-vip-install.sh
+  - path: /usr/local/sbin/rke2-vip-install
     permissions: "0755"
     content: |
       #!/usr/bin/env -S bash -exu -o pipefail
@@ -691,15 +579,27 @@ write_files:
       cat <<EoF | tee -a /etc/zsh/zshrc | tee -a /etc/bash.bashrc
       source /etc/rancher/rke2/profile
       EoF
+     
       : Configure system-wide DNS
       ln -fs /run/systemd/resolve/resolv.conf /etc/resolv.conf
+     
       : Configure systemd units
       systemctl daemon-reload
       systemctl enable rke2-install
+
+      : Start the RKE2 installation service
       systemctl start rke2-install
-      : systemctl start rke2-server
+
+      : Wait for the RKE2 installation to complete
+      systemctl --no-pager --wait --full status rke2-install
+      systemctl is-active --quiet rke2-install
+      if [ $? -eq 0 ]; then
+        systemctl start rke2-server
+      else
+        : rke2-install failed, not starting rke2-server
+        exit 1
+      fi
 
 # Enable and start systemd units
 runcmd:
   - /usr/local/sbin/rke2-activate
-

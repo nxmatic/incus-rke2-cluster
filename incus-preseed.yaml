@@ -17,10 +17,6 @@ networks:
       ipv6.address: none
       ipv6.nat: "false"
       ipv6.dhcp: "false"
-      raw.dnsmasq: |
-        dhcp-host=10:66:6a:e0:18:af,172.31.1.2
-        dumpfile=/var/log/incus/dnsmasq.rke2-br.pcap
-        dumpmask: 0x5000
 profiles:
   - name: rke2
     description: RKE2 control plane network profile
