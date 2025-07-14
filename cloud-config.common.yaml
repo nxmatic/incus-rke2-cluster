@@ -1,0 +1,225 @@
+#cloud-config
+# Common cloud-init configuration for all RKE2 nodes (masters and agents)
+
+manage_resolv_conf: true
+resolv_conf:
+  searchdomains:
+    - mammoth-skate.ts.net
+
+write_files:
+  # RKE2 profile (INSTALL_RKE2_TYPE is overridden in overlay)
+  - path: /etc/rancher/rke2/profile
+    permissions: "0644"
+    content: |
+      #!/usr/bin/env bash
+
+      : load the container environment variables
+      set -a
+      source <( cat /proc/1/environ | tr '\0' '\n' | grep -E '^(CLUSTER_|TSID|TSKEY)' )
+      set +a
+
+      case "${CLUSTER_NODE_TYPE}" in
+        master)
+          INSTALL_RKE2_TYPE=server
+          ;;
+        peer)
+          INSTALL_RKE2_TYPE=agent
+          ;;
+        *)
+          echo "Unknown CLUSTER_NODE_TYPE: ${CLUSTER_NODE_TYPE}"
+          exit 1
+          ;;
+      esac
+
+      : set the environment variables for RKE2
+      set -a
+      ARCH=$( dpkg --print-architecture )
+      KUBECONFIG=/etc/rancher/rke2/rke2.yaml
+      CONTAINERD_CONFIG_FILE="/var/lib/rancher/rke2/agent/etc/containerd/config.toml"
+      CONTAINERD_ADDRESS=/run/k3s/containerd/containerd.sock
+      CONTAINERD_NAMESPACE=k8s.io
+      CRI_CONFIG_FILE=/var/lib/rancher/rke2/agent/etc/crictl.yaml
+      INSTALL_RKE2_TYPE=${INSTALL_RKE2_TYPE:-agent}
+      set +a
+
+      : set the PATH for RKE2 and Cilium
+      set -a
+      PATH="$PATH:/var/lib/rancher/rke2/bin"
+      PATH="$PATH:/var/lib/rancher/.flox/run/aarch64-linux.rancher.run/bin/"
+      set +a
+
+      : Get the node inet address
+      set -a
+      source <(ip --json addr show eth0 |
+               yq -p json -o shell '.[0].addr_info.[] | select(.family == "inet") | { "CLUSTER_NODE_INET": .local }')
+      set +a
+
+      : Only eval direnv if interactive shell and direnv is present
+      if [[ $- == *i* ]] && type -P direnv >/dev/null 2>&1; then
+        eval "$(direnv hook bash)"
+      fi
+
+  # Shared kubelet config
+  - path: /var/lib/rancher/rke2/agent/etc/kubelet.conf.d/01-cgroup-override.conf
+    content: |
+      apiVersion: kubelet.config.k8s.io/v1beta1
+      kind: KubeletConfiguration
+      cgroupDriver: systemd
+
+  # Kubelet GC override
+  - path: /var/lib/rancher/rke2/agent/etc/kubelet.conf.d/00-disable-gc.conf
+    content: |
+      apiVersion: kubelet.config.k8s.io/v1beta1
+      kind: KubeletConfiguration
+      kubelet-arg:
+        imageGCHighThresholdPercent: 100
+        imageGCLowThresholdPercent: 99
+
+  # Shared post-start logic
+  - path: /usr/local/sbin/rke2-post-start
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+
+      : Load RKE2 environment
+      source /etc/rancher/rke2/profile
+
+      : Configure system-wide RKE2 environment
+      mkdir -p /etc/profile.d
+      ln -fs /etc/rancher/rke2/profile /etc/profile.d/rke2-env.sh
+
+      : Create working copy of kubeconfig
+      KUBECONFIG="/.kubeconfig.d/rke2-${CLUSTER_NAME}.yaml"
+
+      mkdir -p $( dirname "$KUBECONFIG" )
+      cp /etc/rancher/rke2/rke2.yaml "$KUBECONFIG"
+      chmod 644 "$KUBECONFIG"
+
+      : Apply modifications to working copy
+      yq --inplace --from-file=<(cat <<EoE
+      .clusters[0].cluster.name = "${CLUSTER_NAME}" |
+      .clusters[0].cluster.server = "https://${CLUSTER_NODE_INET}:6443" |
+      .clusters[0].name = "${CLUSTER_NAME}" |
+      .contexts[0].context.cluster = "${CLUSTER_NAME}" |
+      .contexts[0].context.namespace = "kube-system" |
+      .contexts[0].context.user = "${CLUSTER_NAME}" |
+      .contexts[0].name = "${CLUSTER_NAME}" |
+      .users[0].name = "${CLUSTER_NAME}" |
+      .current-context = "${CLUSTER_NAME}"
+      EoE
+      ) "$KUBECONFIG"
+
+  # Shared install script
+  - path: /usr/local/sbin/rke2-install
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+
+      : Install the RKE2 server or agent binaries
+      curl -sfL https://get.rke2.io | env DEBUG=1 sh -
+
+      source /etc/rancher/rke2/profile
+
+      : Patch containerd to use systemd cgroup driver
+      if [ -f "$CONTAINERD_CONFIG_FILE" ]; then
+        sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' "$CONTAINERD_CONFIG_FILE"
+      fi
+
+      : Enable shared mount service
+      systemctl daemon-reload
+      systemctl enable rke2-remount-shared
+
+  # Shared remount service
+  - path: /etc/systemd/system/rke2-remount-shared.service
+    content: |
+      [Unit]
+      Description=Remount RKE2 required volumes as shared
+      Before=rke2-server.service
+      DefaultDependencies=no
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-remount-shared
+      RemainAfterExit=true
+      [Install]
+      WantedBy=multi-user.target
+
+  # Shared install service
+  - path: /etc/systemd/system/rke2-install.service
+    content: |
+      [Unit]
+      Description=Run RKE2 Installation Script
+      After=network.target
+      ConditionPathExists=/usr/local/sbin/rke2-install
+      ConditionPathExists=!/etc/systemd/system/rke2-server.service
+      [Install]
+      WantedBy=multi-user.target
+      RequiredBy=multi-user.target
+      [Service]
+      Type=oneshot
+      ExecStartPre=/usr/local/sbin/rke2-install-pre
+      ExecStart=/usr/bin/env -S bash -c 'rke2-install && systemctl disable rke2-install.service'
+      RemainAfterExit=true
+
+  # Shared install-pre script
+  - path: /usr/local/sbin/rke2-install-pre
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+
+      : Initialize the flox environment
+      [[ ! -d /var/lib/rancher/.flox ]] && flox init --dir=/var/lib/rancher
+
+      : Install tools in the flox environment
+      flox install --dir=/var/lib/rancher ceph-client
+      flox install --dir=/var/lib/rancher cilium-cli
+      flox install --dir=/var/lib/rancher direnv
+      flox install --dir=/var/lib/rancher gh
+      flox install --dir=/var/lib/rancher git
+      flox install --dir=/var/lib/rancher kubernetes-helm
+      flox install --dir=/var/lib/rancher yq-go
+
+      mkdir -p "~root/.config/direnv/lib"
+      curl -o "~root/.config/direnv/lib/flox-direnv.rc" "https://raw.githubusercontent.com/flox/flox-direnv/v1.1.0/direnv.rc"
+
+  # Shared remount script
+  - path: /usr/local/sbin/rke2-remount-shared
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+      mount --make-shared /
+      mount --make-shared -t bpf bpf /sys/fs/bpf
+      mount --make-shared /run
+
+  # Shared activate script
+  - path: /usr/local/sbin/rke2-activate
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+
+      : Install RKE2 profile
+      cat <<EoF | tee -a /etc/zsh/zshrc | tee -a /etc/bash.bashrc
+      source /etc/rancher/rke2/profile
+      EoF
+
+      : Configure system-wide DNS
+      ln -fs /run/systemd/resolve/resolv.conf /etc/resolv.conf
+
+      : Configure systemd units
+      systemctl daemon-reload
+      systemctl enable rke2-install
+
+      : Start the RKE2 installation service
+      systemctl start rke2-install
+
+      : Wait for the RKE2 installation to complete
+      systemctl --no-pager --wait --full status rke2-install
+      systemctl is-active --quiet rke2-install
+      if [ $? -eq 0 ]; then
+        systemctl start rke2-server
+      else
+        : rke2-install failed, not starting rke2-server
+        exit 1
+      fi
+
+runcmd:
+  - /usr/local/sbin/rke2-activate

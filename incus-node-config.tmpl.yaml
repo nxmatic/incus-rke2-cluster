@@ -1,4 +1,4 @@
-name: ${INSTANCE_ID}
+name: ${NODE_NAME}
 architecture: aarch64
 profiles: [ "rke2" ]
 config:

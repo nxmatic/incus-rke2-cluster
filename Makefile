@@ -11,10 +11,11 @@ space := $(empty) $(empty)
 
 # Project and Instance Names
 CLUSTER_NAME := $(LIMA_HOSTNAME)
-IMAGE_NAME := master-control-node
-INSTANCE_NAME := $(IMAGE_NAME)
-INSTANCE_HOSTNAME := $(IMAGE_NAME)
-INSTANCE_FQDN := $(CLU)-$(INSTANCE_HOSTNAME).$(LIMA_DN)
+NODE_TYPE ?= master
+IMAGE_NAME := control-node
+NODE_NAME ?= ${NODE_TYPE}-$(IMAGE_NAME)
+NODE_HOSTNAME := $(NODE_NAME)
+NODE_FQDN := $(CLUSTER_NAME)-$(NODE_HOSTNAME).$(LIMA_DN)
 
 # Directories
 SECRETS_DIR := $(PWD)/.secrets.d
@@ -28,17 +29,16 @@ DISTROBUILDER_FILE := $(PWD)/distrobuilder.yaml
 PROJECT_MARKER_FILE := $(RUN_DIR)/project
 BUILD_MARKER_FILES := $(RUN_DIR)/incus.tar.xz $(RUN_DIR)/rootfs.squashfs
 IMAGE_MARKER_FILE := $(RUN_DIR)/image
-INSTANCE_MARKER_FILE := $(RUN_DIR)/instance
+NODE_MARKER_FILE := $(RUN_DIR)/instance
 ZFS_ALLOW_MARKER_FILE := $(RUN_DIR)/zfs.allow
-INSTANCE_CONFIG_FILENAME := incus-instance.master.yaml
-INSTANCE_CONFIG_FILE := $(RUN_DIR)/incus-$(INSTANCE_NAME)-config.yaml
-CLOUD_CONFIG_FILENAME := cloud-config.master.yaml
-CLOUD_CONFIG_FILE := $(RUN_DIR)/$(CLOUD_CONFIG_FILENAME)
-METADATA_FILENAME := meta-data
-METADATA_FILE := $(RUN_DIR)/$(METADATA_FILENAME)
+NODE_CONFIG_FILENAME := incus-node-config.tmpl.yaml
+NODE_CONFIG_FILE := $(RUN_DIR)/incus-node-config.$(NODE_NAME).yaml
+CLOUD_CONFIG_FILENAME := cloud-config.$(NODE_TYPE).yaml
+CLOUD_CONFIG_FILE := $(RUN_DIR)/cloud-config.$(NODE_NAME).yaml
+METADATA_FILE := $(RUN_DIR)/metadata.$(NODE_NAME).yaml
 DISTRIBUILDER_LOGFILE := $(LOGS_DIR)/distrobuilder.log
-PRESEED_FILENAME := incus-preseed.yaml
-PRESEED_FILE := $(RUN_DIR)/${PRESEED_FILENAME}
+PRESEED_FILENAME := incus-preseed.tmpl.yaml
+PRESEED_FILE := $(RUN_DIR)/incus-preseed.yaml
 
 #-----------------------------
 # Cluster Environment Variables
@@ -73,21 +73,13 @@ $(CLUSTER_ENV_FILE):
 define CLUSTER_ENV
 CLUSTER_NAME=$(NAME)
 CLUSTER_SUBNET=$(SUBNET)
+CLUSTER_NODE_TYPE=$(NODE_TYPE)
 CLUSTER_NODES_CIDR=$(NODES_CIDR)
 CLUSTER_LOADBALANCERS_CIDR=$(LOADBALANCERS_CIDR)
 CLUSTER_PODS_CIDR=$(PODS_CIDR)
 CLUSTER_SERVICES_CIDR=$(SERVICES_CIDR)
 CLUSTER_NODE_HWADDR=$(NODE_HWADDR)
 endef
-print-cluster-env: $(eval include $(CLUSTER_ENV_FILE))
-print-cluster-env:
-	@: CLUSTER_NAME=$(CLUSTER_NAME)
-	@: CLUSTER_SUBNET=$(CLUSTER_SUBNET)
-	@: CLUSTER_NODES_CIDR=$(CLUSTER_NODES_CIDR)
-	@: CLUSTER_LOADBALANCERS_CIDR=$(CLUSTER_LOADBALANCERS_CIDR)
-	@: CLUSTER_PODS_CIDR=$(CLUSTER_PODS_CIDR)
-	@: CLUSTER_SERVICES_CIDR=$(CLUSTER_SERVICES_CIDR)
-	@: CLUSTER_NODE_HWADDR=$(CLUSTER_NODE_HWADDR)
 
 define _CLUSTER_SUBNET
 ifeq ($(strip $(1)),bioskop)
@@ -117,8 +109,6 @@ define DNSMASQ_RAW
 log-debug
 log-dhcp
 log-facility=daemon
-dumpfile=/var/log/incus/dnsmasq.rke2-br.pcap
-dumpmask=0x5000
 endef
 
 define PRESEED_YQ
@@ -169,7 +159,7 @@ image: $(IMAGE_MARKER_FILE)
 $(IMAGE_MARKER_FILE): $(BUILD_MARKER_FILES)
 $(IMAGE_MARKER_FILE): | $(RUN_DIR)/
 $(IMAGE_MARKER_FILE):
-	@: [+] Importing image for instance $(INSTANCE_NAME)...
+	@: [+] Importing image for instance $(NODE_NAME)...
 	incus image import $(^) --alias $(IMAGE_NAME) --reuse
 	touch $@
 
@@ -178,7 +168,7 @@ $(BUILD_MARKER_FILES): $(SECRETS_DIR)/tsid $(SECRETS_DIR)/tskey
 $(BUILD_MARKER_FILES)&:
 	$(if $(TSKEY),,$(error TSKEY must be set))
 	$(if $(TSID),,$(error TSID must be set))
-	@: [+] Building instance $(INSTANCE_NAME)...
+	@: [+] Building instance $(NODE_NAME)...
 	env -i -S \
 		TSID=$(file <$(SECRETS_DIR)/tsid) \
 		TSKEY=$(file <$(SECRETS_DIR)/tskey) \
@@ -194,48 +184,51 @@ $(BUILD_MARKER_FILES)&:
 
 .PHONY: instance start shell stop delete clean
 
-instance: $(INSTANCE_MARKER_FILE)
+instance: $(NODE_MARKER_FILE)
 
-$(INSTANCE_MARKER_FILE): $(IMAGE_MARKER_FILE) $(METADATA_FILE) $(INSTANCE_CONFIG_FILE) $(CLOUD_CONFIG_FILE)
-$(INSTANCE_MARKER_FILE): | $(SHARED_DIR)/ $(KUBECONFIG_DIR)/
-$(INSTANCE_MARKER_FILE):
-	@: "[+] Initializing instance $(INSTANCE_NAME)..."
-	incus init $(IMAGE_NAME) $(INSTANCE_NAME) < $(INSTANCE_CONFIG_FILE)
-	incus config set $(INSTANCE_NAME) cloud-init.user-data - < $(CLOUD_CONFIG_FILE)
-	incus config set $(INSTANCE_NAME) environment.CLUSTER_NAME "$(CLUSTER_NAME)"
-	incus config set $(INSTANCE_NAME) environment.CLUSTER_SUBNET "$(CLUSTER_SUBNET)"
-	incus config set $(INSTANCE_NAME) environment.CLUSTER_NODES_CIDR "$(CLUSTER_NODES_CIDR)"
-	incus config set $(INSTANCE_NAME) environment.CLUSTER_LOADBALANCERS_CIDR "$(CLUSTER_LOADBALANCERS_CIDR)"
-	incus config set $(INSTANCE_NAME) environment.CLUSTER_NODE_HWADDR "$(CLUSTER_NODE_HWADDR)"
-	incus config set $(INSTANCE_NAME) environment.CLUSTER_PODS_CIDR "$(CLUSTER_PODS_CIDR)"
-	incus config set $(INSTANCE_NAME) environment.CLUSTER_SERVICES_CIDR "$(CLUSTER_SERVICES_CIDR)"
-	incus config set $(INSTANCE_NAME) environment.TSKEY "$(TSKEY)"
-	incus config set $(INSTANCE_NAME) environment.TSID "$(TSID)"
-	incus config device set $(INSTANCE_NAME) eth0 hwaddr "$(CLUSTER_NODE_HWADDR)"
+$(NODE_MARKER_FILE): $(IMAGE_MARKER_FILE) $(METADATA_FILE) $(NODE_CONFIG_FILE) $(CLOUD_CONFIG_FILE)
+$(NODE_MARKER_FILE): | $(SHARED_DIR)/ $(KUBECONFIG_DIR)/
+$(NODE_MARKER_FILE):
+	@: "[+] Initializing instance $(NODE_NAME)..."
+	incus init $(IMAGE_NAME) $(NODE_NAME) < $(NODE_CONFIG_FILE)
+	incus config set $(NODE_NAME) cloud-init.user-data - < $(CLOUD_CONFIG_FILE)
+	incus config device set $(NODE_NAME) eth0 hwaddr "$(CLUSTER_NODE_HWADDR)"
+
+	incus config set $(NODE_NAME) environment.CLUSTER_NODE_TYPE "$(CLUSTER_NODE_TYPE)"
+	incus config set $(NODE_NAME) environment.CLUSTER_NAME "$(CLUSTER_NAME)"
+	incus config set $(NODE_NAME) environment.CLUSTER_SUBNET "$(CLUSTER_SUBNET)"
+	incus config set $(NODE_NAME) environment.CLUSTER_NODES_CIDR "$(CLUSTER_NODES_CIDR)"
+	incus config set $(NODE_NAME) environment.CLUSTER_LOADBALANCERS_CIDR "$(CLUSTER_LOADBALANCERS_CIDR)"
+	incus config set $(NODE_NAME) environment.CLUSTER_NODE_HWADDR "$(CLUSTER_NODE_HWADDR)"
+	incus config set $(NODE_NAME) environment.CLUSTER_PODS_CIDR "$(CLUSTER_PODS_CIDR)"
+	incus config set $(NODE_NAME) environment.CLUSTER_SERVICES_CIDR "$(CLUSTER_SERVICES_CIDR)"
+	incus config set $(NODE_NAME) environment.TSKEY "$(TSKEY)"
+	incus config set $(NODE_NAME) environment.TSImaD "$(TSID)"
+
 	touch $@
 
 start: instance zfs.allow
 start:
-	@: "[+] Starting instance $(INSTANCE_NAME)..."
-	incus start $(IMAGE_NAME) $(INSTANCE_NAME)
+	@: "[+] Starting instance $(NODE_NAME)..."
+	incus start $(NODE_NAME)
 
 shell:
-	@: "[+] Opening a shell in instance $(INSTANCE_NAME)..."
-	incus exec $(INSTANCE_NAME) -- bash
+	@: "[+] Opening a shell in instance $(NODE_NAME)..."
+	incus exec $(NODE_NAME) -- bash
 
 stop:
-	@: "[+] Stopping instance $(INSTANCE_NAME) if running..."
-	incus stop $(INSTANCE_NAME) || true
+	@: "[+] Stopping instance $(NODE_NAME) if running..."
+	incus stop $(NODE_NAME) || true
 
 delete:
-	@: "[+] Removing instance $(INSTANCE_NAME)..."
-	incus delete -f $(INSTANCE_NAME) || true
-	rm -f $(INSTANCE_CONFIG_FILE)$(CLOUD_CONFIG_FILE) $(INSTANCE_MARKER_FILE)
+	@: "[+] Removing instance $(NODE_NAME)..."
+	incus delete -f $(NODE_NAME) || true
+	rm -f $(NODE_CONFIG_FILE)$(CLOUD_CONFIG_FILE) $(NODE_MARKER_FILE)
 
 clean: stop
 	@: [+] Removing instance and image if present...
 
-	incus rm -f $(INSTANCE_NAME) || true
+	incus rm -f $(NODE_NAME) || true
 	incus image delete $(IMAGE_NAME) || true
 	incus project switch default || true
 	incus project delete rke2 || true
@@ -255,11 +248,11 @@ $(ZFS_ALLOW_MARKER_FILE):| $(RUN_DIR)/
 	touch $@
 
 #-----------------------------
-# Generate $(INSTANCE_CONFIG_FILE) using yq for YAML correctness
+# Generate $(NODE_CONFIG_FILE) using yq for YAML correctness
 #-----------------------------
-define INSTANCE_YQ
+define NODE_YQ
 . |
-	.name =  "$(INSTANCE_NAME)" |
+	.name =  "$(NODE_NAME)" |
 	.devices["eth0"].hwaddr = "$(CLUSTER_NODE_HWADDR)" |
 	.devices["user.metadata"].source = "$(METADATA_FILE)" |
 	.devices["user.user-data"].source = "$(CLOUD_CONFIG_FILE)" |
@@ -269,41 +262,47 @@ define INSTANCE_YQ
 	.devices["helm.bin"].source = "$(PWD)/$(HELM_BIN)"
 endef
 
-$(INSTANCE_CONFIG_FILE): $(INSTANCE_CONFIG_FILENAME)
-$(INSTANCE_CONFIG_FILE): export INSTANCE_YQ := $(INSTANCE_YQ)
-$(INSTANCE_CONFIG_FILE):
-$(INSTANCE_CONFIG_FILE):
-	yq eval --from-file=<(echo "$$INSTANCE_YQ") $(INSTANCE_CONFIG_FILENAME) > $(@)
+$(NODE_CONFIG_FILE): $(NODE_CONFIG_FILENAME)
+$(NODE_CONFIG_FILE): export NODE_YQ := $(NODE_YQ)
+$(NODE_CONFIG_FILE):
+$(NODE_CONFIG_FILE):
+	yq eval --from-file=<(echo "$$NODE_YQ") $(NODE_CONFIG_FILENAME) > $(@)
 
 #-----------------------------
 # Generate meta-data file
 #-----------------------------
 
 define METADATA_INLINE :=
-instance-id: $(INSTANCE_NAME)
-local-hostname: $(INSTANCE_HOSTNAME)
+instance-id: $(NODE_NAME)
+local-hostname: $(NODE_HOSTNAME)
 endef
 
 $(METADATA_FILE): | $(RUN_DIR)/
 $(METADATA_FILE): export METADATA_INLINE := $(METADATA_INLINE)
 $(METADATA_FILE):
-	@: "[+] Generating meta-data file for instance $(INSTANCE_NAME)..."
+	@: "[+] Generating meta-data file for instance $(NODE_NAME)..."
 	echo "$$METADATA_INLINE" > $(@)
 
 #-----------------------------
 # Generate cloud-config.yaml using yq for YAML correctness
 #-----------------------------
 define CLOUD_CONFIG_YQ
-.hostname = "$(INSTANCE_HOSTNAME)" |
-.fqdn = "$(INSTANCE_FQDN)"
+select(fileIndex == 0) as $$common |
+  select(fileIndex == 1) as $$overlay |
+  $$common * $$overlay |
+  .write_files = ($$common.write_files + $$overlay.write_files) |
+  .runcmd = ($$common.runcmd + $$overlay.runcmd) |
+  .hostname = "$(NODE_HOSTNAME)" |
+  .fqdn = "$(NODE_FQDN)"
 endef
 
-$(CLOUD_CONFIG_FILE): $(CLOUD_CONFIG_FILENAME) | $(RUN_DIR)/
+$(CLOUD_CONFIG_FILE): cloud-config.common.yaml cloud-config.$(NODE_TYPE).yaml
+$(CLOUD_CONFIG_FILE): | $(RUN_DIR)/
 $(CLOUD_CONFIG_FILE): export CLOUD_CONFIG_YQ := $(CLOUD_CONFIG_YQ)
 $(CLOUD_CONFIG_FILE):
-	@: "[+] Generating cloud-config.yaml for instance $(INSTANCE_NAME)..."
-	yq eval --prettyPrint --from-file=<(echo "$$CLOUD_CONFIG_YQ") \
-		$(CLOUD_CONFIG_FILENAME) > $@
+	@: "[+] Generating cloud-config.yaml for instance $(NODE_NAME)..."
+	yq eval-all --prettyPrint --from-file=<(echo "$$CLOUD_CONFIG_YQ") \
+		$(^) > $@
 
 #-----------------------------
 # Create necessary directories
