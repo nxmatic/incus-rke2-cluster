@@ -1,8 +1,7 @@
 #cloud-config
 # Overlay for control-plane (master) nodes
 
-hostname: master-control-node
-fqdn: bioskop-master-control-node.mammoth-skate.ts.net
+name: master-control-node
 
 write_files:
   # Master-only pre-start logic
@@ -10,38 +9,87 @@ write_files:
     permissions: "0755"
     content: |
       #!/usr/bin/env -S bash -exu -o pipefail
+      
+      db::check() {
+        local -A inet=( current "$(nmcli -g IP4.ADDRESS device show eth0)" )
+        local file="/var/lib/rancher/rke2/server/last-ip"
+        if [[ -r "$file" ]]; then
+          inet+=( last "$(cat "$file")" )
+        else
+          inet+=( last "" )
+        fi  
+        if [[ "${inet["current"]}" != "${inet["last"]}" ]]; then
+          : IP address changed: ${inet["last"]} - ${inet["current"]}, resetting RKE2 server DB
+          rm -rf /var/lib/rancher/rke2/server/db
+          echo "${inet["current"]}" > "$file"
+        fi
+      }
+      
+      cilum::patch() {
+        local file="/var/lib/rancher/rke2/server/manifests/rke2-cilium-config.yaml"
+        if [[ ! -r "$file" ]]; then
+          echo "Cilium config file not found: $file"
+          return 1
+        fi
+        yq --inplace --from-file=<( cat <<EoE | cut -c 3-
+        ( select( .kind == "CiliumBGPAdvertisement" ) | .spec ) |=
+          ( .advertisements[0].advertisementType = "PodCIDR" ) |
+        ( select( .kind == "CiliumBGPNodeConfigOverride" ) | .spec ) |=
+          ( .bgpInstances[0].localPort = 179 ) |
+        ( select( .kind == "CiliumBGPNodeConfigOverride" ) | .spec.bgpInstances[0].peers[] ) |=
+          ( .peerAddress = "${CLUSTER_NODE_INET}" ) |
+        ( select( .kind == "HelmChartConfig") | .spec ) |=
+          ( .valuesContent |= ( from_yaml |
+                                 .cluster.name = "${CLUSTER_NAME}" |
+                                 .cluster.id = ${CLUSTER_SUBNET} |
+                                 to_yaml ) ) |
+        ( select( .kind == "CiliumLoadBalancerIPPool" ) | .spec ) |=
+          ( .blocks[0] = { "cidr": "${CLUSTER_LOADBALANCERS_CIDR}", "min": "129", "max": "254" } ) |
+        ( select( .kind == "CiliumBGPClusterConfig" ) | .spec ) |=
+          with( .bgpInstances[] | select( .name == "instance-65000" ); 
+            with( .peers[] | select( .name == "master"); .peerAddress = "172.31.1.2" ) |
+            with( .peers[] | select( .name == "peer1");  .peerAddress = "172.31.2.2" ) |
+            with( .peers[] | select( .name == "peer2");  .peerAddress = "172.31.3.2" ) |
+            with( .peers[] | select( .name == "peer3");  .peerAddress = "172.31.4.2" ) )
+      EoE
+        ) "$file"
+      }
+      
+      tailscale::patch() {
+        local file="/var/lib/rancher/rke2/server/manifests/tailscale-operator.yaml"
+        if [[ ! -r "$file" ]]; then
+          echo "Tailscale operator file not found: $file"
+          return 1
+        fi
+        yq --inplace --from-file=<( cat <<EoE | cut -c3-
+        ( select( .kind == "HelmChart" ) | .spec ) |=
+          ( .valuesContent |= ( from_yaml |
+                                 .oauth.clientId = "${TSID}" |
+                                 .oauth.clientSecret = "${TSKEY}" |
+                                 .operatorConfig.hostname = "${CLUSTER_NAME}-tailscale-operator" |
+                                 to_yaml ) ) |
+        ( select( .kind == "Connector" ) | .spec ) |=
+          ( .subnetRouter.advertiseRoutes = ["172.31.1.1/28", "172.31.2.1/28"] )
+      EoE
+        ) "$file"
+      }
 
+      : Create RKE2 folders
+      mkdir -p /var/lib/rancher/rke2/agent
+      mkdir -p /var/lib/rancher/rke2/server
+      
       : Load the RKE2 profile
       source /etc/rancher/rke2/profile
-
+      
+      : Check server database for IP address changes
+      db::check
+      
       : Patch the cilium config with cluster environment variables
-      yq --inplace --from-file=<( cat <<EoE
-      ( select( .kind == "CiliumBGPAdvertisement" ) | .spec ) |=
-        ( .advertisements[0].advertisementType = "PodCIDR" ) |
-      ( select( .kind == "CiliumBGPNodeConfigOverride" ) | .spec ) |=
-        ( .bgpInstances[0].localPort = 179 ) |
-      ( select( .kind == "CiliumBGPNodeConfigOverride" ) | .spec.bgpInstances[0].peers[] ) |=
-        ( .peerAddress = "${CLUSTER_NODE_INET}" ) |
-      ( select( .kind == "HelmChartConfig") | .spec ) |=
-        ( .valuesContent |= ( from_yaml |
-                               .cluster.name = "${CLUSTER_NAME}" |
-                               .cluster.id = ${CLUSTER_SUBNET} |
-                               to_yaml ) ) |
-      ( select( .kind == "CiliumLoadBalancerIPPool" ) | .spec ) |=
-        ( .blocks[0] = { "cidr": "${CLUSTER_LOADBALANCERS_CIDR}", "min": "129", "max": "254" } )
-      EoE
-      ) /var/lib/rancher/rke2/server/manifests/rke2-cilium-config.yaml
-
+      cilum::patch || true
+      
       : Patch the tailscale operator with cluster environment variables
-      yq --inplace --from-file=<( cat <<EoE
-      ( select( .kind == "HelmChart" ) | .spec ) |=
-        ( .valuesContent |= ( from_yaml |
-                               .oauth.clientId = "${TSID}" |
-                               .oauth.clientSecret = "${TSKEY}" |
-                               .operatorConfig.hostname = "${CLUSTER_NAME}-tailscale-operator" |
-                               to_yaml ) )
-      EoE
-      ) /var/lib/rancher/rke2/server/manifests/tailscale-operator.yaml
+      tailscale::patch || true
+
   # RKE2 server TLS SANs
   - path: /etc/rancher/rke2/config.yaml.d/tls-san.yaml
     content: |
@@ -296,7 +344,7 @@ write_files:
             clientId: "${TSID}"
             clientSecret: "${TSKEY}"
           operatorConfig:
-            hostname: "${CLUSTER_NAME}-tailscale-operator"
+            hostname: "master-tailscale-operator"
             debug: true
       ---
       apiVersion: tailscale.com/v1alpha1
@@ -304,7 +352,7 @@ write_files:
       metadata:
         name: ts-controlplane-lb-routes
       spec:
-        hostname: ${CLUSTER_NAME}-controlplane-lb-routes  # Name visible in Tailscale admin
+        hostname: master-controlplane-lb-routes
         subnetRouter:
           advertiseRoutes:
 

@@ -7,11 +7,11 @@ storage_pools:
     config:
       source: tank/nerd/incus
 networks:
-  - name: rke2-br
+  - name: rke2-master-br
     type: bridge
-    description: RKE2 network bridge
+    description: RKE2 network master bridge
     config:
-      ipv4.address: 172.31.1.1/24
+      ipv4.address: 172.31.1.1/28
       ipv4.nat: "true"
       ipv4.dhcp: "true"
       ipv6.address: none
@@ -28,5 +28,5 @@ profiles:
       eth0:
         name: eth0
         nictype: bridged
-        parent: rke2-br
+        parent: rke2-master-br
         type: nic

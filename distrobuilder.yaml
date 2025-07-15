@@ -141,7 +141,6 @@ actions:
       LC_ALL=en_US.UTF-8
       EoF
 
-
   - trigger: post-files
     action: |
       #!/usr/bin/env -S bash -exu -o pipefail
@@ -152,24 +151,6 @@ actions:
       systemctl mask zfs-load-module
       systemctl mask zfs-volume-wait.service
       systemctl mask systemd-rfkill.service
-
-      cat <<EoF > /etc/systemd/system/rke2-mount-root-fs.service
-      [Unit]
-      Description=Mount RKE2 ZFS zvol
-      DefaultDependencies=no
-      Before=cloud-init.service
-
-      [Service]
-      Type=oneshot
-      ExecStart=/usr/local/sbin/rke2-mount-root-fs.sh
-      RemainAfterExit=yes
-
-      [Install]
-      WantedBy=rke2-install.service rke2-server.service
-      EoF
-
-      mkdir -p /etc/systemd/system/cloud-init.service.wants
-      ln -sf /etc/systemd/system/rke2-mount-root-fs.service /etc/systemd/system/cloud-init.service.wants/rke2-mount-root-fs.service
 
 files:
   # Cloud init nocloud datasource configuration
@@ -197,13 +178,3 @@ files:
         #     use-domains: true
         #     use-hostname: true
 
-  # Create the mount script
-  - name: rke2-mount-root-fs
-    generator: dump
-    path: /usr/local/sbin/rke2-mount-root-fs.sh
-    mode: 0755
-    content: |
-      #!/usr/bin/env -S bash -exu -o pipefail
-
-      mkdir -p /var/lib/rancher/rke2
-      mount -t ext4 /dev/zvol/tank/rke2/control-nodes/master/root /var/lib/rancher/rke2

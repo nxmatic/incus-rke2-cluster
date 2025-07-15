@@ -7,6 +7,22 @@ resolv_conf:
     - mammoth-skate.ts.net
 
 write_files:
+  # Umount ZFS datasets early
+  - path: /etc/systemd/system/zfs-early-umount.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Early ZFS umount all datasets
+      After=zfs-mount.service
+      Before=basic.target
+      DefaultDependencies=no
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/sbin/zfs umount -a
+
+      [Install]
+      WantedBy=basic.target
   # RKE2 profile (INSTALL_RKE2_TYPE is overridden in overlay)
   - path: /etc/rancher/rke2/profile
     permissions: "0644"
@@ -15,21 +31,8 @@ write_files:
 
       : load the container environment variables
       set -a
-      source <( cat /proc/1/environ | tr '\0' '\n' | grep -E '^(CLUSTER_|TSID|TSKEY)' )
+      source <( cat /proc/1/environ | tr '\0' '\n' | grep -E '^(INSTALL_RKE2_TYPE|CLUSTER_|TSID|TSKEY)' )
       set +a
-
-      case "${CLUSTER_NODE_TYPE}" in
-        master)
-          INSTALL_RKE2_TYPE=server
-          ;;
-        peer)
-          INSTALL_RKE2_TYPE=agent
-          ;;
-        *)
-          echo "Unknown CLUSTER_NODE_TYPE: ${CLUSTER_NODE_TYPE}"
-          exit 1
-          ;;
-      esac
 
       : set the environment variables for RKE2
       set -a
@@ -39,7 +42,6 @@ write_files:
       CONTAINERD_ADDRESS=/run/k3s/containerd/containerd.sock
       CONTAINERD_NAMESPACE=k8s.io
       CRI_CONFIG_FILE=/var/lib/rancher/rke2/agent/etc/crictl.yaml
-      INSTALL_RKE2_TYPE=${INSTALL_RKE2_TYPE:-agent}
       set +a
 
       : set the PATH for RKE2 and Cilium
@@ -196,30 +198,84 @@ write_files:
     content: |
       #!/usr/bin/env -S bash -exu -o pipefail
 
-      : Install RKE2 profile
-      cat <<EoF | tee -a /etc/zsh/zshrc | tee -a /etc/bash.bashrc
-      source /etc/rancher/rke2/profile
-      EoF
-
       : Configure system-wide DNS
       ln -fs /run/systemd/resolve/resolv.conf /etc/resolv.conf
 
+      
       : Configure systemd units
       systemctl daemon-reload
-      systemctl enable rke2-install
-
-      : Start the RKE2 installation service
-      systemctl start rke2-install
+      systemctl enable --now rke2-install
 
       : Wait for the RKE2 installation to complete
       systemctl --no-pager --wait --full status rke2-install
       systemctl is-active --quiet rke2-install
-      if [ $? -eq 0 ]; then
-        systemctl start rke2-server
-      else
-        : rke2-install failed, not starting rke2-server
+      if [ $? -ne 0 ]; then
+        : rke2-install failed, not starting rke2-${INSTALL_RKE2_TYPE}.service
         exit 1
       fi
 
+      : Install the RKE2 profile in the shell environments
+      cat <<EoF | tee -a /etc/zsh/zshrc | tee -a /etc/bash.bashrc
+      source /etc/rancher/rke2/profile
+      EoF
+      source /etc/rancher/rke2/profile
+
+      : Load the RKE2 environment and generate the named units
+      /usr/local/sbin/rke2-enable-containerd-zfs-mount
+
+      : Enable and launch the RKE2 service
+      systemctl enable --now rke2-${INSTALL_RKE2_TYPE}.service
+      systemctl --no-pager --wait --full status rke2-${INSTALL_RKE2_TYPE}.service
+
+  # Script to generate the systemd mount unit for containerd zfs snapshotter
+  - path: /usr/local/sbin/rke2-enable-containerd-zfs-mount
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+
+      : Load the RKE2 environment
+      source /etc/rancher/rke2/profile
+
+      : Generate systemd mount unit for containerd zfs snapshotter
+      cat <<EOF > /etc/systemd/system/var-lib-rancher-rke2-agent-containerd-io.containerd.snapshotter.v1.zfs.mount
+      [Unit]
+      Description=Mount containerd zfs snapshotter directory for RKE2 (ZFS dataset)
+      DefaultDependencies=no
+      Before=cloud-init.service
+      Before=rke2-${INSTALL_RKE2_TYPE}.service
+
+      [Mount]
+      What=tank/rke2/control-nodes/${CLUSTER_NODE_NAME}/containerd
+      Where=/var/lib/rancher/rke2/agent/containerd/io.containerd.snapshotter.v1.zfs
+      Type=zfs
+      Options=defaults
+
+      [Install]
+      WantedBy=multi-user.target
+      RequiredBy=rke2-${INSTALL_RKE2_TYPE}.service
+      EOF
+
+      : Enable the mount unit
+      systemctl daemon-reload
+      systemctl enable var-lib-rancher-rke2-agent-containerd-io.containerd.snapshotter.v1.zfs.mount
+
+  # Write containerd config-v3.toml.tmpl for zfs snapshotter, extending the base template
+  - path: /var/lib/rancher/rke2/agent/etc/containerd/config-v3.toml.tmpl
+    permissions: "0644"
+    content: |
+      {{ template "base" . }}
+
+      [plugins."io.containerd.grpc.v1.cri".containerd]
+        snapshotter = "zfs"
+
+      [plugins."io.containerd.snapshotter.v1.zfs"]
+        root_path = "/var/lib/rancher/rke2/agent/containerd/io.containerd.snapshotter.v1.zfs"
+      
+      [debug]
+        level = "trace"
+
 runcmd:
-  - /usr/local/sbin/rke2-activate
+  - /usr/bin/env -S bash -xc 'systemctl daemon-reload'
+  - /usr/bin/env -S bash -xc 'systemctl enable --now zfs-early-umount.service'
+  - /usr/bin/env -S bash -xc 'systemctl enable --now rke2-install.service'
+  - /usr/bin/env -S bash -xc '/usr/local/sbin/rke2-activate'

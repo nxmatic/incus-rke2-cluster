@@ -1,6 +1,6 @@
-name: ${NODE_NAME}
+name: master
 architecture: aarch64
-profiles: [ "rke2" ]
+profiles: [ "rke2-master" ]
 config:
   raw.lxc: |
     lxc.cap.drop =
@@ -16,7 +16,7 @@ devices:
   eth0:
     name: eth0
     nictype: bridged
-    parent: rke2-br
+    parent: rke2-master-br
     type: nic
     hwaddr: 10:66:6a:e0:18:af
   kmsg.dev:
