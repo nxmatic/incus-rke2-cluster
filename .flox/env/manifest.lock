@@ -44,6 +44,9 @@
       "helmfile": {
         "pkg-path": "helmfile"
       },
+      "ipcalc": {
+        "pkg-path": "ipcalc"
+      },
       "k9s": {
         "pkg-path": "k9s"
       },
@@ -1298,6 +1301,126 @@
       ],
       "outputs": {
         "out": "/nix/store/ahl5jkla89sn8ycsbg72hf96dkblz9p2-helmfile-1.1.2"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "ipcalc",
+      "broken": false,
+      "derivation": "/nix/store/64k9xsyl8z7i1n8bvdlhgn6n1lgml0s3-ipcalc-1.0.3.drv",
+      "description": "Simple IP network calculator",
+      "install_id": "ipcalc",
+      "license": "GPL-2.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=9807714d6944a957c2e036f84b0ff8caf9930bc0",
+      "name": "ipcalc-1.0.3",
+      "pname": "ipcalc",
+      "rev": "9807714d6944a957c2e036f84b0ff8caf9930bc0",
+      "rev_count": 826938,
+      "rev_date": "2025-07-08T14:16:20Z",
+      "scrape_date": "2025-07-10T05:14:31.433753Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.0.3",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/c419knlid4hlp12vdfadiyjlavvj52q3-ipcalc-1.0.3"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "ipcalc",
+      "broken": false,
+      "derivation": "/nix/store/4imzxf1g908s123h5ib94lahr2bqybdb-ipcalc-1.0.3.drv",
+      "description": "Simple IP network calculator",
+      "install_id": "ipcalc",
+      "license": "GPL-2.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=9807714d6944a957c2e036f84b0ff8caf9930bc0",
+      "name": "ipcalc-1.0.3",
+      "pname": "ipcalc",
+      "rev": "9807714d6944a957c2e036f84b0ff8caf9930bc0",
+      "rev_count": 826938,
+      "rev_date": "2025-07-08T14:16:20Z",
+      "scrape_date": "2025-07-10T05:34:52.982495Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.0.3",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/396q17k5lbb2ripb5z9fb8inv6mv9153-ipcalc-1.0.3"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "ipcalc",
+      "broken": false,
+      "derivation": "/nix/store/grv30mzfhq7k37nvgby7hk8q0q5dh8dj-ipcalc-1.0.3.drv",
+      "description": "Simple IP network calculator",
+      "install_id": "ipcalc",
+      "license": "GPL-2.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=9807714d6944a957c2e036f84b0ff8caf9930bc0",
+      "name": "ipcalc-1.0.3",
+      "pname": "ipcalc",
+      "rev": "9807714d6944a957c2e036f84b0ff8caf9930bc0",
+      "rev_count": 826938,
+      "rev_date": "2025-07-08T14:16:20Z",
+      "scrape_date": "2025-07-10T05:53:49.754631Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.0.3",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/xagvp193zqi829zaxqlkqj95937w1z45-ipcalc-1.0.3"
+      },
+      "system": "x86_64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "ipcalc",
+      "broken": false,
+      "derivation": "/nix/store/3rhwkf7xldnq2g905lnsbn39rjmf660h-ipcalc-1.0.3.drv",
+      "description": "Simple IP network calculator",
+      "install_id": "ipcalc",
+      "license": "GPL-2.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=9807714d6944a957c2e036f84b0ff8caf9930bc0",
+      "name": "ipcalc-1.0.3",
+      "pname": "ipcalc",
+      "rev": "9807714d6944a957c2e036f84b0ff8caf9930bc0",
+      "rev_count": 826938,
+      "rev_date": "2025-07-08T14:16:20Z",
+      "scrape_date": "2025-07-10T06:15:27.630713Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.0.3",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/wq1mpjybp2p092vp6ww779yqw6j5zq21-ipcalc-1.0.3"
       },
       "system": "x86_64-linux",
       "group": "toplevel",
