@@ -47,8 +47,10 @@ write_files:
       : set the PATH for RKE2 and Cilium
       set -a
       PATH="$PATH:/var/lib/rancher/rke2/bin"
-      PATH="$PATH:/var/lib/rancher/.flox/run/aarch64-linux.rancher.run/bin/"
       set +a
+
+      : Load the rke2 flox environment
+      source "$( flox activate --dir=/etc/rancher/rke2 --print-script )"
 
       : Get the node inet address
       set -a
@@ -169,28 +171,26 @@ write_files:
       #!/usr/bin/env -S bash -exu -o pipefail
 
       : Initialize the flox environment
-      [[ ! -d /var/lib/rancher/rke2/.flox ]] && flox init --dir=/var/lib/rancher/rke2
+      [[ ! -d /etc/rancher/rke2/.flox ]] && flox init --dir=/etc/rancher/rke2
 
       : Install tools in the flox environment
-      flox install --dir=/var/lib/rancher/rke2 ceph-client
-      flox install --dir=/var/lib/rancher/rke2 cilium-cli
-      flox install --dir=/var/lib/rancher/rke2 direnv
-      flox install --dir=/var/lib/rancher/rke2 etcdctl
-      flox install --dir=/var/lib/rancher/rke2 gh
-      flox install --dir=/var/lib/rancher/rke2 git
-      flox install --dir=/var/lib/rancher/rke2 kubernetes-helm
-      flox install --dir=/var/lib/rancher/rke2 yq-go
+      flox install --dir=/etc/rancher/rke2 ceph-client
+      flox install --dir=/etc/rancher/rke2 cilium-cli
+      flox install --dir=/etc/rancher/rke2 direnv
+      flox install --dir=/etc/rancher/rke2 etcdctl
+      flox install --dir=/etc/rancher/rke2 gh
+      flox install --dir=/etc/rancher/rke2 git
+      flox install --dir=/etc/rancher/rke2 kubernetes-helm
+      flox install --dir=/etc/rancher/rke2 yq-go
 
-      cat <<EoF | tee /var/lib/rancher/rke2/.envrc
-      use flox
-      EoF
+      eval "$( flox activate --dir=/etc/rancher/rke2 --print-script )"
 
       : Configure direnv to use flox
       mkdir -p "~root/.config/direnv/lib"
       curl -o "~root/.config/direnv/lib/flox-direnv.rc" "https://raw.githubusercontent.com/flox/flox-direnv/v1.1.0/direnv.rc"
       cat <<EoF | tee -a "~root/.config/direnv/direnv.toml"
       [whitelist]
-      prefix= [ "/home" "/root" "/var/lib/rancher" ]
+      prefix= [ "/etc/rancher" "/home" "/root" "/var/lib/rancher" ]
       EoF
 
   # Shared remount script

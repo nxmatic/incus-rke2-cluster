@@ -22,9 +22,6 @@ SHARED_DIR := .shared.d
 KUBECONFIG_DIR := $(SHARED_DIR)/kube
 LOGS_DIR := $(SHARED_DIR)/log
 
-RKE2_DIR := /var/lib/rancher/rke2
-FLOX_RUN_DIR := $(PWD)/.flox/run/aarch64-linux.incus.run
-
 #-----------------------------
 # Cluster Node Environment Variables
 #-----------------------------
