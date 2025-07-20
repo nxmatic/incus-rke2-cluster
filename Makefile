@@ -16,24 +16,28 @@ space := $(empty) $(empty)
 	git submodule update --init --recursive
 
 # Directories
-SECRETS_DIR := $(PWD)/.secrets.d
-RUN_DIR := $(PWD)/.run.d
-SHARED_DIR := $(PWD)/.shared.d
-KUBECONFIG_DIR := $(PWD)/kubeconfig.d
-LOGS_DIR := $(PWD)/.logs.d
+SECRETS_DIR := .secrets.d
+RUN_DIR := .run.d
+SHARED_DIR := .shared.d
+KUBECONFIG_DIR := $(SHARED_DIR)/kube
+LOGS_DIR := $(SHARED_DIR)/log
 
-NAME ?= master
+RKE2_DIR := /var/lib/rancher/rke2
+FLOX_RUN_DIR := $(PWD)/.flox/run/aarch64-linux.incus.run
 
 #-----------------------------
 # Cluster Node Environment Variables
 #-----------------------------
+
+
+NAME ?= master
 
 CLUSTER_NAME ?= $(LIMA_HOSTNAME)
 CLUSTER_SUPERNET_CIDR := 172.31.0.0/16
 CLUSTER_IMAGE_NAME := control-node
 CLUSTER_NODE_NAME := $(NAME)
 
-ifeq ($(CLUSTER_NODE_NAME),$(CLUSTER_NODE_NAME))
+ifeq (master,$(CLUSTER_NODE_NAME))
   CLUSTER_SUBNET := 1
 else ifneq (,$(findstring peer,$(CLUSTER_NODE_NAME)))
   CLUSTER_SUBNET := $(call plus,1,$(subst peer,,$(CLUSTER_NODE_NAME)))
@@ -43,9 +47,9 @@ endif
 
 CLUSTER_NODES_CIDR := 172.31.$(CLUSTER_SUBNET).1/30
 CLUSTER_LOADBALANCERS_CIDR := 172.31.$(CLUSTER_SUBNET).128/25
-CLUSTER_PODS_CIDR := 10.$(CLUSTER_SUBNET).0.0/17
-CLUSTER_SERVICES_CIDR := 10.$(CLUSTER_SUBNET).128.0/17
-
+CLUSTER_PODS_CIDR := 10.42.0.0/16
+CLUSTER_SERVICES_CIDR := 10.43.0.0/16
+CLUSTER_DOMAIN := cluster.local
 CLUSTER_ENV_FILE := $(RUN_DIR)/cluster-env.$(CLUSTER_NODE_NAME).mk
 
 -include $(CLUSTER_ENV_FILE)
@@ -68,8 +72,14 @@ INCUS_INET_YQ_EXPR := .[].state.network.eth0.addresses[] | select(.family == "in
 define INCUS_INET_CMD
 $(shell incus list $(1) --format=yaml | yq eval '$(INCUS_INET_YQ_EXPR)' -)
 endef
-define INCUS_AGENT_TOKEN_CMD
-$(shell incus exec $(1) -- cat /var/lib/rancher/rke2/server/node-token)
+
+define RKE2_TOKEN_CMD
+$(shell incus exec $(1) -- cat /var/lib/rancher/rke2/server/token)
+endef
+
+define RKE2_MASTER_TOKEN_TEMPLATE
+server: https://$(call INCUS_INET_CMD,master):9345
+token: $(call RKE2_TOKEN_CMD,master)
 endef
 
 define CLUSTER_ENV
@@ -81,7 +91,7 @@ CLUSTER_SUBNET := $(CLUSTER_SUBNET)
 endef
 
 # Config Paths
-DISTROBUILDER_FILE := $(PWD)/distrobuilder.yaml
+DISTROBUILDER_FILE := ./distrobuilder.yaml
 PROJECT_MARKER_FILE := $(RUN_DIR)/project.$(CLUSTER_NODE_NAME)
 BUILD_MARKER_FILES := $(RUN_DIR)/incus.tar.xz $(RUN_DIR)/rootfs.squashfs
 IMAGE_MARKER_FILE := $(RUN_DIR)/image
@@ -89,7 +99,6 @@ NODE_MARKER_FILE := $(RUN_DIR)/instance.$(CLUSTER_NODE_NAME)
 ZFS_ALLOW_MARKER_FILE := $(RUN_DIR)/zfs.allow
 NODE_CONFIG_FILENAME := incus-node-config.tmpl.yaml
 NODE_CONFIG_FILE := $(RUN_DIR)/incus-node-config.$(CLUSTER_NODE_NAME).yaml
-CLOUD_CONFIG_FILENAME := cloud-config.$(CLUSTER_NODE_NAME).yaml
 CLOUD_CONFIG_FILE := $(RUN_DIR)/cloud-config.$(CLUSTER_NODE_NAME).yaml
 METADATA_FILE := $(RUN_DIR)/metadata.$(CLUSTER_NODE_NAME).yaml
 DISTRIBUILDER_LOGFILE := $(LOGS_DIR)/distrobuilder.log
@@ -196,30 +205,21 @@ $(BUILD_MARKER_FILES)&:
 
 instance: $(NODE_MARKER_FILE)
 
-ifneq (,$(findstring peer,$(CLUSTER_NODE_NAME)))
-AGENT_CONFIG_FILE := $(RUN_DIR)/agent-config.$(CLUSTER_NODE_NAME).yaml
-endif
-
-$(NODE_MARKER_FILE): $(IMAGE_MARKER_FILE) $(METADATA_FILE) $(NODE_CONFIG_FILE) $(CLOUD_CONFIG_FILE)
-$(NODE_MARKER_FILE): | $(SHARED_DIR)/ $(KUBECONFIG_DIR)/
-ifneq (,$(findstring peer,$(CLUSTER_NODE_NAME)))
-$(NODE_MARKER_FILE): $(AGENT_CONFIG_FILE)
-endif
-$(NODE_MARKER_FILE): init config
-
-init: $(NODE_CONFIG_FILE) | $(RUN_DIR)/
-init:
+$(NODE_MARKER_FILE).pre:  $(IMAGE_MARKER_FILE) $(NODE_CONFIG_FILE)
+$(NODE_MARKER_FILE).pre: | $(RUN_DIR)/ $(SHARED_DIR)/ $(KUBECONFIG_DIR)/
+$(NODE_MARKER_FILE).pre:
 	@: "[+] Initializing instance $(CLUSTER_NODE_NAME)..."
 	incus init $(CLUSTER_IMAGE_NAME) $(CLUSTER_NODE_NAME) < $(NODE_CONFIG_FILE)
 
-config: config-install
-config: init
-	@: "[+] Configuring instance $(CLUSTER_NODE_NAME)..."
+$(NODE_MARKER_FILE): $(NODE_MARKER_FILE).pre
+$(NODE_MARKER_FILE):
+	@: "[+] Configuring instance $(CLUSTER_NODE_NAME)..."	
+	incus config set $(CLUSTER_NODE_NAME) environment.INSTALL_RKE2_TYPE "server"
 
 	incus config device set $(CLUSTER_NODE_NAME) eth0 parent=rke2-$(CLUSTER_NODE_NAME)-br hwaddr=$(CLUSTER_NODE_HWADDR)
 
-	incus config set $(CLUSTER_NODE_NAME) user.meta-data - < $(METADATA_FILE)
-	incus config set $(CLUSTER_NODE_NAME) user.user-data - < $(CLOUD_CONFIG_FILE)
+	# incus config set $(CLUSTER_NODE_NAME) user.meta-data - < $(METADATA_FILE)
+	# incus config set $(CLUSTER_NODE_NAME) user.user-data - < $(CLOUD_CONFIG_FILE)
 
 	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_NAME "$(CLUSTER_NAME)"
 	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_NODE_NAME "$(CLUSTER_NODE_NAME)"
@@ -234,29 +234,20 @@ config: init
 	
 	touch $@
 
-config-install:
-	@: "[+] Configuring master for instance $(CLUSTER_NODE_NAME)..."	
-	incus config set $(CLUSTER_NODE_NAME) environment.INSTALL_RKE2_TYPE "server"
+RKE2_MASTER_TOKEN_FILE := $(RUN_DIR)/rke2-master-token.yaml
+
+$(RKE2_MASTER_TOKEN_FILE): | $(RUN_DIR)/
+$(RKE2_MASTER_TOKEN_FILE):
+	@: $(file > $@,$(call RKE2_MASTER_TOKEN_TEMPLATE))
 
 ifneq (,$(findstring peer,$(CLUSTER_NODE_NAME)))
 
-config-install: config-install.master-key
+$(NODE_MARKER_FILE): config-rke2-master-token
 
-config-install.master-key: $(AGENT_CONFIG_FILE) | $(RUN_DIR)/
-config-install.master-key:
-	@: "[+] Configuring agent for instance $(CLUSTER_NODE_NAME)..."
-	incus config device add $(CLUSTER_NODE_NAME) agent.config disk source=$(AGENT_CONFIG_FILE) path=/etc/rancher/rke2/config.yaml.d/master-$(CLUSTER_NAME).yaml
-
-define CLUSTER_AGENT_CONFIG_TEMPLATE
-server: https://$(call INCUS_INET_CMD,master):9345
-token: $(call INCUS_AGENT_TOKEN_CMD,master)
-endef
-
-$(AGENT_CONFIG_FILE): | $(RUN_DIR)/
-$(AGENT_CONFIG_FILE):
-	@: "[+] Mounting agent configuration file for instance $(CLUSTER_NODE_NAME)..."
-	@: $(file > $@,$(call CLUSTER_AGENT_CONFIG_TEMPLATE))
-
+config-rke2-master-token: $(RKE2_MASTER_TOKEN_CONFIG)
+config-rke2-master-token:
+	@: "[+] Configuring master token for instance $(CLUSTER_NODE_NAME)..."
+	incus config device add $(CLUSTER_NODE_NAME) master.token disk source=$(RKE2_MASTER_TOKEN_FILE) path=/etc/rancher/rke2/config.yaml.d/master-$(CLUSTER_NAME).yaml
 endif
 
 start: instance zfs.allow
@@ -309,17 +300,16 @@ define NODE_YQ
 	.profiles = [ "rke2-$(CLUSTER_NODE_NAME)" ] |
 	.devices["eth0"].parent = "rke2-$(CLUSTER_NODE_NAME)-br" |
 	.devices["eth0"].hwaddr = "$(CLUSTER_NODE_HWADDR)" |
-	.devices["user.metadata"].source = "$(METADATA_FILE)" |
-	.devices["user.user-data"].source = "$(CLOUD_CONFIG_FILE)" |
-	.devices["secrets.dir"].source = "$(SECRETS_DIR)" |
-	.devices["shared.dir"].source = "$(SHARED_DIR)" |
-	.devices["kubeconfig.dir"].source = "$(KUBECONFIG_DIR)" |
-	.devices["helm.bin"].source = "$(PWD)/$(HELM_BIN)"
+	.devices["secrets.dir"].source = "$(PWD)/$(SECRETS_DIR)" |
+	.devices["shared.dir"].source = "$(PWD)/$(SHARED_DIR)" |
+	.devices["kubeconfig.dir"].source = "$(PWD)/$(KUBECONFIG_DIR)" |
+	.devices["user.metadata"].source = "$(PWD)/$(METADATA_FILE)" |
+	.devices["user.user-data"].source = "$(PWD)/$(CLOUD_CONFIG_FILE)"
 endef
 
 $(NODE_CONFIG_FILE): $(NODE_CONFIG_FILENAME)
+$(NODE_CONFIG_FILE): $(METADATA_FILE) $(CLOUD_CONFIG_FILE) | $(RUN_DIR)/
 $(NODE_CONFIG_FILE): export YQ_EXPR := $(NODE_YQ)
-$(NODE_CONFIG_FILE):
 $(NODE_CONFIG_FILE):
 	yq eval --from-file=<(echo "$$YQ_EXPR") $(NODE_CONFIG_FILENAME) > $(@)
 
@@ -353,7 +343,7 @@ select(fileIndex == 0) as $$common |
 endef
 
 
-$(CLOUD_CONFIG_FILE): cloud-config.common.yaml cloud-config.master.yaml
+$(CLOUD_CONFIG_FILE): cloud-config.common.yaml cloud-config.server.yaml
 $(CLOUD_CONFIG_FILE): | $(RUN_DIR)/
 $(CLOUD_CONFIG_FILE): export CLOUD_CONFIG_YQ := $(CLOUD_CONFIG_YQ)
 $(CLOUD_CONFIG_FILE):

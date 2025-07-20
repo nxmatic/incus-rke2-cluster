@@ -27,10 +27,6 @@ devices:
     type: unix-char
     source: /dev/zfs
     path: /dev/zfs
-  rke2-agent.dev:
-    type: unix-block
-    source: /dev/zvol/tank/rke2/control-nodes/master/root
-    path: /dev/zvol/tank/rke2/control-nodes/master/root
   secrets.dir:
     type: disk
     source: .secrets.d
@@ -45,10 +41,6 @@ devices:
     type: disk
     source: .kubeconfig.d
     path: /.kubeconfig.d
-  helm.bin:
-    type: disk
-    source: $(realpath .flox/run/aarch64-linux.incus.run/bin/helm)
-    path: /usr/bin/helm
   user.metadata:
     type: disk
     source: /run/incus/master-control-node.meta-data

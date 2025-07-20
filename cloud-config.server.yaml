@@ -96,8 +96,8 @@ write_files:
       tls-san:
         - localhost
         - master-control-node
-        - peer-control-node1
-        - peer-control-node2
+        - peer1-control-node
+        - peer2-control-node
 
   # RKE2 server core config
   - path: /etc/rancher/rke2/config.yaml.d/core.yaml

@@ -169,19 +169,29 @@ write_files:
       #!/usr/bin/env -S bash -exu -o pipefail
 
       : Initialize the flox environment
-      [[ ! -d /var/lib/rancher/.flox ]] && flox init --dir=/var/lib/rancher
+      [[ ! -d /var/lib/rancher/rke2/.flox ]] && flox init --dir=/var/lib/rancher/rke2
 
       : Install tools in the flox environment
-      flox install --dir=/var/lib/rancher ceph-client
-      flox install --dir=/var/lib/rancher cilium-cli
-      flox install --dir=/var/lib/rancher direnv
-      flox install --dir=/var/lib/rancher gh
-      flox install --dir=/var/lib/rancher git
-      flox install --dir=/var/lib/rancher kubernetes-helm
-      flox install --dir=/var/lib/rancher yq-go
+      flox install --dir=/var/lib/rancher/rke2 ceph-client
+      flox install --dir=/var/lib/rancher/rke2 cilium-cli
+      flox install --dir=/var/lib/rancher/rke2 direnv
+      flox install --dir=/var/lib/rancher/rke2 etcdctl
+      flox install --dir=/var/lib/rancher/rke2 gh
+      flox install --dir=/var/lib/rancher/rke2 git
+      flox install --dir=/var/lib/rancher/rke2 kubernetes-helm
+      flox install --dir=/var/lib/rancher/rke2 yq-go
 
+      cat <<EoF | tee /var/lib/rancher/rke2/.envrc
+      use flox
+      EoF
+
+      : Configure direnv to use flox
       mkdir -p "~root/.config/direnv/lib"
       curl -o "~root/.config/direnv/lib/flox-direnv.rc" "https://raw.githubusercontent.com/flox/flox-direnv/v1.1.0/direnv.rc"
+      cat <<EoF | tee -a "~root/.config/direnv/direnv.toml"
+      [whitelist]
+      prefix= [ "/home" "/root" "/var/lib/rancher" ]
+      EoF
 
   # Shared remount script
   - path: /usr/local/sbin/rke2-remount-shared
