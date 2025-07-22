@@ -1,0 +1,8 @@
+name: peer1-control-node
+write_files:
+  # Peer1-specific etcd configuration
+  - path: /etc/rancher/rke2/config.yaml.d/etcd.yaml
+    content: |
+      etcd-expose-metrics: true
+      node-name: peer1-control-node
+

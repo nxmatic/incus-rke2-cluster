@@ -37,6 +37,10 @@ devices:
     source: .shared.d
     path: /.shared.d
     readonly: "false"
+  logs.dir:
+    type: disk
+    source: .logs.d
+    path: /.logs.d
   kubeconfig.dir:
     type: disk
     source: .kubeconfig.d
