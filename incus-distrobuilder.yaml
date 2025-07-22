@@ -62,6 +62,7 @@ packages:
         - ca-certificates
         - cloud-init
         - curl
+        - direnv
         - dstat
         - dnsutils
         - emacs-nox

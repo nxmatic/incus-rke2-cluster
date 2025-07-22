@@ -1,0 +1,436 @@
+#cloud-config
+# Overlay for control-plane (master) nodes
+
+name: master-control-node
+
+write_files:
+
+  # RKE2 server etcd config
+  - path: /etc/rancher/rke2/config.yaml.d/etcd.yaml
+    content: |
+      etcd-expose-metrics: true
+      node-name: master-control-node
+      with-node-id: false
+
+  # Peer1-specific etcd configuration
+  # - path: /etc/rancher/rke2/config.yaml.d/etcd.yaml
+  #   content: |
+  #     etcd-arg:
+  #       - --name=master-control-node
+  #       - --initial-advertise-peer-urls=https://172.31.1.2:2380
+  #       - --listen-peer-urls=https://0.0.0.0:2380
+  #       - --initial-cluster-state=new
+        
+  # RKE2 server core config
+  - path: /etc/rancher/rke2/config.yaml.d/core.yaml
+    content: |
+      write-kubeconfig-mode: "0640"
+      cni:
+        - cilium
+      ingress-controller: traefik
+
+  # Disable default controllers
+  - path: /etc/rancher/rke2/config.yaml.d/disable.yaml
+    content: |
+      disable:
+        - rke2-snapshot-controller
+        - rke2-snapshot-controller-crd
+        - rke2-snapshot-validation-webhook
+        - rke2-ingress-nginx
+
+  # Traefik HelmChartConfig
+  - path: /var/lib/rancher/rke2/server/manifests/rke2-traefik-config.yaml
+    content: |
+      apiVersion: helm.cattle.io/v1
+      kind: HelmChartConfig
+      metadata:
+        name: rke2-traefik
+        namespace: kube-system
+      spec:
+        valuesContent: |-
+          additionalArguments:
+            - "--api.insecure=true"
+          ports:
+            web:
+              expose:
+                default: true
+            websecure:
+              expose:
+                default: true
+
+  # Cilium HelmChartConfig and CRDs
+  - path: /var/lib/rancher/rke2/server/manifests/rke2-cilium-config.yaml
+    content: |
+      apiVersion: helm.cattle.io/v1
+      kind: HelmChartConfig
+      metadata:
+        name: cilium
+        namespace: kube-system
+      spec:
+        valuesContent: |-
+          bgpControlPlane:
+            enabled: true
+          cluster:
+            name: "default"
+            id: 1
+          clustermesh:
+            useAPIServer: true
+            apiserver:
+              service:
+                type: LoadBalancer
+                loadBalancerClass: io.cilium/bgp-control-plane
+          envoy:
+            enabled: true
+          gatewayAPI:
+            enabled: true
+          ingressController:
+            default: true
+            enabled: true
+            loadBalancerMode: dedicated
+          hubble:
+            enabled: true
+            relay:
+              enabled: true
+            ui:
+              enabled: true
+          kubeProxyReplacement: true
+          socketLB:
+            hostNamespaceOnly: true
+          operator:
+            hostNetwork: true
+      ---
+      apiVersion: "cilium.io/v2alpha1"
+      kind: CiliumLoadBalancerIPPool
+      metadata:
+        name: "pool"
+      spec:
+        blocks:
+          - cidr: "${CLUSTER_LOADBALANCERS_CIDR}"
+            min: "129"
+            max: "254"
+      ---
+      apiVersion: "cilium.io/v2alpha1"
+      kind: CiliumL2AnnouncementPolicy
+      metadata:
+        name: l2policy
+      spec:
+        loadBalancerIPs: true
+        interfaces:
+          - eth0
+      ---
+      apiVersion: "cilium.io/v2alpha1"
+      kind: CiliumBGPClusterConfig
+      metadata:
+        name: cilium-bgp
+      spec:
+        bgpInstances:
+          - name: "instance-65000"
+            localASN: 65000
+            peers:
+              - name: "master"
+                peerASN: 65000
+                peerAddress: "master-control-node"
+                peerConfigRef:
+                  name: "peer-config-generic"
+              - name: "peer1"
+                peerASN: 65000
+                peerAddress: "peer1-control-node"
+                peerConfigRef:
+                  name: "peer-config-generic"
+              - name: "peer2"
+                peerASN: 65000
+                peerAddress: "peer2-control-node"
+                peerConfigRef:
+                  name: "peer-config-generic"
+      ---
+      apiVersion: "cilium.io/v2alpha1"
+      kind: CiliumBGPNodeConfigOverride
+      metadata:
+        name: bgpv2-cplane-dev-multi-homing-worker
+      spec:
+        bgpInstances:
+          - name: "instance-65000"
+            localPort: 179
+      ---
+      apiVersion: "cilium.io/v2alpha1"
+      kind: CiliumBGPPeerConfig
+      metadata:
+        name: peer-config-generic
+      spec:
+        families:
+          - afi: ipv4
+            safi: unicast
+            advertisements:
+              matchLabels:
+                advertise: "generic"
+      ---
+      apiVersion: "cilium.io/v2alpha1"
+      kind: CiliumBGPAdvertisement
+      metadata:
+        name: services
+        labels:
+          advertise: generic
+      spec:
+        advertisements:
+          - advertisementType: "PodCIDR"
+          - advertisementType: "Service"
+            service:
+              addresses:
+                - LoadBalancerIP
+            selector:
+              matchExpressions:
+                - key: "somekey"
+                  operator: In
+                  values:
+                    - "never-used-value"
+
+  # Envoy Gateway
+  - path: /var/lib/rancher/rke2/server/manifests/envoy-gateway.yaml
+    content: |
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: envoy-gateway-system
+      ---
+      # Job to install Envoy Gateway via kubectl apply
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: envoy-gateway-installer
+        namespace: kube-system
+      spec:
+        template:
+          spec:
+            serviceAccountName: envoy-gateway-installer
+            containers:
+            - name: installer
+              image: bitnami/kubectl:1.29.0
+              command:
+              - /bin/bash
+              - -c
+              - |
+                kubectl apply --namespace envoy-gateway-system --server-side -f https://github.com/envoyproxy/gateway/releases/download/v1.4.2/install.yaml
+            restartPolicy: OnFailure
+        backoffLimit: 3
+      ---
+      # ServiceAccount for the installer job
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: envoy-gateway-installer
+        namespace: envoy-gateway-system
+      ---
+      # ClusterRoleBinding for the installer
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: envoy-gateway-installer
+      subjects:
+      - kind: ServiceAccount
+        name: envoy-gateway-installer
+        namespace: envoy-gateway-system
+      roleRef:
+        kind: ClusterRole
+        name: cluster-admin
+        apiGroup: rbac.authorization.k8s.io
+      ---
+      apiVersion: gateway.networking.k8s.io/v1
+      kind: GatewayClass
+      metadata:
+        name: envoy
+      spec:
+        controllerName: gateway.envoyproxy.io/gatewayclass-controller
+
+  # OpenEBS ZFS
+  - path: /var/lib/rancher/rke2/server/manifests/openebs-zfs.yaml
+    content: |
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: openebs
+      ---
+      apiVersion: helm.cattle.io/v1
+      kind: HelmChart
+      metadata:
+        name: openebs-zfs
+        namespace: openebs
+      spec:
+        chart: zfs-localpv
+        repo: https://openebs.github.io/zfs-localpv
+        version: 2.8.0
+        targetNamespace: openebs
+        createNamespace: true
+        valuesContent: |-
+          zfsNode:
+            kubeletDir: /var/lib/rancher/rke2/agent
+      ---
+      apiVersion: storage.k8s.io/v1
+      kind: StorageClass
+      metadata:
+        name: openebs-zfs
+      provisioner: zfs.csi.openebs.io
+      parameters:
+        poolname: tank
+        fstype: zfs
+      reclaimPolicy: Delete
+      volumeBindingMode: WaitForFirstConsumer
+      allowVolumeExpansion: true
+
+  # Tailscale Operator
+  - path: /var/lib/rancher/rke2/server/manifests/tailscale-operator.yaml
+    content: |
+      apiVersion: helm.cattle.io/v1
+      kind: HelmChart
+      metadata:
+        namespace: kube-system
+        name: tailscale-operator
+      spec:
+        repo: https://pkgs.tailscale.com/helmcharts
+        chart: tailscale-operator
+        version: 1.82.0
+        targetNamespace: tailscale-system
+        createNamespace: true
+        valuesContent: |-
+          oauth:
+            clientId: "${TSID}"
+            clientSecret: "${TSKEY}"
+          operatorConfig:
+            hostname: "master-tailscale-operator"
+            debug: true
+      ---
+      apiVersion: tailscale.com/v1alpha1
+      kind: Connector
+      metadata:
+        name: ts-controlplane-lb-routes
+      spec:
+        hostname: master-controlplane-lb-routes
+        subnetRouter:
+          advertiseRoutes:
+
+  # kube-vip installer  
+  - path: /usr/local/sbin/rke2-vip-install
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+
+      source <( flox activate --dir /var/lib/rancher/rke2 )
+
+      kversion=$( curl -sL https://api.github.com/repos/kube-vip/kube-vip/releases | jq -r ".[0].name" )
+
+      : Install kube-vip on master control node
+
+      kubectl apply -f https://kube-vip.io/manifests/rbac.yaml
+      
+      ctr images pull ghcr.io/kube-vip/kube-vip:$kversion
+      ctr -n k8s.io run --rm --net-host ghcr.io/kube-vip/kube-vip:$kversion \
+        vip /kube-vip manifest daemonset \
+          --arp --interface eth0 --address $CLUSTER_INET_VIRTUAL --controlplane --leaderElection \
+          --taint --services --inCluster |
+        tee /var/lib/rancher/rke2/server/manifests/kube-vip.yaml
+
+  # Systemd overrides
+  - path: /etc/systemd/system/rke2-server.service.d/override.conf
+    content: |
+      [Service]
+      Restart=always
+      RestartSec=10s
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/systemd/system/rke2-server.service.d/pre-start.conf
+    content: |
+      [Unit]
+      Requires=rke2-remount-shared.service rke2-install.service
+      Wants=rke2-remount-shared.service
+      After=rke2-remount-shared.service rke2-install.service
+      [Service]
+      ExecStartPre=/bin/sh -xc '/usr/local/sbin/rke2-pre-start'
+
+  # Master-only pre-start logic
+  - path: /usr/local/sbin/rke2-pre-start
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+      
+      source <( flox activate --dir /var/lib/rancher/rke2 )
+
+      db::check() {
+        local -A inet=( current "$(nmcli -g IP4.ADDRESS device show eth0)" )
+        local file="/var/lib/rancher/rke2/server/last-ip"
+        if [[ -r "$file" ]]; then
+          inet+=( last "$(cat "$file")" )
+        else
+          inet+=( last "" )
+        fi  
+        if [[ "${inet["current"]}" != "${inet["last"]}" ]]; then
+          : IP address changed: ${inet["last"]} - ${inet["current"]}, resetting RKE2 server DB
+          rm -rf /var/lib/rancher/rke2/server/db
+          echo "${inet["current"]}" > "$file"
+        fi
+      }
+      
+      cilum::patch() {
+        local file="/var/lib/rancher/rke2/server/manifests/rke2-cilium-config.yaml"
+        if [[ ! -r "$file" ]]; then
+          echo "Cilium config file not found: $file"
+          return 1
+        fi
+        yq --inplace --from-file=<( cat <<EoE | cut -c 3-
+        ( select( .kind == "CiliumBGPAdvertisement" ) | .spec ) |=
+          ( .advertisements[0].advertisementType = "PodCIDR" ) |
+        ( select( .kind == "CiliumBGPNodeConfigOverride" ) | .spec ) |=
+          ( .bgpInstances[0].localPort = 179 ) |
+        ( select( .kind == "CiliumBGPNodeConfigOverride" ) | .spec.bgpInstances[0].peers[] ) |=
+          ( .peerAddress = "${CLUSTER_NODE_INET}" ) |
+        ( select( .kind == "HelmChartConfig") | .spec ) |=
+          ( .valuesContent |= ( from_yaml |
+                                 .cluster.name = "${CLUSTER_NAME}" |
+                                 .cluster.id = ${CLUSTER_SUBNET} |
+                                 to_yaml ) ) |
+        ( select( .kind == "CiliumLoadBalancerIPPool" ) | .spec ) |=
+          ( .blocks[0] = { "cidr": "${CLUSTER_LOADBALANCERS_CIDR}", "min": "129", "max": "254" } ) |
+        ( select( .kind == "CiliumBGPClusterConfig" ) | .spec ) |=
+          with( .bgpInstances[] | select( .name == "instance-65000" );
+            with( .peers[] | select( .name == "master"); .peerAddress = "172.31.1.2" ) |
+            with( .peers[] | select( .name == "peer1");  .peerAddress = "172.31.2.2" ) |
+            with( .peers[] | select( .name == "peer2");  .peerAddress = "172.31.3.2" ) )
+      EoE
+        ) "$file"
+      }
+
+      tailscale::patch() {
+        local file="/var/lib/rancher/rke2/server/manifests/tailscale-operator.yaml"
+        if [[ ! -r "$file" ]]; then
+          echo "Tailscale operator file not found: $file"
+          return 1
+        fi
+        yq --inplace --from-file=<( cat <<EoE | cut -c3-
+        ( select( .kind == "HelmChart" ) | .spec ) |=
+          ( .valuesContent |= ( from_yaml |
+                                 .oauth.clientId = "${TSID}" |
+                                 .oauth.clientSecret = "${TSKEY}" |
+                                 .operatorConfig.hostname = "${CLUSTER_NAME}-tailscale-operator" |
+                                 to_yaml ) ) |
+        ( select( .kind == "Connector" ) | .spec ) |=
+          ( .subnetRouter.advertiseRoutes = ["172.31.1.1/28", "172.31.2.1/28"] )
+      EoE
+        ) "$file"
+      }
+
+      : Create RKE2 folders
+      mkdir -p /var/lib/rancher/rke2/agent
+      mkdir -p /var/lib/rancher/rke2/server
+      
+      : Check server database for IP address changes
+      db::check
+      
+      : Patch the cilium config with cluster environment variables
+      cilum::patch || true
+      
+      : Patch the tailscale operator with cluster environment variables
+      tailscale::patch || true
+
+  - path: /etc/systemd/system/rke2-server.service.d/post-start-master.conf
+    content: |
+      [Service]
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-vip-install'

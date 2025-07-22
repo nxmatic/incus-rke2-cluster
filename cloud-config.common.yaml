@@ -23,45 +23,22 @@ write_files:
 
       [Install]
       WantedBy=basic.target
-  # RKE2 profile (INSTALL_RKE2_TYPE is overridden in overlay)
-  - path: /etc/rancher/rke2/profile
-    permissions: "0644"
+
+  # RKE2 server TLS SANs
+  - path: /etc/rancher/rke2/config.yaml.d/tls-san.yaml
     content: |
-      #!/usr/bin/env bash
+      tls-san:
+        - localhost
+        - gateway
+        - 127.0.0.1
+        - 172.31.0.2 # kube-vip VIP address
+        - 172.31.1.2 # master control node
+        - 172.31.2.2 # peer1 control node
+        - 172.31.3.2 # peer2 control node
 
-      : load the container environment variables
-      set -a
-      source <( cat /proc/1/environ | tr '\0' '\n' | grep -E '^(INSTALL_RKE2_TYPE|CLUSTER_|TSID|TSKEY)' )
-      set +a
-
-      : set the environment variables for RKE2
-      set -a
-      ARCH=$( dpkg --print-architecture )
-      KUBECONFIG=/etc/rancher/rke2/rke2.yaml
-      CONTAINERD_CONFIG_FILE="/var/lib/rancher/rke2/agent/etc/containerd/config.toml"
-      CONTAINERD_ADDRESS=/run/k3s/containerd/containerd.sock
-      CONTAINERD_NAMESPACE=k8s.io
-      CRI_CONFIG_FILE=/var/lib/rancher/rke2/agent/etc/crictl.yaml
-      set +a
-
-      : set the PATH for RKE2 and Cilium
-      set -a
-      PATH="$PATH:/var/lib/rancher/rke2/bin"
-      set +a
-
-      : Load the rke2 flox environment
-      source "$( flox activate --dir=/etc/rancher/rke2 --print-script )"
-
-      : Get the node inet address
-      set -a
-      source <(ip --json addr show eth0 |
-               yq -p json -o shell '.[0].addr_info.[] | select(.family == "inet") | { "CLUSTER_NODE_INET": .local }')
-      set +a
-
-      : Only eval direnv if interactive shell and direnv is present
-      if [[ $- == *i* ]] && type -P direnv >/dev/null 2>&1; then
-        eval "$(direnv hook bash)"
-      fi
+  - path: /etc/rancher/rke2/config.yaml.d/etcd-metrics.yaml
+    content: |
+      etcd-expose-metrics: true
 
   # Shared kubelet config
   - path: /var/lib/rancher/rke2/agent/etc/kubelet.conf.d/01-cgroup-override.conf
@@ -79,39 +56,115 @@ write_files:
         imageGCHighThresholdPercent: 100
         imageGCLowThresholdPercent: 99
 
-  # Shared post-start logic
-  - path: /usr/local/sbin/rke2-post-start
+  # Shared install-pre script
+  - path: /usr/local/sbin/rke2-install-pre
     permissions: "0755"
     content: |
       #!/usr/bin/env -S bash -exu -o pipefail
 
-      : Load RKE2 environment
-      source /etc/rancher/rke2/profile
+      : Configure direnv to use flox
+      direnv:config:generate() {
+        mkdir -p "/root/.config/direnv/lib"
+        curl -o "/root/.config/direnv/lib/flox.sh" "https://raw.githubusercontent.com/flox/flox-direnv/v1.1.0/direnv.rc"
+        cat <<EoConfig | cut -c 3- > "/root/.config/direnv/direnv.toml"
+        [whitelist]
+        prefix= [ "/home", "/root", "/var/lib/cloud/seed/nocloud", "/var/lib/rancher/rke2", ]
+      EoConfig
+      }
+      direnv:config:generate
 
-      : Configure system-wide RKE2 environment
-      mkdir -p /etc/profile.d
-      ln -fs /etc/rancher/rke2/profile /etc/profile.d/rke2-env.sh
+      : Preload the nocloud environment
+      [[ ! -d /var/lib/cloud/seed/nocloud/.flox ]] && flox init --dir=/var/lib/cloud/seed/nocloud
+      flox -v -v -v install --dir=/var/lib/cloud/seed/nocloud \
+        dasel \
+        yq-go
+      source <( flox activate --dir=/var/lib/cloud/seed/nocloud )
 
-      : Create working copy of kubeconfig
-      KUBECONFIG="/.kubeconfig.d/rke2-${CLUSTER_NAME}.yaml"
+      : Define and load the nocloud envrc
+      nocloud:envrc() {
+       init:env() {
+        cat /proc/1/environ |
+          tr '\0' '\n' | grep -E '^(INSTALL_RKE2_TYPE|CLUSTER_|TSID|TSKEY)'
+        }
+        cluster:inet() {
+          ip --json addr show eth0 |
+            yq -p json -o shell '.[0].addr_info.[] | select(.family == "inet") | { "CLUSTER_NODE_INET": .local }'
+        }
+        cat <<EoF
+        log_status "Loading nocloud environment variables"
+        set -a
+        $( init:env )
+        $( cluster:inet )
+        set +a
+        
+        [[ "\$FLOX_ENV_PROJECT" != "\$PWD" ]] &&
+          use flox
+      EoF
+      }
+      nocloud:envrc > /var/lib/cloud/seed/nocloud/.envrc
+      dasel -r toml -w yaml < /var/lib/cloud/seed/nocloud/.flox/env/manifest.toml | 
+        yq eval '
+          .profile = { "common": "source /var/lib/cloud/seed/nocloud/.flox/env/profile-common.sh" }
+        ' - |
+        dasel --pretty -r yaml -w toml |
+        tee /tmp/manifest.toml.$$ &&
+        mv /tmp/manifest.toml.$$ /var/lib/cloud/seed/nocloud/.flox/env/manifest.toml 
+      cat <<'EoFloxCommonProfile' | cut -c 3- | tee /var/lib/cloud/seed/nocloud/.flox/env/profile-common.sh
+        ${NOCLOUD_ENVRC:-false} ||
+          source <( cd /var/lib/cloud/seed/nocloud; env HOME=${HOME:-/root} direnv exec / direnv export bash; echo 'export NOCLOUD_ENVRC=true'; )
+      EoFloxCommonProfile
+      source <( flox activate --dir=/var/lib/cloud/seed/nocloud )
 
-      mkdir -p $( dirname "$KUBECONFIG" )
-      cp /etc/rancher/rke2/rke2.yaml "$KUBECONFIG"
-      chmod 644 "$KUBECONFIG"
+      : Initialize the flox environment for RKE2
+      [[ ! -d /var/lib/rancher/rke2/.flox ]] && flox init --dir=/var/lib/rancher/rke2
+      
+      flox -v -v -v install --dir=/var/lib/rancher/rke2 \
+        ceph-client \
+        cilium-cli \
+        etcdctl \
+        helmfile \
+        kubernetes-helm \
+        kubectl \
+        yq-go # override yq-go from dependencies
+        
+      : Include cloud environment in RKE2 flox environment and configure groups
+      dasel -r toml -w yaml < /var/lib/rancher/rke2/.flox/env/manifest.toml | 
+        yq eval '
+          .include = { "environments": [ { "dir": "/var/lib/cloud/seed/nocloud" } ] } |
+          .install.krew = { "pkg-path": "krew", "pkg-group": "kubectl-tools" } |
+          .install.kubectl-ai = { "pkg-path": "kubectl-ai", "pkg-group": "kubectl-plugins" } |
+          .install.kubectl-ktop" = { "pkg-path": "kubectl-ktop", "pkg-group": "kubectl-plugins" } |
+          .install.kubectl-neat" = { "pkg-path": "kubectl-neat", "pkg-group": "kubectl-plugins" } |
+          .install.kubectl-tree = { "pkg-path": "kubectl-tree", "pkg-group": "kubectl-plugins" } |
+          .install.kubectl-graph = { "pkg-path": "kubectl-graph", "pkg-group": "kubectl-plugins" } |
+          .install.kubectl-doctor = { "pkg-path": "kubectl-doctor", "pkg-group": "kubectl-plugins" } |
+          .install.kubectl-explore = { "pkg-path": "kubectl-explore", "pkg-group": "kubectl-plugins" } |
+          .install.kubectl-rook-ceph = { "pkg-path": "kubectl-rook-ceph", "pkg-group": "kubectl-plugins" } |
+          .install.kubectl-view-secret = { "pkg-path": "kubectl-view-secret", "pkg-group": "kubectl-plugins" } |
+          .install.tubekit = { "pkg-path": "tubekit", "pkg-group": "kubectl-tools" } |
+          .install.yq-go = { "pkg-path": "yq-go", "pkg-group": "yaml-tools" } |
+          .profile = { "common": "source /var/lib/rancher/rke2/.flox/env/profile-common.sh" }
+        ' - |
+        dasel --pretty -r yaml -w toml |
+        tee /tmp/manifest.toml.$$ &&
+        mv /tmp/manifest.toml.$$ /var/lib/rancher/rke2/.flox/env/manifest.toml 
+      cat <<'EoFloxCommonProfile' | cut -c 3- | tee /var/lib/rancher/rke2/.flox/env/profile-common.sh
 
-      : Apply modifications to working copy
-      yq --inplace --from-file=<(cat <<EoE
-      .clusters[0].cluster.name = "${CLUSTER_NAME}" |
-      .clusters[0].cluster.server = "https://${CLUSTER_NODE_INET}:6443" |
-      .clusters[0].name = "${CLUSTER_NAME}" |
-      .contexts[0].context.cluster = "${CLUSTER_NAME}" |
-      .contexts[0].context.namespace = "kube-system" |
-      .contexts[0].context.user = "${CLUSTER_NAME}" |
-      .contexts[0].name = "${CLUSTER_NAME}" |
-      .users[0].name = "${CLUSTER_NAME}" |
-      .current-context = "${CLUSTER_NAME}"
-      EoE
-      ) "$KUBECONFIG"
+
+        : Load RKE2 environment variables
+        ${RKE2_ENVRC:-false} ||
+          source <( cd "/var/lib/rancher/rke2"; env HOME=${HOME:-/root} direnv exec / direnv export bash; echo 'export RKE2_ENVRC=true'; )
+      EoFloxCommonProfile
+
+      : Load the RKE2 envrc
+      source <( flox activate --dir /var/lib/rancher/rke2 )
+
+      : Initialize krew and install plugins
+      mkdir -p "$KREW_ROOT"
+      
+      : Install krew plugins using krew directly
+      krew install ctx || true
+      krew install ns || true
 
   # Shared install script
   - path: /usr/local/sbin/rke2-install
@@ -119,10 +172,10 @@ write_files:
     content: |
       #!/usr/bin/env -S bash -exu -o pipefail
 
+      source <( flox activate --dir /var/lib/rancher/rke2 )
+
       : Install the RKE2 server or agent binaries
       curl -sfL https://get.rke2.io | env DEBUG=1 sh -
-
-      source /etc/rancher/rke2/profile
 
       : Patch containerd to use systemd cgroup driver
       if [ -f "$CONTAINERD_CONFIG_FILE" ]; then
@@ -164,34 +217,101 @@ write_files:
       ExecStart=/usr/bin/env -S bash -c 'rke2-install && systemctl disable rke2-install.service'
       RemainAfterExit=true
 
-  # Shared install-pre script
-  - path: /usr/local/sbin/rke2-install-pre
-    permissions: "0755"
+  # RKE2 environment variables configuration script
+  - path: /var/lib/rancher/rke2/.envrc
+    permissions: "0644"
     content: |
-      #!/usr/bin/env -S bash -exu -o pipefail
+      #!/usr/bin/env bash
+      log_status "Loading RKE2 environment variables"
 
-      : Initialize the flox environment
-      [[ ! -d /etc/rancher/rke2/.flox ]] && flox init --dir=/etc/rancher/rke2
+      set -a
 
-      : Install tools in the flox environment
-      flox install --dir=/etc/rancher/rke2 ceph-client
-      flox install --dir=/etc/rancher/rke2 cilium-cli
-      flox install --dir=/etc/rancher/rke2 direnv
-      flox install --dir=/etc/rancher/rke2 etcdctl
-      flox install --dir=/etc/rancher/rke2 gh
-      flox install --dir=/etc/rancher/rke2 git
-      flox install --dir=/etc/rancher/rke2 kubernetes-helm
-      flox install --dir=/etc/rancher/rke2 yq-go
+      : Core RKE2 Environment Variables
+      ARCH="$(dpkg --print-architecture)"
+      [[ -r /etc/rancher/rke2/rke2.yaml ]] && 
+        KUBECONFIG="/etc/rancher/rke2/rke2.yaml"
 
-      eval "$( flox activate --dir=/etc/rancher/rke2 --print-script )"
+      : Container Runtime Configuration
+      CONTAINERD_CONFIG_FILE="${PWD}/agent/etc/containerd/config.toml"
+      CONTAINERD_ADDRESS="/run/k3s/containerd/containerd.sock"
+      CONTAINERD_NAMESPACE="k8s.io"
+      CRI_CONFIG_FILE="${PWD}/agent/etc/crictl.yaml"
+      
+      : etcdctl Configuration
+      ETCDCTL_API="3"
+      ETCDCTL_CERT="${PWD}/server/tls/etcd/server-client.crt"
+      ETCDCTL_KEY="${PWD}/server/tls/etcd/server-client.key"
+      ETCDCTL_CACERT="${PWD}/server/tls/etcd/server-ca.crt"
+      ETCDCTL_ENDPOINTS="https://127.0.0.1:2379"
+      ETCDCTL_WRITE_OUT="table"
+      ETCDCTL_DIAL_TIMEOUT="10s"
+      ETCDCTL_COMMAND_TIMEOUT="30s"
+      
+      : kubectl Configuration
+      KUBECTL_OUTPUT="yaml"
+      KUBECTL_EXTERNAL_DIFF="diff"
+      KUBECTL_COMPLETION="true"
+      
+      : Helm Configuration
+      HELM_DATA_HOME="${PWD}/helm"
+      HELM_CONFIG_HOME="/etc/rancher/rke2/helm"
+      HELM_CACHE_HOME="/var/cache/rancher/rke2/helm"
+      HELM_REPOSITORY_CONFIG="/etc/rancher/rke2/helm/repositories.yaml"
+      HELM_REPOSITORY_CACHE="/var/cache/rancher/rke2/helm/repository"
+      HELM_PLUGINS="${PWD}/helm/plugins"
+      
+      : Cilium CLI Configuration
+      CILIUM_CLI_MODE="kubernetes"
+      CILIUM_CLI_CONTEXT="default"
+      
+      : Hubble Configuration
+      HUBBLE_SERVER="localhost:4245"
+      HUBBLE_TLS="false"
 
-      : Configure direnv to use flox
-      mkdir -p "~root/.config/direnv/lib"
-      curl -o "~root/.config/direnv/lib/flox-direnv.rc" "https://raw.githubusercontent.com/flox/flox-direnv/v1.1.0/direnv.rc"
-      cat <<EoF | tee -a "~root/.config/direnv/direnv.toml"
-      [whitelist]
-      prefix= [ "/etc/rancher" "/home" "/root" "/var/lib/rancher" ]
-      EoF
+      :  Krew Configuration
+      KREW_ROOT="${PWD}/krew"
+
+      : Update PATH
+      PATH="${PWD}/bin:$PATH:${KREW_ROOT}/bin"
+
+      set +a
+
+      [[ "$FLOX_ENV_PROJECT" != "$PWD" ]] &&
+        use flox
+
+  # root zshrc
+  - path: /root/.zshrc
+    permissions: "0644"
+    content: |
+      #!/usr/bin/env zsh
+
+      : Define useful functions
+      journalctl:unit:follow() {
+        local unit="$1"
+        journalctl --unit $unit --follow --no-tail |
+          tee /.logs.d/${unit}.log
+      }
+
+      : Configure completions
+      autoload -Uz compinit &&
+        compinit
+      command -v kubectl >/dev/null &&
+        source <( kubectl completion zsh ) 2>/dev/null || true
+      command -v helm >/dev/null &&
+        source <( helm completion zsh ) 2>/dev/null || true
+
+      : Load direnv hook
+      source <( direnv hook zsh )
+
+  # bash kube completion
+  - path: /etc/bash_completion.d/kube
+    permissions: "0644"
+    content: |
+      #!/usr/bin/env -S bash
+      source <( flox activate --dir /var/lib/rancher/rke2 )
+
+      source <( kubectl completion bash ) 2>/dev/null || true
+      source <( helm completion bash ) 2>/dev/null || true
 
   # Shared remount script
   - path: /usr/local/sbin/rke2-remount-shared
@@ -210,32 +330,18 @@ write_files:
 
       : Configure system-wide DNS
       ln -fs /run/systemd/resolve/resolv.conf /etc/resolv.conf
-
       
-      : Configure systemd units
-      systemctl daemon-reload
+      : Start and wait for the RKE2 installation to complete
       systemctl enable --now rke2-install
 
-      : Wait for the RKE2 installation to complete
-      systemctl --no-pager --wait --full status rke2-install
-      systemctl is-active --quiet rke2-install
-      if [ $? -ne 0 ]; then
-        : rke2-install failed, not starting rke2-${INSTALL_RKE2_TYPE}.service
-        exit 1
-      fi
-
-      : Install the RKE2 profile in the shell environments
-      cat <<EoF | tee -a /etc/zsh/zshrc | tee -a /etc/bash.bashrc
-      source /etc/rancher/rke2/profile
-      EoF
-      source /etc/rancher/rke2/profile
+      : Load the RKE2 environment
+      source <( flox activate --dir /var/lib/rancher/rke2 )
 
       : Load the RKE2 environment and generate the named units
       /usr/local/sbin/rke2-enable-containerd-zfs-mount
 
       : Enable and launch the RKE2 service
-      systemctl enable --now rke2-${INSTALL_RKE2_TYPE}.service
-      systemctl --no-pager --wait --full status rke2-${INSTALL_RKE2_TYPE}.service
+      systemctl --no-block enable --now rke2-${INSTALL_RKE2_TYPE}
 
   # Script to generate the systemd mount unit for containerd zfs snapshotter
   - path: /usr/local/sbin/rke2-enable-containerd-zfs-mount
@@ -244,7 +350,7 @@ write_files:
       #!/usr/bin/env -S bash -exu -o pipefail
 
       : Load the RKE2 environment
-      source /etc/rancher/rke2/profile
+      source <( flox activate --dir /var/lib/rancher/rke2 )
 
       : Generate systemd mount unit for containerd zfs snapshotter
       cat <<EOF > /etc/systemd/system/var-lib-rancher-rke2-agent-containerd-io.containerd.snapshotter.v1.zfs.mount
@@ -282,10 +388,63 @@ write_files:
         root_path = "/var/lib/rancher/rke2/agent/containerd/io.containerd.snapshotter.v1.zfs"
       
       [debug]
-        level = "trace"
+        level = "debug"
+
+  - path: /etc/systemd/system/rke2-server.service.d/kubeconfig.conf
+    content: |
+      [Service]
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-tools-configuration-directories'
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-vip-kubeconfig'
+
+  - path: /etc/systemd/system/rke2-agent.service.d/kubeconfig.conf
+    content: |
+      [Service]
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-tools-configuration-directories'
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-vip-kubeconfig'
+
+  # Create configuration tool directories
+  - path: /usr/local/sbin/rke2-tools-configuration-directories
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+
+      : Create directories for tool configurations
+      mkdir -p /var/lib/rancher/rke2/helm/plugins
+      mkdir -p /etc/rancher/rke2/helm
+      mkdir -p /var/cache/rancher/rke2/helm/repository
+      mkdir -p /var/lib/rancher/rke2/krew
+
+  # Generate kubeconfig for VIP
+  - path: /usr/local/sbin/rke2-vip-kubeconfig
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+
+      source <( flox activate --dir /var/lib/rancher/rke2 )
+
+      : Create working copy of kubeconfig
+      KUBECONFIG="/.kubeconfig.d/rke2-${CLUSTER_NAME}.yaml"
+
+      mkdir -p $( dirname "$KUBECONFIG" )
+      cp /etc/rancher/rke2/rke2.yaml "$KUBECONFIG"
+      chmod 644 "$KUBECONFIG"
+
+      : Apply modifications to working copy
+      yq --inplace --from-file=<(cat <<EoE
+      .clusters[0].cluster.name = "${CLUSTER_NAME}" |
+      .clusters[0].cluster.server = "https://${CLUSTER_INET_VIRTUAL}:6443" |
+      .clusters[0].name = "${CLUSTER_NAME}" |
+      .contexts[0].context.cluster = "${CLUSTER_NAME}" |
+      .contexts[0].context.namespace = "kube-system" |
+      .contexts[0].context.user = "${CLUSTER_NAME}" |
+      .contexts[0].name = "${CLUSTER_NAME}" |
+      .users[0].name = "${CLUSTER_NAME}" |
+      .current-context = "${CLUSTER_NAME}"
+      EoE
+      ) "$KUBECONFIG"
 
 runcmd:
   - /usr/bin/env -S bash -xc 'systemctl daemon-reload'
-  - /usr/bin/env -S bash -xc 'systemctl enable --now zfs-early-umount.service'
-  - /usr/bin/env -S bash -xc 'systemctl enable --now rke2-install.service'
+  - /usr/bin/env -S bash -xc 'systemctl enable zfs-early-umount.service'
+  - /usr/bin/env -S bash -xc 'systemctl enable rke2-install.service'
   - /usr/bin/env -S bash -xc '/usr/local/sbin/rke2-activate'
