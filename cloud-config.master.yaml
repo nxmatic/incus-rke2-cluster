@@ -1,0 +1,5 @@
+name: master-control-node
+write_files:
+  - path: /etc/rancher/rke2/config.yaml.d/etcd.yaml
+    content: |
+      etcd-expose-metrics: true

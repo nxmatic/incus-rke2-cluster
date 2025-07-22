@@ -50,7 +50,7 @@ write_files:
       set +a
 
       : Load the rke2 flox environment
-      source "$( flox activate --dir=/etc/rancher/rke2 --print-script )"
+      eval "$( flox activate --dir=/etc/rancher/rke2 --print-script )"
 
       : Get the node inet address
       set -a
@@ -174,16 +174,15 @@ write_files:
       [[ ! -d /etc/rancher/rke2/.flox ]] && flox init --dir=/etc/rancher/rke2
 
       : Install tools in the flox environment
-      flox install --dir=/etc/rancher/rke2 ceph-client
-      flox install --dir=/etc/rancher/rke2 cilium-cli
+      flox install --dir=/etc/rancher/rke2 yq-go # cannot use a pkg-group
+
+      # flox install --dir=/etc/rancher/rke2 ceph-client
+      # flox install --dir=/etc/rancher/rke2 cilium-cli
       flox install --dir=/etc/rancher/rke2 direnv
       flox install --dir=/etc/rancher/rke2 etcdctl
-      flox install --dir=/etc/rancher/rke2 gh
-      flox install --dir=/etc/rancher/rke2 git
+      # flox install --dir=/etc/rancher/rke2 gh
+      # flox install --dir=/etc/rancher/rke2 git
       flox install --dir=/etc/rancher/rke2 kubernetes-helm
-      flox install --dir=/etc/rancher/rke2 yq-go
-
-      eval "$( flox activate --dir=/etc/rancher/rke2 --print-script )"
 
       : Configure direnv to use flox
       mkdir -p "~root/.config/direnv/lib"
