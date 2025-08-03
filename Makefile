@@ -45,6 +45,7 @@ else
   $(error Invalid cluster node name: $(CLUSTER_NODE_NAME))
 endif
 
+CLUSTER_VIRTUAL_ADDRESSES_CIDR := 172.31.0.0/24
 CLUSTER_NODES_CIDR := 172.31.$(CLUSTER_SUBNET).1/30
 CLUSTER_LOADBALANCERS_CIDR := 172.31.$(CLUSTER_SUBNET).128/25
 CLUSTER_PODS_CIDR := 10.42.0.0/16
@@ -250,6 +251,7 @@ $(INCUS_CONFIG_INSTANCE_MARKER_FILE):
 	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_INET_VIRTUAL "$(CLUSTER_INET_VIRTUAL)"
 	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_NODE_NAME "$(CLUSTER_NODE_NAME)"
 	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_SUBNET "$(CLUSTER_SUBNET)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_VIRTUAL_ADDRESSES_CIDR "$(CLUSTER_VIRTUAL_ADDRESSES_CIDR)"
 	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_NODES_CIDR "$(CLUSTER_NODES_CIDR)"
 	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_LOADBALANCERS_CIDR "$(CLUSTER_LOADBALANCERS_CIDR)"
 	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_NODE_HWADDR "$(CLUSTER_NODE_HWADDR)"
@@ -294,30 +296,21 @@ stop:
 delete:
 	@: "[+] Removing instance $(CLUSTER_NODE_NAME)..."
 	incus delete -f $(CLUSTER_NODE_NAME) || true
+	rm -f $(INCUS_CONFIG_INSTANCE_MARKER_FILE) || true
+
+clean: delete
+clean:
+	@: [+] Removing $(CLUSTER_NODE_NAME) if exists...
+	incus profile delete rke2-$(CLUSTER_NODE_NAME) --project rke2 || true
+	incus profile delete rke2-$(CLUSTER_NODE_NAME) --project default || true
+	incus network delete rke2-$(CLUSTER_NODE_NAME)-br || true
 	@: [+] Cleaning up run directory...
 	rm -fr $(RUN_INSTANCE_DIR)
 
-clean: delete
-	@: [+] Removing image if present...
-	incus image delete $(CLUSTER_IMAGE_NAME) || true
-	@: [+] Cleaning up profiles and project...
-	incus project switch default || true
-
-	incus profile delete rke2-master --project rke2 || true
-	incus profile delete rke2-master --project default || true
-	incus network delete rke2-master-br || true
-
-	incus profile delete rke2-peer1 --project rke2 || true
-	incus profile delete rke2-peer1 --project default || true
-	incus network delete rke2-peer1-br || true
-
-	incus profile delete rke2-peer2 --project rke2 || true
-	incus profile delete rke2-peer2 --project default || true
-	incus network delete rke2-peer2-br || true
-
-	incus project delete rke2 || true
-
-	rm -fr $(RUN_DIR)
+clean-all: 
+	$(MAKE) NAME=master clean
+	$(MAKE) NAME=peer1 clean
+	$(MAKE) NAME=peer2 clean
 	
 #-----------------------------
 # ZFS Permissions Target

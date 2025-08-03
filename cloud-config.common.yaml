@@ -90,11 +90,16 @@ write_files:
           ip --json addr show eth0 |
             yq -p json -o shell '.[0].addr_info.[] | select(.family == "inet") | { "CLUSTER_NODE_INET": .local }'
         }
+        cluster:gateway() {
+          ip route show default |
+            awk '/default via/ { print "CLUSTER_GATEWAY=" $3 }'
+        }
         cat <<EoF
         log_status "Loading nocloud environment variables"
         set -a
         $( init:env )
         $( cluster:inet )
+        $( cluster:gateway )
         set +a
         
         [[ "\$FLOX_ENV_PROJECT" != "\$PWD" ]] &&
@@ -401,6 +406,49 @@ write_files:
       [Service]
       ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-tools-configuration-directories'
       ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-vip-kubeconfig'
+
+  # Common post-start script for control plane nodes only
+  - path: /etc/systemd/system/rke2-server.service.d/cilium-operator-scaling.conf
+    content: |
+      [Service]
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-cilium-operator-scaling'
+
+  # Dynamic Cilium operator scaling script (control plane nodes only)
+  - path: /usr/local/sbin/rke2-cilium-operator-scaling
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+      
+      source <( flox activate --dir /var/lib/rancher/rke2 )
+      
+      : Wait for at least one node to be ready
+      kubectl wait --for=condition=Ready nodes --all --timeout=300s || exit 0
+      
+      : Wait for Cilium DaemonSet to exist
+      kubectl wait --for=jsonpath='{.metadata.name}'=cilium daemonset/cilium -n kube-system --timeout=300s || exit 0
+      
+      : Wait for Cilium operator deployment to exist
+      kubectl wait --for=jsonpath='{.metadata.name}'=cilium-operator deployment/cilium-operator -n kube-system --timeout=300s || exit 0
+      
+      : Wait for Cilium DaemonSet to have at least one ready pod
+      kubectl wait --for=jsonpath='{.status.numberReady}'=1 daemonset/cilium -n kube-system --timeout=300s || exit 0
+      
+      : Dynamic Cilium Operator Scaling
+      count=$(kubectl get nodes -l node-role.kubernetes.io/control-plane --no-headers | wc -l)
+      case $count in
+      1)
+        replicas=1;;
+      2)
+        replicas=2;;
+      *)
+        replicas=3;;
+      esac
+
+      : Scaling cilium-operator to $replicas replicas for $count control plane nodes
+      kubectl scale deployment cilium-operator -n kube-system --replicas=$replicas
+
+      : Wait for cilium-operator rollout to complete
+      kubectl rollout status deployment/cilium-operator -n kube-system --timeout=60s || true
 
   # Create configuration tool directories
   - path: /usr/local/sbin/rke2-tools-configuration-directories

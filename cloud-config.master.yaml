@@ -64,7 +64,7 @@ write_files:
       apiVersion: helm.cattle.io/v1
       kind: HelmChartConfig
       metadata:
-        name: cilium
+        name: rke2-cilium
         namespace: kube-system
       spec:
         valuesContent: |-
@@ -98,15 +98,26 @@ write_files:
             hostNamespaceOnly: true
           operator:
             hostNetwork: true
+            replicas: 1
       ---
       apiVersion: "cilium.io/v2alpha1"
       kind: CiliumLoadBalancerIPPool
       metadata:
-        name: "pool"
+        name: "load-balancers"
       spec:
         blocks:
           - cidr: "${CLUSTER_LOADBALANCERS_CIDR}"
             min: "129"
+            max: "254"
+      ---
+      apiVersion: "cilium.io/v2alpha1"
+      kind: CiliumLoadBalancerIPPool
+      metadata:
+        name: "virtual-addresses"
+      spec:
+        blocks:
+          - cidr: "${CLUSTER_VIRTUAL_ADDRESSES_CIDR}"
+            min: "2"
             max: "254"
       ---
       apiVersion: "cilium.io/v2alpha1"
@@ -117,29 +128,35 @@ write_files:
         loadBalancerIPs: true
         interfaces:
           - eth0
+        nodeSelector:
+          matchLabels:
+            node-role.kubernetes.io/control-plane: "true"
       ---
       apiVersion: "cilium.io/v2alpha1"
       kind: CiliumBGPClusterConfig
       metadata:
-        name: cilium-bgp
+        name: cilium-control-plane
       spec:
+        nodeSelector:
+          matchLabels:
+            node-role.kubernetes.io/control-plane: "true"
         bgpInstances:
           - name: "instance-65000"
             localASN: 65000
             peers:
               - name: "master"
                 peerASN: 65000
-                peerAddress: "master-control-node"
+                peerAddress: "172.31.1.2"
                 peerConfigRef:
                   name: "peer-config-generic"
               - name: "peer1"
                 peerASN: 65000
-                peerAddress: "peer1-control-node"
+                peerAddress: "172.31.2.2"
                 peerConfigRef:
                   name: "peer-config-generic"
               - name: "peer2"
                 peerASN: 65000
-                peerAddress: "peer2-control-node"
+                peerAddress: "172.31.3.2"
                 peerConfigRef:
                   name: "peer-config-generic"
       ---
@@ -177,12 +194,10 @@ write_files:
             service:
               addresses:
                 - LoadBalancerIP
-            selector:
-              matchExpressions:
-                - key: "somekey"
-                  operator: In
-                  values:
-                    - "never-used-value"
+              selector:
+                matchLabels:
+                  # Match all LoadBalancer services
+                  advertise-bgp: "true"
 
   # Envoy Gateway
   - path: /var/lib/rancher/rke2/server/manifests/envoy-gateway.yaml
@@ -307,26 +322,29 @@ write_files:
         subnetRouter:
           advertiseRoutes:
 
-  # kube-vip installer  
-  - path: /usr/local/sbin/rke2-vip-install
-    permissions: "0755"
+  # Control Plane LoadBalancer Service (managed by Cilium BGP)
+  - path: /var/lib/rancher/rke2/server/manifests/control-plane-lb.yaml
     content: |
-      #!/usr/bin/env -S bash -exu -o pipefail
-
-      source <( flox activate --dir /var/lib/rancher/rke2 )
-
-      kversion=$( curl -sL https://api.github.com/repos/kube-vip/kube-vip/releases | jq -r ".[0].name" )
-
-      : Install kube-vip on master control node
-
-      kubectl apply -f https://kube-vip.io/manifests/rbac.yaml
-      
-      ctr images pull ghcr.io/kube-vip/kube-vip:$kversion
-      ctr -n k8s.io run --rm --net-host ghcr.io/kube-vip/kube-vip:$kversion \
-        vip /kube-vip manifest daemonset \
-          --arp --interface eth0 --address $CLUSTER_INET_VIRTUAL --controlplane --leaderElection \
-          --taint --services --inCluster |
-        tee /var/lib/rancher/rke2/server/manifests/kube-vip.yaml
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: control-plane-lb
+        namespace: kube-system
+        labels:
+          advertise-bgp: "true"
+        annotations:
+          io.cilium/lb-ipam-ips: "172.31.0.2"
+      spec:
+        type: LoadBalancer
+        loadBalancerClass: io.cilium/bgp-control-plane
+        ports:
+        - name: kube-apiserver
+          port: 6443
+          protocol: TCP
+          targetPort: 6443
+        selector:
+          component: kube-apiserver
+          tier: control-plane
 
   # Systemd overrides
   - path: /etc/systemd/system/rke2-server.service.d/override.conf
@@ -387,8 +405,10 @@ write_files:
                                  .cluster.name = "${CLUSTER_NAME}" |
                                  .cluster.id = ${CLUSTER_SUBNET} |
                                  to_yaml ) ) |
-        ( select( .kind == "CiliumLoadBalancerIPPool" ) | .spec ) |=
+        ( select( .kind == "CiliumLoadBalancerIPPool" and .metadata.name == "load-balancers" ) | .spec ) |=
           ( .blocks[0] = { "cidr": "${CLUSTER_LOADBALANCERS_CIDR}", "min": "129", "max": "254" } ) |
+        ( select( .kind == "CiliumLoadBalancerIPPool" and .metadata.name == "virtual-addresses" ) | .spec ) |=
+          ( .blocks[0] = { "cidr": "${CLUSTER_VIRTUAL_ADDRESSES_CIDR}", "min": "2", "max": "254" } ) |
         ( select( .kind == "CiliumBGPClusterConfig" ) | .spec ) |=
           with( .bgpInstances[] | select( .name == "instance-65000" );
             with( .peers[] | select( .name == "master"); .peerAddress = "172.31.1.2" ) |
@@ -433,4 +453,66 @@ write_files:
   - path: /etc/systemd/system/rke2-server.service.d/post-start-master.conf
     content: |
       [Service]
-      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-vip-install'
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-cilium-check'
+
+  # Cilium BGP and LoadBalancer validation script
+  - path: /usr/local/sbin/rke2-cilium-check
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -xu -o pipefail
+      
+      source <( flox activate --dir /var/lib/rancher/rke2 )
+      
+      : Waiting for cluster to be ready
+      kubectl wait --for=condition=Ready nodes --all --timeout=300s
+      
+      : Waiting for Cilium DaemonSet to be ready
+      kubectl wait --for=condition=Ready pods -l k8s-app=cilium -n kube-system --timeout=300s
+      
+      : Waiting for Cilium operator to be ready
+      kubectl wait --for=condition=Available deployment/cilium-operator -n kube-system --timeout=300s
+      
+      : Cilium Status Check
+      cilium status --wait --wait-duration=300s
+      
+      : BGP Status Check
+      cilium connectivity test --test-namespace cilium-test --single-node || true
+      
+      : LoadBalancer Pool Check
+      kubectl get ciliumloadbalancerippool -o wide
+      
+      : Control Plane Service Check
+      kubectl get svc control-plane-lb -n kube-system -o wide
+      
+      : Service Endpoints Check
+      kubectl get endpoints control-plane-lb -n kube-system -o wide
+      
+      : VIP IP Pool Check
+      kubectl get ciliumloadbalancerippool -o wide
+      
+      : BGP Configuration Check
+      kubectl get ciliuml2announcementpolicy -o wide
+      kubectl get ciliumbgpadvertisement -o wide
+      kubectl get ciliumbgpclusterconfig -o wide
+      kubectl get ciliumbgppeerconfig -o wide
+      
+      : API Connectivity Test
+      if curl -k --connect-timeout 5 https://${CLUSTER_INET_VIRTUAL}:6443/version; then
+        : ✅ API accessible via VIP ${CLUSTER_INET_VIRTUAL}
+      else
+        : ❌ API not accessible via VIP ${CLUSTER_INET_VIRTUAL}
+      fi
+      
+      : Cilium Agent BGP Status \(via kubectl exec\)
+      if kubectl get pods -n kube-system -l k8s-app=cilium --no-headers | head -1 | cut -d' ' -f1 | xargs -I {} kubectl exec -n kube-system {} -- cilium-dbg bgp peers 2>/dev/null || true; then
+        : BGP peers information retrieved
+      else
+        : BGP peers information not available
+      fi
+      
+      : Network Connectivity Summary
+      cat <<EoSummary
+      VIP: ${CLUSTER_INET_VIRTUAL}
+      Node IP: ${CLUSTER_NODE_INET}
+      Gateway: ${CLUSTER_GATEWAY}
+      EoSummary
