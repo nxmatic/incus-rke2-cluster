@@ -1,11 +1,12 @@
 #cloud-config
-# Overlay for control-plane (master) nodes
+# Master node configuration (first control plane node)
+# Includes both master-specific settings AND bootstrap-only components
 
 name: master-control-node
 
 write_files:
   # =============================================================================
-  # RKE2 MASTER NODE CONFIGURATION
+  # MASTER NODE SPECIFIC CONFIGURATION
   # =============================================================================
 
   # ETCD configuration for master node
@@ -15,253 +16,11 @@ write_files:
       node-name: master-control-node
       with-node-id: false
 
-  # Control plane load balancer service for HA API access
-  - path: /var/lib/rancher/rke2/server/manifests/control-plane-lb.yaml
-    content: |
-      apiVersion: v1
-      kind: Service
-      metadata:
-        name: control-plane-lb
-        namespace: kube-system
-        labels:
-          advertise-bgp: "true"
-        annotations:
-          io.cilium/lb-ipam-ips: "172.31.0.2"
-      spec:
-        type: LoadBalancer
-        loadBalancerClass: io.cilium/bgp-control-plane
-        ports:
-        - name: kube-apiserver
-          port: 6443
-          protocol: TCP
-          targetPort: 6443
-        selector:
-          component: kube-apiserver
-          tier: control-plane
-
-  # Core RKE2 server configuration
-  - path: /etc/rancher/rke2/config.yaml.d/core.yaml
-    content: |
-      write-kubeconfig-mode: "0640"
-      cni:
-        - cilium
-      ingress-controller: traefik
-
-  # Disable default controllers we don't want
-  - path: /etc/rancher/rke2/config.yaml.d/disable.yaml
-    content: |
-      disable:
-        - rke2-snapshot-controller
-        - rke2-snapshot-controller-crd
-        - rke2-snapshot-validation-webhook
-        - rke2-ingress-nginx
-
   # =============================================================================
-  # SYSTEMD SERVICE OVERRIDES
+  # BOOTSTRAP-ONLY KUBERNETES MANIFESTS
   # =============================================================================
 
-  # Main RKE2 server service override
-  - path: /etc/systemd/system/rke2-server.service.d/override.conf
-    content: |
-      [Service]
-      Restart=always
-      RestartSec=10s
-      [Install]
-      WantedBy=multi-user.target
-
-  # Pre-start configuration for master node
-  - path: /etc/systemd/system/rke2-server.service.d/pre-start.conf
-    content: |
-      [Unit]
-      Requires=rke2-remount-shared.service rke2-install.service
-      Wants=rke2-remount-shared.service
-      After=rke2-remount-shared.service rke2-install.service
-      [Service]
-      ExecStartPre=/bin/sh -xc '/usr/local/sbin/rke2-pre-start'
-
-  # Post-start validation for master node
-  - path: /etc/systemd/system/rke2-server.service.d/post-start-master.conf
-    content: |
-      [Service]
-      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-cilium-check'
-
-  # =============================================================================
-  # MASTER NODE SCRIPTS
-  # =============================================================================
-
-  # Master-specific pre-start script
-  - path: /usr/local/sbin/rke2-pre-start
-    permissions: "0755"
-    content: |
-      #!/usr/bin/env -S bash -exu -o pipefail
-      
-      source <( flox activate --dir /var/lib/rancher/rke2 )
-
-      db::check() {
-        local -A inet=( current "$(nmcli -g IP4.ADDRESS device show eth0)" )
-        local file="/var/lib/rancher/rke2/server/last-ip"
-        if [[ -r "$file" ]]; then
-          inet+=( last "$(cat "$file")" )
-        else
-          inet+=( last "" )
-        fi  
-        if [[ "${inet["current"]}" != "${inet["last"]}" ]]; then
-          : IP address changed: ${inet["last"]} - ${inet["current"]}, resetting RKE2 server DB
-          rm -rf /var/lib/rancher/rke2/server/db
-          echo "${inet["current"]}" > "$file"
-        fi
-      }
-      
-      cilum::patch() {
-        local file="/var/lib/rancher/rke2/server/manifests/rke2-cilium-config.yaml"
-        if [[ ! -r "$file" ]]; then
-          echo "Cilium config file not found: $file"
-          return 1
-        fi
-        yq --inplace --from-file=<( cat <<EoE | cut -c 3-
-        ( select( .kind == "CiliumBGPAdvertisement" ) | .spec ) |=
-          ( .advertisements[0].advertisementType = "PodCIDR" ) |
-        ( select( .kind == "CiliumBGPNodeConfigOverride" ) | .spec ) |=
-          ( .bgpInstances[0].localPort = 179 ) |
-        ( select( .kind == "CiliumBGPNodeConfigOverride" ) | .spec.bgpInstances[0].peers[] ) |=
-          ( .peerAddress = "${CLUSTER_NODE_INET}" ) |
-        ( select( .kind == "HelmChartConfig") | .spec ) |=
-          ( .valuesContent |= ( from_yaml |
-                                 .cluster.name = "${CLUSTER_NAME}" |
-                                 .cluster.id = ${CLUSTER_SUBNET} |
-                                 to_yaml ) ) |
-        ( select( .kind == "CiliumLoadBalancerIPPool" and .metadata.name == "load-balancers" ) | .spec ) |=
-          ( .blocks[0] = { "cidr": "${CLUSTER_LOADBALANCERS_CIDR}", "min": "129", "max": "254" } ) |
-        ( select( .kind == "CiliumLoadBalancerIPPool" and .metadata.name == "virtual-addresses" ) | .spec ) |=
-          ( .blocks[0] = { "cidr": "${CLUSTER_VIRTUAL_ADDRESSES_CIDR}", "min": "2", "max": "254" } ) |
-        ( select( .kind == "CiliumBGPClusterConfig" ) | .spec ) |=
-          with( .bgpInstances[] | select( .name == "instance-65000" );
-            with( .peers[] | select( .name == "master"); .peerAddress = "172.31.1.2" ) |
-            with( .peers[] | select( .name == "peer1");  .peerAddress = "172.31.2.2" ) |
-            with( .peers[] | select( .name == "peer2");  .peerAddress = "172.31.3.2" ) )
-      EoE
-        ) "$file"
-      }
-
-      tailscale::patch() {
-        local file="/var/lib/rancher/rke2/server/manifests/tailscale-operator.yaml"
-        if [[ ! -r "$file" ]]; then
-          echo "Tailscale operator file not found: $file"
-          return 1
-        fi
-        yq --inplace --from-file=<( cat <<EoE | cut -c3-
-        ( select( .kind == "HelmChart" ) | .spec ) |=
-          ( .valuesContent |= ( from_yaml |
-                                 .oauth.clientId = "${TSID}" |
-                                 .oauth.clientSecret = "${TSKEY}" |
-                                 .operatorConfig.hostname = "${CLUSTER_NAME}-tailscale-operator" |
-                                 to_yaml ) ) |
-        ( select( .kind == "Connector" ) | .spec ) |=
-          ( .subnetRouter.advertiseRoutes = ["172.31.1.1/28", "172.31.2.1/28"] )
-      EoE
-        ) "$file"
-      }
-
-      : Create RKE2 folders
-      mkdir -p /var/lib/rancher/rke2/agent
-      mkdir -p /var/lib/rancher/rke2/server
-      
-      : Check server database for IP address changes
-      db::check
-      
-      : Patch the cilium config with cluster environment variables
-      cilum::patch || true
-      
-      : Patch the tailscale operator with cluster environment variables
-      tailscale::patch || true
-
-  # Cilium validation and check script for master node
-  - path: /usr/local/sbin/rke2-cilium-check
-    permissions: "0755"
-    content: |
-      #!/usr/bin/env -S bash -xu -o pipefail
-      
-      source <( flox activate --dir /var/lib/rancher/rke2 )
-      
-      : Waiting for cluster to be ready
-      kubectl wait --for=condition=Ready nodes --all --timeout=300s
-      
-      : Waiting for Cilium DaemonSet to be ready
-      kubectl wait --for=condition=Ready pods -l k8s-app=cilium -n kube-system --timeout=300s
-      
-      : Waiting for Cilium operator to be ready
-      kubectl wait --for=condition=Available deployment/cilium-operator -n kube-system --timeout=300s
-      
-      : Cilium Status Check
-      cilium status --wait --wait-duration=300s
-      
-      : BGP Status Check
-      cilium connectivity test --test-namespace cilium-test --single-node || true
-      
-      : LoadBalancer Pool Check
-      kubectl get ciliumloadbalancerippool -o wide
-      
-      : Control Plane Service Check
-      kubectl get svc control-plane-lb -n kube-system -o wide
-      
-      : Service Endpoints Check
-      kubectl get endpoints control-plane-lb -n kube-system -o wide
-      
-      : VIP IP Pool Check
-      kubectl get ciliumloadbalancerippool -o wide
-      
-      : BGP Configuration Check
-      kubectl get ciliuml2announcementpolicy -o wide
-      kubectl get ciliumbgpadvertisement -o wide
-      kubectl get ciliumbgpclusterconfig -o wide
-      kubectl get ciliumbgppeerconfig -o wide
-      
-      : API Connectivity Test
-      if curl -k --connect-timeout 5 https://${CLUSTER_INET_VIRTUAL}:6443/version; then
-        : ✅ API accessible via VIP ${CLUSTER_INET_VIRTUAL}
-      else
-        : ❌ API not accessible via VIP ${CLUSTER_INET_VIRTUAL}
-      fi
-      
-      : Cilium Agent BGP Status \(via kubectl exec\)
-      if kubectl get pods -n kube-system -l k8s-app=cilium --no-headers | head -1 | cut -d' ' -f1 | xargs -I {} kubectl exec -n kube-system {} -- cilium-dbg bgp peers 2>/dev/null || true; then
-        : BGP peers information retrieved
-      else
-        : BGP peers information not available
-      fi
-      
-      : Network Connectivity Summary
-      cat <<EoSummary
-      VIP: ${CLUSTER_INET_VIRTUAL}
-      Node IP: ${CLUSTER_NODE_INET}
-      Gateway: ${CLUSTER_GATEWAY}
-      EoSummary
-
-  # =============================================================================
-  # KUBERNETES MANIFESTS
-  # =============================================================================
-
-  # Traefik ingress controller configuration
-  - path: /var/lib/rancher/rke2/server/manifests/rke2-traefik-config.yaml
-    content: |
-      apiVersion: helm.cattle.io/v1
-      kind: HelmChartConfig
-      metadata:
-        name: rke2-traefik
-        namespace: kube-system
-      spec:
-        valuesContent: |-
-          additionalArguments:
-            - "--api.insecure=true"
-          ports:
-            web:
-              expose:
-                default: true
-            websecure:
-              expose:
-                default: true
-
-  # Cilium CNI configuration with BGP and load balancing
+  # Cilium CNI HelmChartConfig (bootstrap only - master deploys, peers inherit)
   - path: /var/lib/rancher/rke2/server/manifests/rke2-cilium-config.yaml
     content: |
       apiVersion: helm.cattle.io/v1
@@ -302,7 +61,11 @@ write_files:
           operator:
             hostNetwork: true
             replicas: 1
-      ---
+
+  # Cilium cluster-wide resources (bootstrap only - applied once on master)
+  - path: /var/lib/rancher/rke2/server/manifests/cilium-cluster-resources.yaml
+    content: |
+      # Cilium LoadBalancer IP Pools
       apiVersion: "cilium.io/v2alpha1"
       kind: CiliumLoadBalancerIPPool
       metadata:
@@ -402,7 +165,202 @@ write_files:
                   # Match all LoadBalancer services
                   advertise-bgp: "true"
 
-  # Envoy Gateway installation and configuration
+  # Control plane load balancer service (bootstrap only)
+  - path: /var/lib/rancher/rke2/server/manifests/control-plane-lb.yaml
+    content: |
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: control-plane-lb
+        namespace: kube-system
+        labels:
+          advertise-bgp: "true"
+        annotations:
+          io.cilium/lb-ipam-ips: "172.31.0.2"
+      spec:
+        type: LoadBalancer
+        loadBalancerClass: io.cilium/bgp-control-plane
+        ports:
+        - name: kube-apiserver
+          port: 6443
+          protocol: TCP
+          targetPort: 6443
+        selector:
+          component: kube-apiserver
+          tier: control-plane
+
+  # =============================================================================
+  # MASTER-ONLY SCRIPTS AND SYSTEMD OVERRIDES
+  # =============================================================================
+
+  # Master-specific pre-start script (with manifest patching)
+  - path: /usr/local/sbin/rke2-pre-start-master
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+      
+      source <( flox activate --dir /var/lib/rancher/rke2 )
+
+      cilium::patch() {
+        local config_file="/var/lib/rancher/rke2/server/manifests/rke2-cilium-config.yaml"
+        local resources_file="/var/lib/rancher/rke2/server/manifests/cilium-cluster-resources.yaml"
+        
+        # Patch the HelmChartConfig (shared across all servers)
+        if [[ -r "$config_file" ]]; then
+          yq --inplace --from-file=<( cat <<EoE | cut -c 5-
+          ( select( .kind == "HelmChartConfig") | .spec ) |=
+            ( .valuesContent |= ( from_yaml |
+                                   .cluster.name = "${CLUSTER_NAME}" |
+                                   .cluster.id = ${CLUSTER_SUBNET} |
+                                   to_yaml ) )
+      EoE
+          ) "$config_file"
+        fi
+        
+        # Patch the cluster resources (master only)
+        if [[ -r "$resources_file" ]]; then
+          yq --inplace --from-file=<( cat <<EoE | cut -c 5-
+          ( select( .kind == "CiliumBGPAdvertisement" ) | .spec ) |=
+            ( .advertisements[0].advertisementType = "PodCIDR" ) |
+          ( select( .kind == "CiliumBGPNodeConfigOverride" ) | .spec ) |=
+            ( .bgpInstances[0].localPort = 179 ) |
+          ( select( .kind == "CiliumLoadBalancerIPPool" and .metadata.name == "load-balancers" ) | .spec ) |=
+            ( .blocks[0] = { "cidr": "${CLUSTER_LOADBALANCERS_CIDR}", "min": "129", "max": "254" } ) |
+          ( select( .kind == "CiliumLoadBalancerIPPool" and .metadata.name == "virtual-addresses" ) | .spec ) |=
+            ( .blocks[0] = { "cidr": "${CLUSTER_VIRTUAL_ADDRESSES_CIDR}", "min": "2", "max": "254" } ) |
+          ( select( .kind == "CiliumBGPClusterConfig" ) | .spec ) |=
+            with( .bgpInstances[] | select( .name == "instance-65000" );
+              with( .peers[] | select( .name == "master"); .peerAddress = "172.31.1.2" ) |
+              with( .peers[] | select( .name == "peer1");  .peerAddress = "172.31.2.2" ) |
+              with( .peers[] | select( .name == "peer2");  .peerAddress = "172.31.3.2" ) )
+      EoE
+          ) "$resources_file"
+        fi
+      }
+
+      tailscale::patch() {
+        local file="/var/lib/rancher/rke2/server/manifests/tailscale-operator.yaml"
+        if [[ ! -r "$file" ]]; then
+          echo "Error: Tailscale operator file not found: $file"
+          return 1
+        fi
+        yq --inplace --from-file=<( cat <<EoE | cut -c3-
+        ( select( .kind == "HelmChart" ) | .spec ) |=
+          ( .valuesContent |= ( from_yaml |
+                                 .oauth.clientId = "${TSID}" |
+                                 .oauth.clientSecret = "${TSKEY}" |
+                                 .operatorConfig.hostname = "${CLUSTER_NAME}-${CLUSTER_NODE_NAME}-tailscale-operator" |
+                                 to_yaml ) ) |
+        ( select( .kind == "Connector" ) | .spec ) |=
+          ( .subnetRouter.advertiseRoutes = ["172.31.1.1/28", "172.31.2.1/28"] |
+            .hostname = "${CLUSTER_NAME}-controlplane-lb-routes" )
+      EoE
+        ) "$file"
+      }
+
+      : Create RKE2 folders
+      mkdir -p /var/lib/rancher/rke2/agent
+      mkdir -p /var/lib/rancher/rke2/server
+      
+      : Patch the cilium config with cluster environment variables
+      cilium::patch
+      
+      : Patch the tailscale operator with cluster environment variables
+      tailscale::patch
+
+  # Master-specific systemd override for pre-start (calls master-specific script)
+  - path: /etc/systemd/system/rke2-server.service.d/pre-start-master.conf
+    content: |
+      [Service]
+      ExecStartPre=/bin/sh -xc '/usr/local/sbin/rke2-pre-start-master'
+
+  # Cilium validation and check script (master only)
+  - path: /usr/local/sbin/rke2-cilium-check
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -xu -o pipefail
+      
+      source <( flox activate --dir /var/lib/rancher/rke2 )
+      
+      : Waiting for cluster to be ready
+      kubectl wait --for=condition=Ready nodes --all --timeout=300s
+      
+      : Waiting for Cilium DaemonSet to be ready
+      kubectl wait --for=condition=Ready pods -l k8s-app=cilium -n kube-system --timeout=300s
+      
+      : Waiting for Cilium operator to be ready
+      kubectl wait --for=condition=Available deployment/cilium-operator -n kube-system --timeout=300s
+      
+      : Cilium Status Check
+      cilium status --wait --wait-duration=300s
+      
+      : BGP Status Check (master node)
+      cilium connectivity test --test-namespace cilium-test --single-node || true
+      
+      : LoadBalancer Pool Check
+      kubectl get ciliumloadbalancerippool -o wide || true
+      
+      : Control Plane Service Check
+      kubectl get svc control-plane-lb -n kube-system -o wide || true
+      
+      : Service Endpoints Check
+      kubectl get endpoints control-plane-lb -n kube-system -o wide || true
+      
+      : VIP IP Pool Check
+      kubectl get ciliumloadbalancerippool -o wide || true
+      
+      : BGP Configuration Check
+      kubectl get ciliuml2announcementpolicy -o wide || true
+      kubectl get ciliumbgpadvertisement -o wide || true
+      kubectl get ciliumbgpclusterconfig -o wide || true
+      kubectl get ciliumbgppeerconfig -o wide || true
+      
+      : API Connectivity Test
+      if curl -k --connect-timeout 5 https://${CLUSTER_INET_VIRTUAL}:6443/version; then
+        : ✅ API accessible via VIP ${CLUSTER_INET_VIRTUAL}
+      else
+        : ❌ API not accessible via VIP ${CLUSTER_INET_VIRTUAL}
+      fi
+      
+      : Network Connectivity Summary
+      cat <<EoSummary
+      Node: ${CLUSTER_NODE_NAME}
+      VIP: ${CLUSTER_INET_VIRTUAL}
+      Node IP: ${CLUSTER_NODE_INET}
+      Gateway: ${CLUSTER_GATEWAY}
+      EoSummary
+
+  # Master-only systemd override for post-start Cilium validation
+  - path: /etc/systemd/system/rke2-server.service.d/post-start-master.conf
+    content: |
+      [Service]
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-cilium-check'
+
+  # =============================================================================
+  # OTHER BOOTSTRAP MANIFESTS
+  # =============================================================================
+
+  # Traefik ingress controller configuration (bootstrap only)
+  - path: /var/lib/rancher/rke2/server/manifests/rke2-traefik-config.yaml
+    content: |
+      apiVersion: helm.cattle.io/v1
+      kind: HelmChartConfig
+      metadata:
+        name: rke2-traefik
+        namespace: kube-system
+      spec:
+        valuesContent: |-
+          additionalArguments:
+            - "--api.insecure=true"
+          ports:
+            web:
+              expose:
+                default: true
+            websecure:
+              expose:
+                default: true
+
+  # Envoy Gateway installation (bootstrap only)
   - path: /var/lib/rancher/rke2/server/manifests/envoy-gateway.yaml
     content: |
       apiVersion: v1
@@ -459,7 +417,7 @@ write_files:
       spec:
         controllerName: gateway.envoyproxy.io/gatewayclass-controller
 
-  # OpenEBS ZFS storage provisioner
+  # OpenEBS ZFS storage provisioner (bootstrap only)
   - path: /var/lib/rancher/rke2/server/manifests/openebs-zfs.yaml
     content: |
       apiVersion: v1
@@ -494,7 +452,7 @@ write_files:
       volumeBindingMode: WaitForFirstConsumer
       allowVolumeExpansion: true
 
-  # Tailscale operator for VPN connectivity
+  # Tailscale operator for VPN connectivity (bootstrap only)
   - path: /var/lib/rancher/rke2/server/manifests/tailscale-operator.yaml
     content: |
       apiVersion: helm.cattle.io/v1
@@ -513,7 +471,7 @@ write_files:
             clientId: "${TSID}"
             clientSecret: "${TSKEY}"
           operatorConfig:
-            hostname: "master-tailscale-operator"
+            hostname: "${CLUSTER_NAME}-tailscale-operator"
             debug: true
       ---
       apiVersion: tailscale.com/v1alpha1
@@ -521,48 +479,6 @@ write_files:
       metadata:
         name: ts-controlplane-lb-routes
       spec:
-        hostname: master-controlplane-lb-routes
+        hostname: ${CLUSTER_NAME}-controlplane-lb-routes
         subnetRouter:
           advertiseRoutes:
-
-  # Control Plane LoadBalancer Service (managed by Cilium BGP)
-  - path: /var/lib/rancher/rke2/server/manifests/control-plane-lb.yaml
-    content: |
-      apiVersion: v1
-      kind: Service
-      metadata:
-        name: control-plane-lb
-        namespace: kube-system
-        labels:
-          advertise-bgp: "true"
-        annotations:
-          io.cilium/lb-ipam-ips: "172.31.0.2"
-      spec:
-        type: LoadBalancer
-        loadBalancerClass: io.cilium/bgp-control-plane
-        ports:
-        - name: kube-apiserver
-          port: 6443
-          protocol: TCP
-          targetPort: 6443
-        selector:
-          component: kube-apiserver
-          tier: control-plane
-
-  # Systemd overrides
-  - path: /etc/systemd/system/rke2-server.service.d/override.conf
-    content: |
-      [Service]
-      Restart=always
-      RestartSec=10s
-      [Install]
-      WantedBy=multi-user.target
-
-  - path: /etc/systemd/system/rke2-server.service.d/pre-start.conf
-    content: |
-      [Unit]
-      Requires=rke2-remount-shared.service rke2-install.service
-      Wants=rke2-remount-shared.service
-      After=rke2-remount-shared.service rke2-install.service
-      [Service]
-      ExecStartPre=/bin/sh -xc '/usr/local/sbin/rke2-pre-start'

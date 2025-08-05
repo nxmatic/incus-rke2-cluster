@@ -366,21 +366,22 @@ $(NOCLOUD_METADATA_FILE):
 #-----------------------------
 define NOCLOUD_USERDATA_YQ
 select(fileIndex == 0) as $$common |
-  select(fileIndex == 1) as $$overlay |
-  $$common * $$overlay |
-  .write_files = ($$common.write_files + $$overlay.write_files) |
-  .runcmd = ($$common.runcmd + $$overlay.runcmd) |
+  select(fileIndex == 1) as $$server |
+  select(fileIndex == 2) as $$node |
+  $$common * $$server * $$node |
+  .write_files = ($$common.write_files + $$server.write_files + $$node.write_files) |
+  .runcmd = ($$common.runcmd + $$server.runcmd + $$node.runcmd) |
   .name = "$(CLUSTER_NODE_NAME)" |
   .hostname = "$(CLUSTER_NODE_DN)" |
   .fqdn = "$(CLUSTER_NODE_FQDN)"
 endef
 
 
-$(NOCLOUD_USERDATA_FILE): cloud-config.common.yaml cloud-config.$(CLUSTER_NODE_NAME).yaml
+$(NOCLOUD_USERDATA_FILE): cloud-config.common.yaml cloud-config.server.yaml cloud-config.$(CLUSTER_NODE_NAME).yaml
 $(NOCLOUD_USERDATA_FILE): | $(NOCLOUD_DIR)/
 $(NOCLOUD_USERDATA_FILE): export YQ_EXPR := $(NOCLOUD_USERDATA_YQ)
 $(NOCLOUD_USERDATA_FILE):
-	@: "[+] Generating cloud-config.yaml for instance $(NODE_NAME)..."
+	@: "[+] Generating cloud-config.yaml for instance $(CLUSTER_NODE_NAME)..."
 	yq eval-all --prettyPrint --from-file=<(echo "$$YQ_EXPR") \
 		$(^) > $@
 

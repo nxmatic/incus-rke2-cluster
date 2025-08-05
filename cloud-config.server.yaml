@@ -1,0 +1,96 @@
+#cloud-config
+# Shared configuration for all RKE2 server nodes (master, peer1, peer2)
+# Contains shared server components, bootstrap manifests are in master config
+
+write_files:
+  # =============================================================================
+  # SHARED RKE2 CONTROL PLANE CONFIGURATION
+  # =============================================================================
+
+  # Core RKE2 server configuration (shared across all control plane nodes)
+  - path: /etc/rancher/rke2/config.yaml.d/core.yaml
+    content: |
+      write-kubeconfig-mode: "0640"
+      cni:
+        - cilium
+      ingress-controller: traefik
+
+  # Disable default controllers we don't want (consistent across cluster)
+  - path: /etc/rancher/rke2/config.yaml.d/disable.yaml
+    content: |
+      disable:
+        - rke2-snapshot-controller
+        - rke2-snapshot-controller-crd
+        - rke2-snapshot-validation-webhook
+        - rke2-ingress-nginx
+
+  # =============================================================================
+  # SHARED SYSTEMD SERVICE OVERRIDES
+  # =============================================================================
+
+  # Main RKE2 server service override (consistent restart behavior)
+  - path: /etc/systemd/system/rke2-server.service.d/override.conf
+    content: |
+      [Service]
+      Restart=always
+      RestartSec=10s
+      [Install]
+      WantedBy=multi-user.target
+
+  # Pre-start configuration for all control plane nodes
+  - path: /etc/systemd/system/rke2-server.service.d/pre-start.conf
+    content: |
+      [Unit]
+      Requires=rke2-remount-shared.service rke2-install.service
+      Wants=rke2-remount-shared.service
+      After=rke2-remount-shared.service rke2-install.service
+      [Service]
+      ExecStartPre=/bin/sh -xc '/usr/local/sbin/rke2-pre-start'
+
+  # Post-start configuration for all control plane nodes (but no Cilium check)
+  - path: /etc/systemd/system/rke2-server.service.d/post-start.conf
+    content: |
+      [Service]
+      # Note: Cilium check is only run on master node via post-start-master.conf
+      ExecStartPost=/bin/true
+
+  # =============================================================================
+  # SHARED CONTROL PLANE SCRIPTS
+  # =============================================================================
+
+  # Control plane pre-start script (shared logic for all server nodes)
+  - path: /usr/local/sbin/rke2-pre-start
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+      
+      source <( flox activate --dir /var/lib/rancher/rke2 )
+
+      db::check() {
+        local -A inet=( current "$(nmcli -g IP4.ADDRESS device show eth0)" )
+        local file="/var/lib/rancher/rke2/server/last-ip"
+        if [[ -r "$file" ]]; then
+          inet+=( last "$(cat "$file")" )
+        else
+          inet+=( last "" )
+        fi  
+        if [[ "${inet["current"]}" != "${inet["last"]}" ]]; then
+          : IP address changed: ${inet["last"]} - ${inet["current"]}, resetting RKE2 server DB
+          rm -rf /var/lib/rancher/rke2/server/db
+          echo "${inet["current"]}" > "$file"
+        fi
+      }
+
+      : Create RKE2 folders
+      mkdir -p /var/lib/rancher/rke2/agent
+      mkdir -p /var/lib/rancher/rke2/server
+      
+      : Check server database for IP address changes
+      db::check
+
+  # =============================================================================
+  # SHARED KUBERNETES MANIFESTS (Core CNI)  
+  # =============================================================================
+
+  # Note: Cilium HelmChartConfig is master-only to avoid conflicts
+  # Peer nodes will automatically use the Cilium deployment from master

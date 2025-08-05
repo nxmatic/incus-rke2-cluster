@@ -1,0 +1,47 @@
+# incus preseed for rke2 cluster with shared bridge
+# @codebase
+config: {}
+storage_pools:
+  - name: default
+    driver: zfs
+    config:
+      source: tank/nerd/incus
+networks:
+  - name: rke2-shared-br
+    type: bridge
+    description: RKE2 shared network bridge for all control plane nodes
+    config:
+      ipv4.address: 172.31.0.1/16
+      ipv4.nat: "true"
+      ipv4.dhcp: "true"
+      ipv6.address: none
+      ipv6.nat: "false"
+      ipv6.dhcp: "false"
+      raw.dnsmasq: |
+        log-debug
+        log-dhcp
+        log-facility=daemon
+        enable-ra
+        # DNS entries for all control plane nodes
+        address=/gateway/172.31.0.1
+        address=/kubernetes-api/172.31.0.2
+        address=/master-control-node/172.31.1.2
+        address=/peer1-control-node/172.31.2.2
+        address=/peer2-control-node/172.31.3.2
+        # Static DHCP reservations for control plane nodes
+        dhcp-host=10:66:6a:xx:xx:01,172.31.1.2,master-control-node
+        dhcp-host=10:66:6a:xx:xx:02,172.31.2.2,peer1-control-node
+        dhcp-host=10:66:6a:xx:xx:03,172.31.3.2,peer2-control-node
+profiles:
+  - name: rke2-shared
+    description: RKE2 shared control plane network profile
+    devices:
+      root:
+        path: /
+        pool: default
+        type: disk
+      eth0:
+        name: eth0
+        nictype: bridged
+        parent: rke2-shared-br
+        type: nic

@@ -1,6 +1,22 @@
+#cloud-config
+# Peer2 control plane node specific configuration
+
 name: peer2-control-node
+
 write_files:
-  # - path: /etc/rancher/rke2/config.yaml.d/etcd.yaml
+  # =============================================================================
+  # PEER2 NODE SPECIFIC CONFIGURATION
+  # =============================================================================
+
+  # ETCD configuration for peer2 node
+  - path: /etc/rancher/rke2/config.yaml.d/etcd.yaml
+    content: |
+      etcd-expose-metrics: true
+      node-name: peer2-control-node
+      with-node-id: false
+
+  # Optional: Peer2-specific etcd configuration for advanced setups
+  # - path: /etc/rancher/rke2/config.yaml.d/etcd-advanced.yaml
   #   content: |
   #     etcd-arg:
   #       - --name=peer2-control-node
