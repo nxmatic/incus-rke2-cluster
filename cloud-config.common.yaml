@@ -7,7 +7,11 @@ resolv_conf:
     - mammoth-skate.ts.net
 
 write_files:
-  # Umount ZFS datasets early
+  # =============================================================================
+  # SYSTEM CONFIGURATION FILES
+  # =============================================================================
+  
+  # Early ZFS umount service for proper shutdown
   - path: /etc/systemd/system/zfs-early-umount.service
     permissions: "0644"
     content: |
@@ -24,7 +28,11 @@ write_files:
       [Install]
       WantedBy=basic.target
 
-  # RKE2 server TLS SANs
+  # =============================================================================
+  # RKE2 CONFIGURATION FILES
+  # =============================================================================
+
+  # TLS Subject Alternative Names for RKE2 API server
   - path: /etc/rancher/rke2/config.yaml.d/tls-san.yaml
     content: |
       tls-san:
@@ -36,18 +44,23 @@ write_files:
         - 172.31.2.2 # peer1 control node
         - 172.31.3.2 # peer2 control node
 
+  # Enable etcd metrics exposure
   - path: /etc/rancher/rke2/config.yaml.d/etcd-metrics.yaml
     content: |
       etcd-expose-metrics: true
 
-  # Shared kubelet config
+  # =============================================================================
+  # KUBELET CONFIGURATION FILES
+  # =============================================================================
+
+  # Set systemd as cgroup driver
   - path: /var/lib/rancher/rke2/agent/etc/kubelet.conf.d/01-cgroup-override.conf
     content: |
       apiVersion: kubelet.config.k8s.io/v1beta1
       kind: KubeletConfiguration
       cgroupDriver: systemd
 
-  # Kubelet GC override
+  # Disable aggressive image garbage collection
   - path: /var/lib/rancher/rke2/agent/etc/kubelet.conf.d/00-disable-gc.conf
     content: |
       apiVersion: kubelet.config.k8s.io/v1beta1
@@ -56,7 +69,30 @@ write_files:
         imageGCHighThresholdPercent: 100
         imageGCLowThresholdPercent: 99
 
-  # Shared install-pre script
+  # =============================================================================
+  # CONTAINERD CONFIGURATION
+  # =============================================================================
+
+  # ZFS snapshotter configuration for containerd
+  - path: /var/lib/rancher/rke2/agent/etc/containerd/config-v3.toml.tmpl
+    permissions: "0644"
+    content: |
+      {{ template "base" . }}
+
+      [plugins."io.containerd.grpc.v1.cri".containerd]
+        snapshotter = "zfs"
+
+      [plugins."io.containerd.snapshotter.v1.zfs"]
+        root_path = "/var/lib/rancher/rke2/agent/containerd/io.containerd.snapshotter.v1.zfs"
+      
+      [debug]
+        level = "debug"
+
+  # =============================================================================
+  # FLOX ENVIRONMENT SETUP SCRIPTS
+  # =============================================================================
+
+  # Pre-installation script for environment setup
   - path: /usr/local/sbin/rke2-install-pre
     permissions: "0755"
     content: |
@@ -171,7 +207,7 @@ write_files:
       krew install ctx || true
       krew install ns || true
 
-  # Shared install script
+  # RKE2 installation script
   - path: /usr/local/sbin/rke2-install
     permissions: "0755"
     content: |
@@ -191,7 +227,11 @@ write_files:
       systemctl daemon-reload
       systemctl enable rke2-remount-shared
 
-  # Shared remount service
+  # =============================================================================
+  # SYSTEMD SERVICE UNITS
+  # =============================================================================
+
+  # Service to remount volumes as shared for container runtimes
   - path: /etc/systemd/system/rke2-remount-shared.service
     content: |
       [Unit]
@@ -205,7 +245,7 @@ write_files:
       [Install]
       WantedBy=multi-user.target
 
-  # Shared install service
+  # One-shot service to run RKE2 installation
   - path: /etc/systemd/system/rke2-install.service
     content: |
       [Unit]
@@ -222,7 +262,30 @@ write_files:
       ExecStart=/usr/bin/env -S bash -c 'rke2-install && systemctl disable rke2-install.service'
       RemainAfterExit=true
 
-  # RKE2 environment variables configuration script
+  # Systemd drop-in configuration for kubeconfig generation
+  - path: /etc/systemd/system/rke2-server.service.d/kubeconfig.conf
+    content: |
+      [Service]
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-tools-configuration-directories'
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-vip-kubeconfig'
+
+  - path: /etc/systemd/system/rke2-agent.service.d/kubeconfig.conf
+    content: |
+      [Service]
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-tools-configuration-directories'
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-vip-kubeconfig'
+
+  # Control plane specific systemd drop-in for Cilium operator scaling
+  - path: /etc/systemd/system/rke2-server.service.d/cilium-operator-scaling.conf
+    content: |
+      [Service]
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-cilium-operator-scaling'
+
+  # =============================================================================
+  # ENVIRONMENT CONFIGURATION FILES
+  # =============================================================================
+
+  # RKE2 environment variables configuration
   - path: /var/lib/rancher/rke2/.envrc
     permissions: "0644"
     content: |
@@ -284,7 +347,11 @@ write_files:
       [[ "$FLOX_ENV_PROJECT" != "$PWD" ]] &&
         use flox
 
-  # root zshrc
+  # =============================================================================
+  # SHELL CONFIGURATION FILES
+  # =============================================================================
+
+  # Root user zsh configuration
   - path: /root/.zshrc
     permissions: "0644"
     content: |
@@ -308,7 +375,7 @@ write_files:
       : Load direnv hook
       source <( direnv hook zsh )
 
-  # bash kube completion
+  # Bash completion for kubectl and helm
   - path: /etc/bash_completion.d/kube
     permissions: "0644"
     content: |
@@ -318,7 +385,11 @@ write_files:
       source <( kubectl completion bash ) 2>/dev/null || true
       source <( helm completion bash ) 2>/dev/null || true
 
-  # Shared remount script
+  # =============================================================================
+  # UTILITY SCRIPTS
+  # =============================================================================
+
+  # Script to remount volumes as shared
   - path: /usr/local/sbin/rke2-remount-shared
     permissions: "0755"
     content: |
@@ -327,7 +398,7 @@ write_files:
       mount --make-shared -t bpf bpf /sys/fs/bpf
       mount --make-shared /run
 
-  # Shared activate script
+  # Main activation script for RKE2
   - path: /usr/local/sbin/rke2-activate
     permissions: "0755"
     content: |
@@ -348,7 +419,7 @@ write_files:
       : Enable and launch the RKE2 service
       systemctl --no-block enable --now rke2-${INSTALL_RKE2_TYPE}
 
-  # Script to generate the systemd mount unit for containerd zfs snapshotter
+  # Script to generate ZFS mount units for containerd
   - path: /usr/local/sbin/rke2-enable-containerd-zfs-mount
     permissions: "0755"
     content: |
@@ -380,40 +451,7 @@ write_files:
       systemctl daemon-reload
       systemctl enable var-lib-rancher-rke2-agent-containerd-io.containerd.snapshotter.v1.zfs.mount
 
-  # Write containerd config-v3.toml.tmpl for zfs snapshotter, extending the base template
-  - path: /var/lib/rancher/rke2/agent/etc/containerd/config-v3.toml.tmpl
-    permissions: "0644"
-    content: |
-      {{ template "base" . }}
-
-      [plugins."io.containerd.grpc.v1.cri".containerd]
-        snapshotter = "zfs"
-
-      [plugins."io.containerd.snapshotter.v1.zfs"]
-        root_path = "/var/lib/rancher/rke2/agent/containerd/io.containerd.snapshotter.v1.zfs"
-      
-      [debug]
-        level = "debug"
-
-  - path: /etc/systemd/system/rke2-server.service.d/kubeconfig.conf
-    content: |
-      [Service]
-      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-tools-configuration-directories'
-      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-vip-kubeconfig'
-
-  - path: /etc/systemd/system/rke2-agent.service.d/kubeconfig.conf
-    content: |
-      [Service]
-      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-tools-configuration-directories'
-      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-vip-kubeconfig'
-
-  # Common post-start script for control plane nodes only
-  - path: /etc/systemd/system/rke2-server.service.d/cilium-operator-scaling.conf
-    content: |
-      [Service]
-      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-cilium-operator-scaling'
-
-  # Dynamic Cilium operator scaling script (control plane nodes only)
+  # Dynamic Cilium operator scaling script for control plane nodes
   - path: /usr/local/sbin/rke2-cilium-operator-scaling
     permissions: "0755"
     content: |
@@ -450,7 +488,7 @@ write_files:
       : Wait for cilium-operator rollout to complete
       kubectl rollout status deployment/cilium-operator -n kube-system --timeout=60s || true
 
-  # Create configuration tool directories
+  # Script to create tool configuration directories  
   - path: /usr/local/sbin/rke2-tools-configuration-directories
     permissions: "0755"
     content: |
@@ -462,7 +500,7 @@ write_files:
       mkdir -p /var/cache/rancher/rke2/helm/repository
       mkdir -p /var/lib/rancher/rke2/krew
 
-  # Generate kubeconfig for VIP
+  # Script to generate kubeconfig for VIP access
   - path: /usr/local/sbin/rke2-vip-kubeconfig
     permissions: "0755"
     content: |
