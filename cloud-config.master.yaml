@@ -56,8 +56,20 @@ write_files:
             ui:
               enabled: true
           kubeProxyReplacement: true
+          l2announcements:
+            enabled: true
+            leaseDuration: 15s
+            leaseRenewDeadline: 5s
+            leaseRetryPeriod: 2s
+          l2NeighDiscovery:
+            enabled: true
+            refresh: true
+            refreshPeriod: 30s
+          bpf:
+            hostLegacyRouting: true
+          enableL7Proxy: true
           socketLB:
-            hostNamespaceOnly: true
+            hostNamespaceOnly: false
           operator:
             hostNetwork: true
             replicas: 1
@@ -89,8 +101,14 @@ write_files:
       apiVersion: "cilium.io/v2alpha1"
       kind: CiliumL2AnnouncementPolicy
       metadata:
-        name: l2policy
+        name: host
       spec:
+        # Announce all LoadBalancer IPs EXCEPT the control-plane VIP
+        serviceSelector:
+          matchExpressions:
+          - key: metadata.name
+            operator: NotIn
+            values: ["control-plane-lb"]
         loadBalancerIPs: true
         interfaces:
           - eth0
@@ -176,10 +194,10 @@ write_files:
         labels:
           advertise-bgp: "true"
         annotations:
-          io.cilium/lb-ipam-ips: "172.31.0.2"
+          io.cilium/lb-ipam-ips: "${CLUSTER_INET_VIRTUAL}"
       spec:
         type: LoadBalancer
-        loadBalancerClass: io.cilium/bgp-control-plane
+        # loadBalancerClass: io.cilium/bgp-control-plane
         ports:
         - name: kube-apiserver
           port: 6443
@@ -252,8 +270,7 @@ write_files:
                                  .operatorConfig.hostname = "${CLUSTER_NAME}-${CLUSTER_NODE_NAME}-tailscale-operator" |
                                  to_yaml ) ) |
         ( select( .kind == "Connector" ) | .spec ) |=
-          ( .subnetRouter.advertiseRoutes = ["172.31.1.1/28", "172.31.2.1/28"] |
-            .hostname = "${CLUSTER_NAME}-controlplane-lb-routes" )
+          ( .hostname = "${CLUSTER_NAME}-controlplane-lb-routes" )
       EoE
         ) "$file"
       }
@@ -294,7 +311,7 @@ write_files:
       : Cilium Status Check
       cilium status --wait --wait-duration=300s
       
-      : BGP Status Check (master node)
+      : "BGP Status Check (master node)"
       cilium connectivity test --test-namespace cilium-test --single-node || true
       
       : LoadBalancer Pool Check
@@ -317,9 +334,9 @@ write_files:
       
       : API Connectivity Test
       if curl -k --connect-timeout 5 https://${CLUSTER_INET_VIRTUAL}:6443/version; then
-        : ✅ API accessible via VIP ${CLUSTER_INET_VIRTUAL}
+        : "✅ API accessible via VIP ${CLUSTER_INET_VIRTUAL}"
       else
-        : ❌ API not accessible via VIP ${CLUSTER_INET_VIRTUAL}
+        : "❌ API not accessible via VIP ${CLUSTER_INET_VIRTUAL}"
       fi
       
       : Network Connectivity Summary
@@ -480,5 +497,3 @@ write_files:
         name: ts-controlplane-lb-routes
       spec:
         hostname: ${CLUSTER_NAME}-controlplane-lb-routes
-        subnetRouter:
-          advertiseRoutes:
