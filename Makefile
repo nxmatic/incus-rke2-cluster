@@ -404,11 +404,13 @@ select(fileIndex == 0) as $$common |
   .name = "$(CLUSTER_NODE_NAME)" |
   .hostname = "$(CLUSTER_NODE_DN)" |
   .fqdn = "$(CLUSTER_NODE_FQDN)" |
-	(.write_files[] | select(.path == "/etc/rancher/rke2/config.yaml.d/tls-san.yaml") | .content) = "tls-san: $(TLS_SAN_CONTENT)\n" |
-	(.write_files[] | select(.path == "/etc/rancher/rke2/config.yaml.d/cluster-init.yaml") | .content) = "cluster-init: '$(if $(filter master,$(CLUSTER_NODE_NAME)),true,false)'\n" |
-	# Set resolved advertise-address directly (avoid placeholder that cloud-init doesn't expand)
-	(.write_files[] | select(.path == "/etc/rancher/rke2/config.yaml.d/advertise-address.yaml") | .content) = "advertise-address: $(CLUSTER_NODE_INET)\n" |
-	(.write_files[] | select(.path == "/etc/rancher/rke2/config.yaml.d/token.yaml") | .content) = "token: '$(if $(filter master,$(CLUSTER_NODE_NAME)),$(call RKE2_TOKEN_CMD,master),$(call RKE2_TOKEN_CMD,master))'\n"
+  (.write_files[] | select(.path == "/etc/rancher/rke2/config.yaml.d/tls-san.yaml") | .content) = "tls-san: $(TLS_SAN_CONTENT)\n" |
+  (.write_files[] | select(.path == "/etc/rancher/rke2/config.yaml.d/cluster-init.yaml") | .content) = "cluster-init: '$(if $(filter master,$(CLUSTER_NODE_NAME)),true,false)'\n" |
+  # Set resolved advertise-address directly (avoid placeholder that cloud-init doesn't expand)
+  (.write_files[] | select(.path == "/etc/rancher/rke2/config.yaml.d/advertise-address.yaml") | .content) = "advertise-address: $(CLUSTER_NODE_INET)\n" |
+  (.write_files[] | select(.path == "/etc/rancher/rke2/config.yaml.d/token.yaml") | .content) = "token: '$(if $(filter master,$(CLUSTER_NODE_NAME)),$(call RKE2_TOKEN_CMD,master),$(call RKE2_TOKEN_CMD,master))'\n" |
+  # Enforce control-plane-lb Service pinned VIP & ippool annotation
+  (.write_files[] | select(.path == "/var/lib/rancher/rke2/server/manifests/control-plane-lb.yaml") | .content) = "apiVersion: v1\nkind: Service\nmetadata:\n  name: control-plane-lb\n  namespace: kube-system\n  labels:\n    advertise-bgp: \"true\"\n  annotations:\n    io.cilium/lb-ipam-ips: \"$(CLUSTER_INET_VIRTUAL)\"\n    service.cilium.io/ippool: \"virtual-addresses\"\nspec:\n  type: LoadBalancer\n  loadBalancerIP: $(CLUSTER_INET_VIRTUAL)\n  ports:\n  - name: kube-apiserver\n    port: 6443\n    protocol: TCP\n    targetPort: 6443\n  selector:\n    component: kube-apiserver\n    tier: control-plane\n"
 endef
 
 
