@@ -38,6 +38,7 @@ dnsmasq.pkg-path = "dnsmasq"
 remake.pkg-path = "remake"
 k9s.pkg-path = "k9s"
 ipcalc.pkg-path = "ipcalc"
+nmap.pkg-path = "nmap"
 # gum.pkg-path = "gum"
 # gum.version = "^0.14.5"
 

@@ -2,7 +2,7 @@
 #-----------------------------
 # Shell, Project, and Run Directory Variables
 #-----------------------------
-SHELL := /bin/bash -exuo pipefail
+SHELL := /bin/bash -exo pipefail
 export PATH := /run/wrappers/bin:$(PATH)
 
 empty :=
@@ -37,30 +37,50 @@ CLUSTER_SUPERNET_CIDR := 172.31.0.0/16
 CLUSTER_IMAGE_NAME := control-node
 CLUSTER_NODE_NAME := $(NAME)
 
-ifeq (master,$(CLUSTER_NODE_NAME))
+# Derive cluster subnet from cluster name (e.g., bioskop=1, alcide=2)
+ifeq (bioskop,$(CLUSTER_NAME))
   CLUSTER_SUBNET := 1
-else ifneq (,$(findstring peer,$(CLUSTER_NODE_NAME)))
-  CLUSTER_SUBNET := $(call plus,1,$(subst peer,,$(CLUSTER_NODE_NAME)))
+else ifeq (alcide,$(CLUSTER_NAME))
+  CLUSTER_SUBNET := 2
+else
+  $(error Unsupported cluster name: $(CLUSTER_NAME))
+endif
+
+# Set node offset based on node type within the cluster
+ifeq (master,$(CLUSTER_NODE_NAME))
+  NODE_OFFSET := 0
+else ifeq (peer1,$(CLUSTER_NODE_NAME))
+  NODE_OFFSET := 64
+else ifeq (peer2,$(CLUSTER_NODE_NAME))
+  NODE_OFFSET := 128
 else
   $(error Invalid cluster node name: $(CLUSTER_NODE_NAME))
 endif
 
 CLUSTER_VIRTUAL_ADDRESSES_CIDR := 172.31.0.0/24
-CLUSTER_NODES_CIDR := 172.31.$(CLUSTER_SUBNET).1/30
-CLUSTER_LOADBALANCERS_CIDR := 172.31.$(CLUSTER_SUBNET).128/25
+CLUSTER_NODES_CIDR := 172.31.$(CLUSTER_SUBNET).$(NODE_OFFSET)/26
+CLUSTER_LOADBALANCERS_CIDR := 172.31.$(CLUSTER_SUBNET).192/26
 CLUSTER_PODS_CIDR := 10.42.0.0/16
 CLUSTER_SERVICES_CIDR := 10.43.0.0/16
 CLUSTER_DOMAIN := cluster.local
-CLUSTER_INET_GATEWAY := 172.31.$(CLUSTER_SUBNET).1
-CLUSTER_INET_VIRTUAL := 172.31.0.2
-CLUSTER_INET_MASTER := 172.31.1.2
-CLUSTER_INET_PEER1 := 172.31.2.2
-CLUSTER_INET_PEER2 := 172.31.3.2
-CLUSTER_ARPA_GATEWAY := 1.$(CLUSTER_SUBNET).31.172
-CLUSTER_ARPA_VIRTUAL := 2.0.31.172
-CLUSTER_ARPA_MASTER := 2.1.31.172
-CLUSTER_ARPA_PEER1 := 2.2.31.172
-CLUSTER_ARPA_PEER2 := 2.3.31.172
+## Precomputed offset helpers (reduce repeated $(shell) echo noise while retaining -x tracing elsewhere)
+NODE_OFFSET_P1 := $(shell echo $$(( $(NODE_OFFSET) + 1 )))
+NODE_OFFSET_P2 := $(shell echo $$(( $(NODE_OFFSET) + 2 )))
+CLUSTER_INET_GATEWAY := 172.31.$(CLUSTER_SUBNET).$(NODE_OFFSET_P1)
+CLUSTER_INET_VIRTUAL := 172.31.0.$(CLUSTER_SUBNET)
+CLUSTER_NODE_INET := 172.31.$(CLUSTER_SUBNET).$(NODE_OFFSET_P2)
+# Specific node IP addresses for TLS SANs
+CLUSTER_INET_MASTER := 172.31.$(CLUSTER_SUBNET).2
+CLUSTER_INET_PEER1 := 172.31.$(CLUSTER_SUBNET).66
+CLUSTER_INET_PEER2 := 172.31.$(CLUSTER_SUBNET).130
+# ARPA entries based on calculated IPs
+CLUSTER_ARPA_GATEWAY := $(NODE_OFFSET_P1).$(CLUSTER_SUBNET).31.172
+CLUSTER_ARPA_VIRTUAL := $(CLUSTER_SUBNET).0.31.172
+CLUSTER_ARPA_NODE := $(NODE_OFFSET_P2).$(CLUSTER_SUBNET).31.172
+# Added explicit ARPA entries for each control-plane node (fix for undefined vars in DNSMASQ_RAW)
+CLUSTER_ARPA_MASTER := 2.$(CLUSTER_SUBNET).31.172
+CLUSTER_ARPA_PEER1 := 66.$(CLUSTER_SUBNET).31.172
+CLUSTER_ARPA_PEER2 := 130.$(CLUSTER_SUBNET).31.172
 
 CLUSTER_ENV_FILE := $(INCUS_DIR)/cluster-env.mk
 
@@ -160,8 +180,8 @@ define INCUS_PRESSED_YQ
   .networks[0].name = "rke2-$(CLUSTER_NODE_NAME)-br" |
   .networks[0].description = "RKE2 network ${CLUSTER_NODE_NAME} bridge" |
   .networks[0].config."raw.dnsmasq" = "$(DNSMASQ_RAW)" |
-  .networks[0].config."ipv4.address" = "$(CLUSTER_NODES_CIDR)" |
-# .networks[0].config."ipv4.routes" = "172.31.0.2/32" |
+  .networks[0].config."ipv4.address" = "$(CLUSTER_INET_GATEWAY)/26" |
+  .networks[0].config."ipv4.routes" = "$(CLUSTER_INET_VIRTUAL)/32" |
   .profiles[0].name = "rke2-$(CLUSTER_NODE_NAME)" |
   .profiles[0].description = "RKE2 profile for ${CLUSTER_NODE_NAME}" |
   .profiles[0].devices["eth0"].parent = "rke2-$(CLUSTER_NODE_NAME)-br"
@@ -235,7 +255,7 @@ $(INCUS_IMAGE_BUILD_FILES)&:
 
 instance: $(INCUS_CONFIG_INSTANCE_MARKER_FILE)
 
-$(INCUS_CONFIG_INSTANCE_MARKER_FILE).init: $(INCUS_IMPORT_IMAGE_MARKER_FILE) $(INCUS_CREATE_PROJECT_MARKER_FILE)
+$(INCUS_CONFIG_INSTANCE_MARKER_FILE).init: $(INCUS_IMAGE_IMPORT_MARKER_FILE) $(INCUS_CREATE_PROJECT_MARKER_FILE)
 $(INCUS_CONFIG_INSTANCE_MARKER_FILE).init: $(INCUS_INSTANCE_CONFIG_FILE)
 $(INCUS_CONFIG_INSTANCE_MARKER_FILE).init: | $(INCUS_DIR)/ $(SHARED_DIR)/ $(KUBECONFIG_DIR)/ $(LOGS_DIR)/
 $(INCUS_CONFIG_INSTANCE_MARKER_FILE).init:
@@ -257,10 +277,15 @@ $(INCUS_CONFIG_INSTANCE_MARKER_FILE):
 	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_NODE_HWADDR "$(CLUSTER_NODE_HWADDR)"
 	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_PODS_CIDR "$(CLUSTER_PODS_CIDR)"
 	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_SERVICES_CIDR "$(CLUSTER_SERVICES_CIDR)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_NODE_INET "$(CLUSTER_NODE_INET)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_INET_MASTER "$(CLUSTER_INET_MASTER)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_INET_PEER1 "$(CLUSTER_INET_PEER1)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_INET_PEER2 "$(CLUSTER_INET_PEER2)"
 	incus config set $(CLUSTER_NODE_NAME) environment.TSKEY "$(TSKEY)"
 	incus config set $(CLUSTER_NODE_NAME) environment.TSID "$(TSID)"
 	
-	incus config device set $(CLUSTER_NODE_NAME) eth0 parent=rke2-$(CLUSTER_NODE_NAME)-br hwaddr=$(CLUSTER_NODE_HWADDR)
+	# Fixed previously line-wrapped 'ipv4.address' token that broke make parsing
+	incus config device set $(CLUSTER_NODE_NAME) eth0 parent=rke2-$(CLUSTER_NODE_NAME)-br hwaddr=$(CLUSTER_NODE_HWADDR) ipv4.address=$(CLUSTER_NODE_INET)
 
 	touch $@
 
@@ -277,10 +302,11 @@ $(INCUS_CONFIG_INSTANCE_MARKER_FILE): config-rke2-master-token
 config-rke2-master-token: $(RKE2_MASTER_TOKEN_FILE)
 config-rke2-master-token:
 	@: "[+] Configuring master token for instance $(CLUSTER_NODE_NAME)..."
-	incus config device add $(CLUSTER_NODE_NAME) master.token disk source=$(PWD)/$(RKE2_MASTER_TOKEN_FILE) path=/etc/rancher/rke2/config.yaml.d/master.yaml
+	# Added '|| true' to avoid failure if device already exists
+	incus config device add $(CLUSTER_NODE_NAME) master.token disk source=$(PWD)/$(RKE2_MASTER_TOKEN_FILE) path=/etc/rancher/rke2/config.yaml.d/master.yaml || true
 endif
 
-start: instance zfs.allow
+start: instance zfs.allow validate-userdata
 start:
 	@: "[+] Starting instance $(CLUSTER_NODE_NAME)..."
 	incus start $(CLUSTER_NODE_NAME)
@@ -364,6 +390,10 @@ $(NOCLOUD_METADATA_FILE):
 #-----------------------------
 # Generate cloud-config.yaml using yq for YAML correctness
 #-----------------------------
+define TLS_SAN_CONTENT
+['localhost', 'gateway', '0.0.0.0', '127.0.0.1', '$(CLUSTER_INET_VIRTUAL)', '$(CLUSTER_INET_MASTER)', '$(CLUSTER_INET_PEER1)', '$(CLUSTER_INET_PEER2)']
+endef
+
 define NOCLOUD_USERDATA_YQ
 select(fileIndex == 0) as $$common |
   select(fileIndex == 1) as $$server |
@@ -373,7 +403,12 @@ select(fileIndex == 0) as $$common |
   .runcmd = ($$common.runcmd + $$server.runcmd + $$node.runcmd) |
   .name = "$(CLUSTER_NODE_NAME)" |
   .hostname = "$(CLUSTER_NODE_DN)" |
-  .fqdn = "$(CLUSTER_NODE_FQDN)"
+  .fqdn = "$(CLUSTER_NODE_FQDN)" |
+	(.write_files[] | select(.path == "/etc/rancher/rke2/config.yaml.d/tls-san.yaml") | .content) = "tls-san: $(TLS_SAN_CONTENT)\n" |
+	(.write_files[] | select(.path == "/etc/rancher/rke2/config.yaml.d/cluster-init.yaml") | .content) = "cluster-init: '$(if $(filter master,$(CLUSTER_NODE_NAME)),true,false)'\n" |
+	# Set resolved advertise-address directly (avoid placeholder that cloud-init doesn't expand)
+	(.write_files[] | select(.path == "/etc/rancher/rke2/config.yaml.d/advertise-address.yaml") | .content) = "advertise-address: $(CLUSTER_NODE_INET)\n" |
+	(.write_files[] | select(.path == "/etc/rancher/rke2/config.yaml.d/token.yaml") | .content) = "token: '$(if $(filter master,$(CLUSTER_NODE_NAME)),$(call RKE2_TOKEN_CMD,master),$(call RKE2_TOKEN_CMD,master))'\n"
 endef
 
 
@@ -384,6 +419,20 @@ $(NOCLOUD_USERDATA_FILE):
 	@: "[+] Generating cloud-config.yaml for instance $(CLUSTER_NODE_NAME)..."
 	yq eval-all --prettyPrint --from-file=<(echo "$$YQ_EXPR") \
 		$(^) > $@
+
+#-----------------------------
+# Hardening / Validation Targets
+#-----------------------------
+.PHONY: validate-userdata
+validate-userdata: $(NOCLOUD_USERDATA_FILE)
+	@: "[+] Validating rendered cloud-config for unresolved placeholders..."
+	@if grep -q '\${[A-Z0-9_]\+}' $(NOCLOUD_USERDATA_FILE); then \
+		echo "[ERROR] Unresolved placeholders found in $(NOCLOUD_USERDATA_FILE):"; \
+		grep -n '\${[A-Z0-9_]\+}' $(NOCLOUD_USERDATA_FILE); \
+		exit 1; \
+	else \
+		echo "[OK] No unresolved placeholders detected."; \
+	fi
 
 #-----------------------------
 # Create necessary directories

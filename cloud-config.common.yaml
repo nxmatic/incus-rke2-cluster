@@ -38,11 +38,12 @@ write_files:
       tls-san:
         - localhost
         - gateway
+        - 0.0.0.0
         - 127.0.0.1
-        - 172.31.0.2 # kube-vip VIP address
-        - 172.31.1.2 # master control node
-        - 172.31.2.2 # peer1 control node
-        - 172.31.3.2 # peer2 control node
+        - ${CLUSTER_INET_VIRTUAL} # cluster VIP address
+        - ${CLUSTER_INET_MASTER} # master control node
+        - ${CLUSTER_INET_PEER1} # peer1 control node
+        - ${CLUSTER_INET_PEER2} # peer2 control node
 
   # Enable etcd metrics exposure
   - path: /etc/rancher/rke2/config.yaml.d/etcd-metrics.yaml

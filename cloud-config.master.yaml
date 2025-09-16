@@ -490,10 +490,10 @@ write_files:
           operatorConfig:
             hostname: "${CLUSTER_NAME}-tailscale-operator"
             debug: true
-      ---
-      apiVersion: tailscale.com/v1alpha1
-      kind: Connector
-      metadata:
-        name: ts-controlplane-lb-routes
-      spec:
-        hostname: ${CLUSTER_NAME}-controlplane-lb-routes
+      # ---
+      # apiVersion: tailscale.com/v1alpha1
+      # kind: Connector
+      # metadata:
+      #   name: ts-controlplane-lb-routes
+      # spec:
+      #   hostname: ${CLUSTER_NAME}-controlplane-lb-routes

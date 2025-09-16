@@ -11,9 +11,15 @@ write_files:
   - path: /etc/rancher/rke2/config.yaml.d/core.yaml
     content: |
       write-kubeconfig-mode: "0640"
+      bind-address: "0.0.0.0"
       cni:
         - cilium
       ingress-controller: traefik
+
+  # Dedicated advertise-address fragment (filled by yq expression in Makefile)
+  - path: /etc/rancher/rke2/config.yaml.d/advertise-address.yaml
+    content: |
+      advertise-address: ${CLUSTER_NODE_INET}
 
   # Disable default controllers we don't want (consistent across cluster)
   - path: /etc/rancher/rke2/config.yaml.d/disable.yaml
