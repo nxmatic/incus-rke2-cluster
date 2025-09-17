@@ -1,4 +1,3 @@
-#cloud-config
 # Common cloud-init configuration for all RKE2 nodes (masters and agents)
 
 manage_resolv_conf: true

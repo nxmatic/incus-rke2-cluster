@@ -1,4 +1,3 @@
-#cloud-config
 # Master node configuration (first control plane node)
 # Includes both master-specific settings AND bootstrap-only components
 

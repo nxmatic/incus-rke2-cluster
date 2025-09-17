@@ -1,4 +1,3 @@
-#cloud-config
 # Peer2 control plane node specific configuration
 
 name: peer2-control-node
