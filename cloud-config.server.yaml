@@ -1,4 +1,3 @@
-#cloud-config
 # Shared configuration for all RKE2 server nodes (master, peer1, peer2)
 # Contains shared server components, bootstrap manifests are in master config
 
@@ -15,6 +14,12 @@ write_files:
       cni:
         - cilium
       ingress-controller: traefik
+
+  # Dedicated token fragment (filled by yq expression in Makefile)
+  - path: /etc/rancher/rke2/config.yaml.d/token.yaml
+    content: |
+      server: https://$(CLUSTER_INET_MASTER):9345
+      token: $(CLUSTER_MASTER_TOKEN)
 
   # Dedicated advertise-address fragment (filled by yq expression in Makefile)
   - path: /etc/rancher/rke2/config.yaml.d/advertise-address.yaml

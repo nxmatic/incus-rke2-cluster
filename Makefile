@@ -33,6 +33,7 @@ LOGS_DIR := $(RUN_INSTANCE_DIR)/logs
 #-----------------------------
 
 CLUSTER_NAME ?= $(LIMA_HOSTNAME)
+CLUSTER_TOKEN ?= $(CLUSTER_NAME)
 CLUSTER_SUPERNET_CIDR := 172.31.0.0/16
 CLUSTER_IMAGE_NAME := control-node
 CLUSTER_NODE_NAME := $(NAME)
@@ -92,6 +93,7 @@ $(CLUSTER_ENV_FILE): _hwaddr_words_network_words = $(wordlist 4,5,$(_hwaddr_word
 $(CLUSTER_ENV_FILE): _hwaddr_words_network_part = $(subst $(space),$(colon),$(_hwaddr_words_network_words))
 
 $(CLUSTER_ENV_FILE): NAME ?= master
+$(CLUSTER_ENV_FILE): TOKEN := $(CLUSTER_TOKEN)
 $(CLUSTER_ENV_FILE): DN := ${NAME}-$(CLUSTER_IMAGE_NAME)
 $(CLUSTER_ENV_FILE): FQDN := $(CLUSTER_NAME)-$(DN).$(LIMA_DN)
 $(CLUSTER_ENV_FILE): HWADDR =  10:66:6a:$(_hwaddr_words_network_part):0$(CLUSTER_SUBNET)
@@ -105,16 +107,13 @@ define INCUS_INET_CMD
 $(shell incus list $(1) --format=yaml | yq eval '$(INCUS_INET_YQ_EXPR)' -)
 endef
 
-define RKE2_TOKEN_CMD
-$(shell incus exec $(1) -- cat /var/lib/rancher/rke2/server/token)
-endef
-
 define RKE2_MASTER_TOKEN_TEMPLATE
 server: https://$(CLUSTER_INET_MASTER):9345
-token: $(call RKE2_TOKEN_CMD,master)
+token: $(CLUSTER_TOKEN)
 endef
 
 define CLUSTER_ENV
+CLUSTER_TOKEN := $(TOKEN)
 CLUSTER_NODE_NAME := $(NAME)
 CLUSTER_NODE_DN := $(DN)
 CLUSTER_NODE_FQDN := $(FQDN)
@@ -289,22 +288,7 @@ $(INCUS_CONFIG_INSTANCE_MARKER_FILE):
 
 	touch $@
 
-RKE2_MASTER_TOKEN_FILE := $(RUN_DIR)/master/rke2-token.yaml
-
-$(RKE2_MASTER_TOKEN_FILE): | $(RUN_DIR)/master/
-$(RKE2_MASTER_TOKEN_FILE):
-	@: $(file > $@,$(call RKE2_MASTER_TOKEN_TEMPLATE))
-
-ifneq (,$(findstring peer,$(CLUSTER_NODE_NAME)))
-
-$(INCUS_CONFIG_INSTANCE_MARKER_FILE): config-rke2-master-token
-
-config-rke2-master-token: $(RKE2_MASTER_TOKEN_FILE)
-config-rke2-master-token:
-	@: "[+] Configuring master token for instance $(CLUSTER_NODE_NAME)..."
-	# Added '|| true' to avoid failure if device already exists
-	incus config device add $(CLUSTER_NODE_NAME) master.token disk source=$(PWD)/$(RKE2_MASTER_TOKEN_FILE) path=/etc/rancher/rke2/config.yaml.d/master.yaml || true
-endif
+## Token device & external file removed; unified token provisioning via write_files patch
 
 start: instance zfs.allow validate-userdata
 start:
@@ -390,44 +374,127 @@ $(NOCLOUD_METADATA_FILE):
 #-----------------------------
 # Generate cloud-config.yaml using yq for YAML correctness
 #-----------------------------
-define TLS_SAN_CONTENT
-['localhost', 'gateway', '0.0.0.0', '127.0.0.1', '$(CLUSTER_INET_VIRTUAL)', '$(CLUSTER_INET_MASTER)', '$(CLUSTER_INET_PEER1)', '$(CLUSTER_INET_PEER2)']
-endef
+## Removed TLS_SAN_CONTENT (we build multi-line list directly in TLS SAN patch)
 
-define NOCLOUD_USERDATA_YQ
+define NOCLOUD_USERDATA_MERGE_YQ
 select(fileIndex == 0) as $$common |
   select(fileIndex == 1) as $$server |
   select(fileIndex == 2) as $$node |
-  $$common * $$server * $$node |
+  ($$common * $$server * $$node) as $$merged |
+  $$merged |
   .write_files = ($$common.write_files + $$server.write_files + $$node.write_files) |
-  .runcmd = ($$common.runcmd + $$server.runcmd + $$node.runcmd) |
+  .runcmd = (($$common.runcmd // []) + ($$server.runcmd // []) + ($$node.runcmd // [])) |
   .name = "$(CLUSTER_NODE_NAME)" |
   .hostname = "$(CLUSTER_NODE_DN)" |
-  .fqdn = "$(CLUSTER_NODE_FQDN)" |
-  (.write_files[] | select(.path == "/etc/rancher/rke2/config.yaml.d/tls-san.yaml") | .content) = "tls-san: $(TLS_SAN_CONTENT)\n" |
-  (.write_files[] | select(.path == "/etc/rancher/rke2/config.yaml.d/cluster-init.yaml") | .content) = "cluster-init: '$(if $(filter master,$(CLUSTER_NODE_NAME)),true,false)'\n" |
-  # Set resolved advertise-address directly (avoid placeholder that cloud-init doesn't expand)
-  (.write_files[] | select(.path == "/etc/rancher/rke2/config.yaml.d/advertise-address.yaml") | .content) = "advertise-address: $(CLUSTER_NODE_INET)\n" |
-  (.write_files[] | select(.path == "/etc/rancher/rke2/config.yaml.d/token.yaml") | .content) = "token: '$(if $(filter master,$(CLUSTER_NODE_NAME)),$(call RKE2_TOKEN_CMD,master),$(call RKE2_TOKEN_CMD,master))'\n" |
-	# Patch only required fields of control-plane-lb Service manifest instead of full string replace
-	(.write_files[] | select(.path == "/var/lib/rancher/rke2/server/manifests/control-plane-lb.yaml") | .content |= ( from_yaml |
-		 .metadata.annotations."io.cilium/lb-ipam-ips" = "$(CLUSTER_INET_VIRTUAL)" |
-		 .metadata.annotations."service.cilium.io/ippool" = "virtual-addresses" |
-		 .spec.type = "LoadBalancer" |
-		 .spec.loadBalancerIP = "$(CLUSTER_INET_VIRTUAL)" |
-		 .spec.ports = [ {"name":"kube-apiserver","port":6443,"protocol":"TCP","targetPort":6443} ] |
-		 .spec.selector = {"component":"kube-apiserver","tier":"control-plane"} |
-		 to_yaml ))
+  .fqdn = "$(CLUSTER_NODE_FQDN)"
 endef
 
+define NOCLOUD_USERDATA_TLS_SAN_YQ
+(.write_files[] | select(.path == "/etc/rancher/rke2/config.yaml.d/tls-san.yaml") | .content) |= (
+	from_yaml |
+	."tls-san" = [
+		"localhost",
+		"gateway",
+		"0.0.0.0",
+		"127.0.0.1",
+		"$(CLUSTER_INET_VIRTUAL)",
+		"$(CLUSTER_INET_MASTER)",
+		"$(CLUSTER_INET_PEER1)",
+		"$(CLUSTER_INET_PEER2)"
+	] |
+	to_yaml
+)
+endef
+
+define NOCLOUD_USERDATA_CLUSTER_INIT_YQ
+(.write_files[] | select(.path == "/etc/rancher/rke2/config.yaml.d/cluster-init.yaml") | .content) |= (
+	from_yaml |
+	."cluster-init" = $(if $(filter master,$(CLUSTER_NODE_NAME)),true,false) |
+	to_yaml
+)
+endef
+
+define NOCLOUD_USERDATA_ADVERTISE_ADDR_YQ
+(.write_files[] | select(.path == "/etc/rancher/rke2/config.yaml.d/advertise-address.yaml") | .content) |= (
+	from_yaml |
+	."advertise-address" = "$(CLUSTER_NODE_INET)" |
+	to_yaml
+)
+endef
+
+define NOCLOUD_USERDATA_TOKEN_YQ
+# Ensure token.yaml contains only the token key (remove any server key)
+(.write_files[] | select(.path == "/etc/rancher/rke2/config.yaml.d/token.yaml") | .content) |= (
+  from_yaml |
+  .token = "$(CLUSTER_TOKEN)" |
+  del(.server) |
+  to_yaml
+)
+endef
+
+ifeq ($(CLUSTER_NODE_NAME),master)
+define NOCLOUD_USERDATA_SERVER_YQ
+.
+endef
+else
+define NOCLOUD_USERDATA_SERVER_YQ
+# Add/replace server.yaml fragment pointing to virtual IP (LB)
+.
+| (.write_files = [ .write_files[] | select(.path != "/etc/rancher/rke2/config.yaml.d/server.yaml") ])
+| (.write_files += [{"path": "/etc/rancher/rke2/config.yaml.d/server.yaml", "content": "server: https://$(CLUSTER_INET_VIRTUAL):9345\n"}])
+endef
+endif
+
+define NOCLOUD_USERDATA_CONTROL_PLANE_LB_YQ
+(.write_files[] | select(.path == "/var/lib/rancher/rke2/server/manifests/control-plane-lb.yaml") | .content) |= (from_yaml |
+	.metadata.annotations."io.cilium/lb-ipam-ips" = "$(CLUSTER_INET_VIRTUAL)" |
+	.metadata.annotations."service.cilium.io/ippool" = "virtual-addresses" |
+	.spec.type = "LoadBalancer" |
+	.spec.loadBalancerIP = "$(CLUSTER_INET_VIRTUAL)" |
+	.spec.ports = [ {"name":"kube-apiserver","port":6443,"protocol":"TCP","targetPort":6443} ] |
+	.spec.selector = {"component":"kube-apiserver","tier":"control-plane"} |
+	to_yaml )
+endef
 
 $(NOCLOUD_USERDATA_FILE): cloud-config.common.yaml cloud-config.server.yaml cloud-config.$(CLUSTER_NODE_NAME).yaml
 $(NOCLOUD_USERDATA_FILE): | $(NOCLOUD_DIR)/
-$(NOCLOUD_USERDATA_FILE): export YQ_EXPR := $(NOCLOUD_USERDATA_YQ)
+$(NOCLOUD_USERDATA_FILE): export YQ_MERGE_EXPR := $(NOCLOUD_USERDATA_MERGE_YQ)
+$(NOCLOUD_USERDATA_FILE): export YQ_TLS_SAN_EXPR := $(NOCLOUD_USERDATA_TLS_SAN_YQ)
+$(NOCLOUD_USERDATA_FILE): export YQ_CLUSTER_INIT_EXPR := $(NOCLOUD_USERDATA_CLUSTER_INIT_YQ)
+$(NOCLOUD_USERDATA_FILE): export YQ_ADVERTISE_ADDR_EXPR := $(NOCLOUD_USERDATA_ADVERTISE_ADDR_YQ)
+$(NOCLOUD_USERDATA_FILE): export YQ_TOKEN_EXPR := $(NOCLOUD_USERDATA_TOKEN_YQ)
+$(NOCLOUD_USERDATA_FILE): export YQ_SERVER_EXPR := $(NOCLOUD_USERDATA_SERVER_YQ)
+$(NOCLOUD_USERDATA_FILE): export YQ_CONTROL_PLANE_LB_EXPR := $(NOCLOUD_USERDATA_CONTROL_PLANE_LB_YQ)
+$(NOCLOUD_USERDATA_FILE): NOCLOUD_USERDATA_TMP := $(NOCLOUD_USERDATA_FILE).tmp
 $(NOCLOUD_USERDATA_FILE):
 	@: "[+] Generating cloud-config.yaml for instance $(CLUSTER_NODE_NAME)..."
-	yq eval-all --prettyPrint --from-file=<(echo "$$YQ_EXPR") \
-		$(^) > $@
+	yq eval-all --prettyPrint --from-file=<(echo "$$YQ_MERGE_EXPR") $(^) > $(NOCLOUD_USERDATA_TMP)
+	# Patch specific write_files entries safely using yq -i (multiple passes for clarity)
+	# Apply per-file patch expressions via yq (each expression returns the root document)
+	# Apply patch expressions sequentially for clarity and resilience
+	yq -i --from-file=<(echo "$$YQ_TLS_SAN_EXPR") $(NOCLOUD_USERDATA_TMP)
+	yq -i --from-file=<(echo "$$YQ_CLUSTER_INIT_EXPR") $(NOCLOUD_USERDATA_TMP)
+	yq -i --from-file=<(echo "$$YQ_ADVERTISE_ADDR_EXPR") $(NOCLOUD_USERDATA_TMP)
+	yq -i --from-file=<(echo "$$YQ_TOKEN_EXPR") $(NOCLOUD_USERDATA_TMP)
+	yq -i --from-file=<(echo "$$YQ_SERVER_EXPR") $(NOCLOUD_USERDATA_TMP)
+	yq -i --from-file=<(echo "$$YQ_CONTROL_PLANE_LB_EXPR") $(NOCLOUD_USERDATA_TMP)
+	# Move to final location
+	# Ensure #cloud-config header (cloud-init requires this for write_files to apply)
+	{ echo '#cloud-config'; echo; cat $(NOCLOUD_USERDATA_TMP); } > $@.hdr && mv $@.hdr $@
+	# Structural validation: ensure write_files key exists
+	@if ! grep -q '^write_files:' $@; then echo '[ERROR] write_files key missing in $@'; exit 1; fi
+	@if ! grep -q '^#cloud-config' $@; then echo '[ERROR] Missing #cloud-config header'; exit 1; fi
+	@if ! grep -q '/var/lib/rancher/rke2/server/manifests/control-plane-lb.yaml' $@; then echo '[ERROR] Missing control-plane-lb manifest'; exit 1; fi
+	@if ! grep -q '/etc/rancher/rke2/config.yaml.d/tls-san.yaml' $@; then echo '[ERROR] Missing tls-san fragment'; exit 1; fi
+	@if ! grep -q '/etc/rancher/rke2/config.yaml.d/token.yaml' $@; then echo '[ERROR] Missing token fragment'; exit 1; fi
+	@if [ "$(CLUSTER_NODE_NAME)" != "master" ]; then grep -q '/etc/rancher/rke2/config.yaml.d/server.yaml' $@ || { echo '[ERROR] Missing server fragment for peer node'; exit 1; }; fi
+	# Token deterministic from CLUSTER_TOKEN; server.yaml present only on peers
+
+.PHONY: validate-userdata-structure
+validate-userdata-structure: $(NOCLOUD_USERDATA_FILE)
+	@echo "[+] Extended structural validation"
+	@if [ $$(grep -c '^  - path:' $(NOCLOUD_USERDATA_FILE)) -lt 5 ]; then echo '[ERROR] Too few write_files entries'; exit 1; fi
+	@echo '[OK] Extended structural validation passed.'
 
 #-----------------------------
 # Hardening / Validation Targets
