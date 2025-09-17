@@ -484,10 +484,10 @@ write_files:
         createNamespace: true
         valuesContent: |-
           oauth:
-            clientId: "${TSID}"
-            clientSecret: "${TSKEY}"
+            clientId: "$(TSID)"
+            clientSecret: "$(TSKEY)"
           operatorConfig:
-            hostname: "${CLUSTER_NAME}-tailscale-operator"
+            hostname: "$(CLUSTER_NAME)-tailscale-operator"
             debug: true
       # ---
       # apiVersion: tailscale.com/v1alpha1
@@ -495,4 +495,4 @@ write_files:
       # metadata:
       #   name: ts-controlplane-lb-routes
       # spec:
-      #   hostname: ${CLUSTER_NAME}-controlplane-lb-routes
+      #   hostname: $(CLUSTER_NAME)-controlplane-lb-routes

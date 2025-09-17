@@ -18,13 +18,12 @@ write_files:
   # Dedicated token fragment (filled by yq expression in Makefile)
   - path: /etc/rancher/rke2/config.yaml.d/token.yaml
     content: |
-      server: https://$(CLUSTER_INET_MASTER):9345
       token: $(CLUSTER_MASTER_TOKEN)
 
   # Dedicated advertise-address fragment (filled by yq expression in Makefile)
   - path: /etc/rancher/rke2/config.yaml.d/advertise-address.yaml
     content: |
-      advertise-address: ${CLUSTER_NODE_INET}
+      advertise-address: $(CLUSTER_NODE_INET)
 
   # Disable default controllers we don't want (consistent across cluster)
   - path: /etc/rancher/rke2/config.yaml.d/disable.yaml

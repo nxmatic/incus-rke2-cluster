@@ -14,6 +14,12 @@ write_files:
       node-name: peer2-control-node
       with-node-id: false
 
+
+  # Dedicated server fragment (filled by yq expression in Makefile)
+  - path: /etc/rancher/rke2/config.yaml.d/server.yaml
+    content: |
+      server: https://$(CLUSTER_INET_MASTER):9345
+      
   # Optional: Peer2-specific etcd configuration for advanced setups
   # - path: /etc/rancher/rke2/config.yaml.d/etcd-advanced.yaml
   #   content: |
