@@ -1,0 +1,87 @@
+#cloud-config
+# Headscale Gateway Configuration
+# Bridges Tailscale (external) to Headscale (internal) network
+
+hostname: headscale-gateway
+
+packages:
+  - curl
+  - iptables
+  - traceroute
+  - tcpdump
+
+write_files:
+  # Tailscale systemd service for gateway
+  - path: /etc/systemd/system/tailscale-gateway.service
+    content: |
+      [Unit]
+      Description=Tailscale Gateway (Headscale Bridge)
+      After=network-online.target tailscaled.service
+      Wants=network-online.target tailscaled.service
+      
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/usr/bin/tailscale up \
+        --authkey=file:/run/secrets/tailscale-authkey \
+        --hostname=${GATEWAY_HOSTNAME} \
+        --advertise-routes=${GATEWAY_ROUTES} \
+        --advertise-tags=tag:gateway \
+        --accept-routes \
+        --accept-dns=false \
+        --snat-subnet-routes=true \
+        --ssh
+      
+      [Install]
+      WantedBy=multi-user.target
+
+  # IP forwarding configuration
+  - path: /etc/sysctl.d/99-tailscale.conf
+    content: |
+      net.ipv4.ip_forward = 1
+      net.ipv6.conf.all.forwarding = 1
+
+runcmd:
+  # Install Tailscale
+  - |
+    curl -fsSL https://tailscale.com/install.sh | sh
+  
+  # Apply sysctl settings
+  - sysctl -p /etc/sysctl.d/99-tailscale.conf
+  
+  # Create secrets directory
+  - mkdir -p /run/secrets
+  - chmod 700 /run/secrets
+  
+  # Note: Tailscale auth key must be provided via instance config or manually
+  # Check if auth key file exists
+  - |
+    if [ -f /run/secrets/tailscale-authkey ]; then
+      echo "Tailscale auth key found, starting gateway service"
+      systemctl daemon-reload
+      systemctl enable tailscaled
+      systemctl start tailscaled
+      sleep 2
+      systemctl enable tailscale-gateway
+      systemctl start tailscale-gateway
+      sleep 5
+      tailscale status
+    else
+      echo "WARNING: Tailscale auth key not found at /run/secrets/tailscale-authkey"
+      echo "Please add the auth key and run: systemctl start tailscale-gateway"
+    fi
+
+final_message: |
+  Headscale Gateway is configured!
+  
+  Hostname: ${GATEWAY_HOSTNAME}
+  Advertised routes: ${GATEWAY_ROUTES}
+  
+  Next steps:
+  1. Add Tailscale auth key to /run/secrets/tailscale-authkey if not already present
+  2. Restart service: systemctl restart tailscale-gateway
+  3. Approve routes in Tailscale admin console: https://login.tailscale.com/admin/machines
+  
+  Check status:
+    tailscale status
+    tailscale status --json | jq -r '.Self.AllowedIPs[]'

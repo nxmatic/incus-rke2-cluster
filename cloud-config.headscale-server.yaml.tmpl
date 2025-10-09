@@ -1,0 +1,144 @@
+#cloud-config
+# Headscale Server Configuration
+# Deploys Headscale control plane for internal network SSH and VPN
+
+hostname: headscale-server
+
+packages:
+  - curl
+  - jq
+  - sqlite3
+
+write_files:
+  # Headscale main configuration
+  - path: /etc/headscale/config.yaml
+    content: |
+      server_url: ${HEADSCALE_SERVER_URL}
+      listen_addr: 0.0.0.0:8080
+      metrics_listen_addr: 127.0.0.1:9090
+      
+      grpc_listen_addr: 127.0.0.1:50443
+      grpc_allow_insecure: false
+      
+      private_key_path: /var/lib/headscale/private.key
+      noise:
+        private_key_path: /var/lib/headscale/noise_private.key
+      
+      ip_prefixes:
+        - 100.64.0.0/10
+      
+      derp:
+        server:
+          enabled: false
+        urls:
+          - https://controlplane.tailscale.com/derpmap/default
+        auto_update_enabled: true
+        update_frequency: 24h
+      
+      disable_check_updates: true
+      
+      dns_config:
+        override_local_dns: true
+        nameservers:
+          - 1.1.1.1
+          - 1.0.0.1
+        domains: []
+        magic_dns: true
+        base_domain: ${HEADSCALE_BASE_DOMAIN}
+      
+      database:
+        type: sqlite3
+        sqlite:
+          path: /var/lib/headscale/db.sqlite
+      
+      policy:
+        path: /etc/headscale/policy.json
+
+  # Default ACL policy
+  - path: /etc/headscale/policy.json
+    content: |
+      {
+        "acls": [
+          {
+            "action": "accept",
+            "src": ["*"],
+            "dst": ["*:*"]
+          }
+        ],
+        "groups": {
+          "group:admin": [],
+          "group:servers": [],
+          "group:clients": [],
+          "group:gateways": []
+        },
+        "tagOwners": {
+          "tag:server": ["group:admin"],
+          "tag:client": ["group:admin"],
+          "tag:gateway": ["group:admin"]
+        }
+      }
+
+  # Headscale systemd service
+  - path: /etc/systemd/system/headscale.service
+    content: |
+      [Unit]
+      Description=Headscale Control Server
+      After=network-online.target
+      Wants=network-online.target
+      
+      [Service]
+      Type=simple
+      ExecStart=/usr/local/bin/headscale serve
+      Restart=always
+      RestartSec=5
+      
+      # Hardening
+      NoNewPrivileges=true
+      PrivateTmp=true
+      ProtectSystem=strict
+      ProtectHome=true
+      ReadWritePaths=/var/lib/headscale
+      
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  # Create headscale user and directories
+  - useradd -r -s /bin/false headscale || true
+  - mkdir -p /var/lib/headscale /etc/headscale
+  - chown -R headscale:headscale /var/lib/headscale
+  
+  # Download and install Headscale
+  - |
+    HEADSCALE_VERSION="0.23.0"
+    ARCH="arm64"
+    cd /tmp
+    curl -fsSL "https://github.com/juanfont/headscale/releases/download/v${HEADSCALE_VERSION}/headscale_${HEADSCALE_VERSION}_linux_${ARCH}.tar.gz" -o headscale.tar.gz
+    tar -xzf headscale.tar.gz
+    mv headscale /usr/local/bin/
+    chmod +x /usr/local/bin/headscale
+    rm headscale.tar.gz
+  
+  # Enable and start Headscale
+  - systemctl daemon-reload
+  - systemctl enable headscale
+  - systemctl start headscale
+  
+  # Wait for service to be ready
+  - sleep 5
+  
+  # Log startup status
+  - systemctl status headscale --no-pager || true
+  - journalctl -u headscale -n 50 --no-pager || true
+
+final_message: |
+  Headscale server is ready!
+  
+  Server URL: ${HEADSCALE_SERVER_URL}
+  Network: 100.64.0.0/10
+  
+  Management commands:
+    headscale users create <username>
+    headscale preauthkeys create --user <username> --reusable --expiration 24h
+    headscale nodes list
+    headscale routes list

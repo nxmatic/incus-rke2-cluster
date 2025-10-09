@@ -1,0 +1,205 @@
+= Headscale Integration with incus-rke2-cluster
+:toc: left
+:toclevels: 3
+:icons: font
+
+== Overview
+
+Added cloud-config templates for deploying Headscale server and gateway as Incus containers alongside RKE2.
+
+== Files Added
+
+- `cloud-config.headscale-server.yaml.tmpl` - Headscale control plane
+- `cloud-config.headscale-gateway.yaml.tmpl` - Tailscale-to-Headscale bridge
+
+== Variables Required in Makefile
+
+The following variables need to be defined in the Makefile for headscale instances:
+
+=== For headscale-server
+
+- `HEADSCALE_SERVER_URL` - Public URL (e.g., `http://192.168.5.10:8080`)
+- `HEADSCALE_BASE_DOMAIN` - Base domain for MagicDNS (e.g., `home.local`)
+
+=== For headscale-gateway
+
+- `GATEWAY_HOSTNAME` - Hostname for gateway (e.g., `${CLUSTER_NAME}-hs-gateway`)
+- `GATEWAY_ROUTES` - Comma-separated routes to advertise (e.g., `100.64.0.0/10,192.168.5.0/24,10.80.16.0/20`)
+
+== Makefile Changes Needed
+
+=== 1. Add headscale instance type recognition
+
+[source,makefile]
+----
+# Recognize headscale instances
+ifneq (,$(findstring headscale,$(CLUSTER_NODE_NAME)))
+	INSTANCE_TYPE := headscale
+endif
+----
+
+=== 2. Define headscale-specific variables
+
+[source,makefile]
+----
+# Headscale configuration
+ifeq (headscale-server,$(CLUSTER_NODE_NAME))
+	HEADSCALE_SERVER_URL := http://192.168.5.10:8080
+	HEADSCALE_BASE_DOMAIN := home.local
+	# Use specific cloud-config
+	CLOUD_CONFIG_FILES := cloud-config.headscale-server.yaml.tmpl
+endif
+
+ifeq (headscale-gateway,$(CLUSTER_NODE_NAME))
+	GATEWAY_HOSTNAME := $(CLUSTER_NAME)-hs-gateway
+	GATEWAY_ROUTES := 100.64.0.0/10,192.168.5.0/24,$(CLUSTER_V4_BLOCK)
+	# Use specific cloud-config
+	CLOUD_CONFIG_FILES := cloud-config.headscale-gateway.yaml.tmpl
+endif
+----
+
+=== 3. Network configuration for headscale instances
+
+Headscale instances should:
+
+- Use a dedicated network or share the Lima network
+- Headscale server needs a static IP (e.g., 192.168.5.10)
+- Gateway needs access to both Tailscale and local networks
+
+== Deployment Workflow
+
+=== 1. Deploy Headscale Server
+
+[source,bash]
+----
+cd modules/nixos/incus-rke2-cluster
+make NAME=headscale-server start
+----
+
+This will:
+
+- Create Incus instance with cloud-config
+- Install and configure Headscale
+- Start Headscale service on port 8080
+
+=== 2. Create Headscale User and Auth Key
+
+[source,bash]
+----
+# SSH into the headscale-server instance
+incus exec headscale-server -- bash
+
+# Create user
+headscale users create admin
+
+# Create reusable auth key
+headscale preauthkeys create --user admin --reusable --expiration 720h
+# Save this key for clients
+----
+
+=== 3. Get Tailscale Auth Key
+
+From Tailscale admin console:
+
+1. Go to https://login.tailscale.com/admin/settings/keys
+2. Generate new auth key
+3. Enable "Reusable"
+4. Add tag: `tag:gateway`
+
+=== 4. Configure Gateway Auth Key
+
+[source,bash]
+----
+# On Lima VM host (before starting gateway)
+mkdir -p ~/.secrets
+echo "tskey-auth-XXXXXXXXXX" > ~/.secrets/tailscale-authkey
+
+# Or after starting gateway:
+incus exec headscale-gateway -- bash
+mkdir -p /run/secrets
+echo "tskey-auth-XXXXXXXXXX" > /run/secrets/tailscale-authkey
+chmod 600 /run/secrets/tailscale-authkey
+systemctl restart tailscale-gateway
+----
+
+=== 5. Deploy Headscale Gateway
+
+[source,bash]
+----
+make NAME=headscale-gateway start
+----
+
+=== 6. Approve Routes in Tailscale
+
+1. Go to https://login.tailscale.com/admin/machines
+2. Find the gateway instance
+3. Approve advertised routes:
+   - `100.64.0.0/10` (Headscale network)
+   - `192.168.5.0/24` (Lima network)
+   - `10.80.16.0/20` (RKE2 cluster)
+
+== Testing
+
+=== Verify Headscale Server
+
+[source,bash]
+----
+incus exec headscale-server -- headscale nodes list
+incus exec headscale-server -- headscale users list
+----
+
+=== Verify Gateway
+
+[source,bash]
+----
+incus exec headscale-gateway -- tailscale status
+incus exec headscale-gateway -- tailscale status --json | jq -r '.Self.AllowedIPs[]'
+----
+
+=== Connect Darwin Host
+
+[source,bash]
+----
+# On bioskop/alcide Darwin
+hs-connect
+# Follow prompts, use auth key from step 2
+----
+
+== Network Architecture
+
+[source]
+----
+Darwin Hosts (bioskop, alcide)
+    ↓ Headscale Client (100.64.x.x)
+Headscale Server (headscale-server container)
+    ↓ Manages SSH keys, ACLs
+
+When mobile (alcide):
+    ↓ Tailscale (100.x.x.x)
+Headscale Gateway (headscale-gateway container)
+    ↓ Bridges networks
+Internal resources (100.64.x.x)
+----
+
+== Integration with RKE2
+
+- Headscale instances run alongside RKE2 control nodes
+- Both systems can coexist in the same Incus environment
+- RKE2 uses Tailscale Operator for K8s service exposure
+- Headscale provides internal SSH and VPN for infrastructure
+
+== Notes
+
+- **Headscale version**: 0.23.0 (hardcoded in cloud-config, should be made variable)
+- **Architecture**: arm64 (works on Apple Silicon, should detect automatically)
+- **Network**: Uses Lima shared network (192.168.5.0/24)
+- **Secrets**: Tailscale auth key must be provided manually or via secrets.d mount
+
+== TODO
+
+- [ ] Extend Makefile to recognize `headscale-server` and `headscale-gateway` instance types
+- [ ] Add variable definitions for Headscale configuration
+- [ ] Test deployment in Lima VM
+- [ ] Document network configuration for static IP assignment
+- [ ] Make Headscale version and architecture configurable
+- [ ] Integrate secrets.d directory mounting for auth keys
