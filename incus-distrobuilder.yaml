@@ -1,0 +1,180 @@
+# build-packages.yaml
+# Base image: system update and package installation only
+image:
+  distribution: debian
+  release: bookworm
+  architecture: arm64
+  description: "K8s Master Control Node base with systemd and packages"
+  expiry: 30d
+
+source:
+  downloader: debootstrap
+  url: https://deb.debian.org/debian
+  keys:
+    - F8D2585B8783D481
+  keyserver: keyserver.ubuntu.com
+
+packages:
+  manager: apt
+  update: true
+  cleanup: true
+  repositories:
+    - name: debian-bookworm-extras
+      url: "deb http://deb.debian.org/debian bookworm contrib non-free"
+      type: deb
+      releases: []
+      architectures: ["arm64"]
+      variants: ["default"]
+    - name: debian-backports
+      url: "deb http://deb.debian.org/debian bookworm-backports main contrib non-free"
+      type: deb
+      releases: []
+      architectures: ["arm64"]
+      variants: ["default"]
+    - name: debian-security
+      url: "deb http://deb.debian.org/debian-security bookworm-security main contrib non-free"
+      type: deb
+      releases: []
+      architectures: ["arm64"]
+      variants: ["default"]
+    - name: debian-updates
+      url: "deb http://deb.debian.org/debian bookworm-updates main contrib non-free"
+      type: deb
+      releases: []
+      architectures: ["arm64"]
+      variants: ["default"]
+  sets:
+    - packages:
+        - zfsutils-linux
+      action: install
+      flags:
+        - --no-install-recommends
+    - packages:
+        - acl
+        - apt-file
+        - apt-transport-https
+        - apt-utils
+        - bash-completion
+        - bc
+        - binutils
+        - bzip2
+        - ca-certificates
+        - cloud-init
+        - curl
+        - direnv
+        - dstat
+        - dnsutils
+        - emacs-nox
+        - file
+        - git
+        - gh
+        - gnupg
+        - gzip
+        - htop
+        - iproute2
+        - iptables
+        - iputils-ping
+        - jq
+        - kmod
+        - less
+        - lshw
+        - lsof
+        - man
+        - man-db
+        - nmap
+        - net-tools
+        - netcat-openbsd
+        - network-manager
+        - open-iscsi
+        - openssh-client
+        - openssh-server
+        - p7zip-full
+        - procps
+        - psmisc
+        - pv
+        - rsync
+        - socat
+        - strace
+        - sudo
+        - systemd
+        - systemd-container
+        - systemd-resolved
+        - systemd-sysv
+        - systemd-timesyncd
+        - tar
+        - tree
+        - traceroute
+        - tshark
+        - uuid-runtime
+        - wget
+        - zsh
+        - xz-utils
+      action: install
+
+actions:
+  - trigger: post-packages
+    action: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+
+      trap 'rm -f /tmp/flox.deb' EXIT
+      curl -sL --fail -o /tmp/flox.deb \
+        https://downloads.flox.dev/by-env/stable/deb/flox-1.5.0.aarch64-linux.deb
+      apt-get install -y /tmp/flox.deb
+      mkdir -p /etc/flox
+      cat <<EoF > /etc/flox/config.toml
+      disable_metrics = true
+      EoF
+
+  - trigger: post-files
+    action: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+
+      : generate locale
+      cat <<EoF | tee -a /etc/locale.gen
+      en_US.UTF-8 UTF-8
+      EoF
+      locale-gen
+
+      : set default locale
+      cat <<EoF | tee /etc/default/locale
+      LANG=En_US.UTF-8
+      LANGUAGE=en_US.UTF-8
+      LC_ALL=en_US.UTF-8
+      EoF
+
+  - trigger: post-files
+    action: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+
+      : Create a one-shot systemd service to mount the RKE2 root zvol
+      :   incus block devices cannot be exposed as a systemd mounts
+
+      systemctl mask zfs-load-module
+      systemctl mask zfs-volume-wait.service
+      systemctl mask systemd-rfkill.service
+
+files:
+  # Cloud init nocloud datasource configuration
+  - name: cloud-init-nocloud
+    generator: dump
+    path: /etc/cloud/cloud.cfg.d/00-nocloud.cfg
+    content: |
+      datasource_list: [ NoCloud ]
+      datasource:
+        NoCloud:
+          seedfrom: /var/lib/cloud/seed/nocloud/
+  - name: cloud-init-network
+    generator: dump
+    path: /etc/cloud/cloud.cfg.d/00-network.cfg
+    content: |
+      network:
+        version: 2
+        config: disabled
+        # ethernets:
+        #   eth0:
+        #     match:
+        #       macaddress: "10:66:6a:e0:18:af"
+        #     dhcp4: true
+        #     use-dns: true
+        #     use-domains: true
+        #     use-hostname: true

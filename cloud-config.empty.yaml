@@ -1,0 +1,11 @@
+write_files:
+  # =============================================================================
+  # EMPTY (NO-OP) CONFIGURATION - FOR PEER NODES
+  # =============================================================================
+
+  # This file is intentionally left blank. It serves as a no-op placeholder
+  # for peer nodes that do not require any additional configuration beyond
+  # what is provided in the base profile. This ensures that the Makefile
+  # logic remains consistent and avoids errors when generating cloud-init
+  # user data for peer nodes.
+runcmd:

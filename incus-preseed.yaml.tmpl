@@ -1,0 +1,54 @@
+# incus preseed for rke2 cluster (@codebase)
+config: {}
+storage_pools:
+  - name: default
+    driver: zfs
+    config:
+      source: tank/nerd/incus
+networks:
+  - name: ${CLUSTER_BRIDGE_NAME}
+    type: bridge
+    description: RKE2 network ${NETWORK_MODE} bridge (per-node /28 IPv4 & /64 IPv6) (@codebase)
+    config:
+      ipv4.address: ${CLUSTER_BRIDGE_CIDR}
+      ipv4.nat: true
+      ipv4.dhcp: true
+      # IPv6 per-node /64 (hierarchical allocation). NAT disabled; dnsmasq supplies RA & DHCPv6. (@codebase)
+      ipv6.address: ${CLUSTER_INET6_GATEWAY}/64
+      ipv6.nat: true
+      ipv6.dhcp: true
+      raw.dnsmasq: |
+        log-debug
+        log-dhcp
+        log-facility=daemon
+        enable-ra
+        # IPv4 A records
+        address=/gateway/${CLUSTER_INET_GATEWAY}
+        address=/kubernetes-api/${CLUSTER_INET_VIRTUAL}
+        address=/master-control-node/${CLUSTER_INET_MASTER}
+        address=/peer1-control-node/${CLUSTER_INET_PEER1}
+        address=/peer2-control-node/${CLUSTER_INET_PEER2}
+        # IPv6 AAAA records
+        address=/gateway/${CLUSTER_INET6_GATEWAY}
+        address=/kubernetes-api/${CLUSTER_INET6_VIRTUAL}
+        address=/master-control-node/${CLUSTER_INET6_MASTER}
+        address=/peer1-control-node/${CLUSTER_INET6_PEER1}
+        address=/peer2-control-node/${CLUSTER_INET6_PEER2}
+        ptr-record=${CLUSTER_ARPA_GATEWAY}.in-addr.arpa,gateway
+        ptr-record=${CLUSTER_ARPA_VIRTUAL}.in-addr.arpa,kubernetes-api
+        ptr-record=${CLUSTER_ARPA_MASTER}.in-addr.arpa,master-control-node
+        ptr-record=${CLUSTER_ARPA_PEER1}.in-addr.arpa,peer1-control-node
+        ptr-record=${CLUSTER_ARPA_PEER2}.in-addr.arpa,peer2-control-node
+profiles:
+  - name: ${CLUSTER_PROFILE_NAME}
+    description: RKE2 profile (mode=${NETWORK_MODE})
+    devices:
+      root:
+        path: /
+        pool: default
+        type: disk
+      eth0:
+        name: eth0
+        nictype: bridged
+        parent: ${CLUSTER_BRIDGE_NAME}
+        type: nic

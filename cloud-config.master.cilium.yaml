@@ -1,0 +1,156 @@
+# Full profile overlay: adds Cilium full-feature HelmChartConfig + cluster resources
+# @codebase
+
+write_files:
+  - path: /var/lib/rancher/rke2/server/manifests/rke2-cilium-config.yaml.tmpl
+    content: |
+      apiVersion: helm.cattle.io/v1
+      kind: HelmChartConfig
+      metadata:
+        name: rke2-cilium
+        namespace: kube-system
+      spec:
+        valuesContent: |-
+          bpf:
+            hostLegacyRouting: true
+          bgpControlPlane:
+            enabled: false
+          cluster:
+            name: ${CLUSTER_NAME}
+            id: ${CLUSTER_SUBNET}
+          clustermesh:
+            useAPIServer: true
+            apiserver:
+              service:
+                type: LoadBalancer
+                # Using L2 announcements since BGP is disabled
+          envoy:
+            enabled: true
+          gatewayAPI:
+            enabled: true
+          ingressController:
+            default: true
+            enabled: true
+            loadBalancerMode: dedicated
+          hubble:
+            enabled: true
+            relay:
+              enabled: true
+            ui:
+              enabled: true
+          ipv6:
+            enabled: true
+          kubeProxyReplacement: true
+          l2announcements:
+            enabled: true
+            leaseDuration: 15s
+            leaseRenewDeadline: 5s
+            leaseRetryPeriod: 2s
+          l2NeighDiscovery:
+            enabled: true
+            refresh: true
+            refreshPeriod: 30s
+          l7Proxy: true
+          routingMode: tunnel
+          tunnelProtocol: vxlan
+          operator:
+            hostNetwork: true
+            replicas: 1
+          socketLB:
+            hostNamespaceOnly: false
+  - path: /var/lib/rancher/rke2/server/manifests/cilium-cluster-resources.yaml.tmpl
+    content: |
+      # Cilium cluster resources (BGP + IP pools) - full profile only
+      apiVersion: cilium.io/v2alpha1
+      kind: CiliumLoadBalancerIPPool
+      metadata:
+        name: load-balancers
+      spec:
+        blocks:
+          - cidr: ${CLUSTER_LOADBALANCERS_CIDR}
+            # LoadBalancer pool inside /26 (128/26): usable hosts 129-190 (@codebase)
+            min: 129
+            max: 190
+      ---
+      apiVersion: cilium.io/v2alpha1
+      kind: CiliumLoadBalancerIPPool
+      metadata:
+        name: virtual-addresses
+      spec:
+        blocks:
+          - cidr: ${CLUSTER_VIRTUAL_ADDRESSES_CIDR}
+            # For /28 VIP pool (.240/28): usable host IPs 241-254 (250 reserved for API VIP) (@codebase)
+            min: 241
+            max: 254
+      ---
+      apiVersion: cilium.io/v2alpha1
+      kind: CiliumL2AnnouncementPolicy
+      metadata:
+        name: host
+      spec:
+        serviceSelector:
+          matchLabels: {}
+        loadBalancerIPs: true
+        interfaces:
+          - eth0
+        nodeSelector:
+          matchExpressions:
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
+
+  - path: /var/lib/rancher/rke2/server/manifests/envoy-gateway.yaml
+    content: |
+      # Envoy Gateway installation (full profile only)
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: envoy-gateway-system
+      ---
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: envoy-gateway-installer
+        namespace: kube-system
+      spec:
+        template:
+          spec:
+            serviceAccountName: envoy-gateway-installer
+            containers:
+            - name: installer
+              image: bitnami/kubectl:1.29.0
+              command:
+              - /bin/bash
+              - -c
+              - |
+                kubectl apply \
+                  --namespace envoy-gateway-system \
+                  --server-side \
+                  -f https://github.com/envoyproxy/gateway/releases/download/v1.4.2/install.yaml
+            restartPolicy: OnFailure
+        backoffLimit: 3
+      ---
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: envoy-gateway-installer
+        namespace: envoy-gateway-system
+      ---
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: envoy-gateway-installer
+      subjects:
+      - kind: ServiceAccount
+        name: envoy-gateway-installer
+        namespace: envoy-gateway-system
+      roleRef:
+        kind: ClusterRole
+        name: cluster-admin
+        apiGroup: rbac.authorization.k8s.io
+      ---
+      apiVersion: gateway.networking.k8s.io/v1
+      kind: GatewayClass
+      metadata:
+        name: envoy
+      spec:
+        controllerName: gateway.envoyproxy.io/gatewayclass-controller

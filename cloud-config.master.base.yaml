@@ -1,0 +1,138 @@
+#cloud-config
+# Base master cloud-config (profile-agnostic)
+# Contains all master-specific and bootstrap components EXCEPT any Cilium profile manifests.
+# @codebase
+
+name: master-control-node
+
+write_files:
+  # Master ETCD config
+  - path: /etc/rancher/rke2/config.yaml.d/etcd.yaml
+    content: |
+      etcd-expose-metrics: true
+      node-name: master-control-node
+      with-node-id: false
+
+  # Cluster init
+  - path: /etc/rancher/rke2/config.yaml.d/cluster-init.yaml
+    content: |
+      cluster-init: true
+
+  # Cilium validation script (kept in base so it runs for both profiles, will no-op if resources absent)
+  - path: /usr/local/sbin/rke2-cilium-check
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -xu -o pipefail
+      source <( flox activate --dir /var/lib/rancher/rke2 )
+      kubectl wait --for=condition=Ready nodes --all --timeout=300s || true
+      kubectl wait --for=condition=Ready pods -l k8s-app=cilium -n kube-system --timeout=300s || true
+      kubectl wait --for=condition=Available deployment/cilium-operator -n kube-system --timeout=300s || true
+      cilium status --wait --wait-duration=300s || true
+      kubectl get ciliumloadbalancerippool -o wide || true
+      kubectl get svc control-plane-lb -n kube-system -o wide || true
+      kubectl get endpoints control-plane-lb -n kube-system -o wide || true
+      kubectl get ciliumbgpclusterconfig -o wide || true
+      kubectl get ciliumbgpadvertisement -o wide || true
+      kubectl get ciliuml2announcementpolicy -o wide || true
+
+  - path: /etc/systemd/system/rke2-server.service.d/post-start-master.conf
+    content: |
+      [Service]
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-cilium-check'
+
+  # Traefik config (bootstrap)
+  - path: /var/lib/rancher/rke2/server/manifests/rke2-traefik-config.yaml
+    content: |
+      apiVersion: helm.cattle.io/v1
+      kind: HelmChartConfig
+      metadata:
+        name: rke2-traefik
+        namespace: kube-system
+      spec:
+        valuesContent: |-
+          additionalArguments:
+            - "--api.insecure=true"
+          ports:
+            web:
+              expose:
+                default: true
+            websecure:
+              expose:
+                default: true
+
+  # (Envoy Gateway manifest moved to full overlay)
+
+  # OpenEBS ZFS
+  - path: /var/lib/rancher/rke2/server/manifests/openebs-zfs.yaml
+    content: |
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: openebs
+      ---
+      apiVersion: helm.cattle.io/v1
+      kind: HelmChart
+      metadata:
+        name: openebs-zfs
+        namespace: openebs
+      spec:
+        chart: zfs-localpv
+        repo: https://openebs.github.io/zfs-localpv
+        version: 2.8.0
+        targetNamespace: openebs
+        createNamespace: true
+        valuesContent: |-
+          zfsNode:
+            kubeletDir: /var/lib/rancher/rke2/agent
+      ---
+      apiVersion: storage.k8s.io/v1
+      kind: StorageClass
+      metadata:
+        name: openebs-zfs
+      provisioner: zfs.csi.openebs.io
+      parameters:
+        poolname: tank
+        fstype: zfs
+      reclaimPolicy: Delete
+      volumeBindingMode: WaitForFirstConsumer
+      allowVolumeExpansion: true
+
+  # Tailscale operator
+  - path: /var/lib/rancher/rke2/server/manifests/tailscale-operator.yaml.tmpl
+    content: |
+      apiVersion: helm.cattle.io/v1
+      kind: HelmChart
+      metadata:
+        namespace: kube-system
+        name: tailscale-operator
+      spec:
+        repo: https://pkgs.tailscale.com/helmcharts
+        chart: tailscale-operator
+        version: 1.82.0
+        targetNamespace: tailscale-system
+        createNamespace: true
+        valuesContent: |-
+          oauth:
+            clientId: "${TSID}"
+            clientSecret: "${TSKEY}"
+          operatorConfig:
+            hostname: "${CLUSTER_NAME}-tailscale-operator"
+            debug: true
+  - path: /var/lib/rancher/rke2/server/manifests/tailscale-controlplane.yaml.tmpl
+    content: |            
+      apiVersion: tailscale.com/v1alpha1
+      kind: Connector
+      metadata:
+        name: controlplane
+      spec:
+        # Single host route for the Kubernetes API virtual IP + wider LB pool for service IP reachability.
+        # Using /32 avoids advertising unused VIP addresses.
+        hostname: ${CLUSTER_NAME}-controlplane
+        subnetRouter:
+          advertiseRoutes:
+            # Control-plane virtual IP (host route)
+            - ${CLUSTER_INET_VIRTUAL}/32
+            # LoadBalancer allocation pool (so in-cluster LB IPs are reachable directly)
+            - ${CLUSTER_LOADBALANCERS_CIDR}
+        # NOTE: Additional service-specific Tailscale exposure can still be done
+        # via Service annotations (tailscale.com/expose, hostname, tags, etc.). (@codebase)

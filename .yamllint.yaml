@@ -1,0 +1,27 @@
+# yamllint configuration (@codebase)
+# We intentionally allow long unbreakable URLs and certain annotation/value lines.
+# Default line-length set higher (120) than strict script line limit.
+---
+extends: default
+rules:
+  line-length:
+    max: 80
+    allow-non-breakable-words: true
+    allow-non-breakable-inline-mappings: true
+    ignore: |
+      .*https?://.*
+  trailing-spaces:
+    level: error
+  comments:
+    min-spaces-from-content: 1
+  document-start:
+    present: false  # cloud-config fragments often omit '---'
+  truthy:
+    allowed-values: ['true', 'false', 'on', 'off', 'yes', 'no']
+  indentation:
+    spaces: 2
+    indent-sequences: consistent
+ignore: |
+  # Ignore generated / runtime directories
+  .run.d/**
+  .secrets.d/**

@@ -1,0 +1,153 @@
+#cloud-config
+# Kube-vip overlay for highly available Kubernetes API server VIP
+# Provides HA VIP management independent of Cilium LoadBalancer IPAM
+# @codebase
+
+write_files:
+  # Kube-vip for Kubernetes API server VIP management
+  # Replaces Cilium LoadBalancer to avoid IPAM conflicts (issue #36220)
+  - path: /var/lib/rancher/rke2/server/manifests/kube-vip.yaml.tmpl
+    content: |
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: kube-vip
+        labels:
+          name: kube-vip
+      ---
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: kube-vip
+        namespace: kube-vip
+      ---
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRole
+      metadata:
+        annotations:
+          rbac.authorization.kubernetes.io/autoupdate: "true"
+        name: system:kube-vip-role
+      rules:
+        - apiGroups: [""]
+          resources: ["services", "services/status", "nodes", "endpoints"]
+          verbs: ["list","get","watch", "update"]
+        - apiGroups: ["coordination.k8s.io"]
+          resources: ["leases"]
+          verbs: ["list", "get", "watch", "update", "create"]
+      ---
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: system:kube-vip-binding
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: system:kube-vip-role
+      subjects:
+      - kind: ServiceAccount
+        name: kube-vip
+        namespace: kube-vip
+      ---
+      apiVersion: apps/v1
+      kind: DaemonSet
+      metadata:
+        name: kube-vip-ds
+        namespace: kube-vip
+        labels:
+          app: kube-vip
+      spec:
+        selector:
+          matchLabels:
+            name: kube-vip-ds
+        template:
+          metadata:
+            labels:
+              name: kube-vip-ds
+              app: kube-vip
+          spec:
+            affinity:
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  nodeSelectorTerms:
+                  - matchExpressions:
+                    - key: node-role.kubernetes.io/master
+                      operator: Exists
+                  - matchExpressions:
+                    - key: node-role.kubernetes.io/control-plane
+                      operator: Exists
+            containers:
+            - args:
+              - manager
+              env:
+              - name: vip_arp
+                value: "true"
+              - name: port
+                value: "6443"
+              - name: vip_interface
+                value: "eth0"
+              - name: vip_cidr
+                value: "32"
+              - name: dns_mode
+                value: "first"
+              - name: cp_enable
+                value: "true"
+              - name: cp_namespace
+                value: "kube-system"
+              - name: svc_enable
+                value: "false"
+              - name: vip_leaderelection
+                value: "true"
+              - name: vip_leaseduration
+                value: "5"
+              - name: vip_renewdeadline
+                value: "3"
+              - name: vip_retryperiod
+                value: "1"
+              - name: address
+                value: "${CLUSTER_INET_VIRTUAL}"
+              image: ghcr.io/kube-vip/kube-vip:v0.8.7
+              imagePullPolicy: Always
+              name: kube-vip
+              resources:
+                limits:
+                  memory: "128Mi"
+                  cpu: "100m"
+                requests:
+                  memory: "64Mi"
+                  cpu: "50m"
+              securityContext:
+                capabilities:
+                  add:
+                  - NET_ADMIN
+                  - NET_RAW
+                  - SYS_TIME
+            hostNetwork: true
+            serviceAccountName: kube-vip
+            tolerations:
+            - effect: NoSchedule
+              operator: Exists
+            - effect: NoExecute
+              operator: Exists
+
+  # Backup: NodePort service as fallback access method
+  - path: /var/lib/rancher/rke2/server/manifests/control-plane-nodeport.yaml
+    content: |
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: control-plane-nodeport
+        namespace: kube-system
+        labels:
+          backup-service: "true"
+      spec:
+        type: NodePort
+        externalTrafficPolicy: Cluster
+        ports:
+        - name: kube-apiserver
+          port: 6443
+          protocol: TCP
+          targetPort: 6443
+          nodePort: 30443
+        selector:
+          component: kube-apiserver
+          tier: control-plane

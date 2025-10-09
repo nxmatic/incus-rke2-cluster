@@ -1,0 +1,34 @@
+# @codebase
+# minimal-cilium-profile-snippet.yaml
+# Fragment showing explicit disables to ensure L7 proxy stays off in the minimal profile.
+# Integrate into your rendered rke2-cilium-config minimal manifest (HelmChartConfig values section).
+# Reference: Added to enforce deterministic minimal datapath.
+---
+values:
+  hubble:
+    enabled: false
+    metrics:
+      enabled: []
+    relay:
+      enabled: false
+    ui:
+      enabled: false
+  dnsProxy: false
+  localRedirectPolicy: false
+  enable-l7-proxy: false
+  # Guard rails: explicitly disable any feature that implicitly pulls Envoy
+  envoy:
+    enabled: false
+  l2announcements:
+    enabled: false
+  # Ensure BGP off in minimal unless needed
+  bgp:
+    enabled: false
+  # Keep kube-proxy (no replacement) for simplicity; adjust if later enabling BPF kube-proxy replacement
+  kubeProxyReplacement: "false"
+  # Optional: prevent transparent encryption / host firewall complexity
+  encryption:
+    enabled: false
+  hostFirewall: false
+  # Explicit policy enforcement mode (default still fine); no L7 rules expected
+  policyEnforcementMode: default
