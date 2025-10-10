@@ -89,9 +89,33 @@ common = '''
     *) CLUSTER_SUBNET=254;;
   esac
   CLUSTER_SUBNET=${CLUSTER_SUBNET:-1}
-  TSID=$(cat .secrets.d/tsid)
-  TSKEY_CLIENT=$(cat .secrets.d/tskey-client)
-  TSKEY_API=$(cat .secrets.d/tskey-api)
+  
+  # Find secrets - try current directory first, then FLOX_ENV_DIRS
+  # This works whether this env is used standalone or included
+  SECRETS_DIR=""
+  if [ -d ".secrets.d" ]; then
+    SECRETS_DIR=".secrets.d"
+  elif [ -n "$FLOX_ENV_DIRS" ]; then
+    # Search through all environment directories in the composition
+    for dir in $FLOX_ENV_DIRS; do
+      if [ -d "$dir/.secrets.d" ]; then
+        SECRETS_DIR="$dir/.secrets.d"
+        break
+      fi
+    done
+  fi
+  
+  # Load secrets only if directory and files exist
+  if [ -n "$SECRETS_DIR" ]; then
+    [ -f "$SECRETS_DIR/tsid" ] && TSID=$(cat "$SECRETS_DIR/tsid") || TSID=""
+    [ -f "$SECRETS_DIR/tskey-client" ] && TSKEY_CLIENT=$(cat "$SECRETS_DIR/tskey-client") || TSKEY_CLIENT=""
+    [ -f "$SECRETS_DIR/tskey-api" ] && TSKEY_API=$(cat "$SECRETS_DIR/tskey-api") || TSKEY_API=""
+  else
+    TSID=""
+    TSKEY_CLIENT=""
+    TSKEY_API=""
+  fi
+  
   set +a
 '''
 # common = '''
