@@ -10,7 +10,7 @@ Arguments:
   incus_project  Optional. Defaults to "${INCUS_PROJECT:-rke2}".
 
 Environment variables:
-  HOST_INTERFACE      Interface name to inspect on the host (default: enp0s2).
+  HOST_INTERFACE      Interface name to inspect on the host (default: enp0s3).
   INSTANCE_INTERFACE  Interface name to inspect inside Incus instances (default: eth0).
   INCUS_PROJECT       Default Incus project name (overridden by argument #3).
 
@@ -33,7 +33,7 @@ DEFAULT_INCUS_PROJECT="${INCUS_PROJECT:-rke2}"
 output_dir="${1:-$DEFAULT_OUTPUT_DIR}"
 incus_project="${2:-$DEFAULT_INCUS_PROJECT}"
 
-HOST_INTERFACE="${HOST_INTERFACE:-enp0s2}"
+HOST_INTERFACE="${HOST_INTERFACE:-enp0s3}"
 INSTANCE_INTERFACE="${INSTANCE_INTERFACE:-eth0}"
 
 mkdir -p "$output_dir"

@@ -11,7 +11,7 @@ Arguments:
   output_dir        Optional. Defaults to "<repo>/.run.d/tshark".
   duration_seconds  Optional. Defaults to 0 (run until stopped). Uses tshark -a duration when >0.
   repo_root         Optional. Defaults to "<repo>". Used for preflight script.
-  interface         Optional. Defaults to "enp0s2".
+  interface         Optional. Defaults to "enp0s3".
 
 The script starts tshark in the background, records PID/paths, and spawns the
 `./scripts/preflight-network.sh` diagnostic (if present) in parallel.
@@ -33,7 +33,7 @@ label="${2:-baseline}"
 output_dir="${3:-$DEFAULT_OUTPUT_DIR}"
 duration="${4:-0}"
 repo_root="${5:-$REPO_ROOT}"
-iface="${6:-enp0s2}"
+iface="${6:-enp0s3}"
 
 resolve_ipv4() {
   local target="$1"
