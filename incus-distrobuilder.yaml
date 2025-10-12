@@ -84,7 +84,6 @@ packages:
         - nmap
         - net-tools
         - netcat-openbsd
-        - network-manager
         - open-iscsi
         - openssh-client
         - openssh-server
@@ -125,6 +124,7 @@ actions:
       disable_metrics = true
       EoF
 
+
   - trigger: post-files
     action: |
       #!/usr/bin/env -S bash -exu -o pipefail
@@ -141,6 +141,12 @@ actions:
       LANGUAGE=en_US.UTF-8
       LC_ALL=en_US.UTF-8
       EoF
+
+      : enable systemd-networkd and disable NetworkManager
+      systemctl disable NetworkManager || true
+      systemctl mask NetworkManager || true
+      systemctl enable systemd-networkd
+      systemctl enable systemd-resolved
 
   - trigger: post-files
     action: |
@@ -163,18 +169,3 @@ files:
       datasource:
         NoCloud:
           seedfrom: /var/lib/cloud/seed/nocloud/
-  - name: cloud-init-network
-    generator: dump
-    path: /etc/cloud/cloud.cfg.d/00-network.cfg
-    content: |
-      network:
-        version: 2
-        config: disabled
-        # ethernets:
-        #   eth0:
-        #     match:
-        #       macaddress: "10:66:6a:e0:18:af"
-        #     dhcp4: true
-        #     use-dns: true
-        #     use-domains: true
-        #     use-hostname: true

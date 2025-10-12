@@ -31,7 +31,7 @@ log INFO "DATE=$(date -Is)"
 
 section "Basic Interface State"
 if [[ -n $IP_BIN ]]; then
-  ip -o -4 addr show eth0 || true
+  ip -o -4 addr show wan0 || true
   ip route show || true
 else
   log WARN "ip command not found"

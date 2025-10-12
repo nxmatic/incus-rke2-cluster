@@ -82,6 +82,9 @@ conntrack-tools.systems = ["aarch64-linux", "x86_64-linux"]
 [profile]
 common = '''
   set -a
+
+  PATH=/run/wrappers/bin:$PATH
+
   CLUSTER_NAME=${LIMA_HOSTNAME:-=bioskop}
   case $CLUSTER_NAME in
     bioskop) CLUSTER_SUBNET=1 ;;

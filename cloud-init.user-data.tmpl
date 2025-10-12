@@ -1,0 +1,17 @@
+#cloud-config
+network:
+  version: 2
+  ethernets:
+    lan0:
+      dhcp4: true
+    wan0:
+      # vmnet/macvlan limitation: DHCP not available for macvlan children
+      # Use static IP from cluster node's allocated range
+      addresses:
+        - ${CLUSTER_NODE_INET}/24
+      gateway4: ${CLUSTER_INET_GATEWAY}
+      nameservers:
+        addresses:
+          - 8.8.8.8
+          - 8.8.4.4
+  renderer: networkd

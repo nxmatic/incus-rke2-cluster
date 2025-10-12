@@ -78,17 +78,17 @@ write_files:
       source <( flox activate --dir /var/lib/rancher/rke2 )
 
       db::check() {
-        local -A inet=( current "$(nmcli -g IP4.ADDRESS device show eth0)" )
+        local -A inet=( [current]="$(nmcli -g IP4.ADDRESS device show wan0)" )
         local file="/var/lib/rancher/rke2/server/last-ip"
         if [[ -r "$file" ]]; then
-          inet+=( last "$(cat "$file")" )
+          inet+=( [last]="$(cat "$file")" )
         else
-          inet+=( last "" )
+          inet+=( [last]="" )
         fi
-        if [[ "${inet["current"]}" != "${inet["last"]}" ]]; then
-          : IP address changed: ${inet["last"]} - ${inet["current"]}, resetting RKE2 server DB
+        if [[ "${inet[current]}" != "${inet[last]}" ]]; then
+          : IP address changed: ${inet[last]} - ${inet[current]}, resetting RKE2 server DB
           rm -rf /var/lib/rancher/rke2/server/db
-          echo "${inet["current"]}" > "$file"
+          echo "${inet[current]}" > "$file"
         fi
       }
 

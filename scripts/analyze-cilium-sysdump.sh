@@ -16,7 +16,7 @@
 #   - Endpoint count & failed regenerations
 #   - Service/LB map deltas
 #   - BPF ct global stats (UNREPLIED growth)
-#   - MTU/interface differences (eth0, cilium_host, vxlan.*)
+#   - MTU/interface differences (lan0, wan0, cilium_host, vxlan.*)
 #   - Presence/absence of BPF NAT map vs iptables MASQUERADE
 #
 # Requirements:
@@ -95,7 +95,7 @@ collect_summary() {
     [[ -f $cmdDir/ip--4-route-show-table-2004.md ]] && cat "$cmdDir"/ip--4-route-show-table-2004.md || true
 
     echo "-- interfaces (MTU subset) --" || true
-    [[ -f $cmdDir/ip-a.md ]] && grep -E 'mtu' "$cmdDir"/ip-a.md | grep -E 'eth0|cilium|vxlan' || true
+  [[ -f $cmdDir/ip-a.md ]] && grep -E 'mtu' "$cmdDir"/ip-a.md | grep -E 'lan0|wan0|cilium|vxlan' || true
 
     echo "-- services (first 15) --" || true
     [[ -f $cmdDir/cilium-dbg-service-list.md ]] && head -n 17 "$cmdDir"/cilium-dbg-service-list.md || true

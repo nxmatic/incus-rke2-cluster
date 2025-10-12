@@ -14,12 +14,6 @@ config:
   security.nesting: true
   environment.RKE2_DEBUG: true
 devices:
-  eth0:
-    name: eth0
-    nictype: bridged
-    parent: ${CLUSTER_BRIDGE_NAME}
-    type: nic
-    hwaddr: ${CLUSTER_NODE_HWADDR}
   kmsg.dev:
     type: unix-char
     source: /dev/kmsg

@@ -2,6 +2,21 @@
 #
 # Common cloud-init configuration for all RKE2 nodes (masters and agents)
 
+# Network configuration for L2 bridge mode - ensure lan0 (LAN) & wan0 (WAN) get IPs via DHCP
+network:
+  version: 2
+  ethernets:
+    lan0:  # LAN (primary)
+      dhcp4: true
+      dhcp6: true
+      dhcp-identifier: mac
+      optional: true
+    wan0:  # WAN (secondary)
+      dhcp4: true
+      dhcp6: true
+      dhcp-identifier: mac
+      optional: true
+
 manage_resolv_conf: true
 resolv_conf:
   searchdomains:
@@ -117,7 +132,7 @@ write_files:
   # =============================================================================
 
 
-  # Substitues env variables in YAML templates (now *.yaml.tmpl beside output)
+  # Substitutes env variables in YAML templates (now *.yaml.tmpl beside output)
   - path: /usr/local/sbin/rke2-yaml-envsubst
     permissions: "0755"
     content: |
@@ -175,7 +190,7 @@ write_files:
           grep -E '^(INSTALL_RKE2_TYPE|CLUSTER_|TSID|TSKEY|CILIUM_PROFILE)'
         }
         cluster:inet() {
-          ip --json addr show eth0 |
+          ip --json addr show wan0 |
             yq -p json -o shell '
               .[0].addr_info.[] | select(.family == "inet") |
               { "CLUSTER_NODE_INET": .local }

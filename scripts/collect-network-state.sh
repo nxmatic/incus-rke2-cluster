@@ -11,7 +11,7 @@ Arguments:
 
 Environment variables:
   HOST_INTERFACE      Interface name to inspect on the host (default: enp0s3).
-  INSTANCE_INTERFACE  Interface name to inspect inside Incus instances (default: eth0).
+  INSTANCE_INTERFACE  Interface name to inspect inside Incus instances (default: wan0; set to lan0 for LAN focus).
   INCUS_PROJECT       Default Incus project name (overridden by argument #3).
 
 The script captures networking state for the current host and every running
@@ -34,7 +34,7 @@ output_dir="${1:-$DEFAULT_OUTPUT_DIR}"
 incus_project="${2:-$DEFAULT_INCUS_PROJECT}"
 
 HOST_INTERFACE="${HOST_INTERFACE:-enp0s3}"
-INSTANCE_INTERFACE="${INSTANCE_INTERFACE:-eth0}"
+INSTANCE_INTERFACE="${INSTANCE_INTERFACE:-wan0}"
 
 mkdir -p "$output_dir"
 

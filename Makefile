@@ -3,7 +3,11 @@
 # Shell, Project, and Run Directory Variables
 #-----------------------------
 SHELL := /bin/bash -exo pipefail
-export PATH := /run/wrappers/bin:$(PATH)
+# Ensure NixOS wrappers are first in PATH
+export PATH := /run/wrappers/bin:/run/current-system/sw/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+
+# Use NixOS sudo wrapper if available, fallback to system sudo
+SUDO := $(shell test -x /run/wrappers/bin/sudo && echo /run/wrappers/bin/sudo || command -v sudo)
 
 empty :=
 colon := :
@@ -60,11 +64,11 @@ endif
 # Derive a generic control-plane kind from the specific node name
 # master => master ; any name starting with 'peer' => peer
 ifeq ($(CLUSTER_NODE_NAME),master)
-	CLUSTER_NODE_KIND := master
+CLUSTER_NODE_KIND := master
 else ifneq (,$(findstring peer,$(CLUSTER_NODE_NAME)))
-	CLUSTER_NODE_KIND := peer
+CLUSTER_NODE_KIND := peer
 else
-	$(error Unable to derive CLUSTER_NODE_KIND from CLUSTER_NODE_NAME=$(CLUSTER_NODE_NAME))
+$(error Unable to derive CLUSTER_NODE_KIND from CLUSTER_NODE_NAME=$(CLUSTER_NODE_NAME))
 endif
 
 ## ---------------------------------------------------------------------------
@@ -89,22 +93,22 @@ endif
 
 # Derive cluster numeric id (CLUSTER_SUBNET retained for backwards compatibility)
 ifeq (bioskop,$(CLUSTER_NAME))
-	CLUSTER_SUBNET := 1
+CLUSTER_SUBNET := 1
 else ifeq (alcide,$(CLUSTER_NAME))
-	CLUSTER_SUBNET := 2
+CLUSTER_SUBNET := 2
 else
-	$(error Unsupported cluster name: $(CLUSTER_NAME))
+$(error Unsupported cluster name: $(CLUSTER_NAME))
 endif
 
 # Node index (compact 0,1,2,...) used by hierarchical addressing
 ifeq (master,$(CLUSTER_NODE_NAME))
-	CLUSTER_NODE_INDEX := 0
+CLUSTER_NODE_INDEX := 0
 else ifeq (peer1,$(CLUSTER_NODE_NAME))
-	CLUSTER_NODE_INDEX := 1
+CLUSTER_NODE_INDEX := 1
 else ifeq (peer2,$(CLUSTER_NODE_NAME))
-	CLUSTER_NODE_INDEX := 2
+CLUSTER_NODE_INDEX := 2
 else
-	$(error Invalid cluster node name: $(CLUSTER_NODE_NAME))
+$(error Invalid cluster node name: $(CLUSTER_NODE_NAME))
 endif
 
 # Derive cluster-wide aggregate block components
@@ -205,17 +209,17 @@ CLUSTER_VIRTUAL_ADDRESSES_CIDR := 10.80.$(CLUSTER_V4_BLOCK_OCTET).240/28
 # -----------------------------------------------------------------------------
 
 ifeq (bioskop,$(CLUSTER_NAME))
-	CLUSTER_PODS_CIDR_V4 := 10.42.0.0/16
-	CLUSTER_SERVICES_CIDR_V4 := 10.43.0.0/16
-	CLUSTER_PODS_CIDR_V6 := fd00:10:42::/48
-	CLUSTER_SERVICES_CIDR_V6 := fd00:10:43::/108
+CLUSTER_PODS_CIDR_V4 := 10.42.0.0/16
+CLUSTER_SERVICES_CIDR_V4 := 10.43.0.0/16
+CLUSTER_PODS_CIDR_V6 := fd00:10:42::/48
+CLUSTER_SERVICES_CIDR_V6 := fd00:10:43::/108
 else ifeq (alcide,$(CLUSTER_NAME))
-	CLUSTER_PODS_CIDR_V4 := 10.44.0.0/16
-	CLUSTER_SERVICES_CIDR_V4 := 10.45.0.0/16
-	CLUSTER_PODS_CIDR_V6 := fd00:10:44::/48
-	CLUSTER_SERVICES_CIDR_V6 := fd00:10:45::/108
+CLUSTER_PODS_CIDR_V4 := 10.44.0.0/16
+CLUSTER_SERVICES_CIDR_V4 := 10.45.0.0/16
+CLUSTER_PODS_CIDR_V6 := fd00:10:44::/48
+CLUSTER_SERVICES_CIDR_V6 := fd00:10:45::/108
 else
-	$(error No CIDR mapping defined for CLUSTER_NAME=$(CLUSTER_NAME); set CLUSTER_PODS_CIDR_V4/CLUSTER_SERVICES_CIDR_V4 manually)
+$(error No CIDR mapping defined for CLUSTER_NAME=$(CLUSTER_NAME); set CLUSTER_PODS_CIDR_V4/CLUSTER_SERVICES_CIDR_V4 manually)
 endif
 
 
@@ -227,11 +231,27 @@ CLUSTER_DOMAIN := cluster.local
 ## The hierarchical 10.80.* / fd70:80::* assignments defined earlier are authoritative.
 ## Keeping this comment block to avoid accidental reintroduction.
 
-# Incus bridge/profile names 
-CLUSTER_BRIDGE_NAME := rke2-$(CLUSTER_NODE_NAME)-br
+# Incus bridge/profile names (dual bridge: lan0 + wan0) (@codebase)
+# Pattern: <node>lan0 / <node>wan0 (no hyphen; node prefix distinguishes per-node bridges)
+# Length check (<=15): masterlan0 (9), peer1wan0 (9) OK.
+CLUSTER_LAN_BRIDGE_NAME := $(CLUSTER_NODE_NAME)lan0
+CLUSTER_WAN_BRIDGE_NAME := $(CLUSTER_NODE_NAME)wan0
 CLUSTER_BRIDGE_CIDR := $(NODE_V4_SUBNET)
 CLUSTER_PROFILE_NAME := rke2-$(CLUSTER_NODE_NAME)
 
+
+# Primary/secondary (LAN/WAN) Lima host interfaces (udev renamed) (@codebase)
+LIMA_LAN_INTERFACE ?= vmlan0
+LIMA_WAN_INTERFACE ?= vmwan0
+LIMA_PRIMARY_INTERFACE := $(LIMA_LAN_INTERFACE)
+LIMA_SECONDARY_INTERFACE := $(LIMA_WAN_INTERFACE)
+
+# Network mode for preseed template
+NETWORK_MODE := L2-bridge
+
+# Host interface to use for cluster egress traffic (using LAN bridge for LoadBalancer access)
+INCUS_EGRESS_INTERFACE := $(LIMA_PRIMARY_INTERFACE)
+export INCUS_EGRESS_INTERFACE
 
 #-----------------------------
 # Tailscale Configuration
@@ -244,13 +264,13 @@ CLUSTER_ENV_FILE := $(INCUS_DIR)/cluster-env.mk
 
 -include $(CLUSTER_ENV_FILE)
 
-$(CLUSTER_ENV_FILE): _hwaddr = $(shell cat /sys/class/net/enp0s1/address)
+$(CLUSTER_ENV_FILE): _hwaddr = $(shell cat /sys/class/net/vmlan0/address)
 $(CLUSTER_ENV_FILE): _hwaddr_words = $(subst $(colon),$(space),$(_hwaddr))
 $(CLUSTER_ENV_FILE): _hwaddr_words_network_words = $(wordlist 4,5,$(_hwaddr_words))
 $(CLUSTER_ENV_FILE): _hwaddr_words_network_part = $(subst $(space),$(colon),$(_hwaddr_words_network_words))
 # MAC addressing scheme (scoped) (@codebase)
 # Target-specific vars so evaluation happens in context of the current node parameters.
-$(CLUSTER_ENV_FILE): MAC_OUI_DETECTED := $(shell cat /sys/class/net/enp0s1/address 2>/dev/null | cut -d: -f1-3)
+$(CLUSTER_ENV_FILE): MAC_OUI_DETECTED := $(shell cat /sys/class/net/vmlan0/address 2>/dev/null | cut -d: -f1-3)
 $(CLUSTER_ENV_FILE): MAC_OUI := $(if $(strip $(MAC_OUI_DETECTED)),$(MAC_OUI_DETECTED),10:66:6a)
 $(CLUSTER_ENV_FILE): MAC_CLUSTER_BYTE := $(shell printf '%02x' $(CLUSTER_SUBNET))
 $(CLUSTER_ENV_FILE): MAC_NODE_INDEX_BYTE := $(shell printf '%02x' $(CLUSTER_NODE_INDEX))
@@ -262,12 +282,13 @@ $(CLUSTER_ENV_FILE): TOKEN := $(CLUSTER_TOKEN)
 $(CLUSTER_ENV_FILE): DN := ${NAME}-$(CLUSTER_IMAGE_NAME)
 $(CLUSTER_ENV_FILE): FQDN := $(CLUSTER_NAME)-$(DN).$(LIMA_DN)
 
-$(CLUSTER_ENV_FILE): HWADDR = $(HWADDR_COMPUTED)
 $(CLUSTER_ENV_FILE): | $(INCUS_DIR)/
 $(CLUSTER_ENV_FILE):
 	@: Defined environment variables for cluster $(CLUSTER_NAME) $(NODES_CIDR) $(file > $@,$(CLUSTER_ENV))
 
-INCUS_INET_YQ_EXPR := .[].state.network.eth0.addresses[] | select(.family == "inet") | .address
+# After interface rename (big-bang) eth0→lan0, eth1→wan0.
+# WAN hosts VIP, lan0 is LAN bridge. For host container IPv4 detection we now use wan0 (NAT side)
+INCUS_INET_YQ_EXPR := .[].state.network.wan0.addresses[] | select(.family == "inet") | .address
 define INCUS_INET_CMD
 $(shell incus list $(1) --format=yaml | yq eval '$(INCUS_INET_YQ_EXPR)' -)
 endef
@@ -312,10 +333,11 @@ NOCLOUD_USERDATA_FILE := $(NOCLOUD_DIR)/userdata.yaml
 
 #-----------------------------
 
+# Network mode for preseed template
+NETWORK_MODE := L2-bridge
 
 # Export variables required by *.yaml.tmpl templates for yq envsubst
 export NETWORK_MODE
-export CLUSTER_BRIDGE_NAME
 export CLUSTER_PROFILE_NAME
 export CLUSTER_BRIDGE_CIDR
 export CLUSTER_INET_GATEWAY
@@ -342,6 +364,9 @@ export CLUSTER_ARPA_PEER1
 export CLUSTER_ARPA_PEER2
 export CLUSTER_NODE_NAME
 export CLUSTER_NODE_HWADDR
+export LIMA_PRIMARY_INTERFACE
+export LIMA_LAN_INTERFACE
+export LIMA_WAN_INTERFACE
 
 export RUN_INSTANCE_DIR
 export NOCLOUD_USERDATA_FILE
@@ -452,6 +477,44 @@ $(INCUS_CREATE_PROJECT_MARKER_FILE):
 #-----------------------------
 MAIN_TARGETS := start stop delete clean shell
 
+# Ensure uplink binding after project/image prep
+
+.PHONY: network@incus
+
+network@incus: preseed@incus
+network@incus:
+	@echo "[i] Network (macvlan) Configuration Summary"
+	@echo "==========================================="
+	@echo "Host LAN parent: $(LIMA_LAN_INTERFACE) -> container lan0 (macvlan)"
+	@echo "Host WAN parent: $(LIMA_WAN_INTERFACE) -> container wan0 (macvlan)"
+	@echo "Mode: Dual macvlan (no Incus bridges)"
+	@echo ""
+	@echo "[i] Host interface state:"
+	@echo "  $(LIMA_LAN_INTERFACE): $$(ip link show $(LIMA_LAN_INTERFACE) | grep -o 'state [A-Z]*' || echo 'unknown state')"
+	@echo "  $(LIMA_WAN_INTERFACE): $$(ip link show $(LIMA_WAN_INTERFACE) | grep -o 'state [A-Z]*' || echo 'unknown state')"
+	@echo ""
+	@echo "[i] IP assignments:"
+	@echo "  $(LIMA_LAN_INTERFACE) IPv4: $$(ip -o -4 addr show $(LIMA_LAN_INTERFACE) | awk '{print $$4}' || echo '<none>')"
+	@echo "  $(LIMA_WAN_INTERFACE) IPv4: $$(ip -o -4 addr show $(LIMA_WAN_INTERFACE) | awk '{print $$4}' || echo '<none>')"
+	@echo ""
+	@echo "(Container macvlan interfaces visible after instance start)"
+
+.PHONY: debug-network-uplink debug-forwarding
+debug-@network: status@network
+
+debug@network:
+	@echo "[i] Macvlan Diagnostics"
+	@echo "======================="
+	@echo "Parent interfaces: $(LIMA_LAN_INTERFACE), $(LIMA_WAN_INTERFACE)"
+	@echo "Host MACs:"
+	@echo "  $(LIMA_LAN_INTERFACE): $$(cat /sys/class/net/$(LIMA_LAN_INTERFACE)/address 2>/dev/null || echo 'n/a')"
+	@echo "  $(LIMA_WAN_INTERFACE): $$(cat /sys/class/net/$(LIMA_WAN_INTERFACE)/address 2>/dev/null || echo 'n/a')"
+	@echo ""
+	@echo "Suggested in-container checks (once running):"
+	@echo "  incus exec $(CLUSTER_NODE_NAME) -- ip -o addr show lan0"
+	@echo "  incus exec $(CLUSTER_NODE_NAME) -- ip -o addr show wan0"
+	@echo "  incus exec $(CLUSTER_NODE_NAME) -- ping -c1 -I wan0 8.8.8.8"
+
 $(MAIN_TARGETS): preseed@incus image@incus switch-project@incus
 
 .PHONY: $(MAIN_TARGETS)
@@ -472,7 +535,7 @@ $(INCUS_IMAGE_BUILD_FILES)&:
 	@: [+] Building instance $(NODE_NAME)...
 	env -i -S \
 		PATH=$$PATH \
-		  sudo distrobuilder --debug --disable-overlay \
+		  $(SUDO) distrobuilder --debug --disable-overlay \
 			  build-incus $(INCUS_DISTROBUILDER_FILE) 2>&1 | \
 			tee $(INCUS_DISTROBUILDER_LOGFILE)
 	mv incus.tar.xz rootfs.squashfs $(IMAGE_DIR)/
@@ -528,7 +591,7 @@ $(INCUS_CONFIG_INSTANCE_MARKER_FILE):
 	incus config set $(CLUSTER_NODE_NAME) environment.TSID "$(TSID)"
 	incus config set $(CLUSTER_NODE_NAME) environment.TSKEY "$(TSKEY_CLIENT)"
 
-	incus config device set $(CLUSTER_NODE_NAME) eth0 parent=$(CLUSTER_BRIDGE_NAME) hwaddr=$(CLUSTER_NODE_HWADDR) ipv4.address=$(CLUSTER_NODE_INET)
+	@: "[+] Container network devices already defined in per-node profile (macvlan)"
 
 	touch $@
 
@@ -558,7 +621,9 @@ clean:
 	@: [+] Removing $(CLUSTER_NODE_NAME) if exists...
 	incus profile delete rke2-$(CLUSTER_NODE_NAME) --project=rke2 || true
 	incus profile delete rke2-$(CLUSTER_NODE_NAME) --project default || true
-	incus network delete rke2-$(CLUSTER_NODE_NAME)-br || true
+	# Remove current bridge pair
+	incus network delete $(CLUSTER_LAN_BRIDGE_NAME) 2>/dev/null || true
+	incus network delete $(CLUSTER_WAN_BRIDGE_NAME) 2>/dev/null || true
 	@: [+] Cleaning up run directory...
 	rm -fr $(RUN_INSTANCE_DIR)
 
@@ -574,8 +639,8 @@ zfs.allow: $(ZFS_ALLOW_MARKER_FILE)
 
 $(ZFS_ALLOW_MARKER_FILE):| $(RUN_DIR)/
 	@: "[+] Allowing ZFS permissions for tank..."
-	sudo zfs allow -s @allperms allow,clone,create,destroy,mount,promote,receive,rename,rollback,send,share,snapshot tank
-	sudo zfs allow -e @allperms tank
+	$(SUDO) zfs allow -s @allperms allow,clone,create,destroy,mount,promote,receive,rename,rollback,send,share,snapshot tank
+	$(SUDO) zfs allow -e @allperms tank
 	touch $@
 
 #-----------------------------
@@ -645,8 +710,8 @@ YQ_EXPR_5 = $(YQ_MERGE_5_FILES)
 # Macro for executing the appropriate yq merge based on file count
 define EXECUTE_YQ_MERGE
 $(if $(YQ_EXPR_$(1)),
-	@yq eval-all --from-file=<(echo '$(YQ_EXPR_$(1))') $(2) > $(3),
-	$(error Unsupported file count: $(1) (expected 3 or 5)))
+@yq eval-all --from-file=<(echo '$(YQ_EXPR_$(1))') $(2) > $(3),
+$(error Unsupported file count: $(1) (expected 3 or 5)))
 endef
 
 $(NOCLOUD_USERDATA_FILE):
@@ -697,6 +762,4 @@ remove-hosts@tailscale:
 #-----------------------------
 %/:
 	mkdir -p $(@)
-
-
 

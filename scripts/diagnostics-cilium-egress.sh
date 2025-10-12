@@ -70,8 +70,8 @@ run_node() {
   echo "-- cilium agent runtime config (subset) --"
   run_node "cilium config view 2>/dev/null | egrep -i 'enable-l7|masquerade|kube-proxy-replacement|tunnel|mode' || true"
 
-  echo "-- interfaces + MTU (eth0,cilium_*,vxlan*) --"
-  run_node "ip -o link show | egrep -i 'eth0|cilium|vxlan' || true"
+  echo "-- interfaces + MTU (lan0,wan0,cilium_*,vxlan*) --"
+  run_node "ip -o link show | egrep -i 'lan0|wan0|cilium|vxlan' || true"
 
   echo "-- routes for pod/service CIDRs --"
   run_node "ip route | egrep '10\.42\.|10\.43\.' || true"

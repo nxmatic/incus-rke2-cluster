@@ -84,7 +84,7 @@ write_files:
               - name: port
                 value: "6443"
               - name: vip_interface
-                value: "eth0"
+                value: "wan0"  # renamed from eth0 -> wan0 (VIP on WAN/NAT)
               - name: vip_cidr
                 value: "32"
               - name: dns_mode
