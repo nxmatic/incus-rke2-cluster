@@ -45,6 +45,7 @@ resolv_conf:
 bootcmd:
   - |
     #!/bin/sh -eux
+    : "Install early netplan override service (with fallback generation)"
     cat > /etc/systemd/system/netplan-early-override.service <<'EOF'
     [Unit]
     Description=Apply netplan override before networkd
@@ -55,13 +56,17 @@ bootcmd:
     [Service]
     Type=oneshot
     # Copy override from seed (if present) then generate netplan artifacts
-    ExecStart=/bin/sh -c '[ -f /var/lib/cloud/seed/nocloud/netplan-override.yaml ] && cp /var/lib/cloud/seed/nocloud/netplan-override.yaml /etc/netplan/10-override.yaml || true; netplan generate'
+    ExecStart=/bin/sh -c '[ -f /var/lib/cloud/seed/nocloud/netplan-override.yaml ] \\
+      && { cp /var/lib/cloud/seed/nocloud/netplan-override.yaml /etc/netplan/10-override.yaml; echo "Using supplied netplan override"; } \\
+      || { echo "No supplied netplan override found; generating fallback"; cat > /etc/netplan/10-override.yaml <<EONP\nnetwork:\n  version: 2\n  renderer: networkd\n  ethernets:\n    wan0:\n      dhcp4: false\n      addresses:\n        - ${CLUSTER_NODE_INET}/24\n      routes:\n        - to: 0.0.0.0/0\n          via: ${CLUSTER_INET_GATEWAY}\n      nameservers:\n        addresses:\n          - ${CLUSTER_INET_GATEWAY}\n          - 1.1.1.1\n    lan0:\n      dhcp4: true\n      dhcp6: true\n      optional: true\nEONP\n        chmod 600 /etc/netplan/10-override.yaml; }; netplan generate'
 
     [Install]
     WantedBy=network-pre.target
     EOF
     systemctl daemon-reload || true
     systemctl enable netplan-early-override.service || true
+    : "Enable netplan early override service (status follows)"
+    systemctl is-enabled netplan-early-override.service || true
   # Example: emit an inline override instead of sourcing from seed
   # - |
   #   cat > /etc/netplan/10-override.yaml <<'EOF'
