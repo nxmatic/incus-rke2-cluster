@@ -2,7 +2,7 @@
 # @codebase
 
 write_files:
-  - path: /var/lib/rancher/rke2/server/manifests/rke2-cilium-config.yaml.tmpl
+  - path: /var/lib/rancher/rke2/server/manifests/rke2-cilium-config.yaml
     content: |
       apiVersion: helm.cattle.io/v1
       kind: HelmChartConfig
@@ -16,7 +16,7 @@ write_files:
           bgpControlPlane:
             enabled: false
           cluster:
-            name: ${CLUSTER_NAME}
+            name: "${CLUSTER_NAME}"
             id: ${CLUSTER_SUBNET}
           clustermesh:
             useAPIServer: true
@@ -58,7 +58,7 @@ write_files:
             replicas: 1
           socketLB:
             hostNamespaceOnly: false
-  - path: /var/lib/rancher/rke2/server/manifests/cilium-cluster-resources.yaml.tmpl
+  - path: /var/lib/rancher/rke2/server/manifests/cilium-cluster-resources.yaml
     content: |
       # Cilium cluster resources (BGP + IP pools) - full profile only
       apiVersion: cilium.io/v2alpha1

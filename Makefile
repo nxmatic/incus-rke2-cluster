@@ -2,6 +2,7 @@
 #-----------------------------
 # Shell, Project, and Run Directory Variables
 #-----------------------------
+
 SHELL := /bin/bash -exo pipefail
 # Ensure NixOS wrappers are first in PATH
 export PATH := /run/wrappers/bin:/run/current-system/sw/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
@@ -339,9 +340,13 @@ NETWORK_MODE := L2-bridge
 # Export variables required by *.yaml.tmpl templates for yq envsubst
 export NETWORK_MODE
 export CLUSTER_PROFILE_NAME
+export CLUSTER_SUBNET
 export CLUSTER_BRIDGE_CIDR
 export CLUSTER_INET_GATEWAY
 export CLUSTER_INET_VIRTUAL
+export CLUSTER_NODE_INET
+export CLUSTER_LOADBALANCERS_CIDR
+export CLUSTER_VIRTUAL_ADDRESSES_CIDR
 export CLUSTER_INET_MASTER_GATEWAY
 export CLUSTER_INET_PEER1_GATEWAY
 export CLUSTER_INET_PEER2_GATEWAY
@@ -364,9 +369,16 @@ export CLUSTER_ARPA_PEER1
 export CLUSTER_ARPA_PEER2
 export CLUSTER_NODE_NAME
 export CLUSTER_NODE_HWADDR
+export CLUSTER_NAME
+export CLUSTER_PODS_CIDR
+export CLUSTER_SERVICES_CIDR
+export INSTALL_RKE2_TYPE
 export LIMA_PRIMARY_INTERFACE
 export LIMA_LAN_INTERFACE
 export LIMA_WAN_INTERFACE
+export TSID
+export TSKEY := $(TSKEY_CLIENT)
+export CLUSTER_TOKEN
 
 export RUN_INSTANCE_DIR
 export NOCLOUD_USERDATA_FILE
@@ -390,7 +402,7 @@ preseed@incus:
 $(INCUS_PRESSED_FILE): $(INCUS_PRESSED_FILENAME) | $(INCUS_DIR)/
 $(INCUS_PRESSED_FILE):
 	@: "[+] Generating preseed file (pure envsubst via yq) ..."
-	@yq eval '( .. | select(tag=="!!str") ) |= envsubst' $(INCUS_PRESSED_FILENAME) > $@
+	@yq eval '( .. | select(tag=="!!str") ) |= envsubst(ne,nu)' $(INCUS_PRESSED_FILENAME) > $@
 
 #-----------------------------
 # Project Management Target
@@ -593,6 +605,10 @@ $(INCUS_CONFIG_INSTANCE_MARKER_FILE):
 
 	@: "[+] Container network devices already defined in per-node profile (macvlan)"
 
+	@: "[+] Ensuring clean cloud-init state for fresh network configuration..."
+	incus exec $(CLUSTER_NODE_NAME) -- rm -rf /var/lib/cloud/instance /var/lib/cloud/instances /var/lib/cloud/data /var/lib/cloud/sem || true
+	incus exec $(CLUSTER_NODE_NAME) -- rm -rf /run/cloud-init /run/systemd/network/10-netplan-* || true
+	
 	touch $@
 
 ## Token device & external file removed; unified token provisioning via write_files patch
@@ -624,6 +640,8 @@ clean:
 	# Remove current bridge pair
 	incus network delete $(CLUSTER_LAN_BRIDGE_NAME) 2>/dev/null || true
 	incus network delete $(CLUSTER_WAN_BRIDGE_NAME) 2>/dev/null || true
+	# Remove persistent storage volume to ensure clean cloud-init state
+	incus storage volume delete default containers/$(CLUSTER_NODE_NAME) || true
 	@: [+] Cleaning up run directory...
 	rm -fr $(RUN_INSTANCE_DIR)
 
@@ -650,14 +668,14 @@ $(INCUS_INSTANCE_CONFIG_FILE): $(INCUS_INSTANCE_CONFIG_FILENAME)
 $(INCUS_INSTANCE_CONFIG_FILE): $(NOCLOUD_METADATA_FILE) $(NOCLOUD_USERDATA_FILE)
 $(INCUS_INSTANCE_CONFIG_FILE):
 	@: "[+] Rendering instance config (envsubst via yq) ..."
-	yq eval '( ... | select(tag=="!!str") ) |= envsubst' $(INCUS_INSTANCE_CONFIG_FILENAME) > $(@)
+	yq eval '( ... | select(tag=="!!str") ) |= envsubst(ne,nu)' $(INCUS_INSTANCE_CONFIG_FILENAME) > $(@)
 
 #-----------------------------
 # Generat cloud-init meta-data file
 #-----------------------------
 
 define METADATA_INLINE :=
-instance-id: $(CLUSTER_NODE_NAME)
+instance-id: $(CLUSTER_NODE_NAME)-$(shell uuidgen | tr '[:upper:]' '[:lower:]')
 local-hostname: $(CLUSTER_NODE_DN)
 endef
 
@@ -682,14 +700,16 @@ else ifeq ($(CLUSTER_NODE_KIND),peer)
 $(NOCLOUD_USERDATA_FILE): cloud-config.peer.yaml
 endif
 
-# yq expressions for cloud-config merging
+# yq expressions for cloud-config merging with environment variable substitution
 define YQ_MERGE_3_FILES
 select(fileIndex == 0) as $$a | \
 select(fileIndex == 1) as $$b | \
 select(fileIndex == 2) as $$c | \
 ($$a * $$b * $$c) | \
 .write_files = ($$a.write_files // []) + ($$b.write_files // []) + ($$c.write_files // []) | \
-.runcmd = ($$a.runcmd // []) + ($$b.runcmd // []) + ($$c.runcmd // [])
+.runcmd = ($$a.runcmd // []) + ($$b.runcmd // []) + ($$c.runcmd // []) | \
+.systemd.units = ($$a.systemd.units // []) + ($$b.systemd.units // []) + ($$c.systemd.units // []) | \
+( .. | select( tag == "!!str" ) ) |= envsubst(ne,nu)
 endef
 
 define YQ_MERGE_5_FILES
@@ -700,7 +720,9 @@ select(fileIndex == 3) as $$d | \
 select(fileIndex == 4) as $$e | \
 ($$a * $$b * $$c * $$d * $$e) | \
 .write_files = ($$a.write_files // []) + ($$b.write_files // []) + ($$c.write_files // []) + ($$d.write_files // []) + ($$e.write_files // []) | \
-.runcmd = ($$a.runcmd // []) + ($$b.runcmd // []) + ($$c.runcmd // []) + ($$d.runcmd // []) + ($$e.runcmd // [])
+.runcmd = ($$a.runcmd // []) + ($$b.runcmd // []) + ($$c.runcmd // []) + ($$d.runcmd // []) | \
+.systemd.units = ($$a.systemd.units // []) + ($$b.systemd.units // []) + ($$c.systemd.units // []) + ($$d.systemd.units // []) + ($$e.systemd.units // []) | \
+( .. | select( tag == "!!str" ) ) |= envsubst(ne,nu)
 endef
 
 # YQ expression lookup by file count
@@ -715,7 +737,7 @@ $(error Unsupported file count: $(1) (expected 3 or 5)))
 endef
 
 $(NOCLOUD_USERDATA_FILE):
-	@: "[+] Merging cloud-config fragments (common/server/node) ..."
+	@: "[+] Merging cloud-config fragments (common/server/node) with envsubst ..."
 	$(eval _file_count := $(call length,$^))
 	$(call EXECUTE_YQ_MERGE,$(_file_count),$^,$@)
 

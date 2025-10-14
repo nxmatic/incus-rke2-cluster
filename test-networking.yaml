@@ -1,0 +1,29 @@
+write_files:
+  - path: /etc/default/networking
+    permissions: "0644"
+    content: |
+      # Configuration for networking init script being run during the boot sequence
+      
+      # Set to 'yes' to skip interfaces configuration on boot
+      CONFIGURE_INTERFACES=yes
+      
+      # Don't configure these interfaces. Shell wildcards supported
+      #EXCLUDE_INTERFACES=
+      
+      # Set to 'no' to disable additional verbosity during boot
+      VERBOSE=no
+      
+      # Method to wait for the network to become online:
+      # - ifup: wait for ifup to have configured an interface
+      # - route: wait for a route to a given address to appear  
+      # - ping/ping6: wait for a host to respond to ping packets
+      # - none: don't wait
+      WAIT_ONLINE_METHOD=ifup
+      
+      # Which interface to wait for - wait for wan0 (cluster network) only
+      # This prevents waiting for optional lan0 interface
+      WAIT_ONLINE_IFACE=wan0
+      
+      # Timeout in seconds for waiting for the network to come online
+      # Reduced from default 300s to speed up boot process
+      WAIT_ONLINE_TIMEOUT=60

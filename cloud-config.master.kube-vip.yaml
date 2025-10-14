@@ -1,4 +1,3 @@
-#cloud-config
 # Kube-vip overlay for highly available Kubernetes API server VIP
 # Provides HA VIP management independent of Cilium LoadBalancer IPAM
 # @codebase
@@ -6,7 +5,7 @@
 write_files:
   # Kube-vip for Kubernetes API server VIP management
   # Replaces Cilium LoadBalancer to avoid IPAM conflicts (issue #36220)
-  - path: /var/lib/rancher/rke2/server/manifests/kube-vip.yaml.tmpl
+  - path: /var/lib/rancher/rke2/server/manifests/kube-vip.yaml
     content: |
       apiVersion: v1
       kind: Namespace

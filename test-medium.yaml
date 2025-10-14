@@ -1,0 +1,10 @@
+write_files:
+  - path: /etc/test/medium
+    content: |
+      # This is a configuration file
+      # With several lines of content
+      SETTING1=value1
+      SETTING2=value2
+      SETTING3=value3
+      # More comments here
+      TIMEOUT=60

@@ -15,7 +15,7 @@ write_files:
       with-node-id: false
 
   # Dedicated server fragment (templated -> rendered server.yaml)
-  - path: /etc/rancher/rke2/config.yaml.d/server.yaml.tmpl
+  - path: /etc/rancher/rke2/config.yaml.d/server.yaml
     content: |
       # NOTE:
       # Port 9345 is the RKE2 supervisor (bootstrap) port used by joining server nodes.

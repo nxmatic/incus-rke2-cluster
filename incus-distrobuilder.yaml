@@ -20,35 +20,14 @@ packages:
   cleanup: true
   repositories:
     - name: debian-bookworm-extras
-      url: "deb http://deb.debian.org/debian bookworm contrib non-free"
-      type: deb
-      releases: []
-      architectures: ["arm64"]
-      variants: ["default"]
-    - name: debian-backports
-      url: "deb http://deb.debian.org/debian bookworm-backports main contrib non-free"
-      type: deb
-      releases: []
-      architectures: ["arm64"]
-      variants: ["default"]
-    - name: debian-security
-      url: "deb http://deb.debian.org/debian-security bookworm-security main contrib non-free"
-      type: deb
-      releases: []
-      architectures: ["arm64"]
-      variants: ["default"]
-    - name: debian-updates
-      url: "deb http://deb.debian.org/debian bookworm-updates main contrib non-free"
-      type: deb
-      releases: []
-      architectures: ["arm64"]
-      variants: ["default"]
+      url: "deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware"
+    - name: debian-bookworm-security
+      url: "deb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware"
+    - name: debian-bookworm-updates
+      url: "deb http://deb.debian.org/debian bookworm-updates main contrib non-free non-free-firmware"
+    - name: debian-unstable
+      url: "deb http://deb.debian.org/debian unstable main"
   sets:
-    - packages:
-        - zfsutils-linux
-      action: install
-      flags:
-        - --no-install-recommends
     - packages:
         - acl
         - apt-file
@@ -59,7 +38,6 @@ packages:
         - binutils
         - bzip2
         - ca-certificates
-        - cloud-init
         - curl
         - direnv
         - dstat
@@ -100,6 +78,7 @@ packages:
         - systemd-resolved
         - systemd-sysv
         - systemd-timesyncd
+        - netplan.io
         - tar
         - tree
         - traceroute
@@ -111,20 +90,26 @@ packages:
       action: install
 
 actions:
+  # After base package sets are installed, pin and install cloud-init from unstable (sid)
   - trigger: post-packages
     action: |
-      #!/usr/bin/env -S bash -exu -o pipefail
-
-      trap 'rm -f /tmp/flox.deb' EXIT
-      curl -sL --fail -o /tmp/flox.deb \
-        https://downloads.flox.dev/by-env/stable/deb/flox-1.5.0.aarch64-linux.deb
-      apt-get install -y /tmp/flox.deb
-      mkdir -p /etc/flox
-      cat <<EoF > /etc/flox/config.toml
-      disable_metrics = true
-      EoF
-
-
+      #!/usr/bin/env bash
+      set -euo pipefail
+      echo "==> Creating apt pin for cloud-init from unstable"
+      printf '%s\n' \
+        'Package: cloud-init' \
+        'Pin: release a=unstable' \
+        'Pin-Priority: 990' \
+        '' \
+        'Package: *' \
+        'Pin: release a=unstable' \
+        'Pin-Priority: 50' \
+        > /etc/apt/preferences.d/90-unstable-cloud-init.pref
+      echo "==> Updating package indices"
+      apt-get update -y
+      echo "==> Installing cloud-init from unstable"
+      DEBIAN_FRONTEND=noninteractive apt-get install -y -t unstable cloud-init
+      echo "==> cloud-init version installed: $(cloud-init --version || true)"
   - trigger: post-files
     action: |
       #!/usr/bin/env -S bash -exu -o pipefail
@@ -169,3 +154,24 @@ files:
       datasource:
         NoCloud:
           seedfrom: /var/lib/cloud/seed/nocloud/
+  # Ensure systemd module is present (older cloud-init configs may omit it)
+  - name: cloud-init-systemd-module
+    generator: dump
+    path: /etc/cloud/cloud.cfg.d/99-systemd-module.cfg
+    content: |
+      #cloud-config
+      cloud_config_modules:
+       - snap
+       - ssh-import-id
+       - keyboard
+       - locale
+       - set-passwords
+       - grub-dpkg
+       - apt-pipelining
+       - apt-configure
+       - ntp
+       - timezone
+       - disable-ec2-metadata
+       - systemd
+       - runcmd
+       - byobu

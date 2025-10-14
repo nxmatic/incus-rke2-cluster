@@ -1,4 +1,3 @@
-#cloud-config
 # Base master cloud-config (profile-agnostic)
 # Contains all master-specific and bootstrap components EXCEPT any Cilium profile manifests.
 # @codebase
@@ -98,7 +97,7 @@ write_files:
       allowVolumeExpansion: true
 
   # Tailscale operator
-  - path: /var/lib/rancher/rke2/server/manifests/tailscale-operator.yaml.tmpl
+  - path: /var/lib/rancher/rke2/server/manifests/tailscale-operator.yaml
     content: |
       apiVersion: helm.cattle.io/v1
       kind: HelmChart
@@ -118,7 +117,7 @@ write_files:
           operatorConfig:
             hostname: "${CLUSTER_NAME}-tailscale-operator"
             debug: true
-  - path: /var/lib/rancher/rke2/server/manifests/tailscale-controlplane.yaml.tmpl
+  - path: /var/lib/rancher/rke2/server/manifests/tailscale-controlplane.yaml
     content: |            
       apiVersion: tailscale.com/v1alpha1
       kind: Connector
@@ -127,7 +126,7 @@ write_files:
       spec:
         # Single host route for the Kubernetes API virtual IP + wider LB pool for service IP reachability.
         # Using /32 avoids advertising unused VIP addresses.
-        hostname: ${CLUSTER_NAME}-controlplane
+        hostname: "${CLUSTER_NAME}-controlplane"
         subnetRouter:
           advertiseRoutes:
             # Control-plane virtual IP (host route)
