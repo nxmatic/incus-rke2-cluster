@@ -1,13 +1,16 @@
 #cloud-config
-#
+---
 # Common cloud-init configuration for all RKE2 nodes (masters and agents)
+
+# Hostname (explicit, cloud-init will set since preserve_hostname=false in base cfg)
+hostname: ${CLUSTER_NODE_NAME}-control-node
 
 # Network configuration using netplan with systemd-networkd renderer
 network:
   version: 2
   renderer: networkd
   ethernets:
-    lan0:  # LAN (primary) - DHCP for home network access  
+    lan0:  # LAN (primary) - DHCP for home network access
       dhcp4: true
       dhcp6: true
       dhcp-identifier: mac
@@ -31,58 +34,56 @@ resolv_conf:
     - mammoth-skate.ts.net
 
 # -----------------------------------------------------------------------------
-# Early netplan override application
-# bootcmd runs very early (cloud-init boot stage) before network is fully brought
-# up. We install a tiny systemd oneshot that copies an override (if present) and
-# runs `netplan generate` prior to network-pre.target so that systemd-networkd
-# sees any dynamically supplied configuration. If you need to supply an override
-# declaratively, you can either:
-#  1. Provide it in the NoCloud seed at path netplan-override.yaml, or
-#  2. Extend this bootcmd to emit the file inline (see commented template below).
-# The service is idempotent: if the source override file is missing it simply
-# exits successfully.
+# Netplan dynamic override (bootcmd) (@codebase)
+# We seed a base network: stanza (above) so cloud-init has a deterministic
+# configuration. Additionally, we re-introduce a bootcmd script that, very early
+# in the init stage, copies an optional NoCloud seed file
+#   /var/lib/cloud/seed/nocloud/netplan-override.yaml
+# into /etc/netplan/10-override.yaml, or generates a fallback override if none
+# was supplied. We only run 'netplan generate' (not apply) to avoid races; the
+# generated artifacts are ready by the time systemd-networkd starts. If you want
+# the override to be pre-rendered without bootcmd logic, you can remove this
+# section and just pre-bake /etc/netplan/10-override.yaml.
 # -----------------------------------------------------------------------------
 bootcmd:
   - |
-    #!/bin/sh -eux
-    : "Install early netplan override service (with fallback generation)"
-    cat > /etc/systemd/system/netplan-early-override.service <<'EOF'
-    [Unit]
-    Description=Apply netplan override before networkd
-    DefaultDependencies=no
-    Before=network-pre.target
-    Wants=network-pre.target
-
-    [Service]
-    Type=oneshot
-    # Copy override from seed (if present) then generate netplan artifacts
-    ExecStart=/bin/sh -c '[ -f /var/lib/cloud/seed/nocloud/netplan-override.yaml ] \\
-      && { cp /var/lib/cloud/seed/nocloud/netplan-override.yaml /etc/netplan/10-override.yaml; echo "Using supplied netplan override"; } \\
-      || { echo "No supplied netplan override found; generating fallback"; cat > /etc/netplan/10-override.yaml <<EONP\nnetwork:\n  version: 2\n  renderer: networkd\n  ethernets:\n    wan0:\n      dhcp4: false\n      addresses:\n        - ${CLUSTER_NODE_INET}/24\n      routes:\n        - to: 0.0.0.0/0\n          via: ${CLUSTER_INET_GATEWAY}\n      nameservers:\n        addresses:\n          - ${CLUSTER_INET_GATEWAY}\n          - 1.1.1.1\n    lan0:\n      dhcp4: true\n      dhcp6: true\n      optional: true\nEONP\n        chmod 600 /etc/netplan/10-override.yaml; }; netplan generate'
-
-    [Install]
-    WantedBy=network-pre.target
-    EOF
-    systemctl daemon-reload || true
-    systemctl enable netplan-early-override.service || true
-    : "Enable netplan early override service (status follows)"
-    systemctl is-enabled netplan-early-override.service || true
-  # Example: emit an inline override instead of sourcing from seed
-  # - |
-  #   cat > /etc/netplan/10-override.yaml <<'EOF'
-  #   network:
-  #     version: 2
-  #     renderer: networkd
-  #     ethernets:
-  #       wan0:
-  #         dhcp4: false
-  #         addresses:
-  #           - ${CLUSTER_NODE_INET}/24
-  #         routes:
-  #           - to: 0.0.0.0/0
-  #             via: ${CLUSTER_INET_GATEWAY}
-  #   EOF
-  #   netplan generate
+      #!/bin/sh -eux
+      : "Early netplan override (fallback if seed missing)"
+      SEED=/var/lib/cloud/seed/nocloud/netplan-override.yaml
+      TARGET=/etc/netplan/10-override.yaml
+      # Escape runtime variable references (\$SEED/\$TARGET) so build-time envsubst
+      # does not error on unset variables; they are resolved at instance boot.
+      if [ -f "\$SEED" ]; then
+        cp "\$SEED" "\$TARGET"
+        echo "[netplan] Using supplied override from seed"
+      else
+        echo "[netplan] Seed override not found; generating fallback override"
+        cat > "\$TARGET" <<'EONP'
+        network:
+          version: 2
+          renderer: networkd
+          ethernets:
+            wan0:
+              dhcp4: false
+              addresses:
+                - ${CLUSTER_NODE_INET}/24
+              routes:
+                - to: 0.0.0.0/0
+                  via: ${CLUSTER_INET_GATEWAY}
+              nameservers:
+                addresses:
+                  - ${CLUSTER_INET_GATEWAY}
+                  - 1.1.1.1
+            lan0:
+              dhcp4: true
+              dhcp6: true
+              dhcp-identifier: mac
+              optional: true
+        EONP
+        chmod 600 "\$TARGET"
+      fi
+      # Pre-render netplan so networkd picks it up cleanly on start.
+      netplan generate || echo "[netplan] generate failed (continuing)"
 
 write_files:
   # =============================================================================
@@ -100,28 +101,28 @@ write_files:
   # Network initialization configuration to prevent long waits for optional interfaces
   - path: /etc/default/networking
     permissions: "0644"
-    content: |  
-      # Configuration for networking init script being run during the boot sequence
-      # Set to 'yes' to skip interfaces configuration on boot
-      CONFIGURE_INTERFACES=yes
-      
-      # Don't configure these interfaces. Shell wildcards supported
-      #EXCLUDE_INTERFACES=
-      
-      # Enable verbose logging for debugging network wait issues
-      VERBOSE=yes
-      
-      # Method to wait for the network to become online:
-      # - ifup: wait for ifup to have configured an interface
-      # - route: wait for a route to a given address to appear
-      # - ping/ping6: wait for a host to respond to ping packets
-      # - none: don't wait
-      WAIT_ONLINE_METHOD=ifup
+    content: |
+          # Configuration for networking init script being run during the boot sequence
+          # Set to 'yes' to skip interfaces configuration on boot
+          CONFIGURE_INTERFACES=yes
 
-      # Which interface to wait for - wait for wan0 (cluster network) only
-      # This prevents waiting for optional lan0 interface
-      WAIT_ONLINE_IFACE=wan0
-      WAIT_ONLINE_TIMEOUT=60
+          # Don't configure these interfaces. Shell wildcards supported
+          #EXCLUDE_INTERFACES=
+
+          # Enable verbose logging for debugging network wait issues
+          VERBOSE=yes
+
+          # Method to wait for the network to become online:
+          # - ifup: wait for ifup to have configured an interface
+          # - route: wait for a route to a given address to appear
+          # - ping/ping6: wait for a host to respond to ping packets
+          # - none: don't wait
+          WAIT_ONLINE_METHOD=ifup
+
+          # Which interface to wait for - wait for wan0 (cluster network) only
+          # This prevents waiting for optional lan0 interface
+          WAIT_ONLINE_IFACE=wan0
+          WAIT_ONLINE_TIMEOUT=60
 
 # Removed systemd-networkd-wait-online override from write_files - moved to systemd units section below
 
@@ -210,9 +211,6 @@ write_files:
   # =============================================================================
   # FLOX ENVIRONMENT SETUP SCRIPTS
   # =============================================================================
-
-
-
 
   # Pre-installation script for environment setup
   - path: /usr/local/sbin/rke2-install-pre
@@ -323,7 +321,7 @@ write_files:
       : Initialize krew and install plugins
       KREW_ROOT="/var/lib/rancher/rke2/krew"
       mkdir -p "$$KREW_ROOT"
-      
+
       : Install krew plugins using krew directly
       for plugin in ctx ns; do
         krew install "$$plugin" || true
@@ -363,7 +361,7 @@ write_files:
       [Service]
       ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-tools-configuration-directories'
       ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-vip-kubeconfig'
-  
+
   - path: /etc/systemd/system/rke2-agent.service.d/kubeconfig.conf
     content: |
       [Service]
@@ -391,7 +389,7 @@ write_files:
 
       : Core RKE2 Environment Variables
       ARCH="$(dpkg --print-architecture)"
-      [[ -r /etc/rancher/rke2/rke2.yaml ]] && 
+      [[ -r /etc/rancher/rke2/rke2.yaml ]] &&
         KUBECONFIG="/etc/rancher/rke2/rke2.yaml"
 
       : Container Runtime Configuration
@@ -399,7 +397,7 @@ write_files:
       CONTAINERD_ADDRESS="/run/k3s/containerd/containerd.sock"
       CONTAINERD_NAMESPACE="k8s.io"
       CRI_CONFIG_FILE="$${PWD}/agent/etc/crictl.yaml"
-      
+
       : etcdctl Configuration
       ETCDCTL_API="3"
       ETCDCTL_CERT="$${PWD}/server/tls/etcd/server-client.crt"
@@ -409,12 +407,12 @@ write_files:
       ETCDCTL_WRITE_OUT="table"
       ETCDCTL_DIAL_TIMEOUT="10s"
       ETCDCTL_COMMAND_TIMEOUT="30s"
-      
+
       : kubectl Configuration
       KUBECTL_OUTPUT="yaml"
       KUBECTL_EXTERNAL_DIFF="diff"
       KUBECTL_COMPLETION="true"
-      
+
       : Helm Configuration
       HELM_DATA_HOME="$${PWD}/helm"
       HELM_CONFIG_HOME="/etc/rancher/rke2/helm"
@@ -422,11 +420,11 @@ write_files:
       HELM_REPOSITORY_CONFIG="/etc/rancher/rke2/helm/repositories.yaml"
       HELM_REPOSITORY_CACHE="/var/cache/rancher/rke2/helm/repository"
       HELM_PLUGINS="$${PWD}/helm/plugins"
-      
+
       : Cilium CLI Configuration
       CILIUM_CLI_MODE="kubernetes"
       CILIUM_CLI_CONTEXT="default"
-      
+
       : Hubble Configuration
       HUBBLE_SERVER="localhost:4245"
       HUBBLE_TLS="false"
@@ -489,13 +487,13 @@ write_files:
     permissions: "0755"
     content: |
       #!/usr/bin/env -S bash -exu -o pipefail
-      
+
       echo "=== RKE2 Network Config Starting at $$(date) ==="
-      
+
       # Show current network state
       echo "Current interfaces:"
       ip link show || true
-      
+
       # Wait for wan0 interface to appear (up to 30 seconds)
       for i in $${1..30}; do
         if ip link show wan0 >/dev/null 2>&1; then
@@ -505,7 +503,7 @@ write_files:
         echo "Waiting for wan0 interface... (attempt $$i/30)"
         sleep 1
       done
-      
+
       # Check if wan0 exists now
       if ! ip link show wan0 >/dev/null 2>&1; then
         echo "ERROR: wan0 interface not found after 30 seconds"
@@ -513,7 +511,7 @@ write_files:
         ip link show
         exit 1
       fi
-      
+
       # Create netplan configuration for wan0 interface
       cat > /etc/netplan/50-rke2-wan0.yaml << 'EOF'
       network:
@@ -532,15 +530,15 @@ write_files:
                 - ${CLUSTER_INET_GATEWAY}
                 - 1.1.1.1
       EOF
-      
+
       # Set proper permissions
       chmod 600 /etc/netplan/50-rke2-wan0.yaml
-      
+
       echo "Netplan configuration created, applying..."
-      
+
       # Apply the configuration
       netplan apply
-      
+
       echo "=== RKE2 Network Config Complete at $$(date) ==="
 
   # Network debugging script for troubleshooting boot timing
@@ -548,31 +546,31 @@ write_files:
     permissions: "0755"
     content: |
       #!/usr/bin/env -S bash -exu -o pipefail
-      
+
       echo "=== RKE2 Network Debug at $$(date) ==="
-      
+
       echo "=== Interface Status ==="
       ip addr show || true
-      
+
       echo "=== Route Table ==="
       ip route show || true
-      
+
       echo "=== NetworkD Status ==="
       systemctl status systemd-networkd --no-pager || true
-      
+
       echo "=== NetworkD Configuration ==="
       networkctl list || true
       networkctl status wan0 || true
-      
+
       echo "=== Wait-Online Status ==="
       systemctl status systemd-networkd-wait-online --no-pager || true
-      
+
       echo "=== Boot Analysis ==="
       systemd-analyze blame | head -10 || true
-      
+
       echo "=== Network Wait Analysis ==="
       systemd-analyze critical-chain systemd-networkd-wait-online.service || true
-      
+
       echo "=== End Debug at $$(date) ==="
 
   # Custom network wait script that replaces systemd-networkd-wait-online functionality
@@ -580,37 +578,37 @@ write_files:
     permissions: "0755"
     content: |
       #!/usr/bin/env -S bash -exu -o pipefail
-      
+
       echo "=== RKE2 Network Wait starting at $$(date) ==="
-      
+
       # Function to wait for interface to be online
       wait_for_interface() {
         local interface="$$1"
         local timeout="$$2"
         local start_time=$$(date +%s)
-        
+
         echo "Waiting for interface $$interface to be online (timeout: $$timeout seconds)..."
-        
+
         while true; do
           local current_time=$$(date +%s)
           local elapsed=$$((current_time - start_time))
-          
+
           if [ $$elapsed -ge $$timeout ]; then
             echo "Timeout waiting for $$interface after $$timeout seconds"
             return 1
           fi
-          
+
           # Check if interface is online using networkctl
           if networkctl status "$$interface" 2>/dev/null | grep -q "Online state: online"; then
             echo "Interface $$interface is online after $$elapsed seconds"
             return 0
           fi
-          
+
           echo "Interface $$interface not online yet ($$elapsed/$$timeout seconds)..."
           sleep 2
         done
       }
-      
+
       # Try wan0 first (cluster network)
       if ip link show wan0 >/dev/null 2>&1; then
         echo "Found wan0 interface, waiting for it to be online..."
@@ -623,7 +621,7 @@ write_files:
       else
         echo "wan0 interface not found"
       fi
-      
+
       # Try lan0 as fallback
       if ip link show lan0 >/dev/null 2>&1; then
         echo "Found lan0 interface, waiting for it to be online..."
@@ -636,11 +634,11 @@ write_files:
       else
         echo "lan0 interface not found"
       fi
-      
+
       # Wait for any interface to be online (short timeout)
       echo "Waiting for any interface to be online (30 second timeout)..."
       /lib/systemd/systemd-networkd-wait-online --timeout=30 || true
-      
+
       echo "=== RKE2 Network Wait completed at $$(date) ==="
       exit 0
 
@@ -661,7 +659,7 @@ write_files:
 
       : Configure system-wide DNS
       ln -fs /run/systemd/resolve/resolv.conf /etc/resolv.conf
-      
+
       : Start and wait for the RKE2 installation to complete
       systemctl enable --now rke2-install
 
@@ -713,31 +711,31 @@ write_files:
     permissions: "0755"
     content: |
       #!/usr/bin/env -S bash -exu -o pipefail
-      
+
       source <( flox activate --dir /var/lib/rancher/rke2 )
-      
+
       : Wait for at least one node to be ready
       kubectl wait --for=condition=Ready \
         nodes --all --timeout=300s || exit 0
-      
+
       : Wait for Cilium DaemonSet to exist
       kubectl wait \
         --for=jsonpath='{.metadata.name}'=cilium \
         daemonset/cilium -n kube-system \
         --timeout=300s || exit 0
-      
+
       : Wait for Cilium operator deployment to exist
       kubectl wait \
         --for=jsonpath='{.metadata.name}'=cilium-operator \
         deployment/cilium-operator -n kube-system \
         --timeout=300s || exit 0
-      
+
       : Wait for Cilium DaemonSet to have at least one ready pod
       kubectl wait \
         --for=jsonpath='{.status.numberReady}'=1 \
         daemonset/cilium -n kube-system \
         --timeout=300s || exit 0
-      
+
       : Dynamic Cilium Operator Scaling
       count=$$(kubectl get nodes -l node-role.kubernetes.io/control-plane --no-headers | wc -l)
       case $$count in
@@ -803,132 +801,127 @@ write_files:
 # SYSTEMD UNIT OVERRIDES (processed early in boot, before write_files)
 # =============================================================================
 
-systemd:
-  units:
-    # Disable the default systemd-networkd-wait-online service to prevent boot hangs
-    # We'll handle network waiting in our own rke2-network-wait service that runs after cloud-init
-    - name: systemd-networkd-wait-online.service
-      mask: true
-    
-    # Network configuration service to ensure wan0 gets static IP
-    - name: rke2-network-config.service
-      enabled: true
-      content: |
-        [Unit]
-        Description=Configure RKE2 network interfaces
-        After=network.target systemd-networkd.service cloud-init.service
-        Wants=network.target
-        # Make this service non-critical so boot doesn't hang if it fails
-        DefaultDependencies=no
+## Converted former 'systemd:' units into explicit write_files + runcmd enable/mask (@codebase)
+  # ---- Systemd unit files (converted from previous systemd: units) ----
+  - path: /etc/systemd/system/rke2-network-config.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Configure RKE2 network interfaces
+      After=network.target systemd-networkd.service cloud-init.service
+      Wants=network.target
+      DefaultDependencies=no
 
-        [Service]
-        Type=oneshot
-        ExecStart=/usr/local/sbin/rke2-network-config
-        RemainAfterExit=true
-        StandardOutput=journal+console
-        StandardError=journal+console
-        Environment=SYSTEMD_LOG_LEVEL=debug
-        # Allow service to fail without blocking boot
-        SuccessExitStatus=0 1
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-network-config
+      RemainAfterExit=true
+      StandardOutput=journal+console
+      StandardError=journal+console
+      Environment=SYSTEMD_LOG_LEVEL=debug
+      SuccessExitStatus=0 1
 
-        [Install]
-        WantedBy=multi-user.target
-    
-    # Debug service to log network interface states during boot
-    - name: rke2-network-debug.service
-      enabled: true
-      content: |
-        [Unit]
-        Description=RKE2 Network Debug Logger
-        After=systemd-networkd.service rke2-network-config.service
-        
-        [Service]
-        Type=oneshot
-        ExecStart=/bin/bash -c 'echo "=== Network Debug at $$(date) ==="; ip addr show; echo "=== Routes ==="; ip route show; echo "=== NetworkD Status ==="; systemctl status systemd-networkd --no-pager; echo "=== NetworkCTL List ==="; networkctl list'
-        RemainAfterExit=true
-        StandardOutput=journal+console
-        StandardError=journal+console
-        
-        [Install]
-        WantedBy=multi-user.target
-    
-    # Custom network wait service that replaces systemd-networkd-wait-online
-    # This runs after cloud-init has configured the network properly
-    - name: rke2-network-wait.service
-      enabled: true
-      content: |
-        [Unit]
-        Description=RKE2 Network Wait Service
-        After=rke2-network-config.service systemd-networkd.service
-        Before=rke2-server.service rke2-agent.service
-        Wants=systemd-networkd.service
-        
-        [Service]
-        Type=oneshot
-        ExecStart=/usr/local/sbin/rke2-network-wait
-        RemainAfterExit=true
-        StandardOutput=journal+console
-        StandardError=journal+console
-        # Allow service to succeed even if network wait times out
-        SuccessExitStatus=0 1
-        
-        [Install]
-        WantedBy=multi-user.target
-    
-    # Early ZFS umount service for proper shutdown
-    - name: zfs-early-umount.service
-      enabled: true
-      content: |
-        [Unit]
-        Description=Early ZFS umount all datasets
-        After=zfs-mount.service
-        Before=basic.target
-        DefaultDependencies=no
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/systemd/system/rke2-network-debug.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=RKE2 Network Debug Logger
+      After=systemd-networkd.service rke2-network-config.service
 
-        [Service]
-        Type=oneshot
-        ExecStart=/usr/sbin/zfs umount -a
+      [Service]
+      Type=oneshot
+        ExecStart=/bin/bash -c '
+          echo "=== Network Debug at $$(date) ==="; \
+          ip addr show; \
+          echo "=== Routes ==="; ip route show; \
+          echo "=== NetworkD Status ==="; systemctl status systemd-networkd --no-pager; \
+          echo "=== NetworkCTL List ==="; networkctl list'
+      RemainAfterExit=true
+      StandardOutput=journal+console
+      StandardError=journal+console
 
-        [Install]
-        WantedBy=basic.target
-    
-    # Service to remount volumes as shared for container runtimes
-    - name: rke2-remount-shared.service
-      enabled: true
-      content: |
-        [Unit]
-        Description=Remount RKE2 required volumes as shared
-        Before=rke2-server.service
-        DefaultDependencies=no
-        [Service]
-        Type=oneshot
-        ExecStart=/usr/local/sbin/rke2-remount-shared
-        RemainAfterExit=true
-        [Install]
-        WantedBy=multi-user.target
-    
-    # One-shot service to run RKE2 installation
-    - name: rke2-install.service
-      enabled: true
-      content: |
-        [Unit]
-        Description=Run RKE2 Installation Script
-        After=network.target rke2-network-config.service
-        Requires=rke2-network-config.service
-        ConditionPathExists=!/etc/systemd/system/rke2-server.service
-        ConditionPathExists=!/etc/systemd/system/rke2-agent.service
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/systemd/system/rke2-network-wait.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=RKE2 Network Wait Service
+      After=rke2-network-config.service systemd-networkd.service
+      Before=rke2-server.service rke2-agent.service
+      Wants=systemd-networkd.service
 
-        [Service]
-        Type=oneshot
-        ExecStart=/usr/local/sbin/rke2-install
-        RemainAfterExit=true
-        StandardOutput=journal
-        StandardError=journal
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-network-wait
+      RemainAfterExit=true
+      StandardOutput=journal+console
+      StandardError=journal+console
+      SuccessExitStatus=0 1
 
-        [Install]
-        WantedBy=multi-user.target
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/systemd/system/zfs-early-umount.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Early ZFS umount all datasets
+      After=zfs-mount.service
+      Before=basic.target
+      DefaultDependencies=no
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/sbin/zfs umount -a
+
+      [Install]
+      WantedBy=basic.target
+  - path: /etc/systemd/system/rke2-remount-shared.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Remount RKE2 required volumes as shared
+      Before=rke2-server.service
+      DefaultDependencies=no
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-remount-shared
+      RemainAfterExit=true
+
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/systemd/system/rke2-install.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Run RKE2 Installation Script
+      After=network.target rke2-network-config.service
+      Requires=rke2-network-config.service
+      ConditionPathExists=!/etc/systemd/system/rke2-server.service
+      ConditionPathExists=!/etc/systemd/system/rke2-agent.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-install
+      RemainAfterExit=true
+      StandardOutput=journal
+      StandardError=journal
+
+      [Install]
+      WantedBy=multi-user.target
 
 runcmd:
   - /usr/bin/env -S bash -xc 'systemctl daemon-reload'
-  # All systemd services are now enabled directly in systemd section for proper boot timing
+  - /usr/bin/env -S bash -xc 'systemctl mask systemd-networkd-wait-online.service'
+  - /usr/bin/env -S bash -xc '
+      systemctl enable \
+        rke2-network-config.service \
+        rke2-network-debug.service \
+        rke2-network-wait.service \
+        zfs-early-umount.service \
+        rke2-remount-shared.service \
+        rke2-install.service'
   - /usr/bin/env -S bash -xc '/usr/local/sbin/rke2-activate'
