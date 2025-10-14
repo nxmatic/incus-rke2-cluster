@@ -35,6 +35,7 @@ packages:
         - binutils
         - bzip2
         - ca-certificates
+        - cloud-init
         - curl
         - direnv
         - dstat
@@ -265,18 +266,61 @@ files:
     path: /etc/cloud/cloud.cfg.d/99-systemd-module.cfg
     content: |
       #cloud-config
+      # NOTE:
+      # Providing any of the *modules lists replaces the defaults completely.
+      # The previous minimal override accidentally removed required modules in
+      # cloud-init 25.2, leading to failures. This file restores the Debian
+      # defaults and injects the 'systemd' module (between disable-ec2-metadata
+      # and runcmd) while retaining other defaults. Modules not present on
+      # Debian (like ubuntu-drivers) are omitted. Unused modules are left for
+      # forward compatibility; cloud-init skips missing executables gracefully.
+
+      cloud_init_modules:
+        - seed_random
+        - bootcmd
+        - write-files
+        - growpart
+        - resizefs
+        - disk_setup
+        - mounts
+        - set_hostname
+        - update_hostname
+        - update_etc_hosts
+        - ca-certs
+        - rsyslog
+        - users-groups
+        - ssh
+
       cloud_config_modules:
-       - snap
-       - ssh-import-id
-       - keyboard
-       - locale
-       - set-passwords
-       - grub-dpkg
-       - apt-pipelining
-       - apt-configure
-       - ntp
-       - timezone
-       - disable-ec2-metadata
-       - systemd
-       - runcmd
-       - byobu
+        - ssh-import-id
+        - keyboard
+        - locale
+        - set-passwords
+        - grub-dpkg
+        - apt-pipelining
+        - apt-configure
+        - ntp
+        - timezone
+        - disable-ec2-metadata
+        - systemd   # injected for systemd unit handling
+        - runcmd
+        - byobu
+
+      cloud_final_modules:
+        - package-update-upgrade-install
+        - puppet
+        - chef
+        - mcollective
+        - salt-minion
+        - reset_rmc
+        - rightscale_userdata
+        - scripts-vendor
+        - scripts-per-once
+        - scripts-per-boot
+        - scripts-per-instance
+        - scripts-user
+        - ssh-authkey-fingerprints
+        - keys-to-console
+        - phone-home
+        - final-message
+        - power-state-change
