@@ -10,8 +10,6 @@ image:
 source:
   downloader: debootstrap
   url: https://deb.debian.org/debian
-  # Archive signing keys are imported explicitly in the early post-unpack action via HTTPS.
-  # (keys: and keyserver: removed to avoid keyserver dependency.)
 
 packages:
   manager: apt
@@ -90,7 +88,7 @@ packages:
       action: install
 
 actions:
-  # Fetch Debian archive keys via HTTPS (avoid keyserver dependency). Triggered early after unpack.
+  # Debian archive key handling (no remote fetch; rely on debian-archive-keyring). Triggered early after unpack.
   - trigger: post-unpack
     action: |
       #!/usr/bin/env bash
