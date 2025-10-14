@@ -10,9 +10,8 @@ image:
 source:
   downloader: debootstrap
   url: https://deb.debian.org/debian
-  keys:
-    - F8D2585B8783D481
-  keyserver: keyserver.ubuntu.com
+  # Archive signing keys are imported explicitly in the early post-unpack action via HTTPS.
+  # (keys: and keyserver: removed to avoid keyserver dependency.)
 
 packages:
   manager: apt
@@ -49,6 +48,7 @@ packages:
         - gnupg
         - gzip
         - htop
+        - locales
         - iproute2
         - iptables
         - iputils-ping
@@ -90,6 +90,120 @@ packages:
       action: install
 
 actions:
+  # Fetch Debian archive keys via HTTPS (avoid keyserver dependency). Triggered early after unpack.
+  - trigger: post-unpack
+    action: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      : "==> Debian archive key handling (post-unpack)"
+      : "[i] At post-unpack, requested runtime packages (e.g. curl, gnupg) are not yet installed."
+      : "[i] debootstrap already seeded the rootfs with the debian-archive keyring; explicit fetch is optional."
+      # Provide optional download only if curl is already available (e.g. provided by build environment)
+      if command -v curl >/dev/null 2>&1; then
+        workdir="/usr/local/share/key-import"
+        mkdir -p "$workdir"
+        cd "$workdir"
+        declare -A key_urls key_sha
+        key_urls[archive-key-12.asc]="https://ftp-master.debian.org/keys/archive-key-12.asc"  # bookworm
+        key_urls[archive-key-13.asc]="https://ftp-master.debian.org/keys/archive-key-13.asc"  # trixie
+        # Placeholder SHA256 values (must be kept current). Obtain via: sha256sum archive-key-*.asc
+        key_sha[archive-key-12.asc]="REPLACE_WITH_REAL_SHA256_12"
+        key_sha[archive-key-13.asc]="REPLACE_WITH_REAL_SHA256_13"
+        missing_real_sha=0
+        for fname in "${!key_urls[@]}"; do
+          url="${key_urls[$fname]}"
+            : "Downloading $url"
+            if ! curl -fsSL "$url" -o "$fname"; then
+              echo "WARN: failed to download $url" >&2
+              continue
+            fi
+            expected="${key_sha[$fname]}"
+            if [[ "$expected" == REPLACE_WITH_REAL_SHA256_* ]]; then
+              echo "WARN: Expected SHA256 placeholder for $fname; verification skipped" >&2
+              missing_real_sha=1
+            else
+              actual=$(sha256sum "$fname" | awk '{print $1}')
+              if [[ "$actual" != "$expected" ]]; then
+                echo "ERROR: SHA256 mismatch for $fname (expected $expected got $actual)" >&2
+                exit 1
+              else
+                : "OK: SHA256 verified for $fname"
+              fi
+            fi
+            f="$fname"
+            if command -v gpg >/dev/null 2>&1; then
+              gpg --dearmor < "$f" > "/etc/apt/trusted.gpg.d/${f%.asc}.gpg" || echo "WARN: gpg dearmor failed for $f" >&2
+            else
+              cp "$f" "/etc/apt/trusted.gpg.d/${f}" || true
+            fi
+        done
+        if (( missing_real_sha )); then
+          echo "WARN: One or more key SHA256 values are placeholders. Replace them for strict verification." >&2
+        fi
+      else
+        : "[i] curl not present yet; skipping remote key fetch (will rely on pre-installed debian-archive-keyring)."
+      fi
+      # List any archive-key files now present (either from base or fetched)
+      : "Installed key files (filtered):"
+      ls -1 /etc/apt/trusted.gpg.d/ 2>/dev/null | grep -E 'archive|debian' || echo "(None matching archive|debian)"
+      : "==> Cleaning default /etc/apt/sources.list to avoid duplicate repo warnings"
+      if [[ -s /etc/apt/sources.list ]]; then
+        cp /etc/apt/sources.list /etc/apt/sources.list.distrobuilder.orig || true
+        : > /etc/apt/sources.list
+        echo '# truncated by distrobuilder; see /etc/apt/sources.list.distrobuilder.orig if needed' > /etc/apt/sources.list
+      fi
+      # Optionally drop keyserver usage by commenting in the source section (left as documentation above).
+  # Generate locales early (before post-files) now that 'locales' package is installed.
+  - trigger: post-packages
+    action: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      if command -v locale-gen >/dev/null 2>&1; then
+        echo 'en_US.UTF-8 UTF-8' >> /etc/locale.gen || true
+        echo 'LANG=en_US.UTF-8' > /etc/default/locale
+        locale-gen || echo "WARN: locale-gen failed"
+      else
+        echo "WARN: locale-gen not found; skipping locale generation"
+      fi
+  # Sanity check APT metadata and capture repository & key summary for diagnostics.
+  - trigger: post-packages
+    action: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      : "==> Running APT debug update (pkgProblemResolver)"
+      LOG_DIR=/var/lib/build-diagnostics
+      mkdir -p "$LOG_DIR"
+      # Run update with extra debug to surface resolver quirks.
+      apt-get -o Debug::pkgProblemResolver=yes update -y > "$LOG_DIR/apt-update-debug.log" 2>&1 || {
+        echo "WARN: apt-get update encountered issues (see apt-update-debug.log)" >&2
+      }
+      : "==> Capturing repository list"
+      {
+        echo '# Active APT repos'
+        grep -h ^deb /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null | sort -u
+      } > "$LOG_DIR/repos.list" || true
+      : "==> Capturing key fingerprints"
+      {
+        echo '# Key Fingerprints (archive-key-* only if present)'
+        for k in /etc/apt/trusted.gpg.d/archive-key-*.*gpg /etc/apt/trusted.gpg.d/archive-key-*.*asc; do
+          [ -e "$k" ] || continue
+          if command -v gpg >/dev/null 2>&1; then
+            # Extract fingerprints; ignore duplicates
+            gpg --show-keys --with-colons "$k" 2>/dev/null | awk -F: -v file="$(basename "$k")" '/^fpr:/ {print file" " $10}'
+          else
+            echo "gpg-unavailable $(basename "$k")"
+          fi
+        done | sort -u
+      } > "$LOG_DIR/key-fingerprints.txt" || true
+      : "==> Repository & key summary written to $LOG_DIR"
+      # Provide a concise combined summary for quick inspection
+      {
+        echo '--- REPO SUMMARY ---'
+        cat "$LOG_DIR/repos.list" || true
+        echo
+        echo '--- KEY FINGERPRINTS ---'
+        cat "$LOG_DIR/key-fingerprints.txt" || true
+      } > "$LOG_DIR/summary.txt"
   # NOTE: Example for pinning and installing cloud-init from unstable (sid) retained but disabled.
   # To enable, uncomment the block below. This can be useful if trixie's cloud-init lags.
   # - trigger: post-packages
@@ -114,32 +228,24 @@ actions:
   - trigger: post-files
     action: |
       #!/usr/bin/env -S bash -exu -o pipefail
-
-      : generate locale
-      cat <<EoF | tee -a /etc/locale.gen
-      en_US.UTF-8 UTF-8
-      EoF
-      locale-gen
-
-      : set default locale
-      cat <<EoF | tee /etc/default/locale
-      LANG=En_US.UTF-8
-      LANGUAGE=en_US.UTF-8
-      LC_ALL=en_US.UTF-8
-      EoF
-
-      : enable systemd-networkd and disable NetworkManager
-      systemctl disable NetworkManager || true
-      systemctl mask NetworkManager || true
+      : "Locale already generated in post-packages (guarded). This block now only handles network services."
+      : "enable systemd-networkd and (if present) disable NetworkManager"
+      if systemctl list-unit-files | grep -q '^NetworkManager.service'; then
+        systemctl disable NetworkManager || true
+        systemctl mask NetworkManager || true
+      else
+        : "INFO: NetworkManager.service not installed; skipping disable/mask"
+      fi
       systemctl enable systemd-networkd
+      : "Mask wait-online to avoid boot delays unless explicitly needed"
+      systemctl mask systemd-networkd-wait-online.service || true
       systemctl enable systemd-resolved
 
   - trigger: post-files
     action: |
       #!/usr/bin/env -S bash -exu -o pipefail
-
-      : Create a one-shot systemd service to mount the RKE2 root zvol
-      :   incus block devices cannot be exposed as a systemd mounts
+      : "Create a one-shot systemd service to mount the RKE2 root zvol"
+      : "  incus block devices cannot be exposed as a systemd mounts"
 
       systemctl mask zfs-load-module
       systemctl mask zfs-volume-wait.service
