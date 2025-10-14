@@ -2,9 +2,9 @@
 # Base image: system update and package installation only
 image:
   distribution: debian
-  release: bookworm
+  release: trixie
   architecture: arm64
-  description: "K8s Master Control Node base with systemd and packages"
+  description: "K8s Master Control Node base (Debian trixie) with systemd and packages"
   expiry: 30d
 
 source:
@@ -19,12 +19,12 @@ packages:
   update: true
   cleanup: true
   repositories:
-    - name: debian-bookworm-extras
-      url: "deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware"
-    - name: debian-bookworm-security
-      url: "deb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware"
-    - name: debian-bookworm-updates
-      url: "deb http://deb.debian.org/debian bookworm-updates main contrib non-free non-free-firmware"
+    - name: debian-trixie-main
+      url: "deb http://deb.debian.org/debian trixie main contrib non-free non-free-firmware"
+    - name: debian-trixie-security
+      url: "deb http://security.debian.org/debian-security trixie-security main contrib non-free non-free-firmware"
+    - name: debian-trixie-updates
+      url: "deb http://deb.debian.org/debian trixie-updates main contrib non-free non-free-firmware"
     - name: debian-unstable
       url: "deb http://deb.debian.org/debian unstable main"
   sets:
@@ -90,26 +90,27 @@ packages:
       action: install
 
 actions:
-  # After base package sets are installed, pin and install cloud-init from unstable (sid)
-  - trigger: post-packages
-    action: |
-      #!/usr/bin/env bash
-      set -euo pipefail
-      echo "==> Creating apt pin for cloud-init from unstable"
-      printf '%s\n' \
-        'Package: cloud-init' \
-        'Pin: release a=unstable' \
-        'Pin-Priority: 990' \
-        '' \
-        'Package: *' \
-        'Pin: release a=unstable' \
-        'Pin-Priority: 50' \
-        > /etc/apt/preferences.d/90-unstable-cloud-init.pref
-      echo "==> Updating package indices"
-      apt-get update -y
-      echo "==> Installing cloud-init from unstable"
-      DEBIAN_FRONTEND=noninteractive apt-get install -y -t unstable cloud-init
-      echo "==> cloud-init version installed: $(cloud-init --version || true)"
+  # NOTE: Example for pinning and installing cloud-init from unstable (sid) retained but disabled.
+  # To enable, uncomment the block below. This can be useful if trixie's cloud-init lags.
+  # - trigger: post-packages
+  #   action: |
+  #     #!/usr/bin/env bash
+  #     set -euo pipefail
+  #     echo "==> Creating apt pin for cloud-init from unstable"
+  #     printf '%s\n' \
+  #       'Package: cloud-init' \
+  #       'Pin: release a=unstable' \
+  #       'Pin-Priority: 990' \
+  #       '' \
+  #       'Package: *' \
+  #       'Pin: release a=unstable' \
+  #       'Pin-Priority: 50' \
+  #       > /etc/apt/preferences.d/90-unstable-cloud-init.pref
+  #     echo "==> Updating package indices"
+  #     apt-get update -y
+  #     echo "==> Installing cloud-init from unstable"
+  #     DEBIAN_FRONTEND=noninteractive apt-get install -y -t unstable cloud-init
+  #     echo "==> cloud-init version installed: $(cloud-init --version || true)"
   - trigger: post-files
     action: |
       #!/usr/bin/env -S bash -exu -o pipefail
