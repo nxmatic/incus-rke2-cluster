@@ -313,7 +313,7 @@ endef
 # Config Paths
 ## Templates now use existing Makefile variables directly (CLUSTER_* etc.) so no extra exports required.
 
-INCUS_PRESSED_FILENAME := incus-preseed.yaml.tmpl
+INCUS_PRESSED_FILENAME := incus-preseed.yaml
 INCUS_PRESSED_FILE := $(INCUS_DIR)/preseed.yaml
 
 INCUS_DISTROBUILDER_FILE := ./incus-distrobuilder.yaml
@@ -325,7 +325,7 @@ INCUS_IMAGE_BUILD_FILES := $(IMAGE_DIR)/incus.tar.xz $(IMAGE_DIR)/rootfs.squashf
 INCUS_CREATE_PROJECT_MARKER_FILE := $(INCUS_DIR)/create-project.tstamp
 INCUS_CONFIG_INSTANCE_MARKER_FILE := $(INCUS_DIR)/init-instance.tstamp
 
-INCUS_INSTANCE_CONFIG_FILENAME := incus-instance-config.yaml.tmpl
+INCUS_INSTANCE_CONFIG_FILENAME := incus-instance-config.yaml
 INCUS_INSTANCE_CONFIG_FILE := $(INCUS_DIR)/config.yaml
 INCUS_ZFS_ALLOW_MARKER_FILE := $(INCUS_DIR)/zfs-allow.tstamp
 
@@ -338,7 +338,7 @@ NOCLOUD_NETCFG_FILE := $(NOCLOUD_DIR)/network-config
 # Network mode for preseed template
 NETWORK_MODE := L2-bridge
 
-# Export variables required by *.yaml.tmpl templates for yq envsubst
+# Export variables required by *.yaml templates for yq envsubst
 export NETWORK_MODE
 export CLUSTER_PROFILE_NAME
 export CLUSTER_SUBNET
@@ -384,6 +384,7 @@ export CLUSTER_TOKEN
 export RUN_INSTANCE_DIR
 export NOCLOUD_USERDATA_FILE
 export NOCLOUD_METADATA_FILE
+export NOCLOUD_NETCFG_FILE
 
 .PHONY: all start stop delete clean shell
 
@@ -666,7 +667,7 @@ $(ZFS_ALLOW_MARKER_FILE):| $(RUN_DIR)/
 # Generate $(INCUS_INSTANCE_CONFIG_FILE) directly from template (envsubst pass only)
 #-----------------------------
 $(INCUS_INSTANCE_CONFIG_FILE): $(INCUS_INSTANCE_CONFIG_FILENAME)
-$(INCUS_INSTANCE_CONFIG_FILE): $(NOCLOUD_METADATA_FILE) $(NOCLOUD_USERDATA_FILE)
+$(INCUS_INSTANCE_CONFIG_FILE): $(NOCLOUD_METADATA_FILE) $(NOCLOUD_USERDATA_FILE) $(NOCLOUD_NETCFG_FILE)
 $(INCUS_INSTANCE_CONFIG_FILE):
 	@: "[+] Rendering instance config (envsubst via yq) ..."
 	yq eval '( ... | select(tag=="!!str") ) |= envsubst(ne,nu)' $(INCUS_INSTANCE_CONFIG_FILENAME) > $(@)

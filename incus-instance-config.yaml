@@ -47,3 +47,7 @@ devices:
     type: disk
     source: ${PWD}/${NOCLOUD_USERDATA_FILE}
     path: /var/lib/cloud/seed/nocloud/user-data
+  user.network-config:
+    type: disk
+    source: ${PWD}/${NOCLOUD_NETCFG_FILE}
+    path: /var/lib/cloud/seed/nocloud/network-config
