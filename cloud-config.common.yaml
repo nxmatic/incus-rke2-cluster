@@ -51,14 +51,14 @@ bootcmd:
       : "Early netplan override (fallback if seed missing)"
       SEED=/var/lib/cloud/seed/nocloud/netplan-override.yaml
       TARGET=/etc/netplan/10-override.yaml
-      # Escape runtime variable references (\$SEED/\$TARGET) so build-time envsubst
+      # Escape runtime variable references ($${SEED}/$${TARGET}) so build-time envsubst
       # does not error on unset variables; they are resolved at instance boot.
-      if [ -f "\$SEED" ]; then
-        cp "\$SEED" "\$TARGET"
+      if [ -f "$${SEED}" ]; then
+        cp "$${SEED}" "$${TARGET}"
         echo "[netplan] Using supplied override from seed"
       else
         echo "[netplan] Seed override not found; generating fallback override"
-        cat > "\$TARGET" <<'EONP'
+        cat > "$${TARGET}" <<'EONP'
         network:
           version: 2
           renderer: networkd
@@ -80,7 +80,7 @@ bootcmd:
               dhcp-identifier: mac
               optional: true
         EONP
-        chmod 600 "\$TARGET"
+        chmod 600 "$${TARGET}"
       fi
       # Pre-render netplan so networkd picks it up cleanly on start.
       netplan generate || echo "[netplan] generate failed (continuing)"
@@ -914,14 +914,14 @@ write_files:
       WantedBy=multi-user.target
 
 runcmd:
-  - /usr/bin/env -S bash -xc 'systemctl daemon-reload'
-  - /usr/bin/env -S bash -xc 'systemctl mask systemd-networkd-wait-online.service'
-  - /usr/bin/env -S bash -xc '
-      systemctl enable \
-        rke2-network-config.service \
-        rke2-network-debug.service \
-        rke2-network-wait.service \
-        zfs-early-umount.service \
-        rke2-remount-shared.service \
-        rke2-install.service'
-  - /usr/bin/env -S bash -xc '/usr/local/sbin/rke2-activate'
+  # Use list form to avoid quoting/backslash issues (@codebase)
+  - [ systemctl, daemon-reload ]
+  - [ systemctl, mask, systemd-networkd-wait-online.service ]
+  - [ systemctl, enable,
+      rke2-network-config.service,
+      rke2-network-debug.service,
+      rke2-network-wait.service,
+      zfs-early-umount.service,
+      rke2-remount-shared.service,
+      rke2-install.service ]
+  - /usr/local/sbin/rke2-activate

@@ -2,8 +2,6 @@
 # Contains all master-specific and bootstrap components EXCEPT any Cilium profile manifests.
 # @codebase
 
-name: master-control-node
-
 write_files:
   # Master ETCD config
   - path: /etc/rancher/rke2/config.yaml.d/etcd.yaml
