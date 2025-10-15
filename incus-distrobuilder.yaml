@@ -332,6 +332,17 @@ actions:
   - trigger: post-files
     action: |
       #!/usr/bin/env -S bash -exu -o pipefail
+      : "Create systemd drop-in for fast network wait timeout"
+      mkdir -p /etc/systemd/system/systemd-networkd-wait-online.service.d
+      cat > /etc/systemd/system/systemd-networkd-wait-online.service.d/timeout.conf << 'EOF'
+      [Service]
+      ExecStart=
+      ExecStart=/lib/systemd/systemd-networkd-wait-online --any --timeout=5
+      EOF
+
+  - trigger: post-files
+    action: |
+      #!/usr/bin/env -S bash -exu -o pipefail
       : "Create a one-shot systemd service to mount the RKE2 root zvol"
       : "  incus block devices cannot be exposed as a systemd mounts"
 

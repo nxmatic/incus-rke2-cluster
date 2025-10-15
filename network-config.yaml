@@ -1,23 +1,61 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/canonical/netplan/main/netplan/cli/schema.json
 # network-config (NoCloud datasource) (@codebase)
-# Separate from user-data to simplify schema validation and allow independent regeneration.
-# Cloud-init will use ifupdown renderer on Ubuntu; networkd may not be available.
-# Disable IPv6 on lan0 to avoid DHCPv6 client dependency issues.
-version: 2
-ethernets:
-  lan0:
-    dhcp4: true
-    dhcp6: false
-    dhcp-identifier: mac
-    optional: false
-  wan0:
-    dhcp4: false
-    addresses:
-      - ${CLUSTER_NODE_INET}/24
-    routes:
-      - to: 0.0.0.0/0
-        via: ${CLUSTER_INET_GATEWAY}
-    nameservers:
+#
+# MANDATORY SEPARATION: Modern cloud-init requires network configuration to be separated
+# from user-data to prevent parsing issues. Older cloud-init versions failed silently
+# when network config was embedded, causing truncated interface configuration.
+#
+# Use networkd renderer for systemd-networkd management (shows as "managed" in networkctl).
+# Disable IPv6 on lan0 to avoid DHCPv6 client dependency issues that break ifupdown parsing.
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    # ===== LAN INTERFACE (DHCP) =====
+    # Local network access without routing conflicts
+    lan0:
+      # DHCP Configuration
+      dhcp4: true
+      dhcp4-overrides:
+        use-routes: false  # Prevent default route from DHCP
+      dhcp6: false         # Disable IPv6 DHCP
+      dhcp-identifier: mac
+
+      # Interface Options
+      optional: false
+
+    # ===== WAN INTERFACE (STATIC) =====
+    # Cluster network with static IP, routing, and DNS
+    wan0:
+      # DHCP disabled for static IP configuration
+      dhcp4: false
+
+      # Static IP Configuration
       addresses:
-        - ${CLUSTER_INET_GATEWAY}
-        - 1.1.1.1
-    optional: false
+        - ${CLUSTER_NODE_INET}/24
+      routes:
+        - to: 0.0.0.0/0
+          via: ${CLUSTER_INET_GATEWAY}
+
+      # DNS Configuration
+      nameservers:
+        addresses:
+          - ${CLUSTER_INET_GATEWAY}  # Primary: cluster gateway
+          - 1.1.1.1                  # Fallback: Cloudflare DNS
+
+      # Interface Options
+      optional: false
+
+    # ===== VIP INTERFACE (SHARED) =====
+    # Shared interface for VIP announcements across all control-plane nodes
+    vip0:
+      # DHCP disabled - VIPs managed by Cilium/kube-vip
+      dhcp4: false
+      dhcp6: false
+
+      # Static IP from VIP range (each node gets a unique IP for the interface)
+      addresses:
+        - ${CLUSTER_NODE_VIP_INET}/28
+
+      # Interface Options
+      optional: false

@@ -116,7 +116,7 @@ write_files:
             hostname: "${CLUSTER_NAME}-tailscale-operator"
             debug: true
   - path: /var/lib/rancher/rke2/server/manifests/tailscale-controlplane.yaml
-    content: |            
+    content: |
       apiVersion: tailscale.com/v1alpha1
       kind: Connector
       metadata:

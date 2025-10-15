@@ -154,6 +154,12 @@ CLUSTER_INET6_MASTER := fd70:80:$(CLUSTER_SUBNET):0::3
 CLUSTER_INET6_PEER1 := fd70:80:$(CLUSTER_SUBNET):1::3
 CLUSTER_INET6_PEER2 := fd70:80:$(CLUSTER_SUBNET):2::3
 
+# VIP interface addresses for shared VIP bridge (each node gets unique IP in VIP range) (@codebase)
+# VIP range: 10.80.16.241-254 (Cilium manages .250 for API VIP, .241-249/.251-254 available)
+CLUSTER_VIP_INET_MASTER := 10.80.$(CLUSTER_V4_BLOCK_OCTET).241
+CLUSTER_VIP_INET_PEER1 := 10.80.$(CLUSTER_V4_BLOCK_OCTET).242
+CLUSTER_VIP_INET_PEER2 := 10.80.$(CLUSTER_V4_BLOCK_OCTET).243
+
 # Gateway addresses using per-node /24 allocation (@codebase)
 CLUSTER_INET_MASTER_GATEWAY := 10.80.$(call plus,$(CLUSTER_V4_BLOCK_OCTET),0).1
 CLUSTER_INET_PEER1_GATEWAY := 10.80.$(call plus,$(CLUSTER_V4_BLOCK_OCTET),1).1
@@ -165,6 +171,15 @@ CLUSTER_INET6_PEER2_GATEWAY := fd70:80:$(CLUSTER_SUBNET):2::1
 # Bridge / gateway vars consumed by templates
 CLUSTER_INET_GATEWAY := $(NODE_V4_GATEWAY)
 CLUSTER_INET6_GATEWAY := $(NODE_V6_GATEWAY)
+
+# Per-node VIP interface address (for shared VIP bridge)
+ifeq ($(CLUSTER_NODE_NAME),master)
+	CLUSTER_NODE_VIP_INET := $(CLUSTER_VIP_INET_MASTER)
+else ifeq ($(CLUSTER_NODE_NAME),peer1)
+	CLUSTER_NODE_VIP_INET := $(CLUSTER_VIP_INET_PEER1)
+else ifeq ($(CLUSTER_NODE_NAME),peer2)
+	CLUSTER_NODE_VIP_INET := $(CLUSTER_VIP_INET_PEER2)
+endif
 
 # IPv6 prefix (node-local) retained for template compatibility
 CLUSTER_INET6_PREFIX := fd70:80:$(CLUSTER_SUBNET):$(CLUSTER_NODE_INDEX)
@@ -199,7 +214,7 @@ CLUSTER_NODE_OFFSET_P2 := $(call plus,$(CLUSTER_NODE_OFFSET),2)
 ##     - Remaining space: .4-127, .192-239 available for services/workers
 # VIP and LoadBalancer pools remain in master's /24 for centralized management
 CLUSTER_LOADBALANCERS_CIDR := 10.80.$(CLUSTER_V4_BLOCK_OCTET).128/26
-CLUSTER_VIRTUAL_ADDRESSES_CIDR := 10.80.$(CLUSTER_V4_BLOCK_OCTET).240/28
+CLUSTER_VIRTUAL_CIDR := 10.80.$(CLUSTER_V4_BLOCK_OCTET).240/28
 # -----------------------------------------------------------------------------
 # Per-cluster distinct Pod / Service CIDRs (dual-stack)
 #   Required for future Cilium Cluster Mesh (non-overlapping Pod CIDRs) (@codebase)
@@ -238,6 +253,11 @@ CLUSTER_DOMAIN := cluster.local
 CLUSTER_LAN_BRIDGE_NAME := $(CLUSTER_NODE_NAME)lan0
 CLUSTER_WAN_BRIDGE_NAME := $(CLUSTER_NODE_NAME)wan0
 CLUSTER_BRIDGE_CIDR := $(NODE_V4_SUBNET)
+
+# Shared VIP bridge for all control-plane nodes (@codebase)
+CLUSTER_VIP_BRIDGE_NAME := rke2-vip
+CLUSTER_VIP_BRIDGE_CIDR := $(CLUSTER_VIRTUAL_CIDR)
+
 CLUSTER_PROFILE_NAME := rke2-$(CLUSTER_NODE_NAME)
 
 
@@ -323,14 +343,15 @@ INCUS_IMAGE_IMPORT_MARKER_FILE := $(IMAGE_DIR)/import.tstamp
 INCUS_IMAGE_BUILD_FILES := $(IMAGE_DIR)/incus.tar.xz $(IMAGE_DIR)/rootfs.squashfs
 
 INCUS_CREATE_PROJECT_MARKER_FILE := $(INCUS_DIR)/create-project.tstamp
+INCUS_BRIDGE_SETUP_MARKER_FILE := $(INCUS_DIR)/bridge-setup.tstamp
 INCUS_CONFIG_INSTANCE_MARKER_FILE := $(INCUS_DIR)/init-instance.tstamp
 
 INCUS_INSTANCE_CONFIG_FILENAME := incus-instance-config.yaml
 INCUS_INSTANCE_CONFIG_FILE := $(INCUS_DIR)/config.yaml
 INCUS_ZFS_ALLOW_MARKER_FILE := $(INCUS_DIR)/zfs-allow.tstamp
 
-NOCLOUD_METADATA_FILE := $(NOCLOUD_DIR)/metadata.yaml
-NOCLOUD_USERDATA_FILE := $(NOCLOUD_DIR)/userdata.yaml
+NOCLOUD_METADATA_FILE := $(NOCLOUD_DIR)/metadata
+NOCLOUD_USERDATA_FILE := $(NOCLOUD_DIR)/userdata
 NOCLOUD_NETCFG_FILE := $(NOCLOUD_DIR)/network-config
 
 #-----------------------------
@@ -343,11 +364,14 @@ export NETWORK_MODE
 export CLUSTER_PROFILE_NAME
 export CLUSTER_SUBNET
 export CLUSTER_BRIDGE_CIDR
+export CLUSTER_VIP_BRIDGE_NAME
+export CLUSTER_VIP_BRIDGE_CIDR
 export CLUSTER_INET_GATEWAY
 export CLUSTER_INET_VIRTUAL
 export CLUSTER_NODE_INET
+export CLUSTER_NODE_VIP_INET
 export CLUSTER_LOADBALANCERS_CIDR
-export CLUSTER_VIRTUAL_ADDRESSES_CIDR
+export CLUSTER_VIRTUAL_CIDR
 export CLUSTER_INET_MASTER_GATEWAY
 export CLUSTER_INET_PEER1_GATEWAY
 export CLUSTER_INET_PEER2_GATEWAY
@@ -486,6 +510,21 @@ $(INCUS_CREATE_PROJECT_MARKER_FILE):
 	incus profile copy --project=default --target-project=rke2 $(CLUSTER_PROFILE_NAME) $(CLUSTER_PROFILE_NAME)
 	touch $@
 
+$(INCUS_BRIDGE_SETUP_MARKER_FILE): $(INCUS_CREATE_PROJECT_MARKER_FILE) | $(INCUS_DIR)/
+$(INCUS_BRIDGE_SETUP_MARKER_FILE):
+	@: [+] Creating shared VIP bridge $(CLUSTER_VIP_BRIDGE_NAME)...
+	@if ! incus network show $(CLUSTER_VIP_BRIDGE_NAME) --project=rke2 >/dev/null 2>&1; then \
+		echo "[+] Creating bridge $(CLUSTER_VIP_BRIDGE_NAME) with CIDR $(CLUSTER_VIP_BRIDGE_CIDR)"; \
+		incus network create $(CLUSTER_VIP_BRIDGE_NAME) --project=rke2 \
+			ipv4.address=$(CLUSTER_VIP_BRIDGE_CIDR) \
+			ipv4.nat=false \
+			ipv6.address=none \
+			dns.mode=none; \
+	else \
+		echo "[i] Bridge $(CLUSTER_VIP_BRIDGE_NAME) already exists"; \
+	fi
+	touch $@
+
 #-----------------------------
 # Main Targets
 #-----------------------------
@@ -497,11 +536,12 @@ MAIN_TARGETS := start stop delete clean shell
 
 network@incus: preseed@incus
 network@incus:
-	@echo "[i] Network (macvlan) Configuration Summary"
-	@echo "==========================================="
+	@echo "[i] Network Configuration Summary"
+	@echo "================================="
 	@echo "Host LAN parent: $(LIMA_LAN_INTERFACE) -> container lan0 (macvlan)"
 	@echo "Host WAN parent: $(LIMA_WAN_INTERFACE) -> container wan0 (macvlan)"
-	@echo "Mode: Dual macvlan (no Incus bridges)"
+	@echo "VIP Bridge: $(CLUSTER_VIP_BRIDGE_NAME) ($(CLUSTER_VIP_BRIDGE_CIDR)) -> container vip0"
+	@echo "Mode: Dual macvlan + shared VIP bridge"
 	@echo ""
 	@echo "[i] Host interface state:"
 	@echo "  $(LIMA_LAN_INTERFACE): $$(ip link show $(LIMA_LAN_INTERFACE) | grep -o 'state [A-Z]*' || echo 'unknown state')"
@@ -562,12 +602,16 @@ $(INCUS_IMAGE_BUILD_FILES)&:
 
 instance: $(INCUS_CONFIG_INSTANCE_MARKER_FILE)
 
-$(INCUS_CONFIG_INSTANCE_MARKER_FILE).init: $(INCUS_IMAGE_IMPORT_MARKER_FILE) $(INCUS_CREATE_PROJECT_MARKER_FILE)
+$(INCUS_CONFIG_INSTANCE_MARKER_FILE).init: $(INCUS_IMAGE_IMPORT_MARKER_FILE) $(INCUS_BRIDGE_SETUP_MARKER_FILE)
 $(INCUS_CONFIG_INSTANCE_MARKER_FILE).init: $(INCUS_INSTANCE_CONFIG_FILE)
 $(INCUS_CONFIG_INSTANCE_MARKER_FILE).init: | $(INCUS_DIR)/ $(SHARED_DIR)/ $(KUBECONFIG_DIR)/ $(LOGS_DIR)/
 $(INCUS_CONFIG_INSTANCE_MARKER_FILE).init:
 	@: "[+] Initializing instance $(CLUSTER_NODE_NAME)..."
 	incus init $(CLUSTER_IMAGE_NAME) $(CLUSTER_NODE_NAME) < $(INCUS_INSTANCE_CONFIG_FILE)
+	@: "[+] Attaching VIP bridge $(CLUSTER_VIP_BRIDGE_NAME) to instance $(CLUSTER_NODE_NAME)..."
+	incus config device add $(CLUSTER_NODE_NAME) vip0 nic \
+		network=$(CLUSTER_VIP_BRIDGE_NAME) \
+		name=vip0
 
 $(INCUS_CONFIG_INSTANCE_MARKER_FILE): $(INCUS_CONFIG_INSTANCE_MARKER_FILE).init
 $(INCUS_CONFIG_INSTANCE_MARKER_FILE):
@@ -579,7 +623,7 @@ $(INCUS_CONFIG_INSTANCE_MARKER_FILE):
 	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_NODE_KIND "$(CLUSTER_NODE_KIND)"
 	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_NODE_NAME "$(CLUSTER_NODE_NAME)"
 	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_SUBNET "$(CLUSTER_SUBNET)"
-	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_VIRTUAL_ADDRESSES_CIDR "$(CLUSTER_VIRTUAL_ADDRESSES_CIDR)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_VIRTUAL_CIDR "$(CLUSTER_VIRTUAL_CIDR)"
 	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_LOADBALANCERS_CIDR "$(CLUSTER_LOADBALANCERS_CIDR)"
 	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_NODE_HWADDR "$(CLUSTER_NODE_HWADDR)"
 	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_PODS_CIDR "$(CLUSTER_PODS_CIDR)"
@@ -642,6 +686,8 @@ clean:
 	# Remove current bridge pair
 	incus network delete $(CLUSTER_LAN_BRIDGE_NAME) 2>/dev/null || true
 	incus network delete $(CLUSTER_WAN_BRIDGE_NAME) 2>/dev/null || true
+	# Remove shared VIP bridge
+	incus network delete $(CLUSTER_VIP_BRIDGE_NAME) --project=rke2 2>/dev/null || true
 	# Remove persistent storage volume to ensure clean cloud-init state
 	incus storage volume delete default containers/$(CLUSTER_NODE_NAME) || true
 	@: [+] Cleaning up run directory...
@@ -703,17 +749,20 @@ $(NOCLOUD_USERDATA_FILE): cloud-config.peer.yaml
 endif
 
 # yq expressions for cloud-config merging with environment variable substitution
-define YQ_MERGE_3_FILES
+define YQ_CLOUD_CONFIG_MERGE_3_FILES
+"#cloud-config" as $$preamble | \
 select(fileIndex == 0) as $$a | \
 select(fileIndex == 1) as $$b | \
 select(fileIndex == 2) as $$c | \
 ($$a * $$b * $$c) | \
 .write_files = ($$a.write_files // []) + ($$b.write_files // []) + ($$c.write_files // []) | \
 .runcmd = ($$a.runcmd // []) + ($$b.runcmd // []) + ($$c.runcmd // []) | \
-( .. | select( tag == "!!str" ) ) |= envsubst(ne,nu)
+( .. | select( tag == "!!str" ) ) |= envsubst(ne,nu) | \
+$$preamble + "\n" + (. | to_yaml | sub("^---\n"; ""))
 endef
 
-define YQ_MERGE_5_FILES
+define YQ_CLOUD_CONFIG_MERGE_5_FILES
+"#cloud-config" as $$preamble | \
 select(fileIndex == 0) as $$a | \
 select(fileIndex == 1) as $$b | \
 select(fileIndex == 2) as $$c | \
@@ -722,24 +771,25 @@ select(fileIndex == 4) as $$e | \
 ($$a * $$b * $$c * $$d * $$e) | \
 .write_files = ($$a.write_files // []) + ($$b.write_files // []) + ($$c.write_files // []) + ($$d.write_files // []) + ($$e.write_files // []) | \
 .runcmd = ($$a.runcmd // []) + ($$b.runcmd // []) + ($$c.runcmd // []) + ($$d.runcmd // []) | \
-( .. | select( tag == "!!str" ) ) |= envsubst(ne,nu)
+( .. | select( tag == "!!str" ) ) |= envsubst(ne,nu) | \
+$$preamble + "\n" + (. | to_yaml | sub("^---\n"; ""))
 endef
 
-# YQ expression lookup by file count
-YQ_EXPR_3 = $(YQ_MERGE_3_FILES)
-YQ_EXPR_5 = $(YQ_MERGE_5_FILES)
+# YQ cloud-config expression lookup by file count
+YQ_CLOUD_CONFIG_EXPR_3 = $(YQ_CLOUD_CONFIG_MERGE_3_FILES)
+YQ_CLOUD_CONFIG_EXPR_5 = $(YQ_CLOUD_CONFIG_MERGE_5_FILES)
 
-# Macro for executing the appropriate yq merge based on file count
-define EXECUTE_YQ_MERGE
-$(if $(YQ_EXPR_$(1)),
-@yq eval-all --from-file=<(echo '$(YQ_EXPR_$(1))') $(2) > $(3),
+# Macro for executing the appropriate yq cloud-config merge based on file count
+define EXECUTE_YQ_CLOUD_CONFIG_MERGE
+$(if $(YQ_CLOUD_CONFIG_EXPR_$(1)),
+@yq eval-all --unwrapScalar --from-file=<(echo '$(YQ_CLOUD_CONFIG_EXPR_$(1))') $(2) > $(3),
 $(error Unsupported file count: $(1) (expected 3 or 5)))
 endef
 
 $(NOCLOUD_USERDATA_FILE):
 	@: "[+] Merging cloud-config fragments (common/server/node) with envsubst ..."
 	$(eval _file_count := $(call length,$^))
-	$(call EXECUTE_YQ_MERGE,$(_file_count),$^,$@)
+	$(call EXECUTE_YQ_CLOUD_CONFIG_MERGE,$(_file_count),$^,$@)
 
 #-----------------------------
 # Generate NoCloud network-config file (envsubst only) from standalone network-config.yaml (@codebase)

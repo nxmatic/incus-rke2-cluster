@@ -1,7 +1,7 @@
 # incus instance config (@codebase)
 name: ${CLUSTER_NODE_NAME}
 architecture: aarch64
-profiles: 
+profiles:
   - ${CLUSTER_PROFILE_NAME}
 config:
   raw.lxc: |

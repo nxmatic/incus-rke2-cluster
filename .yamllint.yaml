@@ -4,18 +4,39 @@
 ---
 extends: default
 rules:
+  braces:
+    level: warning
+    max-spaces-inside: 1
+  brackets:
+    level: warning
+    max-spaces-inside: 1
+  colons:
+    level: warning
+  commas:
+    level: warning
+  comments: disable
+  comments-indentation: disable
+  document-start: disable
+  empty-lines:
+    level: warning
+  hyphens:
+    level: warning
+  indentation:
+    level: warning
+    indent-sequences: consistent
   line-length:
-    max: 80
+    max: 132
     allow-non-breakable-words: true
     allow-non-breakable-inline-mappings: true
     ignore: |
       .*https?://.*
+  truthy: disable
   trailing-spaces:
     level: error
   comments:
     min-spaces-from-content: 1
   document-start:
-    present: false  # cloud-config fragments often omit '---'
+    present: false # cloud-config fragments often omit '---'
   truthy:
     allowed-values: ['true', 'false', 'on', 'off', 'yes', 'no']
   indentation:

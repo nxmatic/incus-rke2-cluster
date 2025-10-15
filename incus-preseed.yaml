@@ -9,8 +9,10 @@
 # This means:
 #   - Each Incus instance gets its own lan0/wan0 NIC, isolated at L2, but directly on the host's network segment.
 #   - No Incus bridge or managed network is created; vmlan0/vmwan0 are physical, unmanaged Incus networks.
-#   - DHCP/DNS must be provided by an external server on those networks, or by running a DHCP server (e.g., dnsmasq) on the host.
-#   - The Incus instance cannot communicate with the host via macvlan parent (by design), only with other devices on the same L2 segment.
+#   - DHCP/DNS must be provided by an external server on those networks, or by running a DHCP server
+#     (e.g., dnsmasq) on the host.
+#   - The Incus instance cannot communicate with the host via macvlan parent (by design), only with other devices on
+#     the same L2 segment.
 #
 # This approach enables deterministic, per-node interface naming (lan0/wan0) and avoids bridge name length issues.
 # However, it requires external DHCP or static IP assignment for connectivity.

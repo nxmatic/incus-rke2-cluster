@@ -92,7 +92,7 @@ write_files:
           matchLabels: {}
         loadBalancerIPs: true
         interfaces:
-          - wan0  # interface rename eth0->wan0 (VIP/announcements on WAN)
+          - vip0  # dedicated shared VIP interface for all control-plane nodes
         nodeSelector:
           matchExpressions:
             - key: node-role.kubernetes.io/control-plane

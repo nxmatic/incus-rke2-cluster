@@ -1,8 +1,5 @@
-#cloud-config
----
 # Common cloud-init configuration for all RKE2 nodes (masters and agents)
 
-# Hostname (explicit, cloud-init will set since preserve_hostname=false in base cfg)
 hostname: ${CLUSTER_NODE_NAME}-control-node
 
 manage_resolv_conf: true
@@ -13,14 +10,71 @@ resolv_conf:
 # -----------------------------------------------------------------------------
 # Network configuration now provided via separate NoCloud network-config file (@codebase)
 # The standalone network-config.yaml template generates the network-config seed file
-# mounted at /var/lib/cloud/seed/nocloud/network-config, eliminating the need for
-# bootcmd netplan override logic. Cloud-init processes the network-config automatically.
+# mounted at /var/lib/cloud/seed/nocloud/network-config. Since cloud-init doesn't
+# properly honor the 'renderer: networkd' directive, we use bootcmd to install the
+# netplan file before systemd-networkd starts.
 # -----------------------------------------------------------------------------
+
+bootcmd:
+  # Install NoCloud network-config as netplan file before cloud-init processes network
+  # This must run in bootcmd because write_files happens too late (after network config)
+  - [ test, -f, /var/lib/cloud/seed/nocloud/network-config ]
+  - [ cp, /var/lib/cloud/seed/nocloud/network-config, /etc/netplan/01-nocloud.yaml ]
+  - [ chmod, '600', /etc/netplan/01-nocloud.yaml ]  
 
 write_files:
   # =============================================================================
   # SYSTEM CONFIGURATION FILES
   # =============================================================================
+
+  # Network configuration script using flox environment and yq
+  - path: /usr/local/sbin/rke2-network-config
+    permissions: "0755"
+    content: |
+      #!/bin/bash
+      set -euo pipefail
+      
+      # Log all operations
+      exec > >(logger -t rke2-network-config) 2>&1
+      
+      : "Load flox environment for yq and other tools"
+      source <( flox activate --dir /var/lib/cloud/seed/nocloud )
+      
+      : "=== Process List Before Network Config ==="
+      ps -ef
+      
+      : "=== Applying netplan configuration ==="
+      ip link set dev lan0 down || true
+      ip link set dev wan0 down || true
+      
+      netplan apply
+      
+      : "=== Final Network Status ==="
+      ip addr show
+      systemctl status systemd-networkd --no-pager
+
+      : "=== Process List After Network Config ==="
+      ps -ef
+
+  # Network configuration systemd service
+  - path: /etc/systemd/system/rke2-network-config.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=RKE2 Network Configuration Service
+      After=default.target systemd-networkd.service cloud-init.service
+      Wants=systemd-networkd.service
+      Before=rke2-install.service
+      
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-network-config
+      RemainAfterExit=yes
+      StandardOutput=journal
+      StandardError=journal
+      
+      [Install]
+      WantedBy=default.target
 
   # ZFS early umount service moved to systemd section
 
@@ -30,31 +84,7 @@ write_files:
 
   # Network wait service moved to systemd section
 
-  # Network initialization configuration to prevent long waits for optional interfaces
-  - path: /etc/default/networking
-    permissions: "0644"
-    content: |
-          # Configuration for networking init script being run during the boot sequence
-          # Set to 'yes' to skip interfaces configuration on boot
-          CONFIGURE_INTERFACES=yes
-
-          # Don't configure these interfaces. Shell wildcards supported
-          #EXCLUDE_INTERFACES=
-
-          # Enable verbose logging for debugging network wait issues
-          VERBOSE=yes
-
-          # Method to wait for the network to become online:
-          # - ifup: wait for ifup to have configured an interface
-          # - route: wait for a route to a given address to appear
-          # - ping/ping6: wait for a host to respond to ping packets
-          # - none: don't wait
-          WAIT_ONLINE_METHOD=ifup
-
-          # Which interface to wait for - wait for wan0 (cluster network) only
-          # This prevents waiting for optional lan0 interface
-          WAIT_ONLINE_IFACE=wan0
-          WAIT_ONLINE_TIMEOUT=60
+  # Network timeout configuration now handled by systemd drop-in in distrobuilder
 
   # =============================================================================
   # RKE2 CONFIGURATION FILES
@@ -148,7 +178,8 @@ write_files:
     content: |
       #!/usr/bin/env -S bash -exu -o pipefail
 
-      : Configure direnv to use flox
+      RKE2_LIBRARY_DIR="/var/lib/rancher/rke2"
+      : "Configure direnv to use flox"
       direnv:config:generate() {
         mkdir -p "/root/.config/direnv/lib"
         curl -o \
@@ -161,43 +192,21 @@ write_files:
       }
       direnv:config:generate
 
-      : Preload the nocloud environment
+      : "Preload the nocloud environment"
       [[ ! -d /var/lib/cloud/seed/nocloud/.flox ]] && \
         flox init --dir=/var/lib/cloud/seed/nocloud
-      flox -v -v -v install \
+      flox install \
         --dir=/var/lib/cloud/seed/nocloud dasel yq-go
       source <( flox activate --dir=/var/lib/cloud/seed/nocloud )
 
-      : Define and load the nocloud envrc
-      nocloud:envrc() {
-       init:env() {
-        cat /proc/1/environ | tr '\0' '\n' |
-          grep -E '^(INSTALL_RKE2_TYPE|CLUSTER_|TSID|TSKEY|CILIUM_PROFILE)'
-        }
-        cluster:inet() {
-          ip --json addr show wan0 |
-            yq -p json -o shell '
-              .[0].addr_info.[] | select(.family == "inet") |
-              { "CLUSTER_NODE_INET": .local }
-            '
-        }
-        cluster:gateway() {
-          ip route show default |
-            awk '/default via/ { print "CLUSTER_GATEWAY=" $$3 }'
-        }
-        cat <<EoF
+      cat > /var/lib/cloud/seed/nocloud/.envrc <<'EoEnvrc'
         log_status "Loading nocloud environment variables"
-        set -a
-        $( init:env )
-        $( cluster:inet )
-        $( cluster:gateway )
-        set +a
 
-        [[ "\$FLOX_ENV_PROJECT" != "\$PWD" ]] &&
+        # Variables are loaded directly in flox profile-common.sh
+        # Just activate flox environment
+        [[ "$FLOX_ENV_PROJECT" != "$PWD" ]] &&
           use flox
-      EoF
-      }
-      nocloud:envrc > /var/lib/cloud/seed/nocloud/.envrc
+      EoEnvrc
       dasel -r toml -w yaml \
         < /var/lib/cloud/seed/nocloud/.flox/env/manifest.toml |
         yq eval '.profile = {"common": "source /var/lib/cloud/seed/nocloud/.flox/env/profile-common.sh"}' - |
@@ -205,21 +214,36 @@ write_files:
         mv /tmp/manifest.toml.$$ \
           /var/lib/cloud/seed/nocloud/.flox/env/manifest.toml
       cat <<'EoFloxCommonProfile' | cut -c 3- | tee /var/lib/cloud/seed/nocloud/.flox/env/profile-common.sh
-        ${NOCLOUD_ENVRC:-false} ||
-          source <( cd /var/lib/cloud/seed/nocloud; env HOME=${HOME:-/root} direnv exec / direnv export bash; echo 'export NOCLOUD_ENVRC=true'; )
+        : "Load nocloud environment variables directly in flox profile"
+        set -a
+
+        : "Extract environment variables from init process"
+        while IFS='=' read -r key value; do
+          case "$$key" in
+            INSTALL_RKE2_TYPE|CLUSTER_*|TSID|TSKEY|CILIUM_PROFILE)
+              declare "$$key=$$value"
+              ;;
+          esac
+        done < <(cat /proc/1/environ | tr '\0' '\n')
+
+        if command -v ip >/dev/null; then
+          CLUSTER_GATEWAY=$$(ip route show default 2>/dev/null | awk '/default via/ { print $$3; exit }' || true)
+        fi
+
+        set +a
       EoFloxCommonProfile
       source <( flox activate --dir=/var/lib/cloud/seed/nocloud )
 
-      : Initialize the flox environment for RKE2
+      : "Initialize the flox environment for RKE2"
       [[ ! -d /var/lib/rancher/rke2/.flox ]] &&
         flox init --dir=/var/lib/rancher/rke2
 
-      flox -v -v -v install \
+      flox install \
         --dir=/var/lib/rancher/rke2 \
         ceph-client cilium-cli etcdctl helmfile \
         kubernetes-helm kubectl yq-go # override
 
-      : Include cloud environment in RKE2 flox environment and configure groups
+      : "Include cloud environment in RKE2 flox environment and configure groups"
       dasel -r toml -w yaml \
         < /var/lib/rancher/rke2/.flox/env/manifest.toml |
         yq eval '.include = {"environments": [{"dir": "/var/lib/cloud/seed/nocloud"}]}' - |
@@ -240,19 +264,68 @@ write_files:
         mv /tmp/manifest.toml.$$ \
           /var/lib/rancher/rke2/.flox/env/manifest.toml
         cat <<'EoFloxCommonProfile' | cut -c 3- | tee /var/lib/rancher/rke2/.flox/env/profile-common.sh
-        : Load RKE2 environment variables
-        ${RKE2_ENVRC:-false} ||
-          source <( cd "/var/lib/rancher/rke2"; env HOME=${HOME:-/root} direnv exec / direnv export bash; echo 'export RKE2_ENVRC=true'; )
+        : "Load RKE2 environment variables directly in flox profile"
+        set -a
+
+        : "Core RKE2 Environment Variables"
+        ARCH="$$(dpkg --print-architecture)"
+        [[ -r /etc/rancher/rke2/rke2.yaml ]] &&
+          KUBECONFIG="/etc/rancher/rke2/rke2.yaml"
+
+        : "Container Runtime Configuration"
+        CONTAINERD_CONFIG_FILE="$${PWD}/agent/etc/containerd/config.toml"
+        CONTAINERD_ADDRESS="/run/k3s/containerd/containerd.sock"
+        CONTAINERD_NAMESPACE="k8s.io"
+        CRI_CONFIG_FILE="$${PWD}/agent/etc/crictl.yaml"
+
+        : "etcdctl Configuration"
+        ETCDCTL_API="3"
+        ETCDCTL_CERT="$${PWD}/server/tls/etcd/server-client.crt"
+        ETCDCTL_KEY="$${PWD}/server/tls/etcd/server-client.key"
+        ETCDCTL_CACERT="$${PWD}/server/tls/etcd/server-ca.crt"
+        ETCDCTL_ENDPOINTS="https://127.0.0.1:2379"
+        ETCDCTL_WRITE_OUT="table"
+        ETCDCTL_DIAL_TIMEOUT="10s"
+        ETCDCTL_COMMAND_TIMEOUT="30s"
+
+        : "kubectl Configuration"
+        KUBECTL_OUTPUT="yaml"
+        KUBECTL_EXTERNAL_DIFF="diff"
+        KUBECTL_COMPLETION="true"
+
+        : "Helm Configuration"
+        HELM_DATA_HOME="$${PWD}/helm"
+        HELM_CONFIG_HOME="/etc/rancher/rke2/helm"
+        HELM_CACHE_HOME="/var/cache/rancher/rke2/helm"
+        HELM_REPOSITORY_CONFIG="/etc/rancher/rke2/helm/repositories.yaml"
+        HELM_REPOSITORY_CACHE="/var/cache/rancher/rke2/helm/repository"
+        HELM_PLUGINS="$${PWD}/helm/plugins"
+
+        : "Cilium CLI Configuration"
+        CILIUM_CLI_MODE="kubernetes"
+        CILIUM_CLI_CONTEXT="default"
+
+        : "Hubble Configuration"
+        HUBBLE_SERVER="localhost:4245"
+        HUBBLE_TLS="false"
+
+        :  Krew Configuration
+        KREW_ROOT="$${PWD}/krew"
+
+        : "Update PATH"
+        PATH="$${PWD}/bin:$$PATH:$${KREW_ROOT}/bin"
+
+        set +a
       EoFloxCommonProfile
 
-      : Load the RKE2 envrc
+      : "Load the RKE2 envrc"
       source <( flox activate --dir /var/lib/rancher/rke2 )
 
-      : Initialize krew and install plugins
+      : "Initialize krew and install plugins"
       KREW_ROOT="/var/lib/rancher/rke2/krew"
       mkdir -p "$$KREW_ROOT"
 
-      : Install krew plugins using krew directly
+      : "Install krew plugins using krew directly"
       for plugin in ctx ns; do
         krew install "$$plugin" || true
       done
@@ -265,15 +338,15 @@ write_files:
 
       source <( flox activate --dir /var/lib/rancher/rke2 )
 
-      : Install the RKE2 server or agent binaries
+      : "Install the RKE2 server or agent binaries"
       curl -sfL https://get.rke2.io | env DEBUG=1 sh -
 
-      : Patch containerd to use systemd cgroup driver
+      : "Patch containerd to use systemd cgroup driver"
       if [ -f "$$CONTAINERD_CONFIG_FILE" ]; then
         sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' "$$CONTAINERD_CONFIG_FILE"
       fi
 
-      : Enable shared mount service
+      : "Enable shared mount service"
       systemctl daemon-reload
       systemctl enable rke2-remount-shared
 
@@ -308,65 +381,15 @@ write_files:
   # ENVIRONMENT CONFIGURATION FILES
   # =============================================================================
 
-  # RKE2 environment variables configuration
+  # Simplified RKE2 environment configuration (variables now in flox profile)
   - path: /var/lib/rancher/rke2/.envrc
     permissions: "0644"
     content: |
       #!/usr/bin/env bash
-      log_status "Loading RKE2 environment variables"
+      log_status "Loading RKE2 flox environment"
 
-      set -a
-
-      : Core RKE2 Environment Variables
-      ARCH="$(dpkg --print-architecture)"
-      [[ -r /etc/rancher/rke2/rke2.yaml ]] &&
-        KUBECONFIG="/etc/rancher/rke2/rke2.yaml"
-
-      : Container Runtime Configuration
-      CONTAINERD_CONFIG_FILE="$${PWD}/agent/etc/containerd/config.toml"
-      CONTAINERD_ADDRESS="/run/k3s/containerd/containerd.sock"
-      CONTAINERD_NAMESPACE="k8s.io"
-      CRI_CONFIG_FILE="$${PWD}/agent/etc/crictl.yaml"
-
-      : etcdctl Configuration
-      ETCDCTL_API="3"
-      ETCDCTL_CERT="$${PWD}/server/tls/etcd/server-client.crt"
-      ETCDCTL_KEY="$${PWD}/server/tls/etcd/server-client.key"
-      ETCDCTL_CACERT="$${PWD}/server/tls/etcd/server-ca.crt"
-      ETCDCTL_ENDPOINTS="https://127.0.0.1:2379"
-      ETCDCTL_WRITE_OUT="table"
-      ETCDCTL_DIAL_TIMEOUT="10s"
-      ETCDCTL_COMMAND_TIMEOUT="30s"
-
-      : kubectl Configuration
-      KUBECTL_OUTPUT="yaml"
-      KUBECTL_EXTERNAL_DIFF="diff"
-      KUBECTL_COMPLETION="true"
-
-      : Helm Configuration
-      HELM_DATA_HOME="$${PWD}/helm"
-      HELM_CONFIG_HOME="/etc/rancher/rke2/helm"
-      HELM_CACHE_HOME="/var/cache/rancher/rke2/helm"
-      HELM_REPOSITORY_CONFIG="/etc/rancher/rke2/helm/repositories.yaml"
-      HELM_REPOSITORY_CACHE="/var/cache/rancher/rke2/helm/repository"
-      HELM_PLUGINS="$${PWD}/helm/plugins"
-
-      : Cilium CLI Configuration
-      CILIUM_CLI_MODE="kubernetes"
-      CILIUM_CLI_CONTEXT="default"
-
-      : Hubble Configuration
-      HUBBLE_SERVER="localhost:4245"
-      HUBBLE_TLS="false"
-
-      :  Krew Configuration
-      KREW_ROOT="$${PWD}/krew"
-
-      : Update PATH
-      PATH="$${PWD}/bin:$PATH:$${KREW_ROOT}/bin"
-
-      set +a
-
+      # Variables are now defined in flox profile-common.sh
+      # Just activate flox environment
       [[ "$${FLOX_ENV_PROJECT}" != "$${PWD}" ]] &&
         use flox
 
@@ -380,14 +403,14 @@ write_files:
     content: |
       #!/usr/bin/env zsh
 
-      : Define useful functions
+      : "Define useful functions"
       journalctl:unit:follow() {
         local unit="$$1"
         journalctl --unit $$unit --follow --no-tail |
           tee /.logs.d/$${unit}.log
       }
 
-      : Configure completions
+      : "Configure completions"
       autoload -Uz compinit &&
         compinit
       command -v kubectl >/dev/null &&
@@ -395,7 +418,7 @@ write_files:
       command -v helm >/dev/null &&
         source <( helm completion zsh ) 2>/dev/null || true
 
-      : Load direnv hook
+      : "Load direnv hook"
       source <( direnv hook zsh )
 
   # Bash completion for kubectl and helm
@@ -411,65 +434,6 @@ write_files:
   # =============================================================================
   # UTILITY SCRIPTS
   # =============================================================================
-
-  # Network configuration script to ensure wan0 interface gets static IP
-  - path: /usr/local/sbin/rke2-network-config
-    permissions: "0755"
-    content: |
-      #!/usr/bin/env -S bash -exu -o pipefail
-
-      echo "=== RKE2 Network Config Starting at $$(date) ==="
-
-      # Show current network state
-      echo "Current interfaces:"
-      ip link show || true
-
-      # Wait for wan0 interface to appear (up to 30 seconds)
-      for i in $${1..30}; do
-        if ip link show wan0 >/dev/null 2>&1; then
-          echo "wan0 interface found on attempt $$i"
-          break
-        fi
-        echo "Waiting for wan0 interface... (attempt $$i/30)"
-        sleep 1
-      done
-
-      # Check if wan0 exists now
-      if ! ip link show wan0 >/dev/null 2>&1; then
-        echo "ERROR: wan0 interface not found after 30 seconds"
-        echo "Available interfaces:"
-        ip link show
-        exit 1
-      fi
-
-      # Create netplan configuration for wan0 interface
-      cat > /etc/netplan/50-rke2-wan0.yaml << 'EOF'
-      network:
-        version: 2
-        renderer: networkd
-        ethernets:
-          wan0:
-            dhcp4: false
-            addresses:
-              - ${CLUSTER_NODE_INET}/24
-            routes:
-              - to: 0.0.0.0/0
-                via: ${CLUSTER_INET_GATEWAY}
-            nameservers:
-              addresses:
-                - ${CLUSTER_INET_GATEWAY}
-                - 1.1.1.1
-      EOF
-
-      # Set proper permissions
-      chmod 600 /etc/netplan/50-rke2-wan0.yaml
-
-      echo "Netplan configuration created, applying..."
-
-      # Apply the configuration
-      netplan apply
-
-      echo "=== RKE2 Network Config Complete at $$(date) ==="
 
   # Network debugging script for troubleshooting boot timing
   - path: /usr/local/sbin/rke2-network-debug
@@ -518,19 +482,19 @@ write_files:
     content: |
       #!/usr/bin/env -S bash -exu -o pipefail
 
-      : Configure system-wide DNS
+      : "Configure system-wide DNS"
       ln -fs /run/systemd/resolve/resolv.conf /etc/resolv.conf
 
-      : Start and wait for the RKE2 installation to complete
+      : "Start and wait for the RKE2 installation to complete"
       systemctl enable --now rke2-install
 
-      : Load the RKE2 environment
+      : "Load the RKE2 environment"
       source <( flox activate --dir /var/lib/rancher/rke2 )
 
-      : Load the RKE2 environment and generate the named units
+      : "Load the RKE2 environment and generate the named units"
       /usr/local/sbin/rke2-enable-containerd-zfs-mount
 
-      : Enable and start the RKE2 service
+      : "Enable and start the RKE2 service"
       systemctl --no-block --now \
         enable rke2-${INSTALL_RKE2_TYPE}
 
@@ -540,10 +504,10 @@ write_files:
     content: |
       #!/usr/bin/env -S bash -exu -o pipefail
 
-      : Load the RKE2 environment
+      : "Load the RKE2 environment"
       source <( flox activate --dir /var/lib/rancher/rke2 )
 
-      : Generate systemd mount unit for containerd zfs snapshotter
+      : "Generate systemd mount unit for containerd zfs snapshotter"
       UNIT=var-lib-rancher-rke2-agent-containerd-io.containerd.snapshotter.v1.zfs.mount
       cat <<EOF > /etc/systemd/system/$$UNIT
       [Unit]
@@ -563,7 +527,7 @@ write_files:
       RequiredBy=rke2-${INSTALL_RKE2_TYPE}.service
       EOF
 
-      : Enable the mount unit
+      : "Enable the mount unit"
       systemctl daemon-reload
       systemctl enable "$$UNIT"
 
@@ -575,29 +539,29 @@ write_files:
 
       source <( flox activate --dir /var/lib/rancher/rke2 )
 
-      : Wait for at least one node to be ready
+      : "Wait for at least one node to be ready"
       kubectl wait --for=condition=Ready \
         nodes --all --timeout=300s || exit 0
 
-      : Wait for Cilium DaemonSet to exist
+      : "Wait for Cilium DaemonSet to exist"
       kubectl wait \
         --for=jsonpath='{.metadata.name}'=cilium \
         daemonset/cilium -n kube-system \
         --timeout=300s || exit 0
 
-      : Wait for Cilium operator deployment to exist
+      : "Wait for Cilium operator deployment to exist"
       kubectl wait \
         --for=jsonpath='{.metadata.name}'=cilium-operator \
         deployment/cilium-operator -n kube-system \
         --timeout=300s || exit 0
 
-      : Wait for Cilium DaemonSet to have at least one ready pod
+      : "Wait for Cilium DaemonSet to have at least one ready pod"
       kubectl wait \
         --for=jsonpath='{.status.numberReady}'=1 \
         daemonset/cilium -n kube-system \
         --timeout=300s || exit 0
 
-      : Dynamic Cilium Operator Scaling
+      : "Dynamic Cilium Operator Scaling"
       count=$$(kubectl get nodes -l node-role.kubernetes.io/control-plane --no-headers | wc -l)
       case $$count in
       1)
@@ -608,14 +572,14 @@ write_files:
         replicas=3;;
       esac
 
-      : Scaling cilium-operator to $$replicas replicas for $$count control plane nodes
+      : "Scaling cilium-operator to $$replicas replicas for $$count control plane nodes"
       kubectl scale deployment cilium-operator \
         -n kube-system --replicas=$$replicas
 
-      : Wait for cilium-operator rollout to complete
+      : "Wait for cilium-operator rollout to complete"
       kubectl rollout status \
         deployment/cilium-operator -n kube-system \
-        --timeout=60s || true
+        --timeout=1s || true
 
   # Script to create tool configuration directories
   - path: /usr/local/sbin/rke2-tools-configuration-directories
@@ -623,7 +587,7 @@ write_files:
     content: |
       #!/usr/bin/env -S bash -exu -o pipefail
 
-      : Create directories for tool configurations
+      : "Create directories for tool configurations"
       mkdir -p /var/lib/rancher/rke2/helm/plugins
       mkdir -p /etc/rancher/rke2/helm
       mkdir -p /var/cache/rancher/rke2/helm/repository
@@ -637,14 +601,14 @@ write_files:
 
       source <( flox activate --dir /var/lib/rancher/rke2 )
 
-      : Create working copy of kubeconfig
+      : "Create working copy of kubeconfig"
       KUBECONFIG="/.kubeconfig.d/rke2-${CLUSTER_NAME}.yaml"
 
       mkdir -p $( dirname "$$KUBECONFIG" )
       cp /etc/rancher/rke2/rke2.yaml "$$KUBECONFIG"
       chmod 644 "$$KUBECONFIG"
 
-      : Apply modifications to working copy
+      : "Apply modifications to working copy"
       yq --inplace --from-file=<(cat <<EoE
       .clusters[0].cluster.name = "${CLUSTER_NAME}" |
       .clusters[0].cluster.server = "https://${CLUSTER_INET_VIRTUAL}:6443" |
@@ -664,32 +628,12 @@ write_files:
 
 ## Converted former 'systemd:' units into explicit write_files + runcmd enable/mask (@codebase)
   # ---- Systemd unit files (converted from previous systemd: units) ----
-  - path: /etc/systemd/system/rke2-network-config.service
-    permissions: "0644"
-    content: |
-      [Unit]
-      Description=Configure RKE2 network interfaces
-      After=network.target systemd-networkd.service cloud-init.service
-      Wants=network.target
-      DefaultDependencies=no
-
-      [Service]
-      Type=oneshot
-      ExecStart=/usr/local/sbin/rke2-network-config
-      RemainAfterExit=true
-      StandardOutput=journal+console
-      StandardError=journal+console
-      Environment=SYSTEMD_LOG_LEVEL=debug
-      SuccessExitStatus=0 1
-
-      [Install]
-      WantedBy=multi-user.target
   - path: /etc/systemd/system/rke2-network-debug.service
     permissions: "0644"
     content: |
       [Unit]
       Description=RKE2 Network Debug Logger
-      After=systemd-networkd.service rke2-network-config.service
+      After=systemd-networkd.service
 
       [Service]
       Type=oneshot
@@ -710,7 +654,7 @@ write_files:
     content: |
       [Unit]
       Description=RKE2 Network Wait Service
-      After=rke2-network-config.service systemd-networkd.service
+      After=systemd-networkd.service
       Before=rke2-server.service rke2-agent.service
       Wants=systemd-networkd.service
 
@@ -759,13 +703,14 @@ write_files:
     content: |
       [Unit]
       Description=Run RKE2 Installation Script
-      After=network.target rke2-network-config.service
-      Requires=rke2-network-config.service
+      After=network.target systemd-networkd.service
+      Wants=systemd-networkd.service
       ConditionPathExists=!/etc/systemd/system/rke2-server.service
       ConditionPathExists=!/etc/systemd/system/rke2-agent.service
 
       [Service]
       Type=oneshot
+      ExecStartPre=/usr/local/sbin/rke2-install-pre
       ExecStart=/usr/local/sbin/rke2-install
       RemainAfterExit=true
       StandardOutput=journal
@@ -775,9 +720,7 @@ write_files:
       WantedBy=multi-user.target
 
 runcmd:
-  # Use list form to avoid quoting/backslash issues (@codebase)
   - [ systemctl, daemon-reload ]
-  # - [ systemctl, mask, systemd-networkd-wait-online.service ]
   - [ systemctl, enable,
       rke2-network-config.service,
       rke2-network-debug.service,
@@ -785,4 +728,6 @@ runcmd:
       zfs-early-umount.service,
       rke2-remount-shared.service,
       rke2-install.service ]
+  # Start network configuration service immediately
+  - [ systemctl, start, rke2-network-config.service ]
   - /usr/local/sbin/rke2-activate
