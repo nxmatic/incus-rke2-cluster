@@ -11,56 +11,11 @@ resolv_conf:
     - mammoth-skate.ts.net
 
 # -----------------------------------------------------------------------------
-# Netplan dynamic override (bootcmd) (@codebase)
-# We seed a base network: stanza (above) so cloud-init has a deterministic
-# configuration. Additionally, we re-introduce a bootcmd script that, very early
-# in the init stage, copies an optional NoCloud seed file
-#   /var/lib/cloud/seed/nocloud/netplan-override.yaml
-# into /etc/netplan/10-override.yaml, or generates a fallback override if none
-# was supplied. We only run 'netplan generate' (not apply) to avoid races; the
-# generated artifacts are ready by the time systemd-networkd starts. If you want
-# the override to be pre-rendered without bootcmd logic, you can remove this
-# section and just pre-bake /etc/netplan/10-override.yaml.
+# Network configuration now provided via separate NoCloud network-config file (@codebase)
+# The standalone network-config.yaml template generates the network-config seed file
+# mounted at /var/lib/cloud/seed/nocloud/network-config, eliminating the need for
+# bootcmd netplan override logic. Cloud-init processes the network-config automatically.
 # -----------------------------------------------------------------------------
-bootcmd:
-  - |
-      #!/bin/sh -eux
-      : "Early netplan override (fallback if seed missing)"
-      SEED=/var/lib/cloud/seed/nocloud/netplan-override.yaml
-      TARGET=/etc/netplan/10-override.yaml
-      # Escape runtime variable references ($${SEED}/$${TARGET}) so build-time envsubst
-      # does not error on unset variables; they are resolved at instance boot.
-      if [ -f "$${SEED}" ]; then
-        cp "$${SEED}" "$${TARGET}"
-        echo "[netplan] Using supplied override from seed"
-      else
-        echo "[netplan] Seed override not found; generating fallback override"
-        cat > "$${TARGET}" <<'EONP'
-        network:
-          version: 2
-          renderer: networkd
-          ethernets:
-            wan0:
-              dhcp4: false
-              addresses:
-                - ${CLUSTER_NODE_INET}/24
-              routes:
-                - to: 0.0.0.0/0
-                  via: ${CLUSTER_INET_GATEWAY}
-              nameservers:
-                addresses:
-                  - ${CLUSTER_INET_GATEWAY}
-                  - 1.1.1.1
-            lan0:
-              dhcp4: true
-              dhcp6: true
-              dhcp-identifier: mac
-              optional: true
-        EONP
-        chmod 600 "$${TARGET}"
-      fi
-      # Pre-render netplan so networkd picks it up cleanly on start.
-      netplan generate || echo "[netplan] generate failed (continuing)"
 
 write_files:
   # =============================================================================
