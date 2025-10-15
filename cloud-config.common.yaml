@@ -56,8 +56,6 @@ write_files:
           WAIT_ONLINE_IFACE=wan0
           WAIT_ONLINE_TIMEOUT=60
 
-# Removed systemd-networkd-wait-online override from write_files - moved to systemd units section below
-
   # =============================================================================
   # RKE2 CONFIGURATION FILES
   # =============================================================================
@@ -505,75 +503,6 @@ write_files:
 
       echo "=== End Debug at $$(date) ==="
 
-  # Custom network wait script that replaces systemd-networkd-wait-online functionality
-  - path: /usr/local/sbin/rke2-network-wait
-    permissions: "0755"
-    content: |
-      #!/usr/bin/env -S bash -exu -o pipefail
-
-      echo "=== RKE2 Network Wait starting at $$(date) ==="
-
-      # Function to wait for interface to be online
-      wait_for_interface() {
-        local interface="$$1"
-        local timeout="$$2"
-        local start_time=$$(date +%s)
-
-        echo "Waiting for interface $$interface to be online (timeout: $$timeout seconds)..."
-
-        while true; do
-          local current_time=$$(date +%s)
-          local elapsed=$$((current_time - start_time))
-
-          if [ $$elapsed -ge $$timeout ]; then
-            echo "Timeout waiting for $$interface after $$timeout seconds"
-            return 1
-          fi
-
-          # Check if interface is online using networkctl
-          if networkctl status "$$interface" 2>/dev/null | grep -q "Online state: online"; then
-            echo "Interface $$interface is online after $$elapsed seconds"
-            return 0
-          fi
-
-          echo "Interface $$interface not online yet ($$elapsed/$$timeout seconds)..."
-          sleep 2
-        done
-      }
-
-      # Try wan0 first (cluster network)
-      if ip link show wan0 >/dev/null 2>&1; then
-        echo "Found wan0 interface, waiting for it to be online..."
-        if wait_for_interface "wan0" 60; then
-          echo "wan0 is online, network wait complete"
-          exit 0
-        else
-          echo "wan0 timeout, checking other interfaces..."
-        fi
-      else
-        echo "wan0 interface not found"
-      fi
-
-      # Try lan0 as fallback
-      if ip link show lan0 >/dev/null 2>&1; then
-        echo "Found lan0 interface, waiting for it to be online..."
-        if wait_for_interface "lan0" 30; then
-          echo "lan0 is online, network wait complete"
-          exit 0
-        else
-          echo "lan0 timeout"
-        fi
-      else
-        echo "lan0 interface not found"
-      fi
-
-      # Wait for any interface to be online (short timeout)
-      echo "Waiting for any interface to be online (30 second timeout)..."
-      /lib/systemd/systemd-networkd-wait-online --timeout=30 || true
-
-      echo "=== RKE2 Network Wait completed at $$(date) ==="
-      exit 0
-
   # Script to remount volumes as shared
   - path: /usr/local/sbin/rke2-remount-shared
     permissions: "0755"
@@ -848,7 +777,7 @@ write_files:
 runcmd:
   # Use list form to avoid quoting/backslash issues (@codebase)
   - [ systemctl, daemon-reload ]
-  - [ systemctl, mask, systemd-networkd-wait-online.service ]
+  # - [ systemctl, mask, systemd-networkd-wait-online.service ]
   - [ systemctl, enable,
       rke2-network-config.service,
       rke2-network-debug.service,

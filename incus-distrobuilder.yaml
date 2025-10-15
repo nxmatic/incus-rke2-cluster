@@ -1,10 +1,25 @@
 # build-packages.yaml
 # Base image: system update and package installation only
+#
+# BUILD VARIABLES (can be overridden via environment):
+# - FLOX_VERSION: flox package version (default: 1.5.0)
+# - FLOX_BASE_URL: flox download base URL
+#   (default: https://downloads.flox.dev/by-env/stable/deb)
+# - FLOX_DEB_SHA256: optional SHA256 checksum for verification
+#   Known checksums for flox 1.5.0:
+#   - aarch64: [add checksum when available]
+#   - x86_64:  [add checksum when available]
+#
+# This configuration installs flox in the base image because cloud-config
+# scripts (rke2-install-pre, environment activation) depend on it being
+# pre-installed. Without flox, RKE2 cluster bootstrap will fail.
+
 image:
   distribution: debian
   release: trixie
   architecture: arm64
-  description: "K8s Master Control Node base (Debian trixie) with systemd and packages"
+  description: >-
+    K8s Master Control Node base (Debian trixie) with systemd and packages
   expiry: 30d
 
 source:
@@ -17,11 +32,17 @@ packages:
   cleanup: true
   repositories:
     - name: debian-trixie-main
-      url: "deb http://deb.debian.org/debian trixie main contrib non-free non-free-firmware"
+      url: >-
+        deb http://deb.debian.org/debian trixie main contrib non-free
+        non-free-firmware
     - name: debian-trixie-security
-      url: "deb http://security.debian.org/debian-security trixie-security main contrib non-free non-free-firmware"
+      url: >-
+        deb http://security.debian.org/debian-security trixie-security
+        main contrib non-free non-free-firmware
     - name: debian-trixie-updates
-      url: "deb http://deb.debian.org/debian trixie-updates main contrib non-free non-free-firmware"
+      url: >-
+        deb http://deb.debian.org/debian trixie-updates main contrib
+        non-free non-free-firmware
     - name: debian-unstable
       url: "deb http://deb.debian.org/debian unstable main"
   sets:
@@ -89,23 +110,28 @@ packages:
       action: install
 
 actions:
-  # Debian archive key handling (no remote fetch; rely on debian-archive-keyring). Triggered early after unpack.
+  # Debian archive key handling (no remote fetch; rely on
+  # debian-archive-keyring). Triggered early after unpack.
   - trigger: post-unpack
     action: |
       #!/usr/bin/env bash
       set -euo pipefail
       : "==> Debian archive key handling (post-unpack)"
-      : "[i] At post-unpack, requested runtime packages (e.g. curl, gnupg) are not yet installed."
-      : "[i] debootstrap already seeded the rootfs with the debian-archive keyring; explicit fetch is optional."
-      # Provide optional download only if curl is already available (e.g. provided by build environment)
+      : "[i] At post-unpack, requested runtime packages are not installed."
+      : "[i] debootstrap seeded rootfs with debian-archive keyring; optional."
+      # Provide optional download only if curl is already available
+      # (e.g. provided by build environment)
       if command -v curl >/dev/null 2>&1; then
         workdir="/usr/local/share/key-import"
         mkdir -p "$workdir"
         cd "$workdir"
         declare -A key_urls key_sha
-        key_urls[archive-key-12.asc]="https://ftp-master.debian.org/keys/archive-key-12.asc"  # bookworm
-        key_urls[archive-key-13.asc]="https://ftp-master.debian.org/keys/archive-key-13.asc"  # trixie
-        # Placeholder SHA256 values (must be kept current). Obtain via: sha256sum archive-key-*.asc
+        # bookworm
+        key_urls[archive-key-12.asc]="https://ftp-master.debian.org/keys/archive-key-12.asc"
+        # trixie
+        key_urls[archive-key-13.asc]="https://ftp-master.debian.org/keys/archive-key-13.asc"
+        # Placeholder SHA256 values (must be kept current).
+        # Obtain via: sha256sum archive-key-*.asc
         key_sha[archive-key-12.asc]="REPLACE_WITH_REAL_SHA256_12"
         key_sha[archive-key-13.asc]="REPLACE_WITH_REAL_SHA256_13"
         missing_real_sha=0
@@ -131,7 +157,9 @@ actions:
             fi
             f="$fname"
             if command -v gpg >/dev/null 2>&1; then
-              gpg --dearmor < "$f" > "/etc/apt/trusted.gpg.d/${f%.asc}.gpg" || echo "WARN: gpg dearmor failed for $f" >&2
+              gpg --dearmor < "$f" > \
+                "/etc/apt/trusted.gpg.d/${f%.asc}.gpg" || \
+                echo "WARN: gpg dearmor failed for $f" >&2
             else
               cp "$f" "/etc/apt/trusted.gpg.d/${f}" || true
             fi
@@ -144,15 +172,20 @@ actions:
       fi
       # List any archive-key files now present (either from base or fetched)
       : "Installed key files (filtered):"
-      ls -1 /etc/apt/trusted.gpg.d/ 2>/dev/null | grep -E 'archive|debian' || echo "(None matching archive|debian)"
-      : "==> Cleaning default /etc/apt/sources.list to avoid duplicate repo warnings"
+      ls -1 /etc/apt/trusted.gpg.d/ 2>/dev/null | \
+        grep -E 'archive|debian' || echo "(None matching archive|debian)"
+      : "==> Cleaning default /etc/apt/sources.list to avoid warnings"
       if [[ -s /etc/apt/sources.list ]]; then
-        cp /etc/apt/sources.list /etc/apt/sources.list.distrobuilder.orig || true
+        cp /etc/apt/sources.list \
+          /etc/apt/sources.list.distrobuilder.orig || true
         : > /etc/apt/sources.list
-        echo '# truncated by distrobuilder; see /etc/apt/sources.list.distrobuilder.orig if needed' > /etc/apt/sources.list
+        echo '# truncated by distrobuilder; see .orig if needed' > \
+          /etc/apt/sources.list
       fi
-      # Optionally drop keyserver usage by commenting in the source section (left as documentation above).
-  # Generate locales early (before post-files) now that 'locales' package is installed.
+      # Optionally drop keyserver usage by commenting in the source section
+      # (left as documentation above).
+  # Generate locales early (before post-files) now that 'locales' package
+  # is installed.
   - trigger: post-packages
     action: |
       #!/usr/bin/env bash
@@ -164,7 +197,58 @@ actions:
       else
         echo "WARN: locale-gen not found; skipping locale generation"
       fi
-  # Sanity check APT metadata and capture repository & key summary for diagnostics.
+  # Hardened flox installation (Option A) required by cloud-config scripts
+  # (rke2-install-pre, env activation). Flox must be present in base image
+  # because cloud-init scripts immediately depend on it for environment
+  # bootstrapping. This action includes:
+  # - Version pinning with architecture mapping
+  # - Optional SHA256 verification (via FLOX_DEB_SHA256 env var)
+  # - Idempotency check (skip if already installed)
+  # - Configuration file creation (/etc/flox/config.toml)
+  - trigger: post-packages
+    action: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      : "==> Ensuring flox is installed (required for RKE2 cloud-init)"
+      if command -v flox >/dev/null 2>&1; then
+        : "==> flox already present: $(flox --version || true)"
+        exit 0
+      fi
+      FLOX_VERSION="${FLOX_VERSION:-1.5.0}"
+      FLOX_BASE_URL="${FLOX_BASE_URL:-https://downloads.flox.dev/by-env/stable/deb}"
+      DEB_ARCH="$(dpkg --print-architecture)"
+      case "$DEB_ARCH" in
+        arm64) FLOX_URL_ARCH="aarch64" ;;
+        amd64) FLOX_URL_ARCH="x86_64" ;;
+        *) echo "ERROR: Unsupported architecture '$DEB_ARCH' for flox" >&2
+           exit 1 ;;
+      esac
+      FLOX_DEB_URL="${FLOX_BASE_URL}/flox-${FLOX_VERSION}.${FLOX_URL_ARCH}-linux.deb"
+      TMP_DEB="$(mktemp /tmp/flox.XXXXXX.deb)"
+      : "==> Downloading flox $FLOX_VERSION from $FLOX_DEB_URL"
+      if ! curl -fL "$FLOX_DEB_URL" -o "$TMP_DEB"; then
+        echo "ERROR: Failed to download flox package" >&2
+        exit 1
+      fi
+      # SHA256 verification (optional but recommended for production)
+      if [[ -n "${FLOX_DEB_SHA256:-}" ]]; then
+        echo "${FLOX_DEB_SHA256}  ${TMP_DEB}" | sha256sum -c -
+      else
+        echo "WARN: FLOX_DEB_SHA256 not provided; skipping verification" >&2
+      fi
+      : "==> Installing flox .deb"
+      apt-get install -y "$TMP_DEB"
+      rm -f "$TMP_DEB"
+      install -d -m 0755 /etc/flox
+      if [[ ! -f /etc/flox/config.toml ]]; then
+        cat > /etc/flox/config.toml <<'EOF'
+      # Flox runtime configuration (added at image build time)
+      disable_metrics = true
+      EOF
+      fi
+      : "==> flox installed: $(flox --version || true)"
+  # Sanity check APT metadata and capture repository & key summary
+  # for diagnostics.
   - trigger: post-packages
     action: |
       #!/usr/bin/env bash
@@ -172,23 +256,28 @@ actions:
       : "==> Running APT debug update (pkgProblemResolver)"
       LOG_DIR=/var/lib/build-diagnostics
       mkdir -p "$LOG_DIR"
-      # Run update with extra debug to surface resolver quirks.
-      apt-get -o Debug::pkgProblemResolver=yes update -y > "$LOG_DIR/apt-update-debug.log" 2>&1 || {
-        echo "WARN: apt-get update encountered issues (see apt-update-debug.log)" >&2
+      : Run update with extra debug to surface resolver quirks.
+      apt-get -o Debug::pkgProblemResolver=yes update -y \
+        > "$LOG_DIR/apt-update-debug.log" 2>&1 || {
+        echo "WARN: apt-get update encountered issues (see log)" >&2
       }
       : "==> Capturing repository list"
       {
         echo '# Active APT repos'
-        grep -h ^deb /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null | sort -u
+        grep -h ^deb /etc/apt/sources.list \
+          /etc/apt/sources.list.d/*.list 2>/dev/null | sort -u
       } > "$LOG_DIR/repos.list" || true
       : "==> Capturing key fingerprints"
       {
         echo '# Key Fingerprints (archive-key-* only if present)'
-        for k in /etc/apt/trusted.gpg.d/archive-key-*.*gpg /etc/apt/trusted.gpg.d/archive-key-*.*asc; do
+        for k in /etc/apt/trusted.gpg.d/archive-key-*.*gpg \
+                 /etc/apt/trusted.gpg.d/archive-key-*.*asc; do
           [ -e "$k" ] || continue
           if command -v gpg >/dev/null 2>&1; then
             # Extract fingerprints; ignore duplicates
-            gpg --show-keys --with-colons "$k" 2>/dev/null | awk -F: -v file="$(basename "$k")" '/^fpr:/ {print file" " $10}'
+            gpg --show-keys --with-colons "$k" 2>/dev/null | \
+              awk -F: -v file="$(basename "$k")" \
+              '/^fpr:/ {print file" " $10}'
           else
             echo "gpg-unavailable $(basename "$k")"
           fi
@@ -203,8 +292,9 @@ actions:
         echo '--- KEY FINGERPRINTS ---'
         cat "$LOG_DIR/key-fingerprints.txt" || true
       } > "$LOG_DIR/summary.txt"
-  # NOTE: Example for pinning and installing cloud-init from unstable (sid) retained but disabled.
-  # To enable, uncomment the block below. This can be useful if trixie's cloud-init lags.
+  # NOTE: Example for pinning and installing cloud-init from unstable (sid)
+  # retained but disabled. To enable, uncomment the block below.
+  # This can be useful if trixie's cloud-init lags.
   # - trigger: post-packages
   #   action: |
   #     #!/usr/bin/env bash
@@ -223,21 +313,20 @@ actions:
   #     apt-get update -y
   #     echo "==> Installing cloud-init from unstable"
   #     DEBIAN_FRONTEND=noninteractive apt-get install -y -t unstable cloud-init
-  #     echo "==> cloud-init version installed: $(cloud-init --version || true)"
+  #     echo "==> cloud-init version: $(cloud-init --version || true)"
   - trigger: post-files
     action: |
       #!/usr/bin/env -S bash -exu -o pipefail
-      : "Locale already generated in post-packages (guarded). This block now only handles network services."
+      : "Locale already generated in post-packages (guarded)."
+      : "This block now only handles network services."
       : "enable systemd-networkd and (if present) disable NetworkManager"
       if systemctl list-unit-files | grep -q '^NetworkManager.service'; then
         systemctl disable NetworkManager || true
         systemctl mask NetworkManager || true
       else
-        : "INFO: NetworkManager.service not installed; skipping disable/mask"
+        : "INFO: NetworkManager.service not installed; skipping"
       fi
       systemctl enable systemd-networkd
-      : "Mask wait-online to avoid boot delays unless explicitly needed"
-      systemctl mask systemd-networkd-wait-online.service || true
       systemctl enable systemd-resolved
 
   - trigger: post-files
