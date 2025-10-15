@@ -331,6 +331,7 @@ INCUS_ZFS_ALLOW_MARKER_FILE := $(INCUS_DIR)/zfs-allow.tstamp
 
 NOCLOUD_METADATA_FILE := $(NOCLOUD_DIR)/metadata.yaml
 NOCLOUD_USERDATA_FILE := $(NOCLOUD_DIR)/userdata.yaml
+NOCLOUD_NETCFG_FILE := $(NOCLOUD_DIR)/network-config
 
 #-----------------------------
 
@@ -708,7 +709,6 @@ select(fileIndex == 2) as $$c | \
 ($$a * $$b * $$c) | \
 .write_files = ($$a.write_files // []) + ($$b.write_files // []) + ($$c.write_files // []) | \
 .runcmd = ($$a.runcmd // []) + ($$b.runcmd // []) + ($$c.runcmd // []) | \
-.systemd.units = ($$a.systemd.units // []) + ($$b.systemd.units // []) + ($$c.systemd.units // []) | \
 ( .. | select( tag == "!!str" ) ) |= envsubst(ne,nu)
 endef
 
@@ -721,7 +721,6 @@ select(fileIndex == 4) as $$e | \
 ($$a * $$b * $$c * $$d * $$e) | \
 .write_files = ($$a.write_files // []) + ($$b.write_files // []) + ($$c.write_files // []) + ($$d.write_files // []) + ($$e.write_files // []) | \
 .runcmd = ($$a.runcmd // []) + ($$b.runcmd // []) + ($$c.runcmd // []) + ($$d.runcmd // []) | \
-.systemd.units = ($$a.systemd.units // []) + ($$b.systemd.units // []) + ($$c.systemd.units // []) + ($$d.systemd.units // []) + ($$e.systemd.units // []) | \
 ( .. | select( tag == "!!str" ) ) |= envsubst(ne,nu)
 endef
 
@@ -740,6 +739,15 @@ $(NOCLOUD_USERDATA_FILE):
 	@: "[+] Merging cloud-config fragments (common/server/node) with envsubst ..."
 	$(eval _file_count := $(call length,$^))
 	$(call EXECUTE_YQ_MERGE,$(_file_count),$^,$@)
+
+#-----------------------------
+# Generate NoCloud network-config file (envsubst only) from standalone network-config.yaml (@codebase)
+#-----------------------------
+
+$(NOCLOUD_NETCFG_FILE): network-config.yaml | $(NOCLOUD_DIR)/
+$(NOCLOUD_NETCFG_FILE):
+	@: "[+] Rendering network-config (envsubst via yq) ..."
+	@yq eval '( .. | select(tag=="!!str") ) |= envsubst(ne,nu)' network-config.yaml > $@
 
 #-----------------------------
 # Lint: YAML (yamllint)

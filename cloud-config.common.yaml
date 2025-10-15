@@ -5,29 +5,6 @@
 # Hostname (explicit, cloud-init will set since preserve_hostname=false in base cfg)
 hostname: ${CLUSTER_NODE_NAME}-control-node
 
-# Network configuration using netplan with systemd-networkd renderer
-network:
-  version: 2
-  renderer: networkd
-  ethernets:
-    lan0:  # LAN (primary) - DHCP for home network access
-      dhcp4: true
-      dhcp6: true
-      dhcp-identifier: mac
-      optional: true
-    wan0:  # WAN (secondary) - Static IP for cluster communication
-      dhcp4: false
-      addresses:
-        - ${CLUSTER_NODE_INET}/24
-      routes:
-        - to: 0.0.0.0/0
-          via: ${CLUSTER_INET_GATEWAY}
-      nameservers:
-        addresses:
-          - ${CLUSTER_INET_GATEWAY}
-          - 1.1.1.1
-      optional: true
-
 manage_resolv_conf: true
 resolv_conf:
   searchdomains:

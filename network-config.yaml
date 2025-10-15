@@ -1,0 +1,22 @@
+# network-config (NoCloud datasource) (@codebase)
+# Separate from user-data to simplify schema validation and allow independent regeneration.
+version: 2
+renderer: networkd
+ethernets:
+  lan0:
+    dhcp4: true
+    dhcp6: true
+    dhcp-identifier: mac
+    optional: true
+  wan0:
+    dhcp4: false
+    addresses:
+      - ${CLUSTER_NODE_INET}/24
+    routes:
+      - to: 0.0.0.0/0
+        via: ${CLUSTER_INET_GATEWAY}
+    nameservers:
+      addresses:
+        - ${CLUSTER_INET_GATEWAY}
+        - 1.1.1.1
+    optional: true
