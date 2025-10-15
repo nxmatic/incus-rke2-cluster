@@ -1,11 +1,12 @@
 # network-config (NoCloud datasource) (@codebase)
 # Separate from user-data to simplify schema validation and allow independent regeneration.
 # Cloud-init will use ifupdown renderer on Ubuntu; networkd may not be available.
+# Disable IPv6 on lan0 to avoid DHCPv6 client dependency issues.
 version: 2
 ethernets:
   lan0:
     dhcp4: true
-    dhcp6: true
+    dhcp6: false
     dhcp-identifier: mac
     optional: false
   wan0:
