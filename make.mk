@@ -12,8 +12,8 @@
 # User-specified trace control: comma-separated list of modes.
 .trace ?=
 
-# Default node name fallback (needed for early-included network layer before main Makefile sets it)
-RKE2_NODE_NAME ?= $(if $(RKE2_NODE_NAME),$(RKE2_NODE_NAME),master)
+# Early default for RKE2_NODE_NAME so network layer has a value; simple non-recursive default.
+RKE2_NODE_NAME ?= master
 
 empty :=
 space := $(empty) $(empty)
