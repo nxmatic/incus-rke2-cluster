@@ -82,7 +82,13 @@ SUDO := $(shell test -x /run/wrappers/bin/sudo && echo /run/wrappers/bin/sudo ||
 
 # Remote execution detection (macOS host vs NixOS guest) - depends on LIMA_HOSTNAME
 LIMA_HOST ?= $(LIMA_HOSTNAME)
-REMOTE_EXEC := $(shell if [ -x /run/wrappers/bin/sudo ]; then echo ""; else echo "ssh $(LIMA_HOST)"; fi)
+# Remote execution: when running from macOS (no /run/wrappers/bin/sudo), wrap commands to
+#   1. ssh into Lima host
+#   2. cd into the bind-mounted repo path matching current relative path
+#   3. activate flox environment (if available) so required tools are present
+# Assumes same absolute path exists on remote (bind mount); fall back to plain ssh if cd fails.
+REMOTE_REPO_PATH ?= $(CURDIR)
+REMOTE_EXEC := $(shell if [ -x /run/wrappers/bin/sudo ]; then echo ""; else echo "ssh $(LIMA_HOST) 'cd $(REMOTE_REPO_PATH) 2>/dev/null || cd ~; if command -v flox >/dev/null 2>&1; then eval \"$$(/usr/bin/flox activate --print-env)\"; fi; '"; fi)
 
 # Dynamic help macro ---------------------------------------------------------
 define make-help
