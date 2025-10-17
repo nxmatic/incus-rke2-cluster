@@ -6,6 +6,23 @@
 INCUS_TIMEOUT ?= 30
 INCUS ?= $(REMOTE_EXEC) timeout $(INCUS_TIMEOUT) incus
 
+#-----------------------------
+# Dependency Check Target
+#-----------------------------
+
+.PHONY: deps@incus
+deps@incus: ## Check availability of remote incus and required tools
+	@echo "[+] Checking remote Incus dependencies via $(REMOTE_EXEC) ..."; \
+	ERR=0; \
+	for cmd in incus yq ipcalc timeout; do \
+		if $(REMOTE_EXEC) command -v $$cmd >/dev/null 2>&1; then \
+			echo "  ✓ $$cmd"; \
+		else \
+			echo "  ✗ $$cmd (missing)"; ERR=1; \
+		fi; \
+	done; \
+	if [ "$$ERR" = "1" ]; then echo "[!] Some dependencies missing"; exit 1; else echo "[+] All dependencies present"; fi
+
 # Use advanced metaprogramming for enhanced functionality
 -include advanced-targets.mk
 
@@ -18,7 +35,7 @@ INCUS ?= $(REMOTE_EXEC) timeout $(INCUS_TIMEOUT) incus
 preseed@incus: $(INCUS_PRESSED_FILE)
 preseed@incus:
 	: "[+] Applying incus preseed ..."
-	incus admin init --preseed < $(INCUS_PRESSED_FILE)
+	$(INCUS) admin init --preseed < $(INCUS_PRESSED_FILE)
 
 $(INCUS_PRESSED_FILE): $(INCUS_PRESSED_FILENAME) | $(INCUS_DIR)/
 $(INCUS_PRESSED_FILE):
@@ -36,10 +53,10 @@ switch-project@incus: preseed@incus ## Switch to RKE2 project and ensure images 
 switch-project@incus: $(INCUS_CREATE_PROJECT_MARKER_FILE)
 switch-project@incus:
 	: [+] Switching to project $(CLUSTER_NAME)
-	incus project switch rke2
-	: [+] Ensuring image $(RKE2_IMAGE_NAME) is available in project rke
-	incus image show $(RKE2_IMAGE_NAME) --project=rke2 >/dev/null 2>&1 || \
-	  incus image import --project=rke2 --alias=$(RKE2_IMAGE_NAME) --reuse $(INCUS_IMAGE_BUILD_FILES)
+	$(INCUS) project switch rke2 || true
+	: [+] Ensuring image $(RKE2_IMAGE_NAME) is available in project rke2
+	$(INCUS) image show $(RKE2_IMAGE_NAME) --project=rke2 >/dev/null 2>&1 || \
+	  $(INCUS) image import --project=rke2 --alias=$(RKE2_IMAGE_NAME) --reuse $(INCUS_IMAGE_BUILD_FILES)
 
 remove-project@incus: cleanup-project-instances@incus ## Remove entire RKE2 project (destructive)
 remove-project@incus: cleanup-project-images@incus
@@ -48,23 +65,23 @@ remove-project@incus: cleanup-project-profiles@incus
 remove-project@incus: cleanup-project-volumes@incus
 remove-project@incus:
 	: [+] Deleting project $(CLUSTER_NAME)
-	incus project delete rke2
+	$(INCUS) project delete rke2 || true
 
 cleanup-project-instances@incus: ## destructive: delete all instances in project rke2
-	incus list --project=rke2 --format=yaml | yq -r eval '.[].name' | \
-	  xargs -r -n1 incus delete -f --project rke2
+	$(INCUS) list --project=rke2 --format=yaml | yq -r eval '.[].name' | \
+	  xargs -r -n1 $(INCUS) delete -f --project rke2
 
 cleanup-project-images@incus: ## destructive: delete all images (fingerprints) in project rke2
-	incus image list --project=rke2 --format=yaml | yq -r eval '.[].fingerprint' | \
-	  xargs -r -n1 incus image delete --project rke2
+	$(INCUS) image list --project=rke2 --format=yaml | yq -r eval '.[].fingerprint' | \
+	  xargs -r -n1 $(INCUS) image delete --project rke2
 
 cleanup-project-networks@incus: ## destructive: delete all networks in project rke2
-	incus network list --project=rke2 --format=yaml | yq -r eval '.[].name' | \
-	  xargs -r -n1 echo incus network delete --project rke2
+	$(INCUS) network list --project=rke2 --format=yaml | yq -r eval '.[].name' | \
+	  xargs -r -n1 echo $(INCUS) network delete --project rke2
 
 cleanup-project-profiles@incus: ## destructive: delete all non-default profiles in project rke2
-	incus profile list --project=rke2 --format=yaml | yq -r '.[].name | select(. != "default")' | \
-	  xargs -r -n1 incus profile delete --project rke2
+	$(INCUS) profile list --project=rke2 --format=yaml | yq -r '.[].name | select(. != "default")' | \
+	  xargs -r -n1 $(INCUS) profile delete --project rke2
 
 define INCUS_VOLUME_YQ
 .[] | 
@@ -78,9 +95,9 @@ cleanup-project-volumes@incus: cleanup-project-volumes-snapshots@incus
 cleanup-project-volumes@incus: export YQ_EXPR := $(INCUS_VOLUME_YQ)
 cleanup-project-volumes@incus: 
 	: "destructive: delete all snapshots then volumes in each storage pool (project rke2)"
-	incus storage volume list --project=rke2 --format=yaml default | \
+	$(INCUS) storage volume list --project=rke2 --format=yaml default | \
 		yq -r --from-file=<(echo "$$YQ_EXPR") | \
-	    xargs -r -n1 incus storage volume delete --project=rke2 default
+	    xargs -r -n1 $(INCUS) storage volume delete --project=rke2 default
 
 define INCUS_SNAPSHOT_YQ
 .[] |
@@ -92,16 +109,16 @@ endef
 cleanup-project-volumes-snapshots@incus: export YQ_EXPR := $(INCUS_SNAPSHOT_YQ)
 cleanup-project-volumes-snapshots@incus: 
 	: "destructive: delete all snapshots in each storage pool (project rke2)"
-	incus storage volume list --project=rke2 --format=yaml default | \
+	$(INCUS) storage volume list --project=rke2 --format=yaml default | \
 		yq -r --from-file=<(echo "$$YQ_EXPR") | \
-	    xargs -r -n1 incus storage volume snapshot delete --project=rke2 default
+	    xargs -r -n1 $(INCUS) storage volume snapshot delete --project=rke2 default
 
 $(INCUS_CREATE_PROJECT_MARKER_FILE): | $(INCUS_DIR)/
 $(INCUS_CREATE_PROJECT_MARKER_FILE):
 	: [+] Creating incus project rke2 if not exists...
 	$(INCUS) project create rke2 || true
 	: [+] Importing incus profile rke2
-	incus profile copy --project=default --target-project=rke2 $(RKE2_NODE_PROFILE_NAME) $(RKE2_NODE_PROFILE_NAME)
+	$(INCUS) profile copy --project=default --target-project=rke2 $(RKE2_NODE_PROFILE_NAME) $(RKE2_NODE_PROFILE_NAME) || true
 	touch $@
 
 #-----------------------------
@@ -147,7 +164,7 @@ create-node-bridges: $(INCUS_CREATE_PROJECT_MARKER_FILE)
 
 clean-vip-bridge:
 	echo "[+] Removing shared VIP bridge $(RKE2_CLUSTER_VIP_BRIDGE_NAME)..."
-	incus network delete $(RKE2_CLUSTER_VIP_BRIDGE_NAME) --project=rke2 2>/dev/null || true
+	$(INCUS) network delete $(RKE2_CLUSTER_VIP_BRIDGE_NAME) --project=rke2 2>/dev/null || true
 	echo "[+] VIP bridge removed"
 
 # Bridge setup marker depends on both VIP and node bridge creation
@@ -195,14 +212,14 @@ network-status@incus: ## Show container network status
 	echo "[i] Container Network Status"
 	echo "============================"
 	echo "Container: $(RKE2_NODE_NAME)"
-	if incus info $(RKE2_NODE_NAME) --project=rke2 >/dev/null 2>&1; then \
+	if $(INCUS) info $(RKE2_NODE_NAME) --project=rke2 >/dev/null 2>&1; then \
 		echo "Container network interfaces:"; \
-		incus exec $(RKE2_NODE_NAME) --project=rke2 -- ip -o addr show lan0 2>/dev/null || echo "  lan0: not available"; \
-		incus exec $(RKE2_NODE_NAME) --project=rke2 -- ip -o addr show wan0 2>/dev/null || echo "  wan0: not available"; \
-		incus exec $(RKE2_NODE_NAME) --project=rke2 -- ip -o addr show vip0 2>/dev/null || echo "  vip0: not available"; \
+		$(INCUS) exec $(RKE2_NODE_NAME) --project=rke2 -- ip -o addr show lan0 2>/dev/null || echo "  lan0: not available"; \
+		$(INCUS) exec $(RKE2_NODE_NAME) --project=rke2 -- ip -o addr show wan0 2>/dev/null || echo "  wan0: not available"; \
+		$(INCUS) exec $(RKE2_NODE_NAME) --project=rke2 -- ip -o addr show vip0 2>/dev/null || echo "  vip0: not available"; \
 		echo ""; \
 		echo "Connectivity test:"; \
-		incus exec $(RKE2_NODE_NAME) --project=rke2 -- ping -c1 -W2 8.8.8.8 >/dev/null 2>&1 && echo "  Internet: OK" || echo "  Internet: FAILED"; \
+		$(INCUS) exec $(RKE2_NODE_NAME) --project=rke2 -- ping -c1 -W2 8.8.8.8 >/dev/null 2>&1 && echo "  Internet: OK" || echo "  Internet: FAILED"; \
 	else \
 		echo "Container $(RKE2_NODE_NAME) not found or not running"; \
 	fi
@@ -219,7 +236,7 @@ $(INCUS_IMAGE_IMPORT_MARKER_FILE): $(INCUS_IMAGE_BUILD_FILES)
 $(INCUS_IMAGE_IMPORT_MARKER_FILE): | $(IMAGE_DIR)/
 $(INCUS_IMAGE_IMPORT_MARKER_FILE):
 	: [+] Importing image for instance $(RKE2_NODE_NAME)...
-	incus image import --alias $(RKE2_IMAGE_NAME) --reuse $(^)
+	$(INCUS) image import --alias $(RKE2_IMAGE_NAME) --reuse $(^)
 	touch $@
 
 $(INCUS_IMAGE_BUILD_FILES): $(INCUS_DISTROBUILDER_FILE) | $(IMAGE_DIR)/
@@ -245,25 +262,25 @@ $(INCUS_CONFIG_INSTANCE_MARKER_FILE).init: $(CLUSTER_ENV_FILE)
 $(INCUS_CONFIG_INSTANCE_MARKER_FILE).init: | $(INCUS_DIR)/ $(SHARED_DIR)/ $(KUBECONFIG_DIR)/ $(LOGS_DIR)/
 $(INCUS_CONFIG_INSTANCE_MARKER_FILE).init:
 	: "[+] Initializing instance $(RKE2_NODE_NAME)..."
-	incus init $(RKE2_IMAGE_NAME) $(RKE2_NODE_NAME) < $(INCUS_INSTANCE_CONFIG_FILE)
+	$(INCUS) init $(RKE2_IMAGE_NAME) $(RKE2_NODE_NAME) < $(INCUS_INSTANCE_CONFIG_FILE)
 	: "[+] Attaching VIP bridge $(RKE2_CLUSTER_VIP_BRIDGE_NAME) to instance $(RKE2_NODE_NAME)..."
-	incus config device add $(RKE2_NODE_NAME) vip0 nic \
+	$(INCUS) config device add $(RKE2_NODE_NAME) vip0 nic \
 		network=$(RKE2_CLUSTER_VIP_BRIDGE_NAME) \
 		name=vip0
 	: "[+] Attaching WAN bridge $(RKE2_NODE_WAN_BRIDGE_NAME) to instance $(RKE2_NODE_NAME)..."
-	incus config device add $(RKE2_NODE_NAME) wan0 nic \
+	$(INCUS) config device add $(RKE2_NODE_NAME) wan0 nic \
 		network=$(RKE2_NODE_WAN_BRIDGE_NAME) \
 		name=wan0
 	: "[+] Attaching LAN bridge $(RKE2_NODE_LAN_BRIDGE_NAME) to instance $(RKE2_NODE_NAME)..."
-	incus config device add $(RKE2_NODE_NAME) lan0 nic \
+	$(INCUS) config device add $(RKE2_NODE_NAME) lan0 nic \
 		network=$(RKE2_NODE_LAN_BRIDGE_NAME) \
 		name=lan0
 
 $(INCUS_CONFIG_INSTANCE_MARKER_FILE): $(INCUS_CONFIG_INSTANCE_MARKER_FILE).init
 $(INCUS_CONFIG_INSTANCE_MARKER_FILE):
 	: "[+] Ensuring clean cloud-init state for fresh network configuration..."
-	incus exec $(RKE2_NODE_NAME) -- rm -rf /var/lib/cloud/instance /var/lib/cloud/instances /var/lib/cloud/data /var/lib/cloud/sem || true
-	incus exec $(RKE2_NODE_NAME) -- rm -rf /run/cloud-init /run/systemd/network/10-netplan-* || true
+	$(INCUS) exec $(RKE2_NODE_NAME) -- rm -rf /var/lib/cloud/instance /var/lib/cloud/instances /var/lib/cloud/data /var/lib/cloud/sem || true
+	$(INCUS) exec $(RKE2_NODE_NAME) -- rm -rf /run/cloud-init /run/systemd/network/10-netplan-* || true
 	
 	touch $@
 
@@ -273,7 +290,7 @@ start@incus:
 	$(call trace-var,RKE2_NODE_NAME)
 	$(call trace-incus,Starting instance $(RKE2_NODE_NAME))
 	echo "[+] Starting instance $(RKE2_NODE_NAME)..."; \
-	if incus start $(RKE2_NODE_NAME); then \
+	if $(INCUS) start $(RKE2_NODE_NAME); then \
 		echo "✓ Instance $(RKE2_NODE_NAME) started successfully"; \
 	else \
 		echo "✗ Failed to start instance $(RKE2_NODE_NAME)"; \
@@ -283,9 +300,9 @@ start@incus:
 
 shell@incus: ## Open interactive shell in the instance
 	echo "[+] Opening a shell in instance $(RKE2_NODE_NAME)..."; \
-	if incus info $(RKE2_NODE_NAME) --project=rke2 >/dev/null 2>&1; then \
+	if $(INCUS) info $(RKE2_NODE_NAME) --project=rke2 >/dev/null 2>&1; then \
 		echo "✓ Instance $(RKE2_NODE_NAME) is available"; \
-		incus exec $(RKE2_NODE_NAME) --project=rke2 -- zsh; \
+		$(INCUS) exec $(RKE2_NODE_NAME) --project=rke2 -- zsh; \
 	else \
 		echo "✗ Instance $(RKE2_NODE_NAME) not found or not running"; \
 		echo "Use 'make start' to start the instance first"; \
@@ -294,26 +311,26 @@ shell@incus: ## Open interactive shell in the instance
 
 stop@incus: ## Stop the running instance
 	: "[+] Stopping instance $(RKE2_NODE_NAME) if running..."
-	incus stop $(RKE2_NODE_NAME) || true
+	$(INCUS) stop $(RKE2_NODE_NAME) || true
 
 delete@incus: ## Delete the instance (keeps configuration)
 	: "[+] Removing instance $(RKE2_NODE_NAME)..."
-	incus delete -f $(RKE2_NODE_NAME) || true
+	$(INCUS) delete -f $(RKE2_NODE_NAME) || true
 	rm -f $(INCUS_CONFIG_INSTANCE_MARKER_FILE) || true
 
 clean@incus: delete@incus ## Clean instance and all associated resources
 clean@incus: remove-hosts@tailscale
 clean@incus:
 	: [+] Removing $(RKE2_NODE_NAME) if exists...
-	incus profile delete rke2-$(RKE2_NODE_NAME) --project=rke2 || true
-	incus profile delete rke2-$(RKE2_NODE_NAME) --project default || true
+	$(INCUS) profile delete rke2-$(RKE2_NODE_NAME) --project=rke2 || true
+	$(INCUS) profile delete rke2-$(RKE2_NODE_NAME) --project default || true
 	# Remove current bridge pair (per-node bridges only)
-	incus network delete $(RKE2_NODE_LAN_BRIDGE_NAME) 2>/dev/null || true
-	incus network delete $(RKE2_NODE_WAN_BRIDGE_NAME) 2>/dev/null || true
+	$(INCUS) network delete $(RKE2_NODE_LAN_BRIDGE_NAME) 2>/dev/null || true
+	$(INCUS) network delete $(RKE2_NODE_WAN_BRIDGE_NAME) 2>/dev/null || true
 	# NOTE: Shared VIP bridge (rke2-vip) is NOT removed here - it's shared across all control-plane nodes
 	# VIP bridge cleanup happens only in clean-all or when manually cleaning the entire cluster
 	# Remove persistent storage volume to ensure clean cloud-init state
-	incus storage volume delete default containers/$(RKE2_NODE_NAME) || true
+	$(INCUS) storage volume delete default containers/$(RKE2_NODE_NAME) || true
 	: [+] Cleaning up run directory...
 	rm -fr $(RUN_INSTANCE_DIR)
 
@@ -323,7 +340,7 @@ clean-all@incus: ## Clean all cluster nodes and shared resources (destructive)
 	$(MAKE) NAME=peer2 clean@incus
 	# Clean up shared resources after all nodes are removed
 	echo "[+] Cleaning up shared cluster resources..."
-	incus network delete $(RKE2_CLUSTER_VIP_BRIDGE_NAME) --project=rke2 2>/dev/null || true
+	$(INCUS) network delete $(RKE2_CLUSTER_VIP_BRIDGE_NAME) --project=rke2 2>/dev/null || true
 	echo "[+] All cluster resources cleaned up"
 
 #-----------------------------
