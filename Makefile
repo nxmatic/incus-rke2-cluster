@@ -231,9 +231,6 @@ export NOCLOUD_NETCFG_FILE
 .PHONY: debug-trace help
 
 
-.PHONY: help
-help: ## Show this help message with available targets
-	$(make-help)
 
 all: start ## Build and start the default RKE2 node (master)
 

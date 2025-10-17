@@ -98,7 +98,7 @@ fi; \
 bold='\033[1m'; cyan='\033[36m'; reset='\033[0m'; \
 echo ""; \
 echo "Target groups:"; \
-group() { grp_name="$$1"; shift; pattern="$$1"; shift; lines=$$(echo "$$ALL_HELP_LINES" | grep -E "^($$pattern):" || true); count=$$(echo "$$lines" | grep -c . || true); printf "\n${bold}[$$grp_name]${reset} (%s)\n" "$$count"; echo "$$lines" | awk -v c="$$cyan" -v r="$$reset" 'BEGIN{FS=":.*?## "} NF>=2 {printf "  %s%-30s%s %s\n", c, $1, r, $2}' ; }; \
+group() { grp_name="$$1"; shift; pattern="$$1"; shift; lines=$$(echo "$$ALL_HELP_LINES" | grep -E "^($$pattern):" || true); count=$$(echo "$$lines" | grep -c . || true); printf "\n${bold}[$$grp_name]${reset} (%s)\n" "$$count"; echo "$$lines" | awk -v c="$$cyan" -v r="$$reset" 'BEGIN{FS=":.*?## "} NF>=2 {printf "  %s%-30s%s %s\n", c, $$1, r, $$2}' ; }; \
 group Lifecycle 'start|stop|delete|clean|clean-all|shell|instance|status|debug|scale|restart'; \
 group Network 'summary@network|diagnostics@network|status@network|allocation@network|validate@network|generate@rke2-networks|show@rke2-networks'; \
 group Cloud-Config 'validate-cloud-config|lint-cloud-config|debug-cloud-config-merge|show-cloud-config-files'; \
