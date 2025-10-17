@@ -1,0 +1,338 @@
+= Cloud Configuration Organization
+:toc: left
+:toclevels: 3
+:sectlinks:
+:sectanchors:
+:source-highlighter: rouge
+
+== Overview
+
+The cloud-config files have been reorganized into a logical and maintainable structure with clear layering and separation of concerns for RKE2 cluster deployment.
+
+== File Structure
+
+The cloud-config files are organized as follows:
+
+[source]
+----
+cloud-config/
+├── rules.mk                         # Cloud-config generation and validation targets
+├── cloud-config.common.yaml         # Base configuration for ALL nodes
+├── cloud-config.server.yaml         # Shared configuration for ALL control plane nodes  
+├── cloud-config.master.base.yaml    # Master bootstrap base configuration
+├── cloud-config.master.cilium.yaml  # Cilium configuration for master
+├── cloud-config.master.kube-vip.yaml # Kube-VIP load balancer configuration
+├── cloud-config.peer.yaml           # Peer node specific configuration
+├── cloud-config.agent.yaml          # Agent/worker node configuration
+└── network-config.yaml              # Network configuration template
+----
+
+== Configuration Layering
+
+=== Layer 1: Common Base (`cloud-config.common.yaml`)
+
+**Purpose**: Base configuration for ALL nodes (masters + agents)
+
+**Includes**:
+
+* System configuration (ZFS, DNS)
+* RKE2 & Kubelet base configuration  
+* Containerd ZFS snapshotter setup
+* Flox environment setup
+* Systemd services and scripts
+* Shell configurations
+* Utility scripts
+
+**Applied to**: ALL nodes (masters, peers, agents)
+
+=== Layer 2: Control Plane Shared (`cloud-config.server.yaml`)
+
+**Purpose**: Shared configuration for ALL control plane nodes
+
+**Includes**:
+
+* Core RKE2 server configuration
+* CNI (Cilium) configuration with BGP
+* Shared systemd service overrides
+* Pre-start and validation scripts
+* Control plane load balancer service
+
+**Applied to**: ALL control plane nodes (master, peer1, peer2)
+
+=== Layer 3: Bootstrap Base (`cloud-config.master.base.yaml`)
+
+**Purpose**: Master node bootstrap configuration (base components)
+
+**Includes**:
+
+* Core master bootstrap configuration
+* OpenEBS ZFS storage provisioner
+* Tailscale operator installation
+* Control plane load balancer service
+* Validation scripts
+
+**Applied to**: Master node ONLY during first boot
+
+=== Layer 4: Cilium Configuration (`cloud-config.master.cilium.yaml`)
+
+**Purpose**: Advanced networking features for master node
+
+**Includes**:
+
+* Full-feature Cilium configuration
+* BGP control plane setup
+* Envoy Gateway installation
+* Gateway API and Ingress Controller
+* Hubble observability (Relay + UI)
+* L7 proxy configuration
+* Cluster resource CRDs
+
+**Applied to**: Master node when full networking features needed
+
+=== Layer 5: Load Balancer (`cloud-config.master.kube-vip.yaml`)
+
+**Purpose**: Kube-VIP load balancer for HA control plane
+
+**Includes**:
+
+* Kube-VIP configuration
+* Virtual IP management
+* Load balancer services
+* HA control plane setup
+
+**Applied to**: Master node for HA deployments
+
+=== Layer 6: Node-Specific Configuration
+
+**Purpose**: Individual node configurations
+
+* **`cloud-config.peer.yaml`**: Peer node-specific ETCD configuration
+* **`cloud-config.agent.yaml`**: Worker node configuration
+
+**Applied to**: Each individual node type
+
+== Key Organizational Principles
+
+=== Separation of Concerns
+
+1. **Common vs. Role-Specific**: Base system configuration separated from role-specific settings
+2. **Bootstrap vs. Runtime**: One-time bootstrap components separated from ongoing configuration
+3. **Feature Isolation**: Advanced features (Cilium, BGP) in separate overlays
+4. **Network Modes**: Support for both per-node and shared networking topologies
+
+=== Configuration Composition
+
+The Makefile automatically composes configurations based on node role and requirements:
+
+[source,makefile]
+----
+# Master node composition (full features)
+$(NOCLOUD_USERDATA_FILE): cloud-config.common.yaml
+$(NOCLOUD_USERDATA_FILE): cloud-config.server.yaml
+$(NOCLOUD_USERDATA_FILE): cloud-config.master.base.yaml
+$(NOCLOUD_USERDATA_FILE): cloud-config.master.cilium.yaml
+$(NOCLOUD_USERDATA_FILE): cloud-config.master.kube-vip.yaml
+
+# Peer node composition
+$(NOCLOUD_USERDATA_FILE): cloud-config.common.yaml
+$(NOCLOUD_USERDATA_FILE): cloud-config.server.yaml
+$(NOCLOUD_USERDATA_FILE): cloud-config.peer.yaml
+----
+
+== Network Modes
+
+Two networking topology strategies are supported:
+
+=== Per-Node Mode (Default)
+
+* Each control-plane node gets its own bridge (`rke2-<name>-br`)
+* Individual profiles maintain isolation boundaries
+* Matches original design with per-node dnsmasq zones
+
+=== Shared Mode
+
+* All control-plane nodes share a single bridge (`rke2-shared-br`)
+* Reduces nftables complexity
+* Simplifies debugging of outbound egress
+* Lower isolation boundaries
+
+Usage:
+
+[source,bash]
+----
+make NETWORK_MODE=shared NAME=master start
+make NETWORK_MODE=shared NAME=peer1 start
+----
+
+== Cilium Profiles
+
+=== Profile Selection
+
+Cilium configuration supports multiple profiles for different deployment needs:
+
+* **Full Profile**: Complete feature set with BGP, L7 proxy, Hubble UI
+* **Minimal Profile**: Lean datapath for troubleshooting or constrained environments
+
+Usage:
+
+[source,bash]
+----
+make CILIUM_PROFILE=minimal NAME=master start
+make CILIUM_PROFILE=full NAME=master start
+----
+
+=== Full Profile Features
+
+* BGP control plane
+* Envoy Gateway integration
+* Gateway API and Ingress Controller
+* Hubble observability (Relay + UI)
+* L7 proxy and policy enforcement
+* Cluster mesh capabilities
+* Advanced networking features
+
+=== Minimal Profile Features
+
+* Basic CNI functionality
+* Reduced resource consumption
+* Simplified datapath
+* Essential networking only
+* Debugging-friendly configuration
+
+== Validation and Diagnostics
+
+=== Configuration Validation
+
+[source,bash]
+----
+# Validate cloud-config files
+make validate-cloud-config
+
+# Lint YAML syntax
+make lint-cloud-config
+
+# Debug merge process
+make debug-cloud-config-merge
+----
+
+=== Network Diagnostics
+
+[source,bash]
+----
+# Preflight network checks
+./scripts/preflight-network.sh
+
+# Cilium diagnostics
+./scripts/diagnostics-cilium-egress.sh
+./scripts/diagnostics-cilium-egress-extended.sh
+
+# Sysdump analysis
+./scripts/analyze-cilium-sysdump.sh before.tar.gz after.tar.gz
+----
+
+=== Profile Verification
+
+**Minimal Profile Validation**:
+
+[source,bash]
+----
+kubectl -n kube-system exec ds/cilium -- cilium config view | grep -E 'EnableL7Proxy|KubeProxyReplacement'
+# Expected: EnableL7Proxy: false, KubeProxyReplacement: false
+----
+
+**Full Profile Validation**:
+
+[source,bash]
+----
+kubectl -n kube-system exec ds/cilium -- cilium status | grep -E 'Hubble|L7'
+# Expected: Hubble OK and L7 proxy enabled
+----
+
+== Benefits
+
+=== Maintainability
+
+* **Reduced Duplication**: Common configurations defined once
+* **Clear Separation**: Bootstrap vs. runtime configurations separated
+* **Logical Grouping**: Related configurations grouped by function
+* **Easier Updates**: Changes propagate automatically to dependent nodes
+
+=== Flexibility
+
+* **Composable Configuration**: Mix and match layers for different scenarios
+* **Profile Selection**: Choose appropriate feature set for deployment needs
+* **Network Topology**: Support multiple networking approaches
+* **Scaling**: Easy addition of new nodes with minimal configuration
+
+=== Debugging
+
+* **Feature Isolation**: Problems can be isolated to specific layers
+* **Incremental Deployment**: Start minimal and add features gradually
+* **Diagnostic Tools**: Comprehensive tooling for troubleshooting
+* **Clear Dependencies**: Layer relationships are explicit
+
+== Migration Guidelines
+
+=== From Legacy Configuration
+
+1. **Stop existing instances**: `make NAME=peer1 stop`
+2. **Clean artifacts**: `make clean-all` (optional)
+3. **Recreate with new structure**: Use layered configuration
+4. **Validate functionality**: Run diagnostic checks
+
+=== Profile Migration
+
+1. **Start minimal**: Begin with minimal Cilium profile
+2. **Validate basic functionality**: Ensure networking works
+3. **Upgrade to full**: Add advanced features when stable
+4. **Monitor resources**: Check resource consumption differences
+
+=== Network Mode Migration
+
+1. **Document current topology**: Record existing network setup
+2. **Choose target mode**: Decide on per-node vs. shared
+3. **Recreate infrastructure**: Deploy with new network mode
+4. **Verify connectivity**: Test all network paths
+
+== Future Enhancements
+
+=== Additional Profiles
+
+* **Security Profile**: Enhanced security features and policies
+* **Performance Profile**: Optimized for high-throughput workloads
+* **Edge Profile**: Lightweight for edge computing scenarios
+
+=== Enhanced Diagnostics
+
+* **Automated Health Checks**: Continuous monitoring and validation
+* **Performance Metrics**: Built-in performance monitoring
+* **Compliance Checking**: Security and compliance validation
+
+=== Configuration Management
+
+* **Template Validation**: Schema validation for cloud-config files
+* **Dependency Checking**: Automatic dependency resolution
+* **Version Management**: Configuration versioning and rollback
+
+== Best Practices
+
+=== Configuration Development
+
+1. **Start Simple**: Begin with minimal configuration
+2. **Test Incrementally**: Add features one at a time
+3. **Validate Changes**: Test each configuration layer
+4. **Document Decisions**: Record rationale for configuration choices
+
+=== Production Deployment
+
+1. **Use Full Validation**: Run all diagnostic checks
+2. **Plan Network Topology**: Choose appropriate network mode
+3. **Monitor Resources**: Track resource consumption
+4. **Have Rollback Plan**: Maintain previous working configuration
+
+=== Troubleshooting
+
+1. **Check Layer by Layer**: Isolate problems to specific layers
+2. **Use Diagnostic Tools**: Leverage provided scripts and tools
+3. **Start Minimal**: Strip down to minimal configuration when debugging
+4. **Document Issues**: Record problems and solutions for future reference

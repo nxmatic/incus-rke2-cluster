@@ -1,0 +1,277 @@
+= Auto-Documented Makefile Help System
+:toc: left
+:toclevels: 3
+:sectlinks:
+:sectanchors:
+:source-highlighter: rouge
+
+== Overview
+
+Implementation of a comprehensive auto-documented help system for GNU Make, based on the pattern from https://marmelab.com/blog/2016/02/29/auto-documented-makefile.html with enhancements for multi-layer architecture.
+
+== How It Works
+
+=== Documentation Syntax
+
+Add help comments using `## ` after target definitions:
+
+[source,makefile]
+----
+start: start@incus ## Start RKE2 node instance (creates if needed)
+stop: stop@incus ## Stop running RKE2 node instance  
+clean: clean@incus ## Clean RKE2 node (delete instance + config)
+----
+
+=== Help Command
+
+The `help` target automatically extracts and formats these comments:
+
+[source,makefile]
+----
+help: ## Show this help message with available targets
+	@echo "Usage: make <target> [NAME=node] [RKE2_CLUSTER_NAME=cluster]"
+	@echo ""
+	@echo "Main targets:"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(word 1,$(MAKEFILE_LIST)) | sort | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+----
+
+=== Key Features
+
+1. **Default Target**: `help` is now the default when running `make` without arguments
+2. **Colored Output**: Uses ANSI color codes for better readability
+3. **Sorted Display**: Targets are automatically sorted alphabetically  
+4. **Usage Examples**: Shows common usage patterns
+5. **Clean Extraction**: Only searches main Makefile to avoid noise
+
+== Usage
+
+Simply run:
+
+[source,bash]
+----
+make help
+# or just
+make
+----
+
+Output example:
+
+----
+Usage: make <target> [NAME=node] [RKE2_CLUSTER_NAME=cluster]
+
+Main targets:
+all                            Build and start the default RKE2 node (master)
+clean-all                      Clean all nodes in cluster (destructive)
+clean                          Clean RKE2 node (delete instance + config)
+debug                          Debug variable construction and runtime config
+delete                         Delete RKE2 node instance (keeps config) 
+help                           Show this help message with available targets
+start                          Start RKE2 node instance (creates if needed)
+stop                           Stop running RKE2 node instance
+...
+
+Examples:
+  make start                    # Start default master node
+  make start NAME=peer1         # Start peer1 node  
+  make clean-all                # Clean entire cluster
+  make debug NAME=worker1       # Debug worker1 configuration
+----
+
+== Implementation Details
+
+=== Avoiding Side Effects
+
+To prevent the help command from triggering complex operations:
+
+[source,makefile]
+----
+# Skip network generation and metaprogramming for help
+ifneq ($(MAKECMDGOALS),help)
+-include network/rules.mk
+-include metaprogramming/rules.mk
+endif
+----
+
+=== Multi-Layer Support
+
+The help system automatically discovers targets from all layered `rules.mk` files:
+
+[source,bash]
+----
+# Scan all rules.mk files for documented targets
+$ grep -h "^[a-zA-Z_-]*:.*##" */rules.mk | sort
+debug-cloud-config-merge: ## Debug cloud-config merge process
+disable-metaprogramming: ## Disable metaprogramming (use basic targets only)
+enable-metaprogramming: ## Enable advanced metaprogramming features
+lint-cloud-config: ## Lint cloud-config YAML files
+list-generated-targets: ## List all metaprogramming-generated targets
+show-cloud-config-files: ## Show cloud-config files for current node type
+show-metaprogramming-features: ## Show available metaprogramming features
+validate-cloud-config: ## Validate merged cloud-config
+----
+
+=== Documentation Standards
+
+All user-facing targets should include help comments:
+
+* **Lifecycle**: start, stop, delete, clean, shell, instance
+* **Network**: network, host-network, vm-network
+* **Debug**: debug, status, show-runtime-config  
+* **Cluster**: clean-all, scale
+* **Generated**: All metaprogramming-generated targets
+
+== Layer-Specific Help
+
+Each layer provides specialized help targets:
+
+=== Network Layer Help
+
+[source,makefile]
+----
+.PHONY: help-network
+help-network: ## Show network-specific targets and configuration
+	@echo "Network Layer Targets:"
+	@echo "====================="
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' network/rules.mk | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  %-25s %s\n", $$1, $$2}'
+----
+
+=== Metaprogramming Layer Help
+
+[source,makefile]
+----
+.PHONY: show-metaprogramming-features
+show-metaprogramming-features: ## Show available metaprogramming features
+	@echo "Advanced Metaprogramming Features:"
+	@echo "=================================="
+	@echo "1. Dynamic Rule Generation (eval function)"
+	@echo "2. Constructed Macro Names"
+	@echo "3. Runtime Configuration Generation"
+	@echo "4. Secondary Expansion (network dependencies)"
+----
+
+=== Cloud-Config Layer Help
+
+[source,makefile]
+----
+.PHONY: show-cloud-config-files
+show-cloud-config-files: ## Show cloud-config files for current node type
+	@echo "Cloud-config files for $(RKE2_NODE_NAME) ($(RKE2_NODE_ROLE)):"
+	@echo "  Common: cloud-config/cloud-config.common.yaml"
+	@echo "  Server: cloud-config/cloud-config.server.yaml"
+ifeq ($(RKE2_NODE_ROLE),master)
+	@echo "  Master: cloud-config/cloud-config.master.*.yaml"
+else ifeq ($(RKE2_NODE_ROLE),peer)
+	@echo "  Peer: cloud-config/cloud-config.peer.yaml"
+endif
+----
+
+== Advanced Features
+
+=== Color-Coded Output
+
+The help system uses ANSI color codes for better readability:
+
+* **Target names**: Cyan (`\033[36m`)
+* **Descriptions**: Default color
+* **Section headers**: Bold when supported
+
+=== Context-Aware Help
+
+Help content adapts based on current configuration:
+
+[source,makefile]
+----
+help: ## Show context-aware help
+	@echo "Current Configuration:"
+	@echo "  Cluster: $(RKE2_CLUSTER_NAME)"
+	@echo "  Node: $(RKE2_NODE_NAME) ($(RKE2_NODE_ROLE))"
+	@echo "  Network: $(CLUSTER_INET_NETWORK)"
+	@echo ""
+----
+
+=== Help Target Discovery
+
+Automatically find all available help targets:
+
+[source,makefile]
+----
+.PHONY: list-help-targets
+list-help-targets: ## List all available help and documentation targets
+	@echo "Available Help Targets:"
+	@grep -h "help.*:.*##" Makefile */rules.mk | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  %-25s %s\n", $$1, $$2}'
+----
+
+=== Generated Target Integration
+
+Metaprogramming-generated targets are automatically included:
+
+[source,makefile]
+----
+# Generated targets get automatic documentation
+define NODE_RULE_TEMPLATE
+start-$(1): ## Start $(1) node (auto-generated)
+	$$(MAKE) start NAME=$(1)
+endef
+----
+
+== Benefits
+
+=== Self-Documenting Code
+
+* Documentation lives with the code
+* Always up-to-date with current targets
+* No separate documentation to maintain
+
+=== Discoverability
+
+* New users can explore available functionality
+* Context-aware help shows relevant options
+* Layer-specific help for focused workflows
+
+=== Consistency
+
+* Standardized documentation format
+* Automatic formatting and organization
+* Predictable help interface across layers
+
+=== Maintainability
+
+* Easy to add documentation to new targets
+* Automatic discovery of documented targets
+* No central help file to maintain
+
+== Advanced Pattern
+
+For complex projects with multiple files, consider the enhanced pattern:
+
+[source,makefile]
+----
+# Enhanced help with file grouping
+help:
+	@awk '/^## / { if (c) {print c}; c=substr($$0, 4); next } \
+	     c && /(^[[:alpha:]][[:alnum:]_-]+:)/ \
+	     {print $$1, "\t", c; c=0} \
+	     END { print c }' $(MAKEFILE_LIST)
+----
+
+This allows for section headers using `## Header Text` comments.
+
+== Integration with Layered Architecture
+
+The help system seamlessly integrates with the layered architecture:
+
+* **Main Makefile**: Provides overview and examples
+* **Layer rules.mk**: Detailed layer-specific targets
+* **Automatic discovery**: Finds targets across all layers
+* **Consistent format**: Same documentation pattern everywhere
+
+This creates a comprehensive, self-maintaining documentation system that grows naturally with the project.
+
+== References
+
+* https://marmelab.com/blog/2016/02/29/auto-documented-makefile.html[Original marmelab article]
+* https://stackoverflow.com/questions/35730218/how-to-automatically-generate-a-makefile-help-command[Stack Overflow discussion]
+* https://gist.github.com/merof-code/df49398b101675d44ccb48a652cdbe55[Advanced multi-file patterns]

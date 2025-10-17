@@ -1,0 +1,76 @@
+# incus instance config (@codebase)
+name: ${RKE2_NODE_NAME}
+architecture: aarch64
+profiles:
+  - ${RKE2_NODE_PROFILE_NAME}
+config:
+  raw.lxc: |
+    lxc.cap.drop =
+    lxc.apparmor.profile = unconfined
+    lxc.mount.auto = proc:rw sys:rw cgroup-full:rw
+    lxc.cgroup.devices.allow = c *:* rwm
+    lxc.cgroup.devices.allow = b *:* rwm
+  security.privileged: true
+  security.nesting: true
+  # RKE2 Core Configuration
+  environment.RKE2_DEBUG: true
+  environment.RKE2_NODE_TYPE: "${RKE2_NODE_TYPE}"
+  environment.RKE2_CLUSTER_NAME: "${RKE2_CLUSTER_NAME}"
+  environment.RKE2_CLUSTER_TOKEN: "${RKE2_CLUSTER_TOKEN}"
+  environment.RKE2_CLUSTER_DOMAIN: "${RKE2_CLUSTER_DOMAIN}"
+  environment.RKE2_NODE_ROLE: "${RKE2_NODE_ROLE}"
+  environment.RKE2_NODE_NAME: "${RKE2_NODE_NAME}"
+  environment.RKE2_POD_NETWORK_CIDR: "${RKE2_POD_NETWORK_CIDR}"
+  environment.RKE2_SERVICE_NETWORK_CIDR: "${RKE2_SERVICE_NETWORK_CIDR}"
+  # RKE2 Network Configuration
+  environment.RKE2_CLUSTER_ID: "${RKE2_CLUSTER_ID}"
+  environment.RKE2_NODE_ID: "${RKE2_NODE_ID}"
+  environment.RKE2_NODE_HOST_IP: "${RKE2_NODE_HOST_IP}"
+  environment.RKE2_NODE_VIP_IP: "${RKE2_NODE_VIP_IP}"
+  environment.RKE2_NODE_NETWORK_CIDR: "${RKE2_NODE_NETWORK_CIDR}"
+  environment.RKE2_NODE_GATEWAY_IP: "${RKE2_NODE_GATEWAY_IP}"
+  environment.RKE2_CLUSTER_VIP_BRIDGE_NAME: "${RKE2_CLUSTER_VIP_BRIDGE_NAME}"
+  environment.RKE2_CLUSTER_VIP_BRIDGE_CIDR: "${RKE2_CLUSTER_VIP_BRIDGE_CIDR}"
+  environment.RKE2_NODE_LAN_BRIDGE_NAME: "${RKE2_NODE_LAN_BRIDGE_NAME}"
+  environment.RKE2_NODE_WAN_BRIDGE_NAME: "${RKE2_NODE_WAN_BRIDGE_NAME}"
+  # Tailscale Configuration
+  environment.TSID: "${TSID}"
+  environment.TSKEY: "${TSKEY_CLIENT}"
+devices:
+  kmsg.dev:
+    type: unix-char
+    source: /dev/kmsg
+    path: /dev/kmsg
+  zfs.dev:
+    type: unix-char
+    source: /dev/zfs
+    path: /dev/zfs
+  secrets.dir:
+    type: disk
+    source: ${PWD}/.secrets.d
+    path: /.secrets.d
+    readonly: "true"
+  shared.dir:
+    type: disk
+    source: ${PWD}/${RUN_INSTANCE_DIR}/shared
+    path: /.shared.d
+  logs.dir:
+    type: disk
+    source: ${PWD}/${RUN_INSTANCE_DIR}/logs
+    path: /.logs.d
+  kubeconfig.dir:
+    type: disk
+    source: ${PWD}/${RUN_INSTANCE_DIR}/kube
+    path: /.kubeconfig.d
+  user.metadata:
+    type: disk
+    source: ${PWD}/${NOCLOUD_METADATA_FILE}
+    path: /var/lib/cloud/seed/nocloud/meta-data
+  user.user-data:
+    type: disk
+    source: ${PWD}/${NOCLOUD_USERDATA_FILE}
+    path: /var/lib/cloud/seed/nocloud/user-data
+  user.network-config:
+    type: disk
+    source: ${PWD}/${NOCLOUD_NETCFG_FILE}
+    path: /var/lib/cloud/seed/nocloud/network-config

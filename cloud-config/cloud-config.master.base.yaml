@@ -28,9 +28,9 @@ write_files:
       kubectl get ciliumloadbalancerippool -o wide || true
       kubectl get svc control-plane-lb -n kube-system -o wide || true
       kubectl get endpoints control-plane-lb -n kube-system -o wide || true
-      kubectl get ciliumbgpclusterconfig -o wide || true
-      kubectl get ciliumbgpadvertisement -o wide || true
-      kubectl get ciliuml2announcementpolicy -o wide || true
+      kubectl get ciliumBGPClusterConfig -o wide || true
+      kubectl get ciliumBGPAdvertisement -o wide || true
+      kubectl get ciliumL2AnnouncementPolicy -o wide || true
 
   - path: /etc/systemd/system/rke2-server.service.d/post-start-master.conf
     content: |
@@ -128,7 +128,7 @@ write_files:
         subnetRouter:
           advertiseRoutes:
             # Control-plane virtual IP (host route)
-            - ${CLUSTER_INET_VIRTUAL}/32
+            - ${CLUSTER_VIP_GATEWAY}/32
             # LoadBalancer allocation pool (so in-cluster LB IPs are reachable directly)
             - ${CLUSTER_LOADBALANCERS_CIDR}
         # NOTE: Additional service-specific Tailscale exposure can still be done

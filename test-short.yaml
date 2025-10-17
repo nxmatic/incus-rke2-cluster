@@ -1,5 +1,0 @@
-write_files:
-  - path: /etc/test/short
-    content: |
-      LINE1=value
-      LINE2=value

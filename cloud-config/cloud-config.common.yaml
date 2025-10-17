@@ -1,6 +1,6 @@
 # Common cloud-init configuration for all RKE2 nodes (masters and agents)
 
-hostname: ${CLUSTER_NODE_NAME}-control-node
+hostname: ${RKE2_NODE_NAME}-control-node
 
 manage_resolv_conf: true
 resolv_conf:
@@ -98,20 +98,10 @@ write_files:
         - gateway
         - 0.0.0.0
         - 127.0.0.1
-        - ${CLUSTER_INET_VIRTUAL} # cluster VIP address
-        - ${CLUSTER_INET_MASTER} # master control node
-        - ${CLUSTER_INET_MASTER_GATEWAY} # master gateway (peer-to-peer connections)
-        - ${CLUSTER_INET_PEER1} # peer1 control node
-        - ${CLUSTER_INET_PEER1_GATEWAY} # peer1 gateway (peer-to-peer connections)
-        - ${CLUSTER_INET_PEER2} # peer2 control node
-        - ${CLUSTER_INET_PEER2_GATEWAY} # peer2 gateway (peer-to-peer connections)
-        - ${CLUSTER_INET6_VIRTUAL} # cluster VIP address (IPv6)
-        - ${CLUSTER_INET6_MASTER} # master control node (IPv6)
-        - ${CLUSTER_INET6_MASTER_GATEWAY} # master gateway (IPv6)
-        - ${CLUSTER_INET6_PEER1} # peer1 control node (IPv6)
-        - ${CLUSTER_INET6_PEER1_GATEWAY} # peer1 gateway (IPv6)
-        - ${CLUSTER_INET6_PEER2} # peer2 control node (IPv6)
-        - ${CLUSTER_INET6_PEER2_GATEWAY} # peer2 gateway (IPv6)
+        - ${RKE2_CLUSTER_VIP_GATEWAY_IP} # cluster VIP gateway
+        - ${RKE2_NODE_GATEWAY_IP} # node gateway
+        # Note: VIP gateway removed - not a client endpoint
+        # IPv6 addresses removed for IPv4-only configuration
 
   # Enable etcd metrics exposure
   - path: /etc/rancher/rke2/config.yaml.d/etcd-metrics.yaml
@@ -123,11 +113,15 @@ write_files:
   # have consistent view.
   - path: /etc/rancher/rke2/config.yaml.d/network-cidrs.yaml
     content: |
-      cluster-cidr: ${CLUSTER_PODS_CIDR}
-      service-cidr: ${CLUSTER_SERVICES_CIDR}
+      cluster-cidr: ${RKE2_POD_NETWORK_CIDR}
+      service-cidr: ${RKE2_SERVICE_NETWORK_CIDR}
       kube-controller-manager-arg:
         - node-cidr-mask-size-ipv4=24
-        - node-cidr-mask-size-ipv6=64
+
+  # IPv4-only node IP configuration to prevent dual-stack auto-detection
+  - path: /etc/rancher/rke2/config.yaml.d/node-ip.yaml
+    content: |
+      node-ip: ${RKE2_NODE_HOST_IP}
 
   # =============================================================================
   # KUBELET CONFIGURATION FILES
@@ -364,6 +358,7 @@ write_files:
       [Service]
       ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-tools-configuration-directories'
       ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-vip-kubeconfig'
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-cilium-check'
 
   - path: /etc/systemd/system/rke2-agent.service.d/kubeconfig.conf
     content: |
@@ -434,6 +429,91 @@ write_files:
   # =============================================================================
   # UTILITY SCRIPTS
   # =============================================================================
+
+  # Route cleanup script to remove DHCP default routes
+  - path: /usr/local/sbin/rke2-route-cleanup
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+
+      # Log all operations
+      exec > >(logger -t rke2-route-cleanup) 2>&1
+
+      echo "=== RKE2 Route Cleanup at $(date) ==="
+
+      echo "=== Routes Before Cleanup ==="
+      ip route show || true
+
+      # Remove default route from lan0 (DHCP interface) if it exists
+      # This prevents conflicts with the static WAN route
+      if ip route show default dev lan0 >/dev/null 2>&1; then
+        echo "[+] Removing DHCP default route from lan0"
+        ip route del default dev lan0 || true
+      else
+        echo "[i] No DHCP default route found on lan0"
+      fi
+
+      # Ensure our static default route via wan0 is present
+      if ! ip route show default dev wan0 >/dev/null 2>&1; then
+        echo "[!] Warning: No default route via wan0 found"
+        echo "[+] Current routes:"
+        ip route show
+      else
+        echo "[i] Default route via wan0 is properly configured"
+      fi
+
+      echo "=== Routes After Cleanup ==="
+      ip route show || true
+
+      echo "=== Route Cleanup Complete at $(date) ==="
+
+  # Network wait script for proper timing
+  - path: /usr/local/sbin/rke2-network-wait
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+
+      # Log all operations
+      exec > >(logger -t rke2-network-wait) 2>&1
+
+      : "=== RKE2 Network Wait at $(date) ==="
+
+      # Wait for networkd to be active
+      while ! systemctl is-active systemd-networkd >/dev/null 2>&1; do
+        : "[.] Waiting for systemd-networkd..."
+        sleep 2
+      done
+
+      # Wait for interfaces to be configured
+      for iface in wan0 lan0; do
+        : "[+] Waiting for interface $$iface..."
+        timeout=30
+        while [ $$timeout -gt 0 ]; do
+          if ip link show "$$iface" >/dev/null 2>&1 && \
+             networkctl status "$$iface" | grep -q "State: configured\|routable" 2>/dev/null; then
+            : "[i] Interface $$iface is ready"
+            break
+          fi
+          : "[.] Waiting for $$iface (timeout: $$timeout)..."
+          sleep 1
+          timeout=$$((timeout - 1))
+        done
+
+        if [ $$timeout -eq 0 ]; then
+          : "[!] Warning: Interface $$iface not ready after 30 seconds"
+        fi
+      done
+
+      # Brief additional wait for routes to stabilize
+      : "[+] Allowing routes to stabilize..."
+      sleep 3
+
+      : "=== Final Network Status ==="
+      ip addr show || true
+      : "=== Final Routes ==="
+      ip route show || true
+
+      : "=== Network Wait Complete at $(date) ==="
 
   # Network debugging script for troubleshooting boot timing
   - path: /usr/local/sbin/rke2-network-debug
@@ -611,7 +691,7 @@ write_files:
       : "Apply modifications to working copy"
       yq --inplace --from-file=<(cat <<EoE
       .clusters[0].cluster.name = "${CLUSTER_NAME}" |
-      .clusters[0].cluster.server = "https://${CLUSTER_INET_VIRTUAL}:6443" |
+      .clusters[0].cluster.server = "https://${CLUSTER_VIP_GATEWAY}:6443" |
       .clusters[0].name = "${CLUSTER_NAME}" |
       .contexts[0].context.cluster = "${CLUSTER_NAME}" |
       .contexts[0].context.namespace = "kube-system" |
@@ -668,6 +748,28 @@ write_files:
 
       [Install]
       WantedBy=multi-user.target
+  - path: /etc/systemd/system/rke2-route-cleanup.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=RKE2 Route Cleanup Service - Remove DHCP default routes
+      After=network-online.target systemd-networkd.service
+      Wants=network-online.target systemd-networkd.service
+      Before=rke2-server.service rke2-agent.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-route-cleanup
+      RemainAfterExit=true
+      StandardOutput=journal+console
+      StandardError=journal+console
+      Restart=on-failure
+      RestartSec=5
+      StartLimitBurst=3
+      StartLimitIntervalSec=30
+
+      [Install]
+      WantedBy=multi-user.target
   - path: /etc/systemd/system/zfs-early-umount.service
     permissions: "0644"
     content: |
@@ -698,6 +800,7 @@ write_files:
 
       [Install]
       WantedBy=multi-user.target
+
   - path: /etc/systemd/system/rke2-install.service
     permissions: "0644"
     content: |
@@ -725,6 +828,7 @@ runcmd:
       rke2-network-config.service,
       rke2-network-debug.service,
       rke2-network-wait.service,
+      rke2-route-cleanup.service,
       zfs-early-umount.service,
       rke2-remount-shared.service,
       rke2-install.service ]

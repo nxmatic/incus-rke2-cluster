@@ -1,0 +1,892 @@
+# Makefile for Incus RKE2 Cluster
+#-----------------------------
+# Shell, Project, and Run Directory Variables
+#-----------------------------
+
+SHELL := /bin/bash -exo pipefail
+# Ensure NixOS wrappers are first in PATH
+export PATH := /run/wrappers/bin:/run/current-system/sw/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+
+# Use NixOS sudo wrapper if available, fallback to system sudo
+SUDO := $(shell test -x /run/wrappers/bin/sudo && echo /run/wrappers/bin/sudo || command -v sudo)
+
+# Remote execution for Lima VM - auto-detect if we're on macOS host vs NixOS guest
+LIMA_HOST := lima-nerd-nixos
+REMOTE_EXEC := $(shell if [ -x /run/wrappers/bin/sudo ]; then echo ""; else echo "ssh $(LIMA_HOST)"; fi)
+
+# Incus command timeout (in seconds)
+INCUS_TIMEOUT := 30
+INCUS := timeout $(INCUS_TIMEOUT) incus
+
+empty :=
+colon := :
+space := $(empty) $(empty)
+
+-include .gmsl/gmsl
+
+.gmsl/gmsl:
+	: Loading git sub-modules 
+	git submodule update --init --recursive
+
+# Network configuration macros (@codebase)
+# Define network triplet: prefix_length, gateway, cidr for a given base name
+define define-network-triplet
+$(1)_PREFIX_LENGTH := $(2)
+$(1)_GATEWAY_IP := $(3)
+$(1)_CIDR := $(3)/$(2)
+endef
+
+# Define dual-stack network (IPv4 + IPv6) triplets
+define define-network-dual-stack
+$(call define-network-triplet,$(1),$(2),$(3))
+$(call define-network-triplet,$(1)_V6,$(4),$(5))
+endef
+
+NAME ?= $(name)
+NAME := $(if $(NAME),$(NAME),master)
+
+#-----------------------------
+# Topology / Networking Mode
+#-----------------------------
+
+# Dual-stack always enabled (@codebase)
+# We embed both IPv4 and IPv6 cluster/service CIDRs directly; legacy ENABLE_IPV6
+# toggle removed to simplify path. Future per-prefix customization can reintroduce
+# derivation, but the control plane and Cilium are now expected to run dual-stack.
+
+# Directories
+SECRETS_DIR := .secrets.d
+RUN_DIR := .run.d
+IMAGE_DIR := $(RUN_DIR)/image
+RUN_INSTANCE_DIR := $(RUN_DIR)/$(NAME)
+INCUS_DIR := $(RUN_INSTANCE_DIR)/incus
+NOCLOUD_DIR := $(RUN_INSTANCE_DIR)/nocloud
+SHARED_DIR := $(RUN_INSTANCE_DIR)/shared
+KUBECONFIG_DIR := $(RUN_INSTANCE_DIR)/kube
+LOGS_DIR := $(RUN_INSTANCE_DIR)/logs
+
+#-----------------------------
+# Cluster Node Environment Variables
+#-----------------------------
+
+CLUSTER_NAME ?= $(LIMA_HOSTNAME)
+CLUSTER_TOKEN ?= $(CLUSTER_NAME)
+CLUSTER_IMAGE_NAME := control-node
+CLUSTER_NODE_NAME := $(NAME)
+
+# Determine RKE2 install type (master runs server role; peers run agent to avoid redundant etcd members unless explicitly desired)
+ifeq ($(CLUSTER_NODE_NAME),master)
+	INSTALL_RKE2_TYPE := server
+else ifneq (,$(findstring peer,$(CLUSTER_NODE_NAME)))
+	INSTALL_RKE2_TYPE := server
+else
+	INSTALL_RKE2_TYPE := agent
+endif
+
+
+# Derive a generic control-plane kind from the specific node name
+# master => master ; any name starting with 'peer' => peer
+ifeq ($(CLUSTER_NODE_NAME),master)
+CLUSTER_NODE_KIND := master
+else ifneq (,$(findstring peer,$(CLUSTER_NODE_NAME)))
+CLUSTER_NODE_KIND := peer
+else
+$(error Unable to derive CLUSTER_NODE_KIND from CLUSTER_NODE_NAME=$(CLUSTER_NODE_NAME))
+endif
+
+## ---------------------------------------------------------------------------
+## Hierarchical Addressing (unconditional) (@codebase)
+## ---------------------------------------------------------------------------
+## Global (all clusters):
+##   IPv4 supernet: 10.80.0.0/12
+##   IPv6 supernet: fd70:80::/32
+## Per-cluster aggregate:
+##   IPv4 /20 block: 10.80.(CLUSTER_ID*16).0/20  (third octet span of 16 values)
+##   IPv6 /48 block: fd70:80:CLUSTER_ID::/48
+## Per-node (bridge) subnet (kept compact, same L3 for inter-node reachability):
+##   We use a /24 network for the entire cluster VIP and node addressing
+##   All nodes and VIPs share the same /24: 10.80.<baseThird>.0/24
+##   Gateway = 10.80.<baseThird>.<n*16 + 1>
+##   This yields non-overlapping slices while keeping all nodes within one /24
+##   for simpler routing (kernel treats them as same broadcast domain, but we
+##   still create distinct bridges; if later consolidated to one bridge the
+##   allocations remain valid). (@codebase)
+## IPv6: per-node /64 inside cluster /48 ⇒ fd70:80:<cluster>::<nodeIndex>:/64
+## ---------------------------------------------------------------------------
+
+# Derive cluster numeric id (CLUSTER_SUBNET retained for backwards compatibility)
+ifeq (bioskop,$(CLUSTER_NAME))
+CLUSTER_SUBNET := 1
+else ifeq (alcide,$(CLUSTER_NAME))
+CLUSTER_SUBNET := 2
+else
+$(error Unsupported cluster name: $(CLUSTER_NAME))
+endif
+
+# Node index (compact 0,1,2,...) used by hierarchical addressing
+ifeq (master,$(CLUSTER_NODE_NAME))
+CLUSTER_NODE_INDEX := 0
+else ifeq (peer1,$(CLUSTER_NODE_NAME))
+CLUSTER_NODE_INDEX := 1
+else ifeq (peer2,$(CLUSTER_NODE_NAME))
+CLUSTER_NODE_INDEX := 2
+else
+$(error Invalid cluster node name: $(CLUSTER_NODE_NAME))
+endif
+
+# Derive cluster-wide aggregate block components
+CLUSTERS_SUPERNET_V4 := 10.80.0.0/12
+CLUSTERS_SUPERNET_V6 := fd70:80::/32
+CLUSTER_V4_BLOCK_OCTET := $(call multiply,$(CLUSTER_SUBNET),16)
+CLUSTER_V4_BLOCK := 10.80.$(CLUSTER_V4_BLOCK_OCTET).0/20
+$(call define-network-triplet,CLUSTER_V6,48,fd70:80:$(CLUSTER_SUBNET)::)
+# Legacy alias
+CLUSTER_V6_BLOCK := $(CLUSTER_V6_CIDR)
+
+# Per-node IPv4/IPv6 allocation - each node gets its own /24 IPv4 and /64 IPv6 block
+NODE_V4_THIRD_OCTET := $(call plus,$(CLUSTER_V4_BLOCK_OCTET),$(CLUSTER_NODE_INDEX))
+$(call define-network-dual-stack,NODE_V4,24,10.80.$(NODE_V4_THIRD_OCTET).1,64,fd70:80:$(CLUSTER_SUBNET):$(CLUSTER_NODE_INDEX)::1)
+
+# Provide a node-specific primary address (used as CLUSTER_NODE_INET for device assignment)
+CLUSTER_NODE_INET := 10.80.$(NODE_V4_THIRD_OCTET).3
+
+# Legacy aliases for backward compatibility
+NODE_V4_SUBNET := $(NODE_V4_CIDR)
+NODE_V4_GATEWAY := $(NODE_V4_GATEWAY_IP)
+NODE_V6_SUBNET := $(NODE_V4_V6_CIDR)
+NODE_V6_GATEWAY := $(NODE_V4_V6_GATEWAY_IP)
+
+# Virtual API / service stable IPs (choose high host numbers in master slice)
+CLUSTER_INET_VIRTUAL := 10.80.$(CLUSTER_V4_BLOCK_OCTET).250
+CLUSTER_INET6_VIRTUAL := fd70:80:$(CLUSTER_SUBNET):0::250
+
+# Control-plane node primary IPv4 addresses using per-node /24 allocation (@codebase)
+# Each node gets its own /24 block to eliminate NAT conflicts:
+#   master: 10.80.16.0/24 -> primary .3 (10.80.16.3)
+#   peer1:  10.80.17.0/24 -> primary .3 (10.80.17.3)  
+#   peer2:  10.80.18.0/24 -> primary .3 (10.80.18.3)
+# Legacy variable names retained for template compatibility
+CLUSTER_INET_MASTER := 10.80.$(call plus,$(CLUSTER_V4_BLOCK_OCTET),0).3
+CLUSTER_INET_PEER1 := 10.80.$(call plus,$(CLUSTER_V4_BLOCK_OCTET),1).3
+CLUSTER_INET_PEER2 := 10.80.$(call plus,$(CLUSTER_V4_BLOCK_OCTET),2).3
+
+# IPv6 per-node primary addresses (consistent with per-node /24 IPv4 scheme) (@codebase)
+# Each node gets dedicated /64 block aligned with IPv4 /24 allocation:
+#   master: fd70:80:1:0::/64 -> primary ::3 (fd70:80:1:0::3)
+#   peer1:  fd70:80:1:1::/64 -> primary ::3 (fd70:80:1:1::3) 
+#   peer2:  fd70:80:1:2::/64 -> primary ::3 (fd70:80:1:2::3)
+CLUSTER_INET6_MASTER := fd70:80:$(CLUSTER_SUBNET):0::3
+CLUSTER_INET6_PEER1 := fd70:80:$(CLUSTER_SUBNET):1::3
+CLUSTER_INET6_PEER2 := fd70:80:$(CLUSTER_SUBNET):2::3
+
+# VIP interface addresses for shared VIP bridge (each node gets unique IP in VIP range) (@codebase)
+# VIP range: 10.80.16.241-254 (Cilium manages .250 for API VIP, .241-249/.251-254 available)
+CLUSTER_VIP_INET_MASTER := 10.80.$(CLUSTER_V4_BLOCK_OCTET).241
+CLUSTER_VIP_INET_PEER1 := 10.80.$(CLUSTER_V4_BLOCK_OCTET).242
+CLUSTER_VIP_INET_PEER2 := 10.80.$(CLUSTER_V4_BLOCK_OCTET).243
+
+# Gateway addresses using per-node /24 allocation (@codebase)
+CLUSTER_INET_MASTER_GATEWAY := 10.80.$(call plus,$(CLUSTER_V4_BLOCK_OCTET),0).1
+CLUSTER_INET_PEER1_GATEWAY := 10.80.$(call plus,$(CLUSTER_V4_BLOCK_OCTET),1).1
+CLUSTER_INET_PEER2_GATEWAY := 10.80.$(call plus,$(CLUSTER_V4_BLOCK_OCTET),2).1
+CLUSTER_INET6_MASTER_GATEWAY := fd70:80:$(CLUSTER_SUBNET):0::1
+CLUSTER_INET6_PEER1_GATEWAY := fd70:80:$(CLUSTER_SUBNET):1::1
+CLUSTER_INET6_PEER2_GATEWAY := fd70:80:$(CLUSTER_SUBNET):2::1
+
+# Bridge / gateway vars consumed by templates
+CLUSTER_INET_GATEWAY := $(NODE_V4_GATEWAY)
+CLUSTER_INET6_GATEWAY := $(NODE_V6_GATEWAY)
+
+# Per-node VIP interface address (for shared VIP bridge)
+ifeq ($(CLUSTER_NODE_NAME),master)
+	CLUSTER_NODE_VIP_INET := $(CLUSTER_VIP_INET_MASTER)
+else ifeq ($(CLUSTER_NODE_NAME),peer1)
+	CLUSTER_NODE_VIP_INET := $(CLUSTER_VIP_INET_PEER1)
+else ifeq ($(CLUSTER_NODE_NAME),peer2)
+	CLUSTER_NODE_VIP_INET := $(CLUSTER_VIP_INET_PEER2)
+endif
+
+# IPv6 prefix (node-local) retained for template compatibility
+CLUSTER_INET6_PREFIX := fd70:80:$(CLUSTER_SUBNET):$(CLUSTER_NODE_INDEX)
+
+# Reverse ARPA (IPv4 only) updated for per-node /24 allocation
+# Pattern: host.third_octet.80.10
+CLUSTER_ARPA_GATEWAY := 1.$(NODE_V4_THIRD_OCTET).80.10
+CLUSTER_ARPA_VIRTUAL := 250.$(CLUSTER_V4_BLOCK_OCTET).80.10
+CLUSTER_ARPA_MASTER := 3.$(call plus,$(CLUSTER_V4_BLOCK_OCTET),0).80.10
+CLUSTER_ARPA_PEER1 := 3.$(call plus,$(CLUSTER_V4_BLOCK_OCTET),1).80.10
+CLUSTER_ARPA_PEER2 := 3.$(call plus,$(CLUSTER_V4_BLOCK_OCTET),2).80.10
+
+# Legacy variable names (previous model) mapped for compatibility  
+# Note: These are no longer offset-based but kept for template compatibility
+CLUSTER_NODE_OFFSET := $(CLUSTER_NODE_INDEX)
+CLUSTER_NODE_OFFSET_P1 := $(call plus,$(CLUSTER_NODE_OFFSET),1)
+CLUSTER_NODE_OFFSET_P2 := $(call plus,$(CLUSTER_NODE_OFFSET),2)
+
+## Rebased VIP + LB pools into disjoint hierarchical subnets (@codebase)
+## Goals:
+##   - Avoid any overlap between VIP pool and LB allocation space.
+##   - VIP and node IPs coexist within the /24 range with careful IP allocation.
+##   - Provide ample LB space while keeping VIP pool tight & predictable.
+## New shared /24 architecture layout:
+##   Shared VIP network: 10.80.16.0/24 (all nodes and VIPs share this space)
+##   Node allocation: .1 (gateway), .3+ (cluster nodes)
+##   LoadBalancer pool: .128-191 (/26 within the /24)
+##   VIP allocation: .250+ (control-plane and service VIPs)
+##     - LB pool: 10.80.16.128/26 (128-191) 
+##     - VIP pool: 10.80.16.0/24 (1-254) includes .250 stable control-plane VIP
+##     - LoadBalancer pool: .128-191 (within the /24)
+# VIP and LoadBalancer pools share the /24 for simplified management
+$(call define-network-triplet,CLUSTER_LOADBALANCERS,26,10.80.$(CLUSTER_V4_BLOCK_OCTET).129)
+$(call define-network-triplet,CLUSTER_VIRTUAL,24,10.80.$(CLUSTER_V4_BLOCK_OCTET).1)
+# -----------------------------------------------------------------------------
+# Per-cluster distinct Pod / Service CIDRs (dual-stack)
+#   Required for future Cilium Cluster Mesh (non-overlapping Pod CIDRs) (@codebase)
+#   Strategy: allocate deterministic even/odd pairs to each cluster for readability.
+#   - bioskop: Pods 10.42.0.0/16 fd00:10:42::/48 ; Services 10.43.0.0/16 fd00:10:43::/108
+#   - alcide : Pods 10.44.0.0/16 fd00:10:44::/48 ; Services 10.45.0.0/16 fd00:10:45::/108
+#   Override: user may pre-set CLUSTER_PODS_CIDR_V4/V6 / CLUSTER_SERVICES_CIDR_V4/V6 to bypass mapping.
+
+# IPv6 prefix lengths for Pod and Service networks
+CLUSTER_PODS_V6_PREFIX_LENGTH := 48
+CLUSTER_SERVICES_V6_PREFIX_LENGTH := 108
+# -----------------------------------------------------------------------------
+
+ifeq (bioskop,$(CLUSTER_NAME))
+CLUSTER_PODS_CIDR_V4 := 10.42.0.0/16
+CLUSTER_SERVICES_CIDR_V4 := 10.43.0.0/16
+CLUSTER_PODS_CIDR_V6 := fd00:10:42::/$(CLUSTER_PODS_V6_PREFIX_LENGTH)
+CLUSTER_SERVICES_CIDR_V6 := fd00:10:43::/$(CLUSTER_SERVICES_V6_PREFIX_LENGTH)
+else ifeq (alcide,$(CLUSTER_NAME))
+CLUSTER_PODS_CIDR_V4 := 10.44.0.0/16
+CLUSTER_SERVICES_CIDR_V4 := 10.45.0.0/16
+CLUSTER_PODS_CIDR_V6 := fd00:10:44::/$(CLUSTER_PODS_V6_PREFIX_LENGTH)
+CLUSTER_SERVICES_CIDR_V6 := fd00:10:45::/$(CLUSTER_SERVICES_V6_PREFIX_LENGTH)
+else
+$(error No CIDR mapping defined for CLUSTER_NAME=$(CLUSTER_NAME); set CLUSTER_PODS_CIDR_V4/CLUSTER_SERVICES_CIDR_V4 manually)
+endif
+
+
+# Compose combined dual-stack variables (retains existing template expectations)
+CLUSTER_PODS_CIDR := $(CLUSTER_PODS_CIDR_V4),$(CLUSTER_PODS_CIDR_V6)
+CLUSTER_SERVICES_CIDR := $(CLUSTER_SERVICES_CIDR_V4),$(CLUSTER_SERVICES_CIDR_V6)
+CLUSTER_DOMAIN := cluster.local
+## Legacy 172.31.* addressing overrides removed (@codebase)
+## The hierarchical 10.80.* / fd70:80::* assignments defined earlier are authoritative.
+## Keeping this comment block to avoid accidental reintroduction.
+
+# Incus bridge/profile names (dual bridge: lan0 + wan0) (@codebase)
+# Pattern: <node>lan0 / <node>wan0 (no hyphen; node prefix distinguishes per-node bridges)
+# Length check (<=15): masterlan0 (9), peer1wan0 (9) OK.
+CLUSTER_LAN_BRIDGE_NAME := $(CLUSTER_NODE_NAME)lan0
+CLUSTER_WAN_BRIDGE_NAME := $(CLUSTER_NODE_NAME)wan0
+# Bridge networks use the same configuration as node networks
+CLUSTER_BRIDGE_PREFIX_LENGTH := $(NODE_V4_PREFIX_LENGTH)
+CLUSTER_BRIDGE_GATEWAY_IP := $(NODE_V4_GATEWAY_IP)
+CLUSTER_BRIDGE_CIDR := $(NODE_V4_CIDR)
+CLUSTER_BRIDGE_V6_PREFIX_LENGTH := $(NODE_V4_V6_PREFIX_LENGTH)
+CLUSTER_BRIDGE_V6_GATEWAY_IP := $(NODE_V4_V6_GATEWAY_IP)
+CLUSTER_BRIDGE_V6_CIDR := $(NODE_V4_V6_CIDR)
+
+# Shared VIP bridge for all control-plane nodes (@codebase)
+CLUSTER_VIP_BRIDGE_NAME := rke2-vip
+CLUSTER_VIP_BRIDGE_CIDR := $(CLUSTER_VIRTUAL_CIDR)
+
+CLUSTER_PROFILE_NAME := rke2-$(CLUSTER_NODE_NAME)
+
+
+# Primary/secondary (LAN/WAN) Lima host interfaces (udev renamed) (@codebase)
+LIMA_LAN_INTERFACE ?= vmlan0
+LIMA_WAN_INTERFACE ?= vmwan0
+LIMA_PRIMARY_INTERFACE := $(LIMA_LAN_INTERFACE)
+LIMA_SECONDARY_INTERFACE := $(LIMA_WAN_INTERFACE)
+
+# Network mode for preseed template
+NETWORK_MODE := L2-bridge
+
+# Host interface to use for cluster egress traffic (using LAN bridge for LoadBalancer access)
+INCUS_EGRESS_INTERFACE := $(LIMA_PRIMARY_INTERFACE)
+export INCUS_EGRESS_INTERFACE
+
+#-----------------------------
+# Tailscale Configuration
+#-----------------------------
+TSID ?= $(file <$(SECRETS_DIR)/tsid)
+TSKEY_CLIENT ?= $(file <$(SECRETS_DIR)/tskey-client)
+TSKEY_API ?= $(file <$(SECRETS_DIR)/tskey-api)
+
+CLUSTER_ENV_FILE := $(INCUS_DIR)/cluster-env.mk
+
+-include $(CLUSTER_ENV_FILE)
+
+$(CLUSTER_ENV_FILE): _hwaddr = $(shell cat /sys/class/net/vmlan0/address)
+$(CLUSTER_ENV_FILE): _hwaddr_words = $(subst $(colon),$(space),$(_hwaddr))
+$(CLUSTER_ENV_FILE): _hwaddr_words_network_words = $(wordlist 4,5,$(_hwaddr_words))
+$(CLUSTER_ENV_FILE): _hwaddr_words_network_part = $(subst $(space),$(colon),$(_hwaddr_words_network_words))
+# MAC addressing scheme (scoped) (@codebase)
+# Target-specific vars so evaluation happens in context of the current node parameters.
+$(CLUSTER_ENV_FILE): MAC_OUI_DETECTED := $(shell cat /sys/class/net/vmlan0/address 2>/dev/null | cut -d: -f1-3)
+$(CLUSTER_ENV_FILE): MAC_OUI := $(if $(strip $(MAC_OUI_DETECTED)),$(MAC_OUI_DETECTED),10:66:6a)
+$(CLUSTER_ENV_FILE): MAC_CLUSTER_BYTE := $(shell printf '%02x' $(CLUSTER_SUBNET))
+$(CLUSTER_ENV_FILE): MAC_NODE_INDEX_BYTE := $(shell printf '%02x' $(CLUSTER_NODE_INDEX))
+$(CLUSTER_ENV_FILE): MAC_NODE_HOST_BYTE := $(shell printf '%02x' $(CLUSTER_NODE_OFFSET_P1))
+$(CLUSTER_ENV_FILE): HWADDR = $(MAC_OUI):$(MAC_CLUSTER_BYTE):$(MAC_NODE_INDEX_BYTE):$(MAC_NODE_HOST_BYTE)
+
+$(CLUSTER_ENV_FILE): NAME ?= master
+$(CLUSTER_ENV_FILE): TOKEN := $(CLUSTER_TOKEN)
+$(CLUSTER_ENV_FILE): DN := ${NAME}-$(CLUSTER_IMAGE_NAME)
+$(CLUSTER_ENV_FILE): FQDN := $(CLUSTER_NAME)-$(DN).$(LIMA_DN)
+
+$(CLUSTER_ENV_FILE): | $(INCUS_DIR)/
+$(CLUSTER_ENV_FILE):
+	@: Defined environment variables for cluster $(CLUSTER_NAME) $(NODES_CIDR) $(file > $@,$(CLUSTER_ENV))
+
+# After interface rename (big-bang) eth0→lan0, eth1→wan0.
+# WAN hosts VIP, lan0 is LAN bridge. For host container IPv4 detection we now use wan0 (NAT side)
+INCUS_INET_YQ_EXPR := .[].state.network.wan0.addresses[] | select(.family == "inet") | .address
+define INCUS_INET_CMD
+$(shell incus list $(1) --format=yaml | yq eval '$(INCUS_INET_YQ_EXPR)' -)
+endef
+
+define RKE2_MASTER_TOKEN_TEMPLATE
+# Bootstrap server points at the master primary IP (CLUSTER_INET_MASTER now mapped to primary) (@codebase)
+server: https://$(CLUSTER_INET_MASTER):9345
+token: $(CLUSTER_TOKEN)
+endef
+
+define CLUSTER_ENV
+CLUSTER_TOKEN := $(TOKEN)
+CLUSTER_NODE_NAME := $(NAME)
+CLUSTER_NODE_KIND := $(CLUSTER_NODE_KIND)
+CLUSTER_NODE_DN := $(DN)
+CLUSTER_NODE_FQDN := $(FQDN)
+CLUSTER_NODE_HWADDR := $(HWADDR)
+CLUSTER_SUBNET := $(CLUSTER_SUBNET)
+endef
+
+# Config Paths
+## Templates now use existing Makefile variables directly (CLUSTER_* etc.) so no extra exports required.
+
+INCUS_PRESSED_FILENAME := incus-preseed.yaml
+INCUS_PRESSED_FILE := $(INCUS_DIR)/preseed.yaml
+
+INCUS_DISTROBUILDER_FILE := ./incus-distrobuilder.yaml
+INCUS_DISTROBUILDER_LOGFILE := $(IMAGE_DIR)/distrobuilder.log
+
+INCUS_IMAGE_IMPORT_MARKER_FILE := $(IMAGE_DIR)/import.tstamp
+INCUS_IMAGE_BUILD_FILES := $(IMAGE_DIR)/incus.tar.xz $(IMAGE_DIR)/rootfs.squashfs
+
+INCUS_CREATE_PROJECT_MARKER_FILE := $(INCUS_DIR)/create-project.tstamp
+INCUS_BRIDGE_SETUP_MARKER_FILE := $(INCUS_DIR)/bridge-setup.tstamp
+INCUS_CONFIG_INSTANCE_MARKER_FILE := $(INCUS_DIR)/init-instance.tstamp
+
+INCUS_INSTANCE_CONFIG_FILENAME := incus-instance-config.yaml
+INCUS_INSTANCE_CONFIG_FILE := $(INCUS_DIR)/config.yaml
+INCUS_ZFS_ALLOW_MARKER_FILE := $(INCUS_DIR)/zfs-allow.tstamp
+
+NOCLOUD_METADATA_FILE := $(NOCLOUD_DIR)/metadata
+NOCLOUD_USERDATA_FILE := $(NOCLOUD_DIR)/userdata
+NOCLOUD_NETCFG_FILE := $(NOCLOUD_DIR)/network-config
+
+#-----------------------------
+
+# Network mode for preseed template
+NETWORK_MODE := L2-bridge
+
+# Export variables required by *.yaml templates for yq envsubst
+export NETWORK_MODE
+export CLUSTER_PROFILE_NAME
+export CLUSTER_SUBNET
+export CLUSTER_BRIDGE_CIDR
+export CLUSTER_BRIDGE_PREFIX_LENGTH
+export CLUSTER_BRIDGE_GATEWAY_IP
+export CLUSTER_BRIDGE_V6_CIDR
+export CLUSTER_BRIDGE_V6_PREFIX_LENGTH
+export CLUSTER_BRIDGE_V6_GATEWAY_IP
+export CLUSTER_VIP_BRIDGE_NAME
+export CLUSTER_VIP_BRIDGE_CIDR
+export CLUSTER_LOADBALANCERS_PREFIX_LENGTH
+export CLUSTER_VIRTUAL_PREFIX_LENGTH
+export CLUSTER_LOADBALANCERS_GATEWAY_IP
+export CLUSTER_VIRTUAL_GATEWAY_IP
+export CLUSTER_PODS_V6_PREFIX_LENGTH
+export CLUSTER_SERVICES_V6_PREFIX_LENGTH
+export CLUSTER_V6_PREFIX_LENGTH
+export CLUSTER_INET_GATEWAY
+export CLUSTER_INET_VIRTUAL
+export CLUSTER_NODE_INET
+export CLUSTER_NODE_VIP_INET
+export CLUSTER_LOADBALANCERS_CIDR
+export CLUSTER_VIRTUAL_CIDR
+export CLUSTER_INET_MASTER_GATEWAY
+export CLUSTER_INET_PEER1_GATEWAY
+export CLUSTER_INET_PEER2_GATEWAY
+export CLUSTER_INET_MASTER
+export CLUSTER_INET_PEER1
+export CLUSTER_INET_PEER2
+export CLUSTER_INET6_PREFIX
+export CLUSTER_INET6_VIRTUAL
+export CLUSTER_INET6_MASTER_GATEWAY
+export CLUSTER_INET6_PEER1_GATEWAY
+export CLUSTER_INET6_PEER2_GATEWAY
+export CLUSTER_INET6_MASTER
+export CLUSTER_INET6_PEER1
+export CLUSTER_INET6_PEER2
+export CLUSTER_INET6_GATEWAY
+export CLUSTER_ARPA_GATEWAY
+export CLUSTER_ARPA_VIRTUAL
+export CLUSTER_ARPA_MASTER
+export CLUSTER_ARPA_PEER1
+export CLUSTER_ARPA_PEER2
+export CLUSTER_NODE_NAME
+export CLUSTER_NODE_HWADDR
+export CLUSTER_NAME
+export CLUSTER_PODS_CIDR
+export CLUSTER_SERVICES_CIDR
+export INSTALL_RKE2_TYPE
+export LIMA_PRIMARY_INTERFACE
+export LIMA_LAN_INTERFACE
+export LIMA_WAN_INTERFACE
+export TSID
+export TSKEY := $(TSKEY_CLIENT)
+export CLUSTER_TOKEN
+
+export RUN_INSTANCE_DIR
+export NOCLOUD_USERDATA_FILE
+export NOCLOUD_METADATA_FILE
+export NOCLOUD_NETCFG_FILE
+
+.PHONY: all start stop delete clean shell
+
+all: start
+
+#-----------------------------
+# Preseed Rendering Targets
+#-----------------------------
+
+.PHONY: preseed@incus
+
+preseed@incus: $(INCUS_PRESSED_FILE)
+preseed@incus:
+	@: "[+] Applying incus preseed ..."
+	@incus admin init --preseed < $(INCUS_PRESSED_FILE)
+
+$(INCUS_PRESSED_FILE): $(INCUS_PRESSED_FILENAME) | $(INCUS_DIR)/
+$(INCUS_PRESSED_FILE):
+	@: "[+] Generating preseed file (pure envsubst via yq) ..."
+	@yq eval '( .. | select(tag=="!!str") ) |= envsubst(ne,nu)' $(INCUS_PRESSED_FILENAME) > $@
+
+#-----------------------------
+# Project Management Target
+#-----------------------------
+
+.PHONY: switch-project@incus
+switch-project@incus: preseed@incus
+switch-project@incus: $(INCUS_CREATE_PROJECT_MARKER_FILE)
+switch-project@incus:
+	@: [+] Switching to project $(CLUSTER_NAME)
+	incus project switch rke2
+	@: [+] Ensuring image $(CLUSTER_IMAGE_NAME) is available in project rke
+	incus image show $(CLUSTER_IMAGE_NAME) --project=rke2 >/dev/null 2>&1 || \
+	  incus image import --project=rke2 --alias=$(CLUSTER_IMAGE_NAME) --reuse $(INCUS_IMAGE_BUILD_FILES)
+
+.PHONY: remove-project@incus
+remove-project@incus: cleanup-project-instances@incus 
+remove-project@incus: cleanup-project-images@incus
+remove-project@incus: cleanup-project-networks@incus
+remove-project@incus: cleanup-project-profiles@incus
+remove-project@incus: cleanup-project-volumes@incus
+remove-project@incus:
+	@: [+] Deleting project $(CLUSTER_NAME)
+	incus project delete rke2
+
+.PHONY: cleanup-instances@incus cleanup-images@incus cleanup-networks@incus cleanup-profiles@incus cleanup-volumes@incus remove-project-rke2@incus
+
+cleanup-project-instances@incus: ## destructive: delete all instances in project rke2
+	@incus list --project=rke2 --format=yaml | yq -r eval '.[].name' | \
+	  xargs -r -n1 incus delete -f --project rke2
+
+cleanup-project-images@incus: ## destructive: delete all images (fingerprints) in project rke2
+	@incus image list --project=rke2 --format=yaml | yq -r eval '.[].fingerprint' | \
+	  xargs -r -n1 incus image delete --project rke2
+
+cleanup-project-networks@incus: ## destructive: delete all networks in project rke2
+	@incus network list --project=rke2 --format=yaml | yq -r eval '.[].name' | \
+	  xargs -r -n1 echo incus network delete --project rke2
+
+cleanup-project-profiles@incus: ## destructive: delete all non-default profiles in project rke2
+	@incus profile list --project=rke2 --format=yaml | yq -r '.[].name | select(. != "default")' | \
+	  xargs -r -n1 incus profile delete --project rke2
+
+define INCUS_VOLUME_YQ
+.[] | 
+  with( select( .type | test("snapshot") | not and .type == "custom" ); .del=.name ) | 
+  with( select( .type | test("snapshot") | not and .type != "custom" ); .del=( .type + "/" + .name ) ) |
+  select( .type | test("snapshot") | not ) |
+  .del
+endef
+
+cleanup-project-volumes@incus: cleanup-project-volumes-snapshots@incus
+cleanup-project-volumes@incus: export YQ_EXPR := $(INCUS_VOLUME_YQ)
+cleanup-project-volumes@incus: 
+	@: "destructive: delete all snapshots then volumes in each storage pool (project rke2)"
+	@incus storage volume list --project=rke2 --format=yaml default | \
+		yq -r --from-file=<(echo "$$YQ_EXPR") | \
+	    xargs -r -n1 incus storage volume delete --project=rke2 default
+
+define INCUS_SNAPSHOT_YQ
+.[] |
+  with( select( .type | test("snapshot") ); .del=.name) |
+  select( .type | test("snapshot") ) |
+  .del
+endef
+
+cleanup-project-volumes-snapshots@incus: export YQ_EXPR := $(INCUS_SNAPSHOT_YQ)
+cleanup-project-volumes-snapshots@incus: 
+	@: "destructive: delete all snapshots in each storage pool (project rke2)"
+	@incus storage volume list --project=rke2 --format=yaml default | \
+		yq -r --from-file=<(echo "$$YQ_EXPR") | \
+	    xargs -r -n1 incus storage volume snapshot delete --project=rke2 default
+
+$(INCUS_CREATE_PROJECT_MARKER_FILE): | $(INCUS_DIR)/
+$(INCUS_CREATE_PROJECT_MARKER_FILE):
+	@: [+] Creating incus project rke2 if not exists...
+	$(INCUS) project create rke2 || true
+	@: [+] Importing incus profile rke2
+	incus profile copy --project=default --target-project=rke2 $(CLUSTER_PROFILE_NAME) $(CLUSTER_PROFILE_NAME)
+	touch $@
+
+$(INCUS_BRIDGE_SETUP_MARKER_FILE): $(INCUS_CREATE_PROJECT_MARKER_FILE) | $(INCUS_DIR)/
+$(INCUS_BRIDGE_SETUP_MARKER_FILE):
+	@: [+] Creating shared VIP bridge $(CLUSTER_VIP_BRIDGE_NAME)...
+	@if ! $(INCUS) network show $(CLUSTER_VIP_BRIDGE_NAME) --project=rke2 >/dev/null 2>&1; then \
+		echo "[+] Creating bridge $(CLUSTER_VIP_BRIDGE_NAME) with CIDR $(CLUSTER_VIP_BRIDGE_CIDR)"; \
+		$(INCUS) network create $(CLUSTER_VIP_BRIDGE_NAME) --project=rke2 \
+			ipv4.address=$(CLUSTER_VIRTUAL_GATEWAY_IP)/$(CLUSTER_VIRTUAL_PREFIX_LENGTH) \
+			ipv4.nat=false \
+			ipv6.address=none \
+			dns.mode=none; \
+	else \
+		echo "[i] Bridge $(CLUSTER_VIP_BRIDGE_NAME) already exists"; \
+	fi
+	touch $@
+
+#-----------------------------
+# Main Targets
+#-----------------------------
+MAIN_TARGETS := start stop delete clean shell
+
+# Ensure uplink binding after project/image prep
+
+.PHONY: network@incus
+
+network@incus: preseed@incus
+network@incus:
+	@echo "[i] Network Configuration Summary"
+	@echo "================================="
+	@echo "Host LAN parent: $(LIMA_LAN_INTERFACE) -> container lan0 (macvlan)"
+	@echo "Host WAN parent: $(LIMA_WAN_INTERFACE) -> container wan0 (macvlan)"
+	@echo "VIP Bridge: $(CLUSTER_VIP_BRIDGE_NAME) ($(CLUSTER_VIP_BRIDGE_CIDR)) -> container vip0"
+	@echo "Mode: Dual macvlan + shared VIP bridge"
+	@echo ""
+	@echo "[i] Host interface state:"
+	@echo "  $(LIMA_LAN_INTERFACE): $$(ip link show $(LIMA_LAN_INTERFACE) | grep -o 'state [A-Z]*' || echo 'unknown state')"
+	@echo "  $(LIMA_WAN_INTERFACE): $$(ip link show $(LIMA_WAN_INTERFACE) | grep -o 'state [A-Z]*' || echo 'unknown state')"
+	@echo ""
+	@echo "[i] IP assignments:"
+	@echo "  $(LIMA_LAN_INTERFACE) IPv4: $$(ip -o -4 addr show $(LIMA_LAN_INTERFACE) | awk '{print $$4}' || echo '<none>')"
+	@echo "  $(LIMA_WAN_INTERFACE) IPv4: $$(ip -o -4 addr show $(LIMA_WAN_INTERFACE) | awk '{print $$4}' || echo '<none>')"
+	@echo ""
+	@echo "(Container macvlan interfaces visible after instance start)"
+
+.PHONY: debug-network-uplink debug-forwarding
+debug-@network: status@network
+
+debug@network:
+	@echo "[i] Macvlan Diagnostics"
+	@echo "======================="
+	@echo "Parent interfaces: $(LIMA_LAN_INTERFACE), $(LIMA_WAN_INTERFACE)"
+	@echo "Host MACs:"
+	@echo "  $(LIMA_LAN_INTERFACE): $$(cat /sys/class/net/$(LIMA_LAN_INTERFACE)/address 2>/dev/null || echo 'n/a')"
+	@echo "  $(LIMA_WAN_INTERFACE): $$(cat /sys/class/net/$(LIMA_WAN_INTERFACE)/address 2>/dev/null || echo 'n/a')"
+	@echo ""
+	@echo "Suggested in-container checks (once running):"
+	@echo "  incus exec $(CLUSTER_NODE_NAME) -- ip -o addr show lan0"
+	@echo "  incus exec $(CLUSTER_NODE_NAME) -- ip -o addr show wan0"
+	@echo "  incus exec $(CLUSTER_NODE_NAME) -- ping -c1 -I wan0 8.8.8.8"
+
+$(MAIN_TARGETS): preseed@incus image@incus switch-project@incus
+
+.PHONY: $(MAIN_TARGETS)
+
+image@incus: $(INCUS_IMAGE_IMPORT_MARKER_FILE)
+
+$(INCUS_IMAGE_IMPORT_MARKER_FILE): $(INCUS_IMAGE_BUILD_FILES)
+$(INCUS_IMAGE_IMPORT_MARKER_FILE): | $(IMAGE_DIR)/
+$(INCUS_IMAGE_IMPORT_MARKER_FILE):
+	@: [+] Importing image for instance $(NODE_NAME)...
+	incus image import --alias $(CLUSTER_IMAGE_NAME) --reuse $(^)
+	touch $@
+
+$(INCUS_IMAGE_BUILD_FILES): $(INCUS_DISTROBUILDER_FILE) | $(IMAGE_DIR)/
+$(INCUS_IMAGE_BUILD_FILES): export TSID := $(TSID)
+$(INCUS_IMAGE_BUILD_FILES): export TSKEY := $(TSKEY_CLIENT)
+$(INCUS_IMAGE_BUILD_FILES)&:
+	@: [+] Building instance $(NODE_NAME)...
+	env -i -S \
+		PATH=$$PATH \
+		  $(SUDO) distrobuilder --debug --disable-overlay \
+			  build-incus $(INCUS_DISTROBUILDER_FILE) 2>&1 | \
+			tee $(INCUS_DISTROBUILDER_LOGFILE)
+	mv incus.tar.xz rootfs.squashfs $(IMAGE_DIR)/
+
+#-----------------------------
+# Lifecycle Targets
+#-----------------------------
+
+.PHONY: instance start shell stop delete clean
+
+instance: $(INCUS_CONFIG_INSTANCE_MARKER_FILE)
+
+$(INCUS_CONFIG_INSTANCE_MARKER_FILE).init: $(INCUS_IMAGE_IMPORT_MARKER_FILE) $(INCUS_BRIDGE_SETUP_MARKER_FILE)
+$(INCUS_CONFIG_INSTANCE_MARKER_FILE).init: $(INCUS_INSTANCE_CONFIG_FILE)
+$(INCUS_CONFIG_INSTANCE_MARKER_FILE).init: | $(INCUS_DIR)/ $(SHARED_DIR)/ $(KUBECONFIG_DIR)/ $(LOGS_DIR)/
+$(INCUS_CONFIG_INSTANCE_MARKER_FILE).init:
+	@: "[+] Initializing instance $(CLUSTER_NODE_NAME)..."
+	incus init $(CLUSTER_IMAGE_NAME) $(CLUSTER_NODE_NAME) < $(INCUS_INSTANCE_CONFIG_FILE)
+	@: "[+] Attaching VIP bridge $(CLUSTER_VIP_BRIDGE_NAME) to instance $(CLUSTER_NODE_NAME)..."
+	incus config device add $(CLUSTER_NODE_NAME) vip0 nic \
+		network=$(CLUSTER_VIP_BRIDGE_NAME) \
+		name=vip0
+
+$(INCUS_CONFIG_INSTANCE_MARKER_FILE): $(INCUS_CONFIG_INSTANCE_MARKER_FILE).init
+$(INCUS_CONFIG_INSTANCE_MARKER_FILE):
+	@: "[+] Configuring instance $(CLUSTER_NODE_NAME)..."	
+	incus config set $(CLUSTER_NODE_NAME) environment.INSTALL_RKE2_TYPE "$(INSTALL_RKE2_TYPE)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_NAME "$(CLUSTER_NAME)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_TOKEN "$(CLUSTER_TOKEN)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_DOMAIN "$(CLUSTER_DOMAIN)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_NODE_KIND "$(CLUSTER_NODE_KIND)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_NODE_NAME "$(CLUSTER_NODE_NAME)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_SUBNET "$(CLUSTER_SUBNET)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_VIRTUAL_CIDR "$(CLUSTER_VIRTUAL_CIDR)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_LOADBALANCERS_CIDR "$(CLUSTER_LOADBALANCERS_CIDR)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_NODE_HWADDR "$(CLUSTER_NODE_HWADDR)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_PODS_CIDR "$(CLUSTER_PODS_CIDR)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_SERVICES_CIDR "$(CLUSTER_SERVICES_CIDR)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_NODE_INET "$(CLUSTER_NODE_INET)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_INET_GATEWAY "$(CLUSTER_INET_GATEWAY)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_INET_VIRTUAL "$(CLUSTER_INET_VIRTUAL)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_INET_MASTER "$(CLUSTER_INET_MASTER)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_INET_MASTER_GATEWAY "$(CLUSTER_INET_MASTER_GATEWAY)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_INET_PEER1 "$(CLUSTER_INET_PEER1)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_INET_PEER1_GATEWAY "$(CLUSTER_INET_PEER1_GATEWAY)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_INET_PEER2 "$(CLUSTER_INET_PEER2)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_INET_PEER2_GATEWAY "$(CLUSTER_INET_PEER2_GATEWAY)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_INET6_GATEWAY "$(CLUSTER_INET6_GATEWAY)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_INET6_PREFIX "$(CLUSTER_INET6_PREFIX)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_INET6_VIRTUAL "$(CLUSTER_INET6_VIRTUAL)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_INET6_MASTER "$(CLUSTER_INET6_MASTER)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_INET6_MASTER_GATEWAY "$(CLUSTER_INET6_MASTER_GATEWAY)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_INET6_PEER1 "$(CLUSTER_INET6_PEER1)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_INET6_PEER1_GATEWAY "$(CLUSTER_INET6_PEER1_GATEWAY)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_INET6_PEER2 "$(CLUSTER_INET6_PEER2)"
+	incus config set $(CLUSTER_NODE_NAME) environment.CLUSTER_INET6_PEER2_GATEWAY "$(CLUSTER_INET6_PEER2_GATEWAY)"
+	incus config set $(CLUSTER_NODE_NAME) environment.TSID "$(TSID)"
+	incus config set $(CLUSTER_NODE_NAME) environment.TSKEY "$(TSKEY_CLIENT)"
+
+	@: "[+] Container network devices already defined in per-node profile (macvlan)"
+
+	@: "[+] Ensuring clean cloud-init state for fresh network configuration..."
+	incus exec $(CLUSTER_NODE_NAME) -- rm -rf /var/lib/cloud/instance /var/lib/cloud/instances /var/lib/cloud/data /var/lib/cloud/sem || true
+	incus exec $(CLUSTER_NODE_NAME) -- rm -rf /run/cloud-init /run/systemd/network/10-netplan-* || true
+	
+	touch $@
+
+## Token device & external file removed; unified token provisioning via write_files patch
+
+start: instance zfs.allow
+start:
+	@: "[+] Starting instance $(CLUSTER_NODE_NAME)..."
+	incus start $(CLUSTER_NODE_NAME)
+
+shell:
+	@: "[+] Opening a shell in instance $(CLUSTER_NODE_NAME)..."
+	incus exec $(CLUSTER_NODE_NAME) -- zsh
+
+stop:
+	@: "[+] Stopping instance $(CLUSTER_NODE_NAME) if running..."
+	incus stop $(CLUSTER_NODE_NAME) || true
+
+delete:
+	@: "[+] Removing instance $(CLUSTER_NODE_NAME)..."
+	incus delete -f $(CLUSTER_NODE_NAME) || true
+	rm -f $(INCUS_CONFIG_INSTANCE_MARKER_FILE) || true
+
+clean: delete
+clean: remove-hosts@tailscale
+clean:
+	@: [+] Removing $(CLUSTER_NODE_NAME) if exists...
+	incus profile delete rke2-$(CLUSTER_NODE_NAME) --project=rke2 || true
+	incus profile delete rke2-$(CLUSTER_NODE_NAME) --project default || true
+	# Remove current bridge pair
+	incus network delete $(CLUSTER_LAN_BRIDGE_NAME) 2>/dev/null || true
+	incus network delete $(CLUSTER_WAN_BRIDGE_NAME) 2>/dev/null || true
+	# Remove shared VIP bridge
+	incus network delete $(CLUSTER_VIP_BRIDGE_NAME) --project=rke2 2>/dev/null || true
+	# Remove persistent storage volume to ensure clean cloud-init state
+	incus storage volume delete default containers/$(CLUSTER_NODE_NAME) || true
+	@: [+] Cleaning up run directory...
+	rm -fr $(RUN_INSTANCE_DIR)
+
+clean-all: 
+	$(MAKE) NAME=master clean
+	$(MAKE) NAME=peer1 clean
+	$(MAKE) NAME=peer2 clean
+
+#-----------------------------
+# ZFS Permissions Target
+#-----------------------------
+zfs.allow: $(ZFS_ALLOW_MARKER_FILE)
+
+$(ZFS_ALLOW_MARKER_FILE):| $(RUN_DIR)/
+	@: "[+] Allowing ZFS permissions for tank..."
+	$(SUDO) zfs allow -s @allperms allow,clone,create,destroy,mount,promote,receive,rename,rollback,send,share,snapshot tank
+	$(SUDO) zfs allow -e @allperms tank
+	touch $@
+
+#-----------------------------
+# Generate $(INCUS_INSTANCE_CONFIG_FILE) directly from template (envsubst pass only)
+#-----------------------------
+$(INCUS_INSTANCE_CONFIG_FILE): $(INCUS_INSTANCE_CONFIG_FILENAME)
+$(INCUS_INSTANCE_CONFIG_FILE): $(NOCLOUD_METADATA_FILE) $(NOCLOUD_USERDATA_FILE) $(NOCLOUD_NETCFG_FILE)
+$(INCUS_INSTANCE_CONFIG_FILE):
+	@: "[+] Rendering instance config (envsubst via yq) ..."
+	yq eval '( ... | select(tag=="!!str") ) |= envsubst(ne,nu)' $(INCUS_INSTANCE_CONFIG_FILENAME) > $(@)
+
+#-----------------------------
+# Generat cloud-init meta-data file
+#-----------------------------
+
+define METADATA_INLINE :=
+instance-id: $(CLUSTER_NODE_NAME)-$(shell uuidgen | tr '[:upper:]' '[:lower:]')
+local-hostname: $(CLUSTER_NODE_DN)
+endef
+
+$(NOCLOUD_METADATA_FILE): | $(NOCLOUD_DIR)/
+$(NOCLOUD_METADATA_FILE): export METADATA_INLINE := $(METADATA_INLINE)
+$(NOCLOUD_METADATA_FILE):
+	@: "[+] Generating meta-data file for instance $(NODE_NAME)..."
+	echo "$$METADATA_INLINE" > $(@)
+
+#-----------------------------
+# Generate cloud-init user-data file using yq for YAML correctness
+#-----------------------------
+
+$(NOCLOUD_USERDATA_FILE): | $(NOCLOUD_DIR)/
+$(NOCLOUD_USERDATA_FILE): cloud-config.common.yaml
+$(NOCLOUD_USERDATA_FILE): cloud-config.server.yaml
+ifeq ($(CLUSTER_NODE_KIND),master)
+$(NOCLOUD_USERDATA_FILE): cloud-config.master.base.yaml
+$(NOCLOUD_USERDATA_FILE): cloud-config.master.cilium.yaml
+$(NOCLOUD_USERDATA_FILE): cloud-config.master.kube-vip.yaml
+else ifeq ($(CLUSTER_NODE_KIND),peer)
+$(NOCLOUD_USERDATA_FILE): cloud-config.peer.yaml
+endif
+
+# yq expressions for cloud-config merging with environment variable substitution
+define YQ_CLOUD_CONFIG_MERGE_3_FILES
+"#cloud-config" as $$preamble | \
+select(fileIndex == 0) as $$a | \
+select(fileIndex == 1) as $$b | \
+select(fileIndex == 2) as $$c | \
+($$a * $$b * $$c) | \
+.write_files = ($$a.write_files // []) + ($$b.write_files // []) + ($$c.write_files // []) | \
+.runcmd = ($$a.runcmd // []) + ($$b.runcmd // []) + ($$c.runcmd // []) | \
+( .. | select( tag == "!!str" ) ) |= envsubst(ne,nu) | \
+$$preamble + "\n" + (. | to_yaml | sub("^---\n"; ""))
+endef
+
+define YQ_CLOUD_CONFIG_MERGE_5_FILES
+"#cloud-config" as $$preamble | \
+select(fileIndex == 0) as $$a | \
+select(fileIndex == 1) as $$b | \
+select(fileIndex == 2) as $$c | \
+select(fileIndex == 3) as $$d | \
+select(fileIndex == 4) as $$e | \
+($$a * $$b * $$c * $$d * $$e) | \
+.write_files = ($$a.write_files // []) + ($$b.write_files // []) + ($$c.write_files // []) + ($$d.write_files // []) + ($$e.write_files // []) | \
+.runcmd = ($$a.runcmd // []) + ($$b.runcmd // []) + ($$c.runcmd // []) + ($$d.runcmd // []) | \
+( .. | select( tag == "!!str" ) ) |= envsubst(ne,nu) | \
+$$preamble + "\n" + (. | to_yaml | sub("^---\n"; ""))
+endef
+
+# YQ cloud-config expression lookup by file count
+YQ_CLOUD_CONFIG_EXPR_3 = $(YQ_CLOUD_CONFIG_MERGE_3_FILES)
+YQ_CLOUD_CONFIG_EXPR_5 = $(YQ_CLOUD_CONFIG_MERGE_5_FILES)
+
+# Macro for executing the appropriate yq cloud-config merge based on file count
+define EXECUTE_YQ_CLOUD_CONFIG_MERGE
+$(if $(YQ_CLOUD_CONFIG_EXPR_$(1)),
+@yq eval-all --unwrapScalar --from-file=<(echo '$(YQ_CLOUD_CONFIG_EXPR_$(1))') $(2) > $(3),
+$(error Unsupported file count: $(1) (expected 3 or 5)))
+endef
+
+$(NOCLOUD_USERDATA_FILE):
+	@: "[+] Merging cloud-config fragments (common/server/node) with envsubst ..."
+	$(eval _file_count := $(call length,$^))
+	$(call EXECUTE_YQ_CLOUD_CONFIG_MERGE,$(_file_count),$^,$@)
+
+#-----------------------------
+# Generate NoCloud network-config file (envsubst only) from standalone network-config.yaml (@codebase)
+#-----------------------------
+
+$(NOCLOUD_NETCFG_FILE): network-config.yaml | $(NOCLOUD_DIR)/
+$(NOCLOUD_NETCFG_FILE):
+	@: "[+] Rendering network-config (envsubst via yq) ..."
+	@yq eval '( .. | select(tag=="!!str") ) |= envsubst(ne,nu)' network-config.yaml > $@
+
+#-----------------------------
+# Lint: YAML (yamllint)
+#-----------------------------
+YAML_FILES := $(wildcard cloud-config.*.yaml incus-*.yaml)
+
+.PHONY: lint-yaml
+lint-yaml:
+	@: "[+] Running yamllint on YAML source files"
+	yamllint $(YAML_FILES)
+
+#-----------------------------
+# Tailscale device cleanup
+#-----------------------------
+.PHONY: remove-hosts@tailscale
+
+define TAILSCALE_RM_HOSTS_SCRIPT
+curl -fsSL -H "Authorization: Bearer $${TSKEY}" https://api.tailscale.com/api/v2/tailnet/-/devices |
+	yq -p json eval --from-file=<(echo "$${YQ_EXPR}") |
+	xargs -I{} curl -fsS -X DELETE -H "Authorization: Bearer $${TSKEY}" "https://api.tailscale.com/api/v2/device/{}"
+endef
+
+define TAILSCALE_RM_HOSTS_YQ_EXPR
+.devices[] | 
+  select( .hostname | 
+          test("^$(CLUSTER_NAME)-(tailscale-operator|controlplane)") ) |
+	.id
+endef
+
+remove-hosts@tailscale: export TSID := $(TSID)
+remove-hosts@tailscale: export TSKEY := $(TSKEY_API)
+remove-hosts@tailscale: export HOST := $(CLUSTER_NAME)
+remove-hosts@tailscale: export SCRIPT := $(TAILSCALE_RM_HOSTS_SCRIPT)
+remove-hosts@tailscale: export YQ_EXPR := $(TAILSCALE_RM_HOSTS_YQ_EXPR)
+remove-hosts@tailscale: export NODE := $(NAME)
+remove-hosts@tailscale:
+	@: "[+] Querying Tailscale devices with key $${TSKEY},prefix $${HOST}, yq-expr $${YQ_EXPR} ..."
+	@( [[ $$NODE == "master" ]] && eval "$$SCRIPT" ) || true
+
+#-----------------------------
+# Create necessary directories
+#-----------------------------
+%/:
+	mkdir -p $(@)
+

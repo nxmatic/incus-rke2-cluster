@@ -1,0 +1,190 @@
+= Incus RKE2 Cluster Documentation
+:toc: left
+:toclevels: 3
+:sectlinks:
+:sectanchors:
+:source-highlighter: rouge
+
+== Overview
+
+This directory contains comprehensive documentation for the Incus RKE2 cluster deployment system. The documentation covers architecture, implementation details, usage guides, and maintenance procedures.
+
+== Documentation Index
+
+=== Architecture & Design
+
+* link:layered-architecture.adoc[Layered Architecture] - Complete refactoring from flat to layered structure with rules.mk convention
+* link:layer-naming-pattern.adoc[Layer Naming Pattern] - Consistent @layer target naming for clear organization and understanding
+* link:network-architecture.adoc[Network Architecture] - Comprehensive network design and hierarchical IP allocation schema
+* link:cloud-config-organization.adoc[Cloud Configuration Organization] - YAML configuration layering and composition system
+
+=== Implementation & Features
+
+* link:metaprogramming.adoc[GNU Make Metaprogramming] - Advanced Make features: eval(), constructed names, secondary expansion
+* link:help-system.adoc[Auto-Documented Help System] - Self-documenting Makefile with comprehensive help targets
+* link:makefile-updates.adoc[Makefile Refactoring Updates] - Variable standardization and structural improvements
+
+=== Project Documentation
+
+* link:documentation-reorganization.adoc[Documentation Reorganization] - Migration from Markdown to centralized AsciiDoc system
+
+== Quick Navigation
+
+=== Getting Started
+
+1. **Architecture Overview**: Start with link:layered-architecture.adoc[Layered Architecture] to understand the system structure
+2. **Network Setup**: Review link:network-architecture.adoc[Network Architecture] for networking concepts
+3. **Configuration**: Read link:cloud-config-organization.adoc[Cloud Configuration] for deployment options
+4. **Debugging**: Learn link:trace-system.adoc[Trace System] for shell control, debugging, and .ONESHELL support
+
+=== Advanced Topics
+
+1. **Metaprogramming**: Explore link:metaprogramming.adoc[GNU Make Metaprogramming] for advanced automation features
+2. **Help System**: Learn link:help-system.adoc[Auto-Documentation] for self-documenting makefiles
+3. **Refactoring**: Review link:makefile-updates.adoc[Makefile Updates] for implementation details
+
+=== Development & Maintenance
+
+* **Layer Organization**: Each functional area (network, incus, cloud-config, metaprogramming) has its own directory with `rules.mk`
+* **Documentation Standards**: All `.adoc` files follow consistent AsciiDoc formatting with table of contents and syntax highlighting
+* **Help Integration**: All documented targets include `## comment` syntax for auto-discovery
+
+== System Components
+
+=== Core Layers
+
+[cols="1,3,2", options="header"]
+|===
+|Layer |Purpose |Key Files
+
+|**Network**
+|Hierarchical IP allocation and bridge management
+|`network/rules.mk`
+
+|**Incus**
+|Container infrastructure lifecycle management
+|`incus/rules.mk`
+
+|**Cloud-Config**
+|Cloud-init configuration generation and validation
+|`cloud-config/rules.mk`, `cloud-config/*.yaml`
+
+|**Metaprogramming**
+|Advanced GNU Make features and dynamic rule generation
+|`metaprogramming/rules.mk`, `metaprogramming/*.mk`
+|===
+
+=== Advanced Features
+
+* **Dynamic Rule Generation**: Automatic target creation for all nodes and clusters
+* **Constructed Macro Names**: Data-driven configuration using variable-based lookups  
+* **Secondary Expansion**: Runtime dependency resolution for complex builds
+* **Auto-Documentation**: Self-maintaining help system with target discovery
+
+=== Configuration Profiles
+
+* **Network Modes**: Per-node isolation vs. shared bridge topology
+* **Cilium Profiles**: Full-featured vs. minimal CNI configuration
+* **Node Roles**: Master, peer, and worker node configurations
+* **Cluster Variants**: Support for multiple cluster deployments (bioskop, alcide)
+
+== Usage Patterns
+
+=== Basic Operations
+
+[source,bash]
+----
+# Get help and discover available targets
+make help
+
+# Start cluster components
+make start NAME=master              # Start master node
+make start NAME=peer1               # Start peer node
+make start NAME=worker1             # Start worker node
+
+# Advanced operations
+make start-cluster-bioskop          # Start entire cluster (metaprogramming)
+make show-metaprogramming-features  # Discover advanced capabilities
+make validate-cloud-config          # Validate configuration files
+----
+
+=== Development Workflow
+
+[source,bash]
+----
+# Layer-specific help
+make show-cloud-config-files        # Show configuration files for current node
+make debug-cloud-config-merge       # Debug configuration composition
+make show-network-allocation        # Display network topology
+make list-generated-targets         # Show all metaprogramming targets
+----
+
+== Viewing Documentation
+
+=== Rendering Options
+
+1. **GitHub/GitLab**: Automatic rendering in web interface with full AsciiDoc support
+2. **VS Code**: Install "AsciiDoc" extension for live preview and syntax highlighting
+3. **Command Line**: Use `asciidoctor` to generate HTML/PDF output
+4. **Live Preview**: Use `asciidoctor-web-pdf` or similar tools for continuous rendering
+
+=== Local HTML Generation
+
+[source,bash]
+----
+# Install asciidoctor
+gem install asciidoctor asciidoctor-diagram
+
+# Generate individual documents
+asciidoctor layered-architecture.adoc
+asciidoctor network-architecture.adoc
+
+# Generate all documentation
+find . -name "*.adoc" -exec asciidoctor {} \;
+
+# Generate PDF (requires asciidoctor-pdf)
+asciidoctor-pdf layered-architecture.adoc
+----
+
+=== Documentation Standards
+
+==== Structure Requirements
+
+* **Table of Contents**: All documents include `:toc: left` with `:toclevels: 3`
+* **Cross-References**: Use `:sectlinks:` and `:sectanchors:` for navigation
+* **Syntax Highlighting**: Include `:source-highlighter: rouge` for code blocks
+* **Consistent Headers**: Follow AsciiDoc heading hierarchy (=, ==, ===, ====)
+
+==== Content Guidelines
+
+* **Code Examples**: Use appropriate source language highlighting (`[source,makefile]`, `[source,bash]`)
+* **Cross-Links**: Reference other documents using `link:filename.adoc[Display Text]`
+* **Tables**: Use AsciiDoc table syntax with headers and appropriate column sizing
+* **Lists**: Prefer unordered lists with consistent bullet styling
+
+== Contributing
+
+=== Documentation Updates
+
+When making system changes:
+
+1. **Update Related Documentation**: Ensure all affected `.adoc` files reflect changes
+2. **Maintain Cross-References**: Update links between related documents
+3. **Test Documentation**: Verify AsciiDoc rendering and link validity
+4. **Update Index**: Add new documents to this main index
+
+=== Standards Compliance
+
+* Follow existing AsciiDoc formatting patterns
+* Include comprehensive examples and usage patterns
+* Maintain consistent terminology across all documents
+* Update the main index when adding new documentation
+
+=== Quality Assurance
+
+* **Validate AsciiDoc**: Use `asciidoctor --safe-mode=strict` to check syntax
+* **Check Links**: Verify all internal and external links work correctly
+* **Review Examples**: Test all code examples and command snippets
+* **Consistency Check**: Ensure formatting matches existing documentation
+
+This documentation system provides comprehensive coverage of the Incus RKE2 cluster deployment platform, from basic usage to advanced metaprogramming techniques.

@@ -1,0 +1,299 @@
+= Advanced GNU Make Metaprogramming
+:toc: left
+:toclevels: 3
+:sectlinks:
+:sectanchors:
+:source-highlighter: rouge
+
+== Overview
+
+This document describes the advanced GNU Make metaprogramming features implemented in the Incus RKE2 cluster project, based on concepts from Paul D. Smith's metaprogramming series at https://make.mad-scientist.net/category/metaprogramming/.
+
+== Metaprogramming Techniques Implemented
+
+=== Dynamic Rule Generation with `eval()`
+
+**Before**: Static hardcoded rules for each node type +
+**After**: Dynamic rule generation from data structures
+
+[source,makefile]
+----
+# Old approach - manual rules for each node
+start-master: ; $(MAKE) NAME=master start@incus
+start-peer1: ; $(MAKE) NAME=peer1 start@incus  
+# ... repeat for each node
+
+# New approach - generated from data
+$(foreach node,$(SUPPORTED_NODES),$(eval $(call GENERATE_NODE_RULES_TEMPLATE,$(node))))
+----
+
+**Benefits**:
+
+* Add new nodes by just updating `SUPPORTED_NODES` variable
+* Consistent rule patterns automatically generated
+* DRY principle - single template, multiple instances
+
+=== Constructed Macro Names for Data-Driven Configuration
+
+**Before**: Large if/else chains for configuration +
+**After**: Structured data with constructed variable names
+
+[source,makefile]
+----
+# Old approach
+ifeq ($(RKE2_NODE_NAME),master)
+    RKE2_NODE_ID := 0
+    RKE2_NODE_TYPE := server  
+else ifeq ($(RKE2_NODE_NAME),peer1)
+    RKE2_NODE_ID := 1
+    RKE2_NODE_TYPE := server
+# ... many more conditions
+
+# New approach  
+master_SPECIAL_FLAGS := --bootstrap
+peer1_SPECIAL_FLAGS := --join-peer
+
+# Usage: $($(RKE2_NODE_NAME)_SPECIAL_FLAGS)
+----
+
+**Benefits**:
+
+* Configuration data separate from logic
+* Easy to add new configurations
+* Self-documenting structure
+
+=== Secondary Expansion for Dynamic Dependencies
+
+**Before**: Static prerequisite lists +
+**After**: Dynamic dependencies resolved at build time
+
+[source,makefile]
+----
+.SECONDEXPANSION:
+
+# Dynamic bridge dependencies per node
+setup-network-%: | $$($$*_REQUIRED_BRIDGES:%=bridge-%)
+    @echo "[+] Network setup complete for node $*"
+----
+
+**Benefits**:
+
+* Prerequisites computed based on runtime context
+* Automatic dependency resolution
+* Flexible dependency graphs
+
+=== Constructed Include Files for Runtime Configuration
+
+**Before**: Static configuration +
+**After**: Generated configuration based on current state
+
+[source,makefile]
+----
+# Runtime state detection
+INSTANCE_EXISTS := $(shell incus info $(RKE2_NODE_NAME) --project=rke2 >/dev/null 2>&1 && echo "true" || echo "false")
+
+# Conditional rule generation
+ifneq ($(INSTANCE_EXISTS),true)
+start@incus: instance@incus  
+endif
+----
+
+**Benefits**:
+
+* Adaptive behavior based on current system state
+* Reduced manual intervention
+* Smart defaults and shortcuts
+
+== Usage Examples
+
+=== Basic Operations (Enhanced)
+
+[source,bash]
+----
+# Start specific node with enhanced features
+make start-master     # Generated rule with node-specific configuration
+make start-peer1      # Automatic dependency resolution
+
+# Cluster-wide operations  
+make start-cluster-bioskop    # Start entire cluster
+make status-report           # Comprehensive status using constructed names
+
+# Debugging and introspection
+make debug                   # Show constructed variable values
+make show-runtime-config     # Display generated runtime configuration
+----
+
+=== Advanced Operations
+
+[source,bash]
+----
+# Scale resources using pattern rules
+make scale-master-memory     # Uses constructed macro names for limits
+make scale-cluster-resources # Bulk operation across all nodes
+
+# Context-aware operations
+make bootstrap-rke2          # Uses node-specific flags automatically
+make network-master          # Node-specific network diagnostics
+----
+
+== Configuration Management
+
+=== Adding New Clusters
+
+[source,makefile]
+----
+# In cluster-config.mk
+define CLUSTER_newcluster_CONFIG
+RKE2_CLUSTER_ID := 3
+RKE2_POD_NETWORK_CIDR := 10.46.0.0/16
+RKE2_SERVICE_NETWORK_CIDR := 10.47.0.0/16
+endef
+
+# Add to supported list
+SUPPORTED_CLUSTERS := bioskop alcide newcluster
+----
+
+=== Adding New Node Types
+
+[source,makefile]
+----
+# In cluster-config.mk
+define NODE_storage1_CONFIG
+RKE2_NODE_ID := 6
+RKE2_NODE_TYPE := agent
+RKE2_NODE_ROLE := storage
+endef
+
+# Add to supported list
+SUPPORTED_NODES := master peer1 peer2 peer3 worker1 worker2 storage1
+----
+
+== Debugging Metaprogramming
+
+=== View Generated Rules
+
+[source,bash]
+----
+make show-constructed-values  # Show variable construction
+make debug-variables         # Debug constructed macro names
+----
+
+=== Inspect Generated Configuration
+
+[source,bash]
+----
+make show-runtime-config     # View auto-generated runtime config
+make -p | grep "^start-"     # Show all generated start targets
+----
+
+=== Test Rule Generation
+
+[source,makefile]
+----
+# Use $(info) function to debug $(eval)
+$(info $(call GENERATE_NODE_RULES_TEMPLATE,master))
+----
+
+== Implementation Files
+
+=== `metaprogramming/cluster-config.mk`
+
+Handles cluster and node identification:
+
+[source,makefile]
+----
+# Automatic cluster ID assignment
+ifeq (bioskop,$(RKE2_CLUSTER_NAME))
+    RKE2_CLUSTER_ID := 1
+else ifeq (alcide,$(RKE2_CLUSTER_NAME))
+    RKE2_CLUSTER_ID := 2
+else
+    $(error Unknown cluster: $(RKE2_CLUSTER_NAME))
+endif
+
+# Automatic node type detection
+ifneq (,$(findstring peer,$(RKE2_NODE_NAME)))
+    RKE2_NODE_TYPE := server
+    RKE2_NODE_ROLE := peer
+else ifeq ($(RKE2_NODE_NAME),master)
+    RKE2_NODE_TYPE := server
+    RKE2_NODE_ROLE := master
+else
+    RKE2_NODE_TYPE := agent
+    RKE2_NODE_ROLE := worker
+endif
+----
+
+=== `metaprogramming/runtime-config.mk`
+
+Generates and manages runtime state:
+
+[source,makefile]
+----
+RUNTIME_CONFIG_FILE := .run.d/runtime.auto.mk
+
+# Auto-regenerate if any .mk file changes
+$(RUNTIME_CONFIG_FILE): $(wildcard *.mk metaprogramming/*.mk)
+	@mkdir -p $(dir $@)
+	@echo "# Runtime configuration - $(shell date)" > $@
+	@echo "RUNTIME_GENERATION := $(shell date +%s)" >> $@
+	@echo "RUNTIME_MAKEFILE_COUNT := $(words $^)" >> $@
+
+ifneq ($(MAKECMDGOALS),help)
+-include $(RUNTIME_CONFIG_FILE)
+endif
+----
+
+=== `metaprogramming/advanced.mk`
+
+Advanced rule generation and introspection:
+
+[source,makefile]
+----
+# Generate per-cluster operations
+define CLUSTER_RULE_TEMPLATE
+.PHONY: start-cluster-$(1) stop-cluster-$(1)
+start-cluster-$(1): ## Start all nodes in $(1) cluster
+	$$(foreach node,$$(CLUSTER_$(1)_NODES),$$(MAKE) start NAME=$$(node);)
+
+stop-cluster-$(1): ## Stop all nodes in $(1) cluster  
+	$$(foreach node,$$(CLUSTER_$(1)_NODES),$$(MAKE) stop NAME=$$(node);)
+endef
+
+$(foreach cluster,$(SUPPORTED_CLUSTERS),$(eval $(call CLUSTER_RULE_TEMPLATE,$(cluster))))
+----
+
+== Performance Considerations
+
+1. **Lazy Evaluation**: Runtime config only generated when needed
+2. **Conditional Includes**: Skip expensive operations during clean
+3. **Cached Results**: Generated files avoid repeated computation
+4. **Selective Regeneration**: Only rebuild when dependencies change
+
+== Maintenance Benefits
+
+1. **Scalability**: Easy to add new nodes/clusters without code changes
+2. **Consistency**: Generated rules follow identical patterns
+3. **Testability**: Metaprogramming logic isolated in modules
+4. **Documentation**: Self-documenting through structured data
+
+== Migration Path
+
+The implementation maintains backward compatibility:
+
+* Existing targets continue to work
+* Enhanced features available through new targets
+* Gradual migration possible module by module
+
+== References
+
+Based on Paul D. Smith's "Metaprogramming Make" series:
+
+* Part I: Evaluation and Expansion
+* Part II: Recursive Expansion
+* Part III: Constructed Macro Names
+* Part IV: Secondary Expansion
+* Part V: Constructed Include Files
+* Part VI: The eval Function
+
+Available at: https://make.mad-scientist.net/category/metaprogramming/

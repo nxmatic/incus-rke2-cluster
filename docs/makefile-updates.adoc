@@ -1,0 +1,304 @@
+= Makefile Refactoring Updates
+:toc: left
+:toclevels: 3
+:sectlinks:
+:sectanchors:
+:source-highlighter: rouge
+
+== Overview
+
+This document outlines the key refactoring updates made to the main Makefile during the transition to RKE2-prefixed variables and layered architecture.
+
+== Variable Standardization
+
+=== Legacy Variable Names → RKE2 Prefixed
+
+The Makefile was updated to use consistent RKE2-prefixed variable names:
+
+[source,makefile]
+----
+# OLD (legacy names)
+NAME ?= $(name)
+CLUSTER_NAME ?= $(LIMA_HOSTNAME)
+CLUSTER_TOKEN ?= $(CLUSTER_NAME)
+CLUSTER_IMAGE_NAME := control-node
+CLUSTER_NODE_NAME := $(NAME)
+
+# NEW (RKE2-prefixed)
+RKE2_NODE_NAME ?= $(name)
+RKE2_NODE_NAME ?= $(if $(RKE2_NODE_NAME),$(RKE2_NODE_NAME),master)
+RKE2_CLUSTER_NAME ?= $(LIMA_HOSTNAME)
+RKE2_CLUSTER_TOKEN ?= $(RKE2_CLUSTER_NAME)
+RKE2_CLUSTER_DOMAIN := cluster.local
+RKE2_IMAGE_NAME := rke2-control-node
+----
+
+=== Node Type Detection Enhancement
+
+Improved node type and role detection logic:
+
+[source,makefile]
+----
+# OLD (basic type detection)
+ifeq ($(CLUSTER_NODE_NAME),master)
+	INSTALL_RKE2_TYPE := server
+else ifneq (,$(findstring peer,$(CLUSTER_NODE_NAME)))
+	INSTALL_RKE2_TYPE := server
+else
+	INSTALL_RKE2_TYPE := agent
+endif
+
+# NEW (comprehensive role detection)
+ifeq ($(RKE2_NODE_NAME),master)
+	RKE2_NODE_TYPE := server
+	RKE2_NODE_ROLE := master
+else ifneq (,$(findstring peer,$(RKE2_NODE_NAME)))
+	RKE2_NODE_TYPE := server
+	RKE2_NODE_ROLE := peer
+else
+	RKE2_NODE_TYPE := agent
+	RKE2_NODE_ROLE := worker
+endif
+----
+
+== Directory Structure Updates
+
+=== Runtime Directory Organization
+
+Updated directory structure for better organization:
+
+[source,makefile]
+----
+# Runtime directories
+RUN_DIR := .run.d
+IMAGE_DIR := $(RUN_DIR)/image
+RUN_INSTANCE_DIR := $(RUN_DIR)/$(RKE2_NODE_NAME)
+INCUS_DIR := $(RUN_INSTANCE_DIR)/incus
+NOCLOUD_DIR := $(RUN_INSTANCE_DIR)/nocloud
+SHARED_DIR := $(RUN_INSTANCE_DIR)/shared
+KUBECONFIG_DIR := $(RUN_INSTANCE_DIR)/kube
+LOGS_DIR := $(RUN_INSTANCE_DIR)/logs
+----
+
+=== Profile and File Naming
+
+Consistent naming patterns throughout:
+
+[source,makefile]
+----
+# Profile naming
+RKE2_NODE_PROFILE_NAME := rke2-$(RKE2_NODE_NAME)
+
+# File naming patterns
+INCUS_PRESSED_FILENAME := incus-preseed.yaml
+INCUS_INSTANCE_CONFIG_FILENAME := incus-instance-config.yaml
+----
+
+== Network Configuration Updates
+
+=== Hierarchical Addressing
+
+Enhanced network allocation with proper hierarchical structure:
+
+[source,makefile]
+----
+# Per-cluster Kubernetes network CIDRs
+ifeq (bioskop,$(RKE2_CLUSTER_NAME))
+RKE2_POD_NETWORK_CIDR := 10.42.0.0/16
+RKE2_SERVICE_NETWORK_CIDR := 10.43.0.0/16
+else ifeq (alcide,$(RKE2_CLUSTER_NAME))
+RKE2_POD_NETWORK_CIDR := 10.44.0.0/16
+RKE2_SERVICE_NETWORK_CIDR := 10.45.0.0/16
+else
+$(error No Pod/Service CIDR mapping for cluster: $(RKE2_CLUSTER_NAME))
+endif
+----
+
+=== Interface Naming
+
+Updated interface naming for clarity:
+
+[source,makefile]
+----
+# Primary/secondary Lima host interfaces
+LIMA_LAN_INTERFACE ?= vmlan0
+LIMA_WAN_INTERFACE ?= vmwan0
+LIMA_PRIMARY_INTERFACE := $(LIMA_LAN_INTERFACE)
+LIMA_SECONDARY_INTERFACE := $(LIMA_WAN_INTERFACE)
+
+# Host interface for cluster egress traffic
+INCUS_EGRESS_INTERFACE := $(LIMA_PRIMARY_INTERFACE)
+----
+
+== Include Structure Refactoring
+
+=== From Flat to Layered Includes
+
+**OLD (flat structure)**:
+
+[source,makefile]
+----
+-include network.mk
+-include incus.mk
+-include cloud-config-targets.mk
+-include cluster-config.mk
+-include runtime-config.mk
+-include advanced-targets.mk
+----
+
+**NEW (layered structure)**:
+
+[source,makefile]
+----
+# Include layered modules using rules.mk convention
+# Skip metaprogramming-heavy modules for help target
+ifneq ($(MAKECMDGOALS),help)
+-include network/rules.mk
+-include metaprogramming/rules.mk
+endif
+
+# Always include core infrastructure modules  
+-include incus/rules.mk
+-include cloud-config/rules.mk
+----
+
+== Target Refactoring
+
+=== Main Target Delegation
+
+Updated main targets to delegate to layered implementations:
+
+[source,makefile]
+----
+# Main lifecycle targets (delegate to incus.mk)
+start: start@incus ## Start RKE2 node instance (creates if needed)
+stop: stop@incus ## Stop running RKE2 node instance
+delete: delete@incus ## Delete RKE2 node instance (keeps config) 
+clean: clean@incus ## Clean RKE2 node (delete instance + config)
+shell: shell@incus ## Open interactive shell in RKE2 node
+----
+
+=== Help System Integration
+
+Enhanced help system with auto-documentation:
+
+[source,makefile]
+----
+# Make help the default target
+.DEFAULT_GOAL := help
+
+.PHONY: help
+help: ## Show this help message with available targets
+	@echo "Usage: make <target> [NAME=node] [RKE2_CLUSTER_NAME=cluster]"
+	@echo ""
+	@echo "Main targets:"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(word 1,$(MAKEFILE_LIST)) | sort | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+----
+
+== Variable Export Enhancement
+
+=== Template Variable Exports
+
+Comprehensive variable exports for template rendering:
+
+[source,makefile]
+----
+# Export RKE2 variables for YAML template rendering
+export RKE2_CLUSTER_NAME
+export RKE2_CLUSTER_TOKEN
+export RKE2_CLUSTER_DOMAIN
+export RKE2_NODE_NAME
+export RKE2_NODE_TYPE
+export RKE2_NODE_ROLE
+export RKE2_POD_NETWORK_CIDR
+export RKE2_SERVICE_NETWORK_CIDR
+export RKE2_CLUSTER_ID
+export RKE2_NODE_ID
+----
+
+=== Legacy Compatibility
+
+Maintained backward compatibility with legacy variable names:
+
+[source,makefile]
+----
+# Legacy compatibility aliases for templates
+CLUSTER_NAME := $(RKE2_CLUSTER_NAME)
+CLUSTER_PODS_CIDR := $(RKE2_POD_NETWORK_CIDR)
+CLUSTER_SERVICES_CIDR := $(RKE2_SERVICE_NETWORK_CIDR)
+CLUSTER_DOMAIN := $(RKE2_CLUSTER_DOMAIN)
+----
+
+== Performance Optimizations
+
+=== Conditional Includes
+
+Added conditional includes to improve help performance:
+
+[source,makefile]
+----
+# Skip expensive operations for help target
+ifneq ($(MAKECMDGOALS),help)
+-include network/rules.mk
+-include metaprogramming/rules.mk
+endif
+----
+
+=== Lazy Evaluation
+
+Implemented lazy evaluation for expensive operations:
+
+[source,makefile]
+----
+# Only evaluate network configuration when needed
+ifneq ($(MAKECMDGOALS),help)
+# Network calculations here
+endif
+----
+
+== Benefits Achieved
+
+=== Consistency
+
+* Uniform RKE2-prefixed variable naming
+* Consistent directory structure
+* Standardized file naming patterns
+
+=== Maintainability
+
+* Clear separation of concerns with layered includes
+* Logical grouping of related functionality
+* Improved code organization
+
+=== Performance
+
+* Faster help target execution
+* Reduced unnecessary evaluations
+* Optimized include patterns
+
+=== Extensibility
+
+* Easy addition of new layers
+* Modular architecture supports growth
+* Clear extension points for future features
+
+== Migration Impact
+
+=== Backward Compatibility
+
+* Legacy variable names maintained through aliases
+* Existing usage patterns continue to work
+* Gradual migration path available
+
+=== Template Updates
+
+* Templates updated to use new variable names
+* Enhanced template rendering with more exports
+* Improved error handling and validation
+
+=== Documentation
+
+* All help text updated to reflect new structure
+* Comprehensive examples provided
+* Clear migration guidelines documented

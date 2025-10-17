@@ -1,0 +1,383 @@
+= Layer-Based Target Naming Pattern
+:toc: left
+:toclevels: 3
+:sectlinks:
+:sectanchors:
+:source-highlighter: rouge
+
+== Overview
+
+The Incus RKE2 cluster project now implements a consistent layer-based target naming pattern using `@layer` suffixes. This provides clear organization and understanding of which layer provides each target, making the system more maintainable and intuitive.
+
+== Naming Convention
+
+=== Pattern Structure
+
+All layer-specific targets follow the pattern:
+
+[source]
+----
+<target-name>@<layer>
+----
+
+=== Naming Principles
+
+**Descriptive, Not Redundant**: Target names should describe what they do, not repeat the layer name.
+
+Examples of good vs. bad naming:
+
+[cols="2,2,3"]
+|===
+| ✅ Good | ❌ Bad | Reason
+
+| `summary@network`
+| `network@network`
+| "summary" describes the action; layer is already indicated by `@network`
+
+| `status@network`
+| `show-network@network`
+| "status" is concise; avoid redundant "network" in the name
+
+| `allocation@network`
+| `show-allocation@network`
+| "allocation" is descriptive enough; "show" prefix unnecessary
+
+| `diagnostics@network`
+| `network-diagnostics@network`
+| "diagnostics" is clear; layer prefix redundant
+
+| `validate@cloud-config`
+| `validate-config@cloud-config`
+| "validate" is sufficient; "config" is implied by layer
+|===
+
+**Common Action Verbs**: Use standard verbs for similar operations across layers:
+
+- `summary` - Overview or configuration display
+- `status` - Current state information  
+- `diagnostics` - Health checks and troubleshooting
+- `validate` - Configuration verification
+- `setup` or `create` - Resource initialization
+- `clean` or `delete` - Resource removal
+
+Where:
+
+* **`<target-name>`**: Descriptive name of the functionality
+* **`@`**: Separator indicating layer ownership
+* **`<layer>`**: The layer providing the implementation
+
+=== Supported Layers
+
+[cols="1,2,3", options="header"]
+|===
+|Layer |Suffix |Purpose
+
+|**Network**
+|`@network`
+|Network configuration, IP allocation, bridge management
+
+|**Incus**
+|`@incus`
+|Container infrastructure lifecycle management
+
+|**Cloud-Config**
+|`@cloud-config`
+|Cloud-init configuration generation and validation
+
+|**Metaprogramming**
+|`@meta`
+|Advanced GNU Make features and dynamic rule generation
+|===
+
+== Layer Target Definitions
+
+=== Network Layer (`@network`)
+
+[source,makefile]
+----
+# Core network targets
+summary@network: ## Show network configuration summary
+diagnostics@network: ## Show host network diagnostics
+status@network: ## Show container network status
+setup-bridge@network: ## Set up network bridge for current node
+
+# Advanced network targets
+allocation@network: ## Show hierarchical network allocation
+validate@network: ## Validate network configuration
+----
+
+**Responsibilities**:
+
+* Network topology overview and diagnostics
+* Hierarchical IP allocation display
+* Bridge configuration and validation
+* Host and container network status
+
+**Naming Principle**: Target names describe the action (summary, diagnostics, status) without redundant layer references.
+
+=== Incus Layer (`@incus`)
+
+[source,makefile]
+----
+# Instance lifecycle
+start@incus: ## Start RKE2 node instance
+stop@incus: ## Stop running RKE2 node instance
+delete@incus: ## Delete RKE2 node instance
+clean@incus: ## Clean RKE2 node (delete instance + config)
+shell@incus: ## Open interactive shell in RKE2 node
+
+# Infrastructure management
+preseed@incus: ## Initialize Incus with preseed configuration
+switch-project@incus: ## Switch to RKE2 project
+
+# Network diagnostics (incus-specific)
+show-network@incus: ## Show network configuration summary
+diagnostics@incus: ## Show host network diagnostics
+network-status@incus: ## Show container network status
+----
+
+**Responsibilities**:
+
+* Container instance lifecycle management
+* Incus project and infrastructure setup
+* Image management and distribution
+* Container access and diagnostics
+* Incus-specific network status monitoring
+
+=== Cloud-Config Layer (`@cloud-config`)
+
+[source,makefile]
+----
+# Configuration management
+validate@cloud-config: ## Validate merged cloud-config
+lint@cloud-config: ## Lint cloud-config YAML files
+show-files@cloud-config: ## Show cloud-config files for current node type
+
+# Debugging and development
+debug-merge@cloud-config: ## Debug cloud-config merge process
+----
+
+**Responsibilities**:
+
+* Cloud-init configuration generation
+* YAML validation and linting
+* Configuration file composition and debugging
+* Node-role-specific configuration selection
+
+=== Metaprogramming Layer (`@meta`)
+
+[source,makefile]
+----
+# Feature management
+enable@meta: ## Enable advanced metaprogramming features
+disable@meta: ## Disable metaprogramming (use basic targets only)
+features@meta: ## Show available metaprogramming features
+
+# Discovery and debugging  
+targets@meta: ## List all metaprogramming-generated targets
+----
+
+**Responsibilities**:
+
+* Dynamic rule generation and discovery
+* Advanced GNU Make feature management
+* Runtime configuration adaptation
+* Generated target introspection
+
+== Main Makefile Aliases
+
+The main Makefile provides convenient aliases without the `@layer` suffix for frequently used targets:
+
+=== Network Aliases
+
+[source,makefile]
+----
+# Network layer aliases
+network: network@network ## Show network configuration summary
+host-network: host-network@network ## Show host network diagnostics
+vm-network: vm-network@network ## Show container network status
+bridge-setup: bridge-setup@network ## Set up network bridge for current node
+show-allocation: show-allocation@network ## Show hierarchical network allocation
+validate-network: validate-network@network ## Validate network configuration
+----
+
+=== Cloud-Config Aliases
+
+[source,makefile]
+----
+# Cloud-config layer aliases
+validate-cloud-config: validate@cloud-config ## Validate merged cloud-config
+lint-cloud-config: lint@cloud-config ## Lint cloud-config YAML files
+debug-cloud-config-merge: debug-merge@cloud-config ## Debug cloud-config merge process
+show-cloud-config-files: show-files@cloud-config ## Show cloud-config files for current node type
+----
+
+=== Metaprogramming Aliases
+
+[source,makefile]
+----
+# Metaprogramming layer aliases
+show-metaprogramming-features: features@meta ## Show available metaprogramming features
+list-generated-targets: targets@meta ## List all metaprogramming-generated targets
+enable-metaprogramming: enable@meta ## Enable advanced metaprogramming features
+disable-metaprogramming: disable@meta ## Disable metaprogramming (use basic targets only)
+----
+
+== Usage Examples
+
+=== Direct Layer Access
+
+Users can access layer-specific targets directly using the `@layer` syntax:
+
+[source,bash]
+----
+# Network layer targets
+make network@network           # Network configuration summary
+make host-network@network      # Host diagnostics
+make validate-network@network  # Network validation
+
+# Cloud-config layer targets  
+make validate@cloud-config     # Validate configuration
+make debug-merge@cloud-config  # Debug merge process
+
+# Metaprogramming layer targets
+make features@meta             # Show advanced features
+make targets@meta              # List generated targets
+----
+
+=== Alias Usage
+
+For convenience, common targets have aliases without the `@layer` suffix:
+
+[source,bash]
+----
+# These are equivalent
+make network              ≡  make network@network
+make validate-cloud-config ≡  make validate@cloud-config
+make show-metaprogramming-features ≡  make features@meta
+----
+
+=== Layer Exploration
+
+Discover available targets in each layer:
+
+[source,bash]
+----
+# Show all documented targets from a specific layer
+grep "^[a-zA-Z_-]*@network:.*##" network/rules.mk
+grep "^[a-zA-Z_-]*@cloud-config:.*##" cloud-config/rules.mk
+grep "^[a-zA-Z_-]*@meta:.*##" metaprogramming/rules.mk
+grep "^[a-zA-Z_-]*@incus:.*##" incus/rules.mk
+----
+
+== Benefits
+
+=== Clear Organization
+
+* **Layer Ownership**: Immediately clear which layer provides functionality
+* **Logical Grouping**: Related targets grouped by functional area
+* **Consistent Naming**: Predictable pattern across all layers
+
+=== Enhanced Understanding
+
+* **System Architecture**: Target names reflect the layered architecture
+* **Responsibility Clarity**: Each layer's role is evident from target names
+* **Learning Aid**: New users can understand system structure from target names
+
+=== Maintainability
+
+* **Easy Extension**: New layers can follow the same pattern
+* **Conflict Avoidance**: Layer namespace prevents target name conflicts
+* **Debugging**: Layer source of functionality is immediately apparent
+
+=== Development Workflow
+
+* **Layer Development**: Developers can focus on specific layers
+* **Testing**: Easy to test layer-specific functionality
+* **Documentation**: Self-documenting through consistent naming
+
+== Implementation Details
+
+=== Layer Target Discovery
+
+The help system automatically discovers targets from all layers:
+
+[source,bash]
+----
+# Scan all rules.mk files for documented targets
+grep -h "^[a-zA-Z_-]*:.*##" */rules.mk | sort
+----
+
+=== Alias Generation
+
+Main Makefile aliases are generated systematically:
+
+[source,makefile]
+----
+# Pattern for creating aliases
+<alias-name>: <target-name>@<layer> ## <description>
+----
+
+=== Cross-Layer Dependencies
+
+Layers can depend on targets from other layers:
+
+[source,makefile]
+----
+# Example: Cloud-config depends on network configuration
+$(NOCLOUD_USERDATA_FILE): validate-network@network
+----
+
+== Future Enhancements
+
+=== Additional Layers
+
+New layers can be added following the same pattern:
+
+* **`@monitoring`**: Observability and metrics
+* **`@security`**: RBAC and security policies  
+* **`@storage`**: Persistent volume management
+* **`@backup`**: Cluster backup and restore
+
+=== Enhanced Discovery
+
+* **Layer-Specific Help**: `make help-network`, `make help-cloud-config`
+* **Cross-Layer Visualization**: Dependency graphs between layers
+* **Layer Status**: Health checks for each layer
+
+=== Advanced Features
+
+* **Layer Validation**: Ensure targets follow naming conventions
+* **Automatic Aliases**: Generate aliases programmatically
+* **Layer Isolation**: Optional layer inclusion/exclusion
+
+== Best Practices
+
+=== Target Naming
+
+1. **Descriptive Names**: Use clear, action-oriented target names
+2. **Consistent Verbs**: Use standard verbs (show, validate, debug, setup)
+3. **Layer Context**: Ensure target names make sense within their layer
+
+=== Documentation
+
+1. **Help Comments**: All layer targets should include `## comment` documentation
+2. **Cross-References**: Document dependencies between layers
+3. **Examples**: Provide usage examples for complex targets
+
+=== Development
+
+1. **Layer Focus**: Keep layer implementations focused on their core responsibility
+2. **Minimal Dependencies**: Minimize cross-layer dependencies when possible
+3. **Standard Patterns**: Follow established patterns for consistency
+
+== Conclusion
+
+The layer-based target naming pattern with `@layer` suffixes provides:
+
+* **Clear Architecture Reflection**: Target names reflect the layered system design
+* **Enhanced Discoverability**: Easy to find and understand available functionality
+* **Improved Maintainability**: Consistent patterns make the system easier to extend and maintain
+* **Better Developer Experience**: Intuitive naming helps developers navigate the system
+
+This naming convention transforms the build system into a self-documenting, well-organized infrastructure automation platform that scales effectively with project complexity.

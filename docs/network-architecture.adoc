@@ -1,0 +1,197 @@
+= RKE2 Cluster Network Architecture
+:toc: left
+:toclevels: 3
+:sectnums:
+:source-highlighter: rouge
+
+== Overview
+
+This document describes the hierarchical network architecture for the RKE2 cluster deployment using Incus containers.
+
+== Network Hierarchy
+
+The network allocation follows a strict hierarchical structure designed for scalability and isolation:
+
+```
+Host Supernet: 10.80.0.0/18 (Class B subnet)
+├── Cluster 0: 10.80.0.0/21   (8192 addresses)
+├── Cluster 1: 10.80.8.0/21   (8192 addresses) ← bioskop
+├── Cluster 2: 10.80.16.0/21  (8192 addresses) ← alcide
+├── Cluster 3: 10.80.24.0/21  (8192 addresses)
+├── Cluster 4: 10.80.32.0/21  (8192 addresses)
+├── Cluster 5: 10.80.40.0/21  (8192 addresses)
+├── Cluster 6: 10.80.48.0/21  (8192 addresses)
+└── Cluster 7: 10.80.56.0/21  (8192 addresses)
+```
+
+== Cluster Network Breakdown (Example: Cluster 1 - bioskop)
+
+Each cluster (`/21`) is subdivided into:
+
+=== Node Networks (/23 each)
+```
+├── Node 0 (master):  10.80.8.0/23   (512 addresses)
+├── Node 1 (peer1):   10.80.10.0/23  (512 addresses)  
+├── Node 2 (peer2):   10.80.12.0/23  (512 addresses)
+├── Node 3 (peer3):   10.80.14.0/23  (512 addresses)
+└── VIP Network:      10.80.15.0/24  (256 addresses)
+```
+
+=== Special Purpose Networks
+
+==== LoadBalancer Pool
+```
+Network: 10.80.8.64/26 (within Node 0 network)
+Range:   10.80.8.64 - 10.80.8.127 (64 addresses)
+Gateway: 10.80.8.129
+Usage:   Cilium LoadBalancer IP Pool
+```
+
+==== VIP Network
+```
+Network:  10.80.15.0/24
+Gateway:  10.80.15.1
+Usage:    Control plane VIP and inter-node communication
+Addresses:
+├── 10.80.15.1   - VIP Gateway
+├── 10.80.15.10  - master VIP interface
+├── 10.80.15.11  - peer1 VIP interface  
+├── 10.80.15.12  - peer2 VIP interface
+└── 10.80.15.250 - Kubernetes API VIP (managed by kube-vip)
+```
+
+== Node Network Configuration
+
+Each node uses three network interfaces:
+
+=== Interface Layout
+[cols="1,2,3,2"]
+|===
+|Interface |Network |Purpose |Gateway
+
+|`lan0`
+|192.168.1.0/24 (DHCP)
+|Local network access
+|192.168.1.1
+
+|`wan0` 
+|Node network (/23)
+|Internet access & cluster communication
+|NODE_HOST_GATEWAY
+
+|`vip0`
+|10.80.15.0/24 (VIP network)
+|Control plane VIP management
+|CLUSTER_VIP_GATEWAY
+|===
+
+=== Master Node Example (10.80.8.0/23)
+```
+lan0: 192.168.1.84/24 (DHCP) → Internet via 192.168.1.1
+wan0: 10.80.8.3/24           → Cluster via 10.80.8.1
+vip0: 10.80.15.10/24         → VIP via 10.80.15.1
+```
+
+== Routing Strategy
+
+=== Primary Routing
+- **Internet access**: via `wan0` interface using `NODE_HOST_GATEWAY`
+- **Cluster communication**: via `wan0` interface within node network
+- **VIP management**: via `vip0` interface in dedicated VIP network
+
+=== Network Isolation
+- Each node has its own `/23` subnet for isolation
+- VIP network is separate `/24` for control plane communication
+- LoadBalancer pool is carved from master node network
+
+== Pod and Service Networks
+
+=== Cluster-Specific CIDRs (Non-overlapping for Cluster Mesh)
+
+[cols="1,2,2"]
+|===
+|Cluster |Pod CIDR |Service CIDR
+
+|bioskop (1)
+|10.42.0.0/16, fd00:10:42::/48
+|10.43.0.0/16, fd00:10:43::/108
+
+|alcide (2)  
+|10.44.0.0/16, fd00:10:44::/48
+|10.45.0.0/16, fd00:10:45::/108
+|===
+
+== Network Generation
+
+The network allocation is automatically generated using `ipcalc` in `network.mk`:
+
+=== Generation Flow
+1. **Host networks**: Split `10.80.0.0/18` into 8 clusters (`/21` each)
+2. **Cluster networks**: Split cluster `/21` into 4 nodes (`/23` each) + VIP (`/24`)
+3. **Node networks**: Generate gateway, broadcast, and prefix for each node
+4. **LoadBalancer networks**: Carve `/26` subnet from master node network
+
+=== Generated Files
+```
+.run.d/network/
+├── host-networks.env           # Host supernet allocation
+├── cluster-1-networks.env     # Cluster 1 node + VIP networks  
+└── cluster-1-node-0-networks.env  # Node 0 specific networks
+```
+
+== Variable Naming Convention
+
+=== Modern Network Variables (from network.mk)
+```bash
+# Host level
+HOST_SUPERNET_CIDR=10.80.0.0/18
+HOST_CLUSTER_1_NETWORK=10.80.8.0/21
+
+# Cluster level  
+CLUSTER_NETWORK_CIDR=10.80.8.0/21
+CLUSTER_VIP_NETWORK=10.80.15.0/24
+CLUSTER_VIP_GATEWAY=10.80.15.1
+CLUSTER_LOADBALANCERS_NETWORK=10.80.8.64/26
+
+# Node level
+NODE_NETWORK_CIDR=10.80.8.0/23
+NODE_HOST_GATEWAY=10.80.8.1
+NODE_HOST_NETWORK=10.80.8.0
+```
+
+=== Template Variable Mappings
+```makefile
+# Map network.mk variables to template variables
+CLUSTER_LOADBALANCERS_CIDR := $(CLUSTER_LOADBALANCERS_NETWORK)
+CLUSTER_VIRTUAL_CIDR := $(CLUSTER_VIP_NETWORK)  
+CLUSTER_VIP_BRIDGE_CIDR := $(CLUSTER_VIP_NETWORK)
+```
+
+== Benefits of This Architecture
+
+1. **Scalability**: Supports up to 8 clusters with 4 nodes each
+2. **Isolation**: Each node has dedicated network space  
+3. **Flexibility**: Easy to add new clusters or nodes
+4. **Automation**: Network allocation generated via `ipcalc`
+5. **Clean Separation**: VIP network separate from node networks
+6. **Future-Proof**: Non-overlapping Pod CIDRs for Cluster Mesh
+
+== Troubleshooting
+
+=== Common Issues
+- **Overlapping networks**: Ensure VIP and node networks don't overlap
+- **Wrong gateways**: Use `NODE_HOST_GATEWAY` for internet, `CLUSTER_VIP_GATEWAY` for VIP
+- **Routing conflicts**: Check that VIP interface uses dedicated `/24` network
+
+=== Verification Commands
+```bash
+# Check routing table
+ip route show
+
+# Check interface configuration  
+ip addr show
+
+# Verify network generation
+make files@network
+cat .run.d/network/*.env
+```

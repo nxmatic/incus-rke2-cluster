@@ -24,7 +24,7 @@ storage_pools:
       source: tank/nerd/incus
 networks: []  # no Incus-managed bridges; macvlan attachments only
 profiles:
-  - name: ${CLUSTER_PROFILE_NAME}
+  - name: ${RKE2_NODE_PROFILE_NAME}
     description: RKE2 profile (mode=${NETWORK_MODE}, dual-NIC macvlan)
     devices:
       root:

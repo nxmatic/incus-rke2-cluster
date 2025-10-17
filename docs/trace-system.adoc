@@ -1,0 +1,375 @@
+= Trace System and Shell Control
+:toc: left
+:toclevels: 3
+:sectlinks:
+:sectanchors:
+:source-highlighter: rouge
+
+== Overview
+
+The Incus RKE2 cluster project includes a comprehensive trace system that provides fine-grained control over shell execution and debugging output. This system addresses the original requirements for `.ONESHELL` support and trace mode control.
+
+== Usage
+
+The trace system is activated using the `.trace` variable with comma-separated mode names:
+
+[source,bash]
+----
+make .trace=<mode1>,<mode2>,... <target>
+----
+
+== Shell Configuration Enhancements
+
+The system includes several shell configuration enhancements for improved reliability and debugging:
+
+=== Always-Enabled Features
+- **`.ONESHELL`**: Always enabled for multi-line recipe support
+- **`.SILENT`**: Commands run silently by default (controlled via trace system)  
+- **Shell flags**: `-euo pipefail` for robust error handling
+- **Undefined variable detection**: `-u` flag catches typos early
+
+=== Shell Flag Benefits
+[cols="1,3"]
+|===
+|Flag |Benefit
+
+|`-e`
+|Exit immediately on command failure (no silent errors)
+
+|`-u`  
+|Exit on undefined variable access (catches `$${TYPO_VAR}` errors)
+
+|`-o pipefail`
+|Exit on pipe failure (catches `cmd1 \| cmd2` failures)
+
+|`-x` (trace mode)
+|Show command execution (enabled with `.trace=shell`)
+|===
+
+=== No More @ Prefixes
+With `.SILENT` enabled, recipe lines no longer need `@` prefixes:
+
+[source,make]
+----
+# Old way (with @ prefixes)
+target:
+	@echo "Running command"
+	@cmd1 && cmd2
+
+# New way (clean, using .trace=shell for debug)
+target:  
+	echo "Running command"; \
+	cmd1 && cmd2
+----
+
+== Available Trace Modes
+
+=== `shell` - Bash Execution Tracing
+Enables `bash -x` tracing to show command execution details.
+
+**Example:**
+[source,bash]
+----
+make .trace=shell network
+----
+
+**Output includes:**
+- Command execution traces with `+` prefix
+- Variable expansions and substitutions
+- Conditional logic flow
+
+=== `targets` - Target Entry/Exit Tracking  
+Shows when targets are entered and completed.
+
+**Example:**
+[source,bash]
+----
+make .trace=targets network
+----
+
+**Output:**
+[source]
+----
+[TRACE] Entering target: summary@network
+Network Configuration Summary:
+...
+----
+
+=== `vars` - Variable Value Display
+Shows variable values during target execution.
+
+**Example:**
+[source,bash]
+----
+make .trace=vars network
+----
+
+**Output:**
+[source]
+----
+[TRACE] RKE2_CLUSTER_NAME = bioskop
+[TRACE] RKE2_NODE_NAME = srv-main
+----
+
+=== `network` - Network Operation Tracing
+Traces network-specific operations and diagnostics.
+
+**Example:**
+[source,bash]
+----
+make .trace=network summary@network
+----
+
+**Output:**
+[source]
+----
+[TRACE] Network: Displaying network configuration summary
+----
+
+=== `incus` - Incus API Tracing
+Traces Incus container operations and API calls.
+
+**Example:**
+[source,bash]
+----
+make .trace=incus start@incus
+----
+
+**Output:**
+[source]
+----
+[TRACE] Incus: Starting instance srv-main
+----
+
+=== `oneshell` - Enable .ONESHELL
+Enables GNU Make's `.ONESHELL` special target for multi-line recipes.
+
+**Example:**
+[source,bash]
+----
+make .trace=oneshell test-oneshell
+----
+
+**Benefits:**
+- Variables persist between recipe lines
+- Multi-line shell constructs work naturally
+- Complex scripts can be written in a single recipe
+
+== Combining Trace Modes
+
+Multiple trace modes can be combined using comma separation:
+
+[source,bash]
+----
+# Comprehensive tracing
+make .trace=shell,targets,vars,network summary@network
+
+# Development debugging
+make .trace=shell,vars,incus start@incus
+
+# Multi-line recipes with tracing
+make .trace=oneshell,targets,vars test-oneshell
+----
+
+== Implementation Details
+
+=== Architecture
+
+The trace system uses:
+
+1. **Dynamic shell configuration** - Shell options are built based on requested trace modes
+2. **Deferred variable evaluation** - Trace variables are evaluated when targets run, not at parse time
+3. **Make conditional logic** - Trace output uses `$(if ...)` constructs that work across included files
+4. **Layered tracing** - Each layer (`@network`, `@incus`, etc.) can have specific trace points
+
+=== Variable Structure
+
+[source,makefile]
+----
+# User-controlled trace specification
+.trace ?=
+
+# Parsed trace modes (comma-separated to space-separated)
+_trace_modes = $(strip $(subst $(comma), ,$(.trace)))
+
+# Individual trace mode flags
+_trace_shell = $(if $(filter shell,$(_trace_modes)),yes,)
+_trace_targets = $(if $(filter targets,$(_trace_modes)),yes,)
+_trace_vars = $(if $(filter vars,$(_trace_modes)),yes,)
+# ... etc for each mode
+
+# Dynamic shell configuration
+_shell_opts := --noprofile --norc -eo pipefail
+ifneq ($(call _has_trace,shell),)
+_shell_opts += -x
+endif
+SHELL := /bin/bash $(_shell_opts)
+
+# Conditional .ONESHELL activation
+ifneq ($(call _has_trace,oneshell),)
+.ONESHELL:
+endif
+----
+
+=== Trace Point Integration
+
+Layer targets include trace points using Make conditionals:
+
+[source,makefile]
+----
+summary@network: ## Show network configuration summary
+	$(if $(_trace_targets),@echo "[TRACE] Entering target: summary@network")
+	$(if $(_trace_vars),@echo "[TRACE] RKE2_CLUSTER_NAME = $(RKE2_CLUSTER_NAME)")
+	$(if $(_trace_network),@echo "[TRACE] Network: Displaying configuration")
+	@echo "Network Configuration Summary:"
+	# ... rest of target
+----
+
+== Examples and Use Cases
+
+=== Development Debugging
+
+When developing new targets or troubleshooting issues:
+
+[source,bash]
+----
+# See all variable values and target flow
+make .trace=targets,vars RKE2_NODE_NAME=debug-node summary@network
+
+# Trace shell execution for complex recipes  
+make .trace=shell,targets start@incus
+
+# Debug network operations
+make .trace=network,vars,shell diagnostics@network
+----
+
+=== Multi-line Recipe Development
+
+For targets that need complex shell logic:
+
+[source,bash]
+----
+# Enable .ONESHELL for complex recipes
+make .trace=oneshell complex-deployment-task
+
+# Combine with shell tracing for debugging
+make .trace=oneshell,shell,targets deployment@cluster
+----
+
+=== Layer-Specific Debugging
+
+Focus on specific layers:
+
+[source,bash]
+----
+# Network layer focus
+make .trace=network,vars allocation@network
+
+# Incus operations focus  
+make .trace=incus,targets start@incus
+
+# Cloud-config debugging
+make .trace=vars validate@cloud-config
+----
+
+== Benefits
+
+=== Original Requirements Addressed
+
+1. **`.ONESHELL` support** - Available via `.trace=oneshell`
+2. **Shell tracing control** - Available via `.trace=shell` 
+3. **Fine-grained control** - Multiple trace modes for different aspects
+
+=== Additional Capabilities
+
+1. **Layer-aware tracing** - Different trace types for different system layers
+2. **Composable debugging** - Mix and match trace modes as needed
+3. **Non-intrusive** - Zero overhead when tracing is disabled
+4. **Cross-platform** - Works on both macOS and Linux environments
+
+== Enhanced Error Handling Examples
+
+=== Undefined Variable Detection
+The `-u` flag catches undefined variable access early:
+
+[source,bash]
+----
+# This will fail immediately with clear error
+make test-undefined-var
+# Output: /bin/bash: UNDEFINED_VAR: unbound variable
+
+# Success case - all variables properly defined
+make test-oneshell  
+# Output: ✓ Variables persist with line continuations
+----
+
+=== Multi-line Recipe Patterns
+With `.ONESHELL` always enabled, use line continuations for variable persistence:
+
+[source,make]
+----
+validate@network: ## Validate network configuration
+	echo "Validating network configuration..."; \
+	ERRORS=0; \
+	if [ -z "$(NODE_IP)" ]; then \
+		echo "✗ Error: NODE_IP not set"; \
+		ERRORS=$$((ERRORS + 1)); \
+	else \
+		echo "✓ NODE_IP: $(NODE_IP)"; \
+	fi; \
+	if [ $$ERRORS -eq 0 ]; then \
+		echo "✓ Network configuration valid"; \
+	else \
+		echo "✗ Network configuration has $$ERRORS error(s)"; \
+		exit 1; \
+	fi
+----
+
+=== Clean vs Debug Output
+Silent by default, verbose on demand:
+
+[source,bash]
+----
+# Clean output (default)
+make validate@network
+# Output: ✗ Network configuration has 2 error(s)
+
+# Debug output (when needed) 
+make validate@network .trace=shell
+# Output: Full bash -x tracing with + prefixes
+----
+
+== Technical Notes
+
+=== Why Not Always Enable .ONESHELL?
+
+`.ONESHELL` changes Make behavior significantly:
+- Can break existing recipes that depend on line-by-line execution
+- Makes error handling more complex
+- Not needed for most simple targets
+
+The opt-in approach via `.trace=oneshell` provides the capability when needed without breaking existing functionality.
+
+=== Performance Considerations
+
+- Trace mode parsing happens once at startup
+- Conditional trace output has minimal runtime cost
+- Shell tracing (`-x`) adds execution overhead but provides valuable debugging
+
+=== Compatibility
+
+The trace system is designed to work with:
+- GNU Make 4.0+
+- Bash 4.0+
+- All included layer modules (`network/`, `incus/`, `cloud-config/`, `metaprogramming/`)
+- Both local and remote execution contexts (Lima VM, native Linux)
+
+== Future Enhancements
+
+Potential additions to the trace system:
+
+1. **Trace output filtering** - `.trace=targets:network` for layer-specific target tracing
+2. **Trace output formatting** - Colored output, timestamps, indentation levels  
+3. **Trace to file** - `.trace=file:debug.log,targets` for persistent debugging
+4. **Performance tracing** - Target execution timing and performance metrics
+5. **Integration tracing** - API call logging, external command tracing

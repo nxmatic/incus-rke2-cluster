@@ -12,13 +12,18 @@ network:
   renderer: networkd
   ethernets:
     # ===== LAN INTERFACE (DHCP) =====
-    # Local network access without routing conflicts
+    # Local network access without routing conflicts  
     lan0:
-      # DHCP Configuration
+      # DHCP Configuration with strict overrides
       dhcp4: true
       dhcp4-overrides:
-        use-routes: false  # Prevent default route from DHCP
-      dhcp6: false         # Disable IPv6 DHCP
+        use-routes: false      # Prevent ALL routes from DHCP
+        use-dns: false         # Prevent DNS override from DHCP
+        use-domains: false     # Prevent domain override from DHCP
+        use-hostname: false    # Prevent hostname override
+        send-hostname: false   # Don't send hostname to DHCP server
+        route-metric: 9999     # Set extremely high metric as last resort
+      dhcp6: false             # Disable IPv6 DHCP
       dhcp-identifier: mac
 
       # Interface Options
@@ -32,15 +37,16 @@ network:
 
       # Static IP Configuration
       addresses:
-        - ${CLUSTER_NODE_INET}/24
+        - ${RKE2_NODE_HOST_IP}/24
       routes:
         - to: 0.0.0.0/0
-          via: ${CLUSTER_INET_GATEWAY}
+          via: ${RKE2_NODE_GATEWAY_IP}
+          metric: 100
 
       # DNS Configuration
       nameservers:
         addresses:
-          - ${CLUSTER_INET_GATEWAY}  # Primary: cluster gateway
+          - ${RKE2_NODE_GATEWAY_IP}     # Primary: node gateway
           - 1.1.1.1                  # Fallback: Cloudflare DNS
 
       # Interface Options
@@ -53,9 +59,9 @@ network:
       dhcp4: false
       dhcp6: false
 
-      # Static IP from VIP range (each node gets a unique IP for the interface)
+      # Static IP from dedicated VIP network (each node gets a unique IP)
       addresses:
-        - ${CLUSTER_NODE_VIP_INET}/28
+        - ${RKE2_NODE_VIP_IP}/24
 
       # Interface Options
       optional: false

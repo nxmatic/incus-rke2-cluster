@@ -14,7 +14,7 @@ write_files:
           bpf:
             hostLegacyRouting: true
           bgpControlPlane:
-            enabled: false
+            enabled: true
           cluster:
             name: "${CLUSTER_NAME}"
             id: ${CLUSTER_SUBNET}
@@ -23,7 +23,7 @@ write_files:
             apiserver:
               service:
                 type: LoadBalancer
-                # Using L2 announcements since BGP is disabled
+                # Using BGP announcements for cluster mesh
           envoy:
             enabled: true
           gatewayAPI:
@@ -38,8 +38,10 @@ write_files:
               enabled: true
             ui:
               enabled: true
-          ipv6:
+          ipv4:
             enabled: true
+          ipv6:
+            enabled: false
           kubeProxyReplacement: true
           l2announcements:
             enabled: true
@@ -67,7 +69,7 @@ write_files:
         name: load-balancers
       spec:
         blocks:
-          - cidr: ${CLUSTER_LOADBALANCERS_CIDR}
+          - cidr: ${CLUSTER_LOADBALANCERS_NETWORK}
             # LoadBalancer pool inside /26 (128/26): usable hosts 129-190 (@codebase)
             min: 129
             max: 190
@@ -78,9 +80,8 @@ write_files:
         name: virtual-addresses
       spec:
         blocks:
-          - cidr: ${CLUSTER_VIRTUAL_ADDRESSES_CIDR}
-            # For /28 VIP pool (.240/28): usable host IPs 241-254 (250 reserved for API VIP) (@codebase)
-            min: 241
+          - cidr: ${CLUSTER_VIP_NETWORK}
+            min: 1
             max: 254
       ---
       apiVersion: cilium.io/v2alpha1
@@ -97,6 +98,42 @@ write_files:
           matchExpressions:
             - key: node-role.kubernetes.io/control-plane
               operator: Exists
+      ---
+      # BGP Configuration for control plane
+      apiVersion: cilium.io/v2alpha1
+      kind: CiliumBGPClusterConfig
+      metadata:
+        name: bgp-cluster-config
+      spec:
+        nodeSelector:
+          matchLabels:
+            node-role.kubernetes.io/control-plane: ""
+        bgpInstances:
+        - name: "control-plane-bgp"
+          localASN: 65001
+          peers:
+          - name: "gateway-peer"
+            peerASN: 65000
+            peerAddress: "${NODE_HOST_GATEWAY}"
+            peerConfigRef:
+              name: "cilium-peer"
+      ---
+      # BGP Advertisement Configuration
+      apiVersion: cilium.io/v2alpha1
+      kind: CiliumBGPAdvertisement
+      metadata:
+        name: control-plane-advertisement
+      spec:
+        advertisements:
+        - advertisementType: "Service"
+          service:
+            addresses:
+            - ExternalIP
+            - LoadBalancerIP
+          selector:
+            matchLabels:
+              io.cilium/lb-ipam: "load-balancers"
+        - advertisementType: "PodCIDR"
 
   - path: /var/lib/rancher/rke2/server/manifests/envoy-gateway.yaml
     content: |
