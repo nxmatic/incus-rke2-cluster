@@ -88,7 +88,7 @@ LIMA_HOST ?= $(LIMA_HOSTNAME)
 #   3. activate flox environment (if available) so required tools are present
 # Assumes same absolute path exists on remote (bind mount); fall back to plain ssh if cd fails.
 REMOTE_REPO_PATH ?= $(CURDIR)
-REMOTE_EXEC := $(shell if [ -x /run/wrappers/bin/sudo ]; then echo ""; else echo "ssh $(LIMA_HOST) 'cd $(REMOTE_REPO_PATH) 2>/dev/null || cd ~; if command -v flox >/dev/null 2>&1; then eval \"$$(/usr/bin/flox activate --print-env)\"; fi; '"; fi)
+REMOTE_EXEC := $(shell if [ -x /run/wrappers/bin/sudo ]; then echo ""; else echo "ssh $(LIMA_HOST) 'cd $(REMOTE_REPO_PATH) 2>/dev/null || cd ~; if command -v flox >/dev/null 2>&1; then eval \"$$(flox activate --print-env)\"; fi; '"; fi)
 
 # Dynamic help macro ---------------------------------------------------------
 define make-help
