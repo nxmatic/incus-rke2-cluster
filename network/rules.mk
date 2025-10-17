@@ -180,6 +180,9 @@ summary@network.print:
 	. $(RKE2_HOST_NETWORKS_FILE); \
 	. $(RKE2_CLUSTER_NETWORKS_FILE); \
 	. $(RKE2_NODE_NETWORKS_FILE); \
+	set -x; \
+	env | grep -E 'RKE2_CLUSTER_NETWORK_CIDR|RKE2_NODE_NETWORK_CIDR|RKE2_NODE_HOST_IP' || true; \
+	echo "DEBUG CLUSTER_NETWORK=$$RKE2_CLUSTER_NETWORK_CIDR NODE_NETWORK=$$RKE2_NODE_NETWORK_CIDR NODE_IP=$$RKE2_NODE_HOST_IP"; \
 	echo "Network Configuration Summary:"; \
 	echo "============================="; \
 	echo "Cluster: $(RKE2_CLUSTER_NAME) (ID: $(RKE2_CLUSTER_ID))"; \
