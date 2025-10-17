@@ -1,6 +1,10 @@
 # network-refactor.mk - Refactored RKE2 network configuration (@codebase)
 # Modern hierarchical network system with consistent RKE2-focused naming
 
+# Early include of cluster configuration to ensure RKE2_CLUSTER_ID is defined
+# before deriving file paths that embed the cluster ID.
+-include metaprogramming/cluster-config.mk
+
 # Check for required tools
 IPCALC := $(shell command -v ipcalc || echo "false")
 ifeq ($(IPCALC),false)
