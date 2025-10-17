@@ -193,13 +193,17 @@ summary@network.print:
 
 # Second expansion loader: import generated env exports into make variables
 .PHONY: load@network
-load@network: $(RKE2_HOST_NETWORKS_FILE) $(RKE2_CLUSTER_NETWORKS_FILE) $(RKE2_NODE_NETWORKS_FILE)
+_NETWORK_ASSIGN_FILE := $(NETWORK_DIR)/_assign.mk
+
+$(NETWORK_DIR)/_assign.mk: $(RKE2_HOST_NETWORKS_FILE) $(RKE2_CLUSTER_NETWORKS_FILE) $(RKE2_NODE_NETWORKS_FILE)
+	@echo "[network] Building assignment file $@"; \
+	cat $^ | sed -n 's/^export \([A-Z0-9_]*\)=/\1=/p' > $@; \
+	grep -c '=' $@ | xargs -I{} echo "[network] Collected {} variable assignments"
+
+load@network: $(NETWORK_DIR)/_assign.mk
 	$(call trace-network,Loading generated network environment into make variables)
-	# Convert 'export VAR=VAL' lines into make variable assignments then eval
-	assigns=$$(sed -n 's/^export \([A-Z0-9_]*\)=/\1=/p' $(RKE2_HOST_NETWORKS_FILE) $(RKE2_CLUSTER_NETWORKS_FILE) $(RKE2_NODE_NETWORKS_FILE)); \
-	printf '%s\n' "$$assigns" > $(NETWORK_DIR)/_assign.mk; \
-	$(info [network] evaluating $$(words $$(echo "$$assigns" | grep -c '=')) assignments); \
-	$(eval include $(NETWORK_DIR)/_assign.mk)
+	$(eval $(file <$(_NETWORK_ASSIGN_FILE)))
+	@echo "[network] Loaded $$(grep -c '=' $(_NETWORK_ASSIGN_FILE)) assignments"
 
 diagnostics@network: ## Show host network diagnostics
 	$(call trace,Entering target: diagnostics@network)
