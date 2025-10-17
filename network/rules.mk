@@ -165,25 +165,32 @@ export RKE2_MASTER_NODE_IP
 # Network Layer Targets (@network)
 #-----------------------------
 
-.PHONY: summary@network diagnostics@network status@network setup-bridge@network
+.PHONY: summary@network summary@network.print diagnostics@network status@network setup-bridge@network
 .PHONY: allocation@network validate@network
 
-summary@network: ## Show network configuration summary
+summary@network: generate@rke2-networks summary@network.print ## Show network configuration summary (auto-regenerates if needed)
+
+summary@network.print:
 	$(call trace,Entering target: summary@network)
 	$(call trace-var,RKE2_CLUSTER_NAME)
 	$(call trace-var,RKE2_NODE_NAME)
 	$(call trace-network,Displaying network configuration summary)
+	# Re-evaluate generated environment files to populate variables if they were empty at initial parse
+	# Using $(MAKE) -f network/rules.mk dummy target to force reparse is heavy; instead we source and echo via shell
+	. $(RKE2_HOST_NETWORKS_FILE); \
+	. $(RKE2_CLUSTER_NETWORKS_FILE); \
+	. $(RKE2_NODE_NETWORKS_FILE); \
 	echo "Network Configuration Summary:"; \
 	echo "============================="; \
 	echo "Cluster: $(RKE2_CLUSTER_NAME) (ID: $(RKE2_CLUSTER_ID))"; \
-	echo "Node: $(RKE2_NODE_NAME) (ID: $(RKE2_NODE_ID), Role: $(RKE2_NODE_ROLE))"
-	@echo "Host Supernet: $(RKE2_HOST_SUPERNET_CIDR)"
-	@echo "Cluster Network: $(RKE2_CLUSTER_NETWORK_CIDR)"
-	@echo "Node Network: $(RKE2_NODE_NETWORK_CIDR)"
-	@echo "Node IP: $(RKE2_NODE_HOST_IP)"
-	@echo "Gateway: $(RKE2_NODE_GATEWAY_IP)"
-	@echo "Bridge: $(RKE2_NODE_LAN_BRIDGE_NAME)"
-	@echo "Profile: $(RKE2_NODE_PROFILE_NAME)"
+	echo "Node: $(RKE2_NODE_NAME) (ID: $(RKE2_NODE_ID), Role: $(RKE2_NODE_ROLE))"; \
+	echo "Host Supernet: $$RKE2_HOST_SUPERNET_CIDR"; \
+	echo "Cluster Network: $$RKE2_CLUSTER_NETWORK_CIDR"; \
+	echo "Node Network: $$RKE2_NODE_NETWORK_CIDR"; \
+	echo "Node IP: $$RKE2_NODE_HOST_IP"; \
+	echo "Gateway: $$RKE2_NODE_GATEWAY_IP"; \
+	echo "Bridge: $$RKE2_NODE_LAN_BRIDGE_NAME"; \
+	echo "Profile: $$RKE2_NODE_PROFILE_NAME"
 
 diagnostics@network: ## Show host network diagnostics
 	$(call trace,Entering target: diagnostics@network)
