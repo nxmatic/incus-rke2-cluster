@@ -1,7 +1,6 @@
-# network-deps.mk - Advanced network dependency management using secondary expansion (@codebase)
-# Uses .SECONDEXPANSION to create dynamic prerequisite relationships
+ifndef network/network-deps.mk
 
-.SECONDEXPANSION:
+include make.d/make.mk  # Ensure availability when file used standalone (@codebase)
 
 #-----------------------------
 # Network Dependency Templates
@@ -51,3 +50,5 @@ $(RUN_INSTANCE_DIR)/%.yaml: $$($$*_CONFIG_TEMPLATE) | $(RUN_INSTANCE_DIR)/
 incus_CONFIG_TEMPLATE := incus-instance-config.yaml
 network_CONFIG_TEMPLATE := network-config.yaml
 cloud_CONFIG_TEMPLATE := cloud-config.common.yaml
+
+endif # network/network-deps.mk guard

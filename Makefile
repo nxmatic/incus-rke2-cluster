@@ -1,8 +1,27 @@
 # Makefile for Incus RKE2 Cluster
 
-include make.mk
+# NOTE (@codebase): Incus-specific variables (directories, image artifacts, NoCloud paths,
+# Tailscale secrets, network mode, instance config rendering, cluster env file generation)
+# have been relocated to `incus/rules.mk` for clearer layer ownership. This Makefile now
+# focuses on high-level orchestration and legacy aliases only. Avoid reintroducing those
+# definitions here; extend `incus/rules.mk` instead.
+
+include make.d/make.mk
+
+## Debug target to show last included file context
+.PHONY: debug-last-include
+debug-last-include:
+	@echo "[debug] Last include path: $(_last_include_path)"; \
+	echo "[debug] Last include dir : $(_last_include_dir)"; \
+	echo "[debug] Last include file: $(_last_include_file)"; \
+	echo "[debug] Last include name: $(_last_include_name)";
 
 ## Helpers (SUDO, REMOTE_EXEC, INCUS, separators) now provided by make.mk (@codebase)
+
+# Enable single shell per recipe globally so we can drop line-continuation backslashes
+# and leading @ silencers across included makefiles. (@codebase)
+.ONESHELL:
+SHELL := bash
 
 -include .gmsl/gmsl
 
@@ -20,76 +39,25 @@ include make.mk
 # toggle removed to simplify path. Future per-prefix customization can reintroduce
 # derivation, but the control plane and Cilium are now expected to run dual-stack.
 
-NAME ?= $(name)
-NAME ?= $(if $(NAME),$(NAME),master)
-
-# Directories
-SECRETS_DIR := .secrets.d
-RUN_DIR := .run.d
-IMAGE_DIR := $(RUN_DIR)/image
-RUN_INSTANCE_DIR := $(RUN_DIR)/$(RKE2_NODE_NAME)
-INCUS_DIR := $(RUN_INSTANCE_DIR)/incus
-NOCLOUD_DIR := $(RUN_INSTANCE_DIR)/nocloud
-SHARED_DIR := $(RUN_INSTANCE_DIR)/shared
-KUBECONFIG_DIR := $(RUN_INSTANCE_DIR)/kube
-LOGS_DIR := $(RUN_INSTANCE_DIR)/logs
+NAME ?= master
 
 # RKE2 Cluster Configuration
 
 # Node name from command line or default to master
-RKE2_NODE_NAME ?= $(name)
-RKE2_NODE_NAME ?= $(if $(RKE2_NODE_NAME),$(RKE2_NODE_NAME),master)
+RKE2_NODE_NAME ?= master
 
 # Cluster configuration
-RKE2_CLUSTER_NAME ?= $(LIMA_HOSTNAME)
+RKE2_CLUSTER_NAME ?= $(if $(LIMA_HOSTNAME),$(LIMA_HOSTNAME),rke2)
 RKE2_CLUSTER_TOKEN ?= $(RKE2_CLUSTER_NAME)
 RKE2_CLUSTER_DOMAIN := cluster.local
 
-# Infrastructure naming
-RKE2_IMAGE_NAME := rke2-control-node
+## Incus image naming now owned by incus/rules.mk (@codebase)
 
-# Determine RKE2 node type and role
-ifeq ($(RKE2_NODE_NAME),master)
-	RKE2_NODE_TYPE := server
-	RKE2_NODE_ROLE := master
-else ifneq (,$(findstring peer,$(RKE2_NODE_NAME)))
-	RKE2_NODE_TYPE := server
-	RKE2_NODE_ROLE := peer
-else
-	RKE2_NODE_TYPE := agent
-	RKE2_NODE_ROLE := worker
-endif
+## Node role/type derivation moved to node/rules.mk (@codebase)
 
-# RKE2 Kubernetes network CIDRs (per-cluster allocation)
-ifeq (bioskop,$(RKE2_CLUSTER_NAME))
-RKE2_POD_NETWORK_CIDR := 10.42.0.0/16
-RKE2_SERVICE_NETWORK_CIDR := 10.43.0.0/16
-else ifeq (alcide,$(RKE2_CLUSTER_NAME))
-RKE2_POD_NETWORK_CIDR := 10.44.0.0/16
-RKE2_SERVICE_NETWORK_CIDR := 10.45.0.0/16
-else
-$(error No Pod/Service CIDR mapping for cluster: $(RKE2_CLUSTER_NAME))
-endif
+## Pod/Service CIDR mapping now owned by cluster/rules.mk (@codebase)
 
-## ---------------------------------------------------------------------------
-## Hierarchical Addressing (unconditional) (@codebase)
-## ---------------------------------------------------------------------------
-## Global (all clusters):
-##   IPv4 supernet: 10.80.0.0/12
-##   IPv6 supernet: fd70:80::/32
-## Per-cluster aggregate:
-##   IPv4 /20 block: 10.80.(CLUSTER_ID*16).0/20  (third octet span of 16 values)
-##   IPv6 /48 block: fd70:80:CLUSTER_ID::/48
-## Per-node (bridge) subnet (kept compact, same L3 for inter-node reachability):
-##   We carve per-node /28s inside a single anchor third octet (the first of the /20)
-##   Node index n ⇒ base host offset = n*16; network = 10.80.<baseThird>.<n*16>.0/28
-##   Gateway = 10.80.<baseThird>.<n*16 + 1>
-##   This yields non-overlapping slices while keeping all nodes within one /24
-##   for simpler routing (kernel treats them as same broadcast domain, but we
-##   still create distinct bridges; if later consolidated to one bridge the
-##   allocations remain valid). (@codebase)
-## IPv6: per-node /64 inside cluster /48 ⇒ fd70:80:<cluster>::<nodeIndex>:/64
-## ---------------------------------------------------------------------------
+## Hierarchical addressing reference moved to cluster/rules.mk (@codebase)
 
 # Hierarchical network allocation using ipcalc for proper CIDR splitting
 # Infrastructure: 10.80.0.0/18 -> 8 clusters (/21 each) -> N nodes (/23 each)
@@ -108,13 +76,15 @@ endif
 # Include layered modules using rules.mk convention (@codebase)
 # Skip metaprogramming-heavy modules for help target to avoid evaluation issues
 ifneq ($(MAKECMDGOALS),help)
--include network/rules.mk
--include metaprogramming/rules.mk
+	-include make.d/cluster/rules.mk
+	-include make.d/node/rules.mk
+	-include make.d/network/rules.mk
+	-include make.d/metaprogramming/rules.mk
 endif
 
-# Always include core infrastructure modules
--include incus/rules.mk
--include cloud-config/rules.mk
+# Always include core infrastructure modules (guarded)
+-include make.d/incus/rules.mk
+-include make.d/cloud-config/rules.mk
 
 
 # Legacy compatibility aliases for templates (all logic moved to RKE2_ variables above)
@@ -147,81 +117,20 @@ export RKE2_NODE_ID
 RKE2_NODE_PROFILE_NAME := rke2-$(RKE2_NODE_NAME)
 
 
-# Primary/secondary (LAN/WAN) Lima host interfaces (udev renamed) (@codebase)
-LIMA_LAN_INTERFACE ?= vmlan0
-LIMA_WAN_INTERFACE ?= vmwan0
-LIMA_PRIMARY_INTERFACE := $(LIMA_LAN_INTERFACE)
-LIMA_SECONDARY_INTERFACE := $(LIMA_WAN_INTERFACE)
+## Host interface definitions & NETWORK_MODE relocated to incus/rules.mk (@codebase)
 
-# Network mode for preseed template
-NETWORK_MODE := L2-bridge
-
-# Host interface to use for cluster egress traffic (using LAN bridge for LoadBalancer access)
-INCUS_EGRESS_INTERFACE := $(LIMA_PRIMARY_INTERFACE)
-export INCUS_EGRESS_INTERFACE
-
-#-----------------------------
-# Tailscale Configuration
-#-----------------------------
-TSID ?= $(file <$(SECRETS_DIR)/tsid)
-TSKEY_CLIENT ?= $(file <$(SECRETS_DIR)/tskey-client)
-TSKEY_API ?= $(file <$(SECRETS_DIR)/tskey-api)
-
-# After interface rename (big-bang) eth0→lan0, eth1→wan0.
-# WAN hosts VIP, lan0 is LAN bridge. For host container IPv4 detection we now use wan0 (NAT side)
-INCUS_INET_YQ_EXPR := .[].state.network.wan0.addresses[] | select(.family == "inet") | .address
-define INCUS_INET_CMD
-$(shell incus list $(1) --format=yaml | yq eval '$(INCUS_INET_YQ_EXPR)' -)
-endef
-
-define RKE2_MASTER_TOKEN_TEMPLATE
-# Bootstrap server points at the master primary IP (CLUSTER_INET_MASTER now mapped to primary) (@codebase)
-server: https://$(CLUSTER_INET_MASTER):9345
-token: $(CLUSTER_TOKEN)
-endef
+## Tailscale secret loading, inet helpers moved to incus/rules.mk (@codebase)
 
 # Config Paths
 ## Templates now use existing Makefile variables directly (CLUSTER_* etc.) so no extra exports required.
 
-INCUS_PRESSED_FILENAME := incus-preseed.yaml
-INCUS_PRESSED_FILE := $(INCUS_DIR)/preseed.yaml
-
-INCUS_DISTROBUILDER_FILE := ./incus-distrobuilder.yaml
-INCUS_DISTROBUILDER_LOGFILE := $(IMAGE_DIR)/distrobuilder.log
-
-INCUS_IMAGE_IMPORT_MARKER_FILE := $(IMAGE_DIR)/import.tstamp
-INCUS_IMAGE_BUILD_FILES := $(IMAGE_DIR)/incus.tar.xz $(IMAGE_DIR)/rootfs.squashfs
-
-INCUS_CREATE_PROJECT_MARKER_FILE := $(INCUS_DIR)/create-project.tstamp
-INCUS_BRIDGE_SETUP_MARKER_FILE := $(INCUS_DIR)/bridge-setup.tstamp
-INCUS_CONFIG_INSTANCE_MARKER_FILE := $(INCUS_DIR)/init-instance.tstamp
-
-INCUS_INSTANCE_CONFIG_FILENAME := incus-instance-config.yaml
-INCUS_INSTANCE_CONFIG_FILE := $(INCUS_DIR)/config.yaml
-INCUS_ZFS_ALLOW_MARKER_FILE := $(INCUS_DIR)/zfs-allow.tstamp
-
-NOCLOUD_METADATA_FILE := $(NOCLOUD_DIR)/metadata
-NOCLOUD_USERDATA_FILE := $(NOCLOUD_DIR)/userdata
-NOCLOUD_NETCFG_FILE := $(NOCLOUD_DIR)/network-config
+## Incus artifact paths & NoCloud file variables moved to incus/rules.mk (@codebase)
 
 #-----------------------------
 
-# Network mode for preseed template
-NETWORK_MODE := L2-bridge
+## Template environment exports now performed inside incus/rules.mk (@codebase)
 
-# Export essential variables for YAML template rendering
-export NETWORK_MODE
-export LIMA_PRIMARY_INTERFACE
-export LIMA_LAN_INTERFACE
-export LIMA_WAN_INTERFACE
-export TSID
-export TSKEY := $(TSKEY_CLIENT)
-
-# Directory exports for templates
-export RUN_INSTANCE_DIR
-export NOCLOUD_USERDATA_FILE
-export NOCLOUD_METADATA_FILE
-export NOCLOUD_NETCFG_FILE
+## Cluster environment file generation handled in incus/rules.mk (@codebase)
 
 .PHONY: all start stop delete clean shell
 
@@ -252,22 +161,15 @@ clean: clean@incus ## Clean RKE2 node (delete instance + config)
 shell: shell@incus ## Open interactive shell in RKE2 node
 instance: instance@incus ## Create RKE2 instance without starting
 
-# Ensure dependencies for main targets
-$(MAIN_TARGETS): preseed@incus image@incus switch-project@incus
+# Ensure dependencies for lifecycle targets explicitly (avoid undefined MAIN_TARGETS variable) (@codebase)
+start stop delete clean shell instance: preseed@incus image@incus switch-project@incus
 
-.PHONY: $(MAIN_TARGETS)
+.PHONY: start stop delete clean shell instance
 
 # High-level cluster management
 clean-all: clean-all@incus ## Clean all nodes in cluster (destructive)
 
-#-----------------------------
-# Generate $(INCUS_INSTANCE_CONFIG_FILE) directly from template (envsubst pass only)
-#-----------------------------
-$(INCUS_INSTANCE_CONFIG_FILE): $(INCUS_INSTANCE_CONFIG_FILENAME)
-$(INCUS_INSTANCE_CONFIG_FILE): $(NOCLOUD_METADATA_FILE) $(NOCLOUD_USERDATA_FILE) $(NOCLOUD_NETCFG_FILE)
-$(INCUS_INSTANCE_CONFIG_FILE):
-	@: "[+] Rendering instance config (envsubst via yq) ..."
-	yq eval '( ... | select(tag=="!!str") ) |= envsubst(ne,nu)' $(INCUS_INSTANCE_CONFIG_FILENAME) > $(@)
+## Instance config rendering & cluster validation relocated to incus/rules.mk (@codebase)
 
 # Cloud-config generation now handled by cloud-config/rules.mk (@codebase)
 
@@ -309,9 +211,19 @@ lint-yaml: ## Lint YAML configuration files
 
 # Advanced targets (from metaprogramming modules) (@codebase)
 .PHONY: start-master start-peer1 start-worker1 debug-variables show-runtime-config
+
 start-master: ## Start master node (control plane bootstrap)
+start-master: NAME=master
+start-master: instance@incus
+
 start-peer1: ## Start peer1 node (control plane join)
+start-peer1: NAME=peer1
+start-peer1: instance@incus
+
 start-worker1: ## Start worker1 node (worker join)
+start-worker1: NAME=worker1
+start-worker1: instance@incus
+
 debug-variables: ## Show constructed variable values for debugging
 show-runtime-config: ## Display auto-generated runtime configuration
 

@@ -1,6 +1,10 @@
 # cloud-config/rules.mk - Cloud-config generation and management (@codebase)
-# This file contains all cloud-config related targets and rules
-# Included by main Makefile for cloud-init configuration management
+# Self-guarding include pattern for idempotent multiple inclusion.
+
+
+ifndef cloud-config/rules.mk
+
+include make.d/make.mk  # Ensure availability when file used standalone (@codebase)
 
 #-----------------------------
 # Cloud-config File Paths
@@ -31,7 +35,7 @@ endef
 $(NOCLOUD_METADATA_FILE): | $(NOCLOUD_DIR)/
 $(NOCLOUD_METADATA_FILE): export METADATA_INLINE := $(METADATA_INLINE)
 $(NOCLOUD_METADATA_FILE):
-	@: "[+] Generating meta-data file for instance $(RKE2_NODE_NAME)..."
+	echo "[+] Generating meta-data file for instance $(RKE2_NODE_NAME)..."
 	echo "$$METADATA_INLINE" > $(@)
 
 #-----------------------------
@@ -39,14 +43,14 @@ $(NOCLOUD_METADATA_FILE):
 #-----------------------------
 
 $(NOCLOUD_USERDATA_FILE): | $(NOCLOUD_DIR)/
-$(NOCLOUD_USERDATA_FILE): $(CLOUD_CONFIG_COMMON)
-$(NOCLOUD_USERDATA_FILE): $(CLOUD_CONFIG_SERVER)
+$(NOCLOUD_USERDATA_FILE): $(CLOUD_CONFIG_COMMON) ## common fragment (@codebase)
+$(NOCLOUD_USERDATA_FILE): $(CLOUD_CONFIG_SERVER) ## server fragment (@codebase)
 ifeq ($(RKE2_NODE_ROLE),master)
-$(NOCLOUD_USERDATA_FILE): $(CLOUD_CONFIG_MASTER_BASE)
-$(NOCLOUD_USERDATA_FILE): $(CLOUD_CONFIG_MASTER_CILIUM)
-$(NOCLOUD_USERDATA_FILE): $(CLOUD_CONFIG_MASTER_KUBE_VIP)
+$(NOCLOUD_USERDATA_FILE): $(CLOUD_CONFIG_MASTER_BASE) ## master base fragment (@codebase)
+$(NOCLOUD_USERDATA_FILE): $(CLOUD_CONFIG_MASTER_CILIUM) ## master cilium fragment (@codebase)
+$(NOCLOUD_USERDATA_FILE): $(CLOUD_CONFIG_MASTER_KUBE_VIP) ## master kube-vip fragment (@codebase)
 else ifeq ($(RKE2_NODE_ROLE),peer)
-$(NOCLOUD_USERDATA_FILE): $(CLOUD_CONFIG_PEER)
+$(NOCLOUD_USERDATA_FILE): $(CLOUD_CONFIG_PEER) ## peer fragment (@codebase)
 endif
 
 # yq expressions for cloud-config merging with environment variable substitution
@@ -88,7 +92,7 @@ $(error Unsupported file count: $(1) (expected 3 or 5)))
 endef
 
 $(NOCLOUD_USERDATA_FILE):
-	@: "[+] Merging cloud-config fragments (common/server/node) with envsubst ..."
+	echo "[+] Merging cloud-config fragments (common/server/node) with envsubst ..."
 	$(eval _file_count := $(call length,$^))
 	$(call EXECUTE_YQ_CLOUD_CONFIG_MERGE,$(_file_count),$^,$@)
 
@@ -98,8 +102,8 @@ $(NOCLOUD_USERDATA_FILE):
 
 $(NOCLOUD_NETCFG_FILE): network/network-config.yaml | $(NOCLOUD_DIR)/
 $(NOCLOUD_NETCFG_FILE):
-	@: "[+] Rendering network-config (envsubst via yq) ..."
-	@yq eval '( .. | select(tag=="!!str") ) |= envsubst(ne,nu)' network/network-config.yaml > $@
+	echo "[+] Rendering network-config (envsubst via yq) ..."
+	yq eval '( .. | select(tag=="!!str") ) |= envsubst(ne,nu)' network/network-config.yaml > $@
 
 #-----------------------------
 # Cloud-config validation and linting
@@ -110,12 +114,12 @@ CLOUD_CONFIG_FILES := $(wildcard $(CLOUD_CONFIG_DIR)/*.yaml)
 .PHONY: lint@cloud-config validate@cloud-config
 
 lint@cloud-config: ## Lint cloud-config YAML files
-	@echo "[+] Linting cloud-config files..."
+	echo "[+] Linting cloud-config files..."
 	yamllint $(CLOUD_CONFIG_FILES)
 
 validate@cloud-config: $(NOCLOUD_USERDATA_FILE) ## Validate merged cloud-config
-	@echo "[+] Validating merged cloud-config..."
-	@cloud-init schema --config-file $(NOCLOUD_USERDATA_FILE) || echo "cloud-init not available for validation"
+	echo "[+] Validating merged cloud-config..."
+	cloud-init schema --config-file $(NOCLOUD_USERDATA_FILE) || echo "cloud-init not available for validation"
 
 #-----------------------------
 # Cloud-config debugging targets  
@@ -124,19 +128,21 @@ validate@cloud-config: $(NOCLOUD_USERDATA_FILE) ## Validate merged cloud-config
 .PHONY: show-files@cloud-config debug-merge@cloud-config
 
 show-files@cloud-config: ## Show cloud-config files for current node type
-	@echo "Cloud-config files for $(RKE2_NODE_NAME) ($(RKE2_NODE_ROLE)):"
-	@echo "  Common: $(CLOUD_CONFIG_COMMON)"
-	@echo "  Server: $(CLOUD_CONFIG_SERVER)"
+	echo "Cloud-config files for $(RKE2_NODE_NAME) ($(RKE2_NODE_ROLE)):"
+	echo "  Common: $(CLOUD_CONFIG_COMMON)"
+	echo "  Server: $(CLOUD_CONFIG_SERVER)"
 ifeq ($(RKE2_NODE_ROLE),master)
-	@echo "  Master base: $(CLOUD_CONFIG_MASTER_BASE)"
-	@echo "  Master Cilium: $(CLOUD_CONFIG_MASTER_CILIUM)"
-	@echo "  Master Kube-vip: $(CLOUD_CONFIG_MASTER_KUBE_VIP)"
+	echo "  Master base: $(CLOUD_CONFIG_MASTER_BASE)"
+	echo "  Master Cilium: $(CLOUD_CONFIG_MASTER_CILIUM)"
+	echo "  Master Kube-vip: $(CLOUD_CONFIG_MASTER_KUBE_VIP)"
 else ifeq ($(RKE2_NODE_ROLE),peer)
-	@echo "  Peer: $(CLOUD_CONFIG_PEER)"
+	echo "  Peer: $(CLOUD_CONFIG_PEER)"
 endif
 
 debug-merge@cloud-config: ## Debug cloud-config merge process
-	@echo "[+] Debugging cloud-config merge for $(RKE2_NODE_NAME)..."
-	@echo "Files to merge: $^"
-	@echo "Output file: $(NOCLOUD_USERDATA_FILE)"
-	@echo "File count: $(call length,$^)"
+	echo "[+] Debugging cloud-config merge for $(RKE2_NODE_NAME)..."
+	echo "Files to merge: $^"
+	echo "Output file: $(NOCLOUD_USERDATA_FILE)"
+	echo "File count: $(call length,$^)"
+
+endif  # cloud-config/rules.mk guard

@@ -214,7 +214,7 @@ write_files:
         : "Extract environment variables from init process"
         while IFS='=' read -r key value; do
           case "$$key" in
-            INSTALL_RKE2_TYPE|CLUSTER_*|TSID|TSKEY|CILIUM_PROFILE)
+            RKE2_NODE_TYPE|CLUSTER_*|TSID|TSKEY|CILIUM_PROFILE)
               declare "$$key=$$value"
               ;;
           esac
@@ -576,7 +576,7 @@ write_files:
 
       : "Enable and start the RKE2 service"
       systemctl --no-block --now \
-        enable rke2-${INSTALL_RKE2_TYPE}
+        enable rke2-${RKE2_NODE_TYPE}
 
   # Script to generate ZFS mount units for containerd
   - path: /usr/local/sbin/rke2-enable-containerd-zfs-mount
@@ -594,17 +594,17 @@ write_files:
       Description=Mount containerd zfs snapshotter directory for RKE2 (ZFS dataset)
       DefaultDependencies=no
       Before=cloud-init.service
-      Before=rke2-${INSTALL_RKE2_TYPE}.service
+      Before=rke2-${RKE2_NODE_TYPE}.service
 
       [Mount]
-      What=tank/rke2/control-nodes/${CLUSTER_NODE_NAME}/containerd
+      What=tank/rke2/control-nodes/${RKE2_NODE_NAME}/containerd
       Where=/var/lib/rancher/rke2/agent/containerd/io.containerd.snapshotter.v1.zfs
       Type=zfs
       Options=defaults
 
       [Install]
       WantedBy=multi-user.target
-      RequiredBy=rke2-${INSTALL_RKE2_TYPE}.service
+      RequiredBy=rke2-${RKE2_NODE_TYPE}.service
       EOF
 
       : "Enable the mount unit"
@@ -691,7 +691,7 @@ write_files:
       : "Apply modifications to working copy"
       yq --inplace --from-file=<(cat <<EoE
       .clusters[0].cluster.name = "${CLUSTER_NAME}" |
-      .clusters[0].cluster.server = "https://${CLUSTER_VIP_GATEWAY}:6443" |
+      .clusters[0].cluster.server = "https://${RKE2_CLUSTER_VIP_GATEWAY_IP}:6443" |
       .clusters[0].name = "${CLUSTER_NAME}" |
       .contexts[0].context.cluster = "${CLUSTER_NAME}" |
       .contexts[0].context.namespace = "kube-system" |

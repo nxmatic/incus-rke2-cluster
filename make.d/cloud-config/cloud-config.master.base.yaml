@@ -128,8 +128,8 @@ write_files:
         subnetRouter:
           advertiseRoutes:
             # Control-plane virtual IP (host route)
-            - ${CLUSTER_VIP_GATEWAY}/32
+            - ${RKE2_CLUSTER_VIP_GATEWAY_IP}/32
             # LoadBalancer allocation pool (so in-cluster LB IPs are reachable directly)
-            - ${CLUSTER_LOADBALANCERS_CIDR}
+            - ${RKE2_CLUSTER_LOADBALANCER_NETWORK_CIDR}
         # NOTE: Additional service-specific Tailscale exposure can still be done
         # via Service annotations (tailscale.com/expose, hostname, tags, etc.). (@codebase)

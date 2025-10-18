@@ -145,7 +145,10 @@ common = '''
 ## Include ----------------------------------------------------------
 ## ... environments to create a composed environment
 ## ------------------------------------------------------------------
-[include]
+# [include]
+# environments = [
+#     { dir = "/Users/nxmatic/.lima" }
+# ]
 # environments = [
 #     { dir = "../common" }
 # ]
