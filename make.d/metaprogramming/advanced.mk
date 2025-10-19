@@ -33,14 +33,14 @@ agent_MIN_CPU := 1
 # Generic instance configuration using constructed macro names
 .PHONY: config-instance@incus
 config-instance@incus:
-	echo "[+] Configuring instance $(RKE2_NODE_NAME) with type-specific settings"
-	echo "  Special flags: $($(RKE2_NODE_NAME)_SPECIAL_FLAGS)"
-	echo "  Memory limit: $($(RKE2_CLUSTER_NAME)_MEMORY_LIMIT)"
-	echo "  CPU limit: $($(RKE2_CLUSTER_NAME)_CPU_LIMIT)"
-	echo "  Min memory: $($(RKE2_NODE_TYPE)_MIN_MEMORY)"
-	echo "  Min CPU: $($(RKE2_NODE_TYPE)_MIN_CPU)"
-	incus config set $(RKE2_NODE_NAME) --project=rke2 limits.memory=$(or $($(RKE2_CLUSTER_NAME)_MEMORY_LIMIT),$($(RKE2_NODE_TYPE)_MIN_MEMORY))
-	incus config set $(RKE2_NODE_NAME) --project=rke2 limits.cpu=$(or $($(RKE2_CLUSTER_NAME)_CPU_LIMIT),$($(RKE2_NODE_TYPE)_MIN_CPU))
+	echo "[+] Configuring instance $(NODE_NAME) with type-specific settings"
+	echo "  Special flags: $($(NODE_NAME)_SPECIAL_FLAGS)"
+	echo "  Memory limit: $($(CLUSTER_NAME)_MEMORY_LIMIT)"
+	echo "  CPU limit: $($(CLUSTER_NAME)_CPU_LIMIT)"
+	echo "  Min memory: $($(NODE_TYPE)_MIN_MEMORY)"
+	echo "  Min CPU: $($(NODE_TYPE)_MIN_CPU)"
+	incus config set $(NODE_NAME) --project=rke2 limits.memory=$(or $($(CLUSTER_NAME)_MEMORY_LIMIT),$($(NODE_TYPE)_MIN_MEMORY))
+	incus config set $(NODE_NAME) --project=rke2 limits.cpu=$(or $($(CLUSTER_NAME)_CPU_LIMIT),$($(NODE_TYPE)_MIN_CPU))
 
 #-----------------------------
 # Context-Aware Recipe Generation
@@ -50,8 +50,8 @@ config-instance@incus:
 define CONTEXT_AWARE_RECIPE_TEMPLATE
 $(1)@incus: config-instance@incus
 $(1)@incus:
-	@echo "[+] Executing $(1) for node $$(RKE2_NODE_NAME) with flags: $$($$($$(RKE2_NODE_NAME)_SPECIAL_FLAGS))"
-	$(2) $$($$($$(RKE2_NODE_NAME)_SPECIAL_FLAGS))
+	@echo "[+] Executing $(1) for node $$(NODE_NAME) with flags: $$($$($$(NODE_NAME)_SPECIAL_FLAGS))"
+	$(2) $$($$($$(NODE_NAME)_SPECIAL_FLAGS))
 endef
 
 # Generate context-aware targets
@@ -67,27 +67,27 @@ $(eval $(call CONTEXT_AWARE_RECIPE_TEMPLATE,join-cluster,rke2 agent))
 debug-variables: ## Show constructed variable values for debugging
 	echo "Variable Construction Debug:"
 	echo "=========================="
-	echo "Node name: $(RKE2_NODE_NAME)"
-	echo "Node type: $(RKE2_NODE_TYPE)"
-	echo "Cluster name: $(RKE2_CLUSTER_NAME)"
+	echo "Node name: $(NODE_NAME)"
+	echo "Node type: $(NODE_TYPE)"
+	echo "Cluster name: $(CLUSTER_NAME)"
 	echo ""
 	echo "Constructed Variables:"
-	echo "$(RKE2_NODE_NAME)_SPECIAL_FLAGS = $($(RKE2_NODE_NAME)_SPECIAL_FLAGS)"
-	echo "$(RKE2_CLUSTER_NAME)_MEMORY_LIMIT = $($(RKE2_CLUSTER_NAME)_MEMORY_LIMIT)"
-	echo "$(RKE2_NODE_TYPE)_MIN_MEMORY = $($(RKE2_NODE_TYPE)_MIN_MEMORY)"
+	echo "$(NODE_NAME)_SPECIAL_FLAGS = $($(NODE_NAME)_SPECIAL_FLAGS)"
+	echo "$(CLUSTER_NAME)_MEMORY_LIMIT = $($(CLUSTER_NAME)_MEMORY_LIMIT)"
+	echo "$(NODE_TYPE)_MIN_MEMORY = $($(NODE_TYPE)_MIN_MEMORY)"
 
 # Target-specific variable demonstration
 debug-target-vars: ## Show target-specific variables for current node
 	echo "Target-specific variables for current node:"
-	$(foreach var,SPECIAL_FLAGS MEMORY_LIMIT CPU_LIMIT MIN_MEMORY MIN_CPU, echo "  $(var): $($(RKE2_NODE_NAME)_$(var)) $($(RKE2_CLUSTER_NAME)_$(var)) $($(RKE2_NODE_TYPE)_$(var))";)
+	$(foreach var,SPECIAL_FLAGS MEMORY_LIMIT CPU_LIMIT MIN_MEMORY MIN_CPU, echo "  $(var): $($(NODE_NAME)_$(var)) $($(CLUSTER_NAME)_$(var)) $($(NODE_TYPE)_$(var))";)
 
 show-constructed-values: ## Show current constructed variable values
 	echo "Current Constructed Values:"
 	echo "=========================="
-	echo "Node flags: $($(RKE2_NODE_NAME)_SPECIAL_FLAGS)"
-	echo "Cluster memory: $($(RKE2_CLUSTER_NAME)_MEMORY_LIMIT)"
-	echo "Type memory: $($(RKE2_NODE_TYPE)_MIN_MEMORY)"
-	echo "Effective memory: $(or $($(RKE2_CLUSTER_NAME)_MEMORY_LIMIT),$($(RKE2_NODE_TYPE)_MIN_MEMORY))"
+	echo "Node flags: $($(NODE_NAME)_SPECIAL_FLAGS)"
+	echo "Cluster memory: $($(CLUSTER_NAME)_MEMORY_LIMIT)"
+	echo "Type memory: $($(NODE_TYPE)_MIN_MEMORY)"
+	echo "Effective memory: $(or $($(CLUSTER_NAME)_MEMORY_LIMIT),$($(NODE_TYPE)_MIN_MEMORY))"
 
 #-----------------------------
 # Advanced Foreach Usage

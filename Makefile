@@ -8,26 +8,20 @@
 
 include make.d/make.mk
 
-## Debug target to show last included file context
-.PHONY: debug-last-include
-debug-last-include:
-	@echo "[debug] Last include path: $(_last_include_path)"; \
-	echo "[debug] Last include dir : $(_last_include_dir)"; \
-	echo "[debug] Last include file: $(_last_include_file)"; \
-	echo "[debug] Last include name: $(_last_include_name)";
-
 ## Helpers (SUDO, REMOTE_EXEC, INCUS, separators) now provided by make.mk (@codebase)
+# Use NixOS sudo wrapper if available, fallback to system sudo
+SUDO := $(shell test -x /run/wrappers/bin/sudo && echo /run/wrappers/bin/sudo || command -v sudo)
 
-# Enable single shell per recipe globally so we can drop line-continuation backslashes
-# and leading @ silencers across included makefiles. (@codebase)
-.ONESHELL:
-SHELL := bash
+# Remote execution for Lima VM - auto-detect if we're on macOS host vs NixOS guest
+LIMA_HOST := lima-nerd-nixos
+REMOTE_EXEC := $(shell if [ -x /run/wrappers/bin/sudo ]; then echo ""; else echo "ssh $(LIMA_HOST)"; fi)
 
 -include .gmsl/gmsl
 
 .gmsl/gmsl:
 	: Loading git sub-modules 
 	git submodule update --init --recursive
+
 
 
 #-----------------------------
@@ -38,18 +32,6 @@ SHELL := bash
 # We embed both IPv4 and IPv6 cluster/service CIDRs directly; legacy ENABLE_IPV6
 # toggle removed to simplify path. Future per-prefix customization can reintroduce
 # derivation, but the control plane and Cilium are now expected to run dual-stack.
-
-NAME ?= master
-
-# RKE2 Cluster Configuration
-
-# Node name from command line or default to master
-RKE2_NODE_NAME ?= master
-
-# Cluster configuration
-RKE2_CLUSTER_NAME ?= $(if $(LIMA_HOSTNAME),$(LIMA_HOSTNAME),rke2)
-RKE2_CLUSTER_TOKEN ?= $(RKE2_CLUSTER_NAME)
-RKE2_CLUSTER_DOMAIN := cluster.local
 
 ## Incus image naming now owned by incus/rules.mk (@codebase)
 
@@ -66,32 +48,26 @@ RKE2_CLUSTER_DOMAIN := cluster.local
 # NODE_NETWORK: Per-node allocation within cluster network
 
 # Cluster configuration now handled by cluster-config.mk (@codebase)
-# RKE2_CLUSTER_ID is automatically set based on RKE2_CLUSTER_NAME
+# CLUSTER_ID is automatically set based on CLUSTER_NAME
 
 # Network configuration moved to network.mk (@codebase)
 
 # Node configuration now handled by cluster-config.mk (@codebase)
-# RKE2_NODE_ID, RKE2_NODE_TYPE, and RKE2_NODE_ROLE are automatically set
+# NODE_ID, NODE_TYPE, and NODE_ROLE are automatically set
 
 # Include layered modules using rules.mk convention (@codebase)
-# Skip metaprogramming-heavy modules for help target to avoid evaluation issues
-ifneq ($(MAKECMDGOALS),help)
-	-include make.d/cluster/rules.mk
-	-include make.d/node/rules.mk
-	-include make.d/network/rules.mk
-	-include make.d/metaprogramming/rules.mk
-endif
-
-# Always include core infrastructure modules (guarded)
--include make.d/incus/rules.mk
 -include make.d/cloud-config/rules.mk
+-include make.d/cluster/rules.mk
+-include make.d/node/rules.mk
+-include make.d/network/rules.mk
+-include make.d/incus/rules.mk
 
 
-# Legacy compatibility aliases for templates (all logic moved to RKE2_ variables above)
-CLUSTER_NAME := $(RKE2_CLUSTER_NAME)
-CLUSTER_PODS_CIDR := $(RKE2_POD_NETWORK_CIDR)
-CLUSTER_SERVICES_CIDR := $(RKE2_SERVICE_NETWORK_CIDR)
-CLUSTER_DOMAIN := $(RKE2_CLUSTER_DOMAIN)
+# Legacy compatibility aliases for templates (all logic moved to  variables above)
+CLUSTER_NAME := $(CLUSTER_NAME)
+CLUSTER_PODS_CIDR := $(POD_NETWORK_CIDR)
+CLUSTER_SERVICES_CIDR := $(SERVICE_NETWORK_CIDR)
+CLUSTER_DOMAIN := $(CLUSTER_DOMAIN)
 ## Legacy 172.31.* addressing overrides removed (@codebase)
 ## The hierarchical 10.80.* / fd70:80::* assignments defined earlier are authoritative.
 ## Keeping this comment block to avoid accidental reintroduction.
@@ -101,20 +77,20 @@ CLUSTER_DOMAIN := $(RKE2_CLUSTER_DOMAIN)
 # =============================================================================
 
 # Export RKE2 variables for YAML template rendering
-export RKE2_CLUSTER_NAME
-export RKE2_CLUSTER_TOKEN
-export RKE2_CLUSTER_DOMAIN
-export RKE2_NODE_NAME
-export RKE2_NODE_TYPE
-export RKE2_NODE_ROLE
-export RKE2_POD_NETWORK_CIDR
-export RKE2_SERVICE_NETWORK_CIDR
-export RKE2_CLUSTER_ID
-export RKE2_NODE_ID
+export CLUSTER_NAME
+export CLUSTER_TOKEN
+export CLUSTER_DOMAIN
+export NODE_NAME
+export NODE_TYPE
+export NODE_ROLE
+export POD_NETWORK_CIDR
+export SERVICE_NETWORK_CIDR
+export CLUSTER_ID
+export NODE_ID
 
 # Bridge configuration moved to network.mk (@codebase)
 
-RKE2_NODE_PROFILE_NAME := rke2-$(RKE2_NODE_NAME)
+NODE_PROFILE_NAME := rke2-cluster
 
 
 ## Host interface definitions & NETWORK_MODE relocated to incus/rules.mk (@codebase)
@@ -139,8 +115,6 @@ RKE2_NODE_PROFILE_NAME := rke2-$(RKE2_NODE_NAME)
 
 .PHONY: debug-trace help
 
-
-
 all: start ## Build and start the default RKE2 node (master)
 
 # Advanced metaprogramming-powered shortcuts (@codebase)
@@ -150,24 +124,35 @@ status: status-report check-runtime-state ## Show comprehensive cluster and runt
 scale: scale-cluster-resources ## Scale cluster resources (memory/CPU) for all nodes
 
 #-----------------------------
+# Pre-Launch Infrastructure
+#-----------------------------
+
+# Master pre-launch target that ensures all subsystem variables are ready
+.PHONY: pre-launch
+pre-launch: pre-launch@network ## Pre-populate all variable files and prepare runtime environment
+	echo "[pre-launch] All subsystem variables prepared and ready for main recipes"
+
+#-----------------------------
 # High-Level Target Aliases
 #-----------------------------
 
 # Main lifecycle targets (delegate to incus.mk)
-start: start@incus ## Start RKE2 node instance (creates if needed)
+start: pre-launch start@incus ## Start RKE2 node instance (creates if needed)
 stop: stop@incus ## Stop running RKE2 node instance
 delete: delete@incus ## Delete RKE2 node instance (keeps config) 
-clean: clean@incus ## Clean RKE2 node (delete instance + config)
-shell: shell@incus ## Open interactive shell in RKE2 node
-instance: instance@incus ## Create RKE2 instance without starting
+clean: clean@network clean@incus ## Clean all generated files
+shell: pre-launch shell@incus ## Open interactive shell in RKE2 node
+instance: pre-launch instance@incus ## Create RKE2 instance without starting
 
 # Ensure dependencies for lifecycle targets explicitly (avoid undefined MAIN_TARGETS variable) (@codebase)
 start stop delete clean shell instance: preseed@incus image@incus switch-project@incus
 
-.PHONY: start stop delete clean shell instance
+.PHONY: start stop delete clean shell instance pre-launch
 
-# High-level cluster management
-clean-all: clean-all@incus ## Clean all nodes in cluster (destructive)
+# High-level cluster management  
+clean-all: clean-all@incus
+clean-all: clean@network
+clean-all: ## Clean everything - network + all nodes (destructive)
 
 ## Instance config rendering & cluster validation relocated to incus/rules.mk (@codebase)
 
@@ -176,7 +161,7 @@ clean-all: clean-all@incus ## Clean all nodes in cluster (destructive)
 #-----------------------------
 # Lint: YAML (yamllint)  
 #-----------------------------
-YAML_FILES := $(wildcard cloud-config.*.yaml incus-*.yaml)
+YAML_FILES := $(make-dir)/cloud-config/$(wildcard cloud-config.*.yaml incus-*.yaml)
 
 # Layer target aliases for clean interface (@codebase)
 .PHONY: network host-network vm-network bridge-setup show-allocation validate-network
@@ -210,19 +195,7 @@ lint-yaml: ## Lint YAML configuration files
 	yamllint $(YAML_FILES)
 
 # Advanced targets (from metaprogramming modules) (@codebase)
-.PHONY: start-master start-peer1 start-worker1 debug-variables show-runtime-config
-
-start-master: ## Start master node (control plane bootstrap)
-start-master: NAME=master
-start-master: instance@incus
-
-start-peer1: ## Start peer1 node (control plane join)
-start-peer1: NAME=peer1
-start-peer1: instance@incus
-
-start-worker1: ## Start worker1 node (worker join)
-start-worker1: NAME=worker1
-start-worker1: instance@incus
+.PHONY: debug-variables show-runtime-config
 
 debug-variables: ## Show constructed variable values for debugging
 show-runtime-config: ## Display auto-generated runtime configuration

@@ -1,6 +1,6 @@
 # Common cloud-init configuration for all RKE2 nodes (masters and agents)
 
-hostname: ${RKE2_NODE_NAME}-control-node
+hostname: ${NODE_NAME}-control-node
 
 manage_resolv_conf: true
 resolv_conf:
@@ -98,8 +98,8 @@ write_files:
         - gateway
         - 0.0.0.0
         - 127.0.0.1
-        - ${RKE2_CLUSTER_VIP_GATEWAY_IP} # cluster VIP gateway
-        - ${RKE2_NODE_GATEWAY_IP} # node gateway
+        - ${CLUSTER_VIP_GATEWAY_IP} # cluster VIP gateway
+        - ${NODE_GATEWAY_IP} # node gateway
         # Note: VIP gateway removed - not a client endpoint
         # IPv6 addresses removed for IPv4-only configuration
 
@@ -113,15 +113,15 @@ write_files:
   # have consistent view.
   - path: /etc/rancher/rke2/config.yaml.d/network-cidrs.yaml
     content: |
-      cluster-cidr: ${RKE2_POD_NETWORK_CIDR}
-      service-cidr: ${RKE2_SERVICE_NETWORK_CIDR}
+      cluster-cidr: ${POD_NETWORK_CIDR}
+      service-cidr: ${SERVICE_NETWORK_CIDR}
       kube-controller-manager-arg:
         - node-cidr-mask-size-ipv4=24
 
   # IPv4-only node IP configuration to prevent dual-stack auto-detection
   - path: /etc/rancher/rke2/config.yaml.d/node-ip.yaml
     content: |
-      node-ip: ${RKE2_NODE_HOST_IP}
+      node-ip: ${NODE_HOST_IP}
 
   # =============================================================================
   # KUBELET CONFIGURATION FILES
@@ -172,7 +172,7 @@ write_files:
     content: |
       #!/usr/bin/env -S bash -exu -o pipefail
 
-      RKE2_LIBRARY_DIR="/var/lib/rancher/rke2"
+      LIBRARY_DIR="/var/lib/rancher/rke2"
       : "Configure direnv to use flox"
       direnv:config:generate() {
         mkdir -p "/root/.config/direnv/lib"
@@ -214,7 +214,7 @@ write_files:
         : "Extract environment variables from init process"
         while IFS='=' read -r key value; do
           case "$$key" in
-            RKE2_NODE_TYPE|CLUSTER_*|TSID|TSKEY|CILIUM_PROFILE)
+            NODE_TYPE|CLUSTER_*|TSID|TSKEY|CILIUM_PROFILE)
               declare "$$key=$$value"
               ;;
           esac
@@ -485,7 +485,7 @@ write_files:
       done
 
       # Wait for interfaces to be configured
-      for iface in wan0 lan0; do
+      for iface in wan0 lan0 vip0; do
         : "[+] Waiting for interface $$iface..."
         timeout=30
         while [ $$timeout -gt 0 ]; do
@@ -576,7 +576,7 @@ write_files:
 
       : "Enable and start the RKE2 service"
       systemctl --no-block --now \
-        enable rke2-${RKE2_NODE_TYPE}
+        enable rke2-${NODE_TYPE}
 
   # Script to generate ZFS mount units for containerd
   - path: /usr/local/sbin/rke2-enable-containerd-zfs-mount
@@ -594,17 +594,17 @@ write_files:
       Description=Mount containerd zfs snapshotter directory for RKE2 (ZFS dataset)
       DefaultDependencies=no
       Before=cloud-init.service
-      Before=rke2-${RKE2_NODE_TYPE}.service
+      Before=rke2-${NODE_TYPE}.service
 
       [Mount]
-      What=tank/rke2/control-nodes/${RKE2_NODE_NAME}/containerd
+      What=tank/rke2/control-nodes/${NODE_NAME}/containerd
       Where=/var/lib/rancher/rke2/agent/containerd/io.containerd.snapshotter.v1.zfs
       Type=zfs
       Options=defaults
 
       [Install]
       WantedBy=multi-user.target
-      RequiredBy=rke2-${RKE2_NODE_TYPE}.service
+      RequiredBy=rke2-${NODE_TYPE}.service
       EOF
 
       : "Enable the mount unit"
@@ -691,7 +691,7 @@ write_files:
       : "Apply modifications to working copy"
       yq --inplace --from-file=<(cat <<EoE
       .clusters[0].cluster.name = "${CLUSTER_NAME}" |
-      .clusters[0].cluster.server = "https://${RKE2_CLUSTER_VIP_GATEWAY_IP}:6443" |
+      .clusters[0].cluster.server = "https://${CLUSTER_VIP_GATEWAY_IP}:6443" |
       .clusters[0].name = "${CLUSTER_NAME}" |
       .contexts[0].context.cluster = "${CLUSTER_NAME}" |
       .contexts[0].context.namespace = "kube-system" |
@@ -717,12 +717,7 @@ write_files:
 
       [Service]
       Type=oneshot
-        ExecStart=/bin/bash -c '
-          echo "=== Network Debug at $$(date) ==="; \
-          ip addr show; \
-          echo "=== Routes ==="; ip route show; \
-          echo "=== NetworkD Status ==="; systemctl status systemd-networkd --no-pager; \
-          echo "=== NetworkCTL List ==="; networkctl list'
+      ExecStart=/bin/bash -c 'echo "=== Network Debug at $$(date) ==="; ip addr show; echo "=== Routes ==="; ip route show; echo "=== NetworkD Status ==="; systemctl status systemd-networkd --no-pager; echo "=== NetworkCTL List ==="; networkctl list'
       RemainAfterExit=true
       StandardOutput=journal+console
       StandardError=journal+console
@@ -756,6 +751,7 @@ write_files:
       After=network-online.target systemd-networkd.service
       Wants=network-online.target systemd-networkd.service
       Before=rke2-server.service rke2-agent.service
+      StartLimitIntervalSec=30
 
       [Service]
       Type=oneshot
@@ -766,7 +762,6 @@ write_files:
       Restart=on-failure
       RestartSec=5
       StartLimitBurst=3
-      StartLimitIntervalSec=30
 
       [Install]
       WantedBy=multi-user.target

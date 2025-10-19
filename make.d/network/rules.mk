@@ -1,192 +1,327 @@
 # network-refactor.mk - Refactored RKE2 network configuration (@codebase)
 # Self-guarding include so multiple -include evaluations are idempotent.
 
-ifndef network/rules.mk
+ifndef make.d/network/rules.mk
 
-include make.d/make.mk  # Ensure availability when file used standalone (@codebase)
+-include make.d/make.mk  # robust relative include (@codebase)
+-include make.d/macros.mk
+-include make.d/node/rules.mk  # Node identity variables (@codebase)
 
-# Early include of cluster configuration to ensure RKE2_CLUSTER_ID is defined
-# before deriving file paths that embed the cluster ID.
--include metaprogramming/cluster-config.mk
+# Note: CLUSTER_ID now defined in make.d/node/rules.mk (inlined cluster configuration)
 
-# ipcalc dependency removed; network allocations now computed arithmetically (@codebase)
+# =============================================================================
+# NETWORK IP ADDRESS DERIVATION MACROS
+# =============================================================================
+
+# Extract IP address from CIDR format (e.g., 10.80.23.0/24 -> 10.80.23.0)
+network-to-ip = $(word 1,$(subst /, ,$(1)))
+
+# Convert network CIDR to gateway IP (replace .0 with .1)
+cidr-to-gateway = $(call network-to-ip,$(subst .0/,.1/,$(1)))
+
+# Convert network CIDR to host IP with specific last octet
+# Usage: $(call cidr-to-host-ip,CIDR,OCTET) - e.g., $(call cidr-to-host-ip,10.80.16.0/23,3) -> 10.80.16.3
+cidr-to-host-ip = $(call network-to-ip,$(subst .0/,.$(2)/,$(1)))
+
+# Special case for LoadBalancer gateway (increment .64 to .65)
+lb-cidr-to-gateway = $(call network-to-ip,$(subst .64/,.65/,$(1)))
+
+# ipcalc dependency reintroduced: allocations derived from JSON introspection (@codebase)
+
+# =============================================================================
+# PRIVATE VARIABLES (internal layer implementation)
+# =============================================================================
 
 # Network directory structure
-NETWORK_DIR := .run.d/network
-RKE2_HOST_NETWORKS_FILE := $(NETWORK_DIR)/host-networks.env
-RKE2_CLUSTER_NETWORKS_FILE := $(NETWORK_DIR)/cluster-$(RKE2_CLUSTER_ID)-networks.env
-RKE2_NODE_NETWORKS_FILE := $(NETWORK_DIR)/cluster-$(RKE2_CLUSTER_ID)-node-$(RKE2_NODE_ID)-networks.env
+.network.dir := $(run-dir)/network
+network.DIR := $(.network.dir)
+.network.host_networks_mk   := $(.network.dir)/host-networks.mk
+.network.cluster_networks_mk := $(.network.dir)/$(cluster.NAME)-networks.mk
+.network.node_networks_mk    := $(.network.dir)/$(cluster.NAME)-$(node.NAME)-networks.mk
 
-# Include generated network files
--include $(RKE2_HOST_NETWORKS_FILE)
--include $(RKE2_CLUSTER_NETWORKS_FILE)  
--include $(RKE2_NODE_NETWORKS_FILE)
+# Subnet intermediate (.env) and converted (.mk) assignment files
+.network.host_subnets_env   := $(.network.dir)/host.subnets.env
+.network.host_subnets_mk    := $(.network.dir)/host.subnets.mk
+.network.node_subnets_env   := $(.network.dir)/$(cluster.NAME)-node.subnets.env
+.network.node_subnets_mk    := $(.network.dir)/$(cluster.NAME)-node.subnets.mk
+.network.vip_subnets_env    := $(.network.dir)/$(cluster.NAME)-vip.subnets.env
+.network.vip_subnets_mk     := $(.network.dir)/$(cluster.NAME)-vip.subnets.mk
+.network.lb_subnets_env     := $(.network.dir)/$(cluster.NAME)-lb.subnets.env
+.network.lb_subnets_mk      := $(.network.dir)/$(cluster.NAME)-lb.subnets.mk
+
+
+
+# Include converted subnet mk files first, then network env exports
+.network.subnets_mk_files := $(.network.host_subnets_mk)
+.network.subnets_mk_files += $(.network.node_subnets_mk)
+.network.subnets_mk_files += $(.network.vip_subnets_mk)
+.network.subnets_mk_files += $(.network.lb_subnets_mk)
+
+# Environment files (generated first)
+.network.subnets_env_files := $(.network.host_subnets_env)
+.network.subnets_env_files += $(.network.node_subnets_env)
+.network.subnets_env_files += $(.network.vip_subnets_env)
+.network.subnets_env_files += $(.network.lb_subnets_env)
+
+# Conditional inclusion: include .mk files if they exist (avoid forcing build during parsing)
+-include $(wildcard $(.network.subnets_mk_files))
 
 # =============================================================================
 # HOST-LEVEL NETWORK CONFIGURATION
 # =============================================================================
 
 # Physical host network allocation parameters
-RKE2_HOST_SUPERNET_CIDR := 10.80.0.0/18
-RKE2_HOST_CLUSTER_PREFIX_LENGTH := 21
-RKE2_HOST_NODE_PREFIX_LENGTH := 23
+.network.HOST_SUPERNET_CIDR := 10.80.0.0/18
+.network.HOST_CLUSTER_PREFIX_LENGTH := 21
+.network.HOST_NODE_PREFIX_LENGTH := 23
+.network.HOST_LB_PREFIX_LENGTH := 26
+.network.HOST_VIP_PREFIX_LENGTH := 24
 
 # =============================================================================
 # BRIDGE NAMING CONVENTION
 # =============================================================================
 
 # Per-node bridge names (isolated bridges for each node)
-RKE2_NODE_LAN_BRIDGE_NAME := $(RKE2_NODE_NAME)-lan0
-RKE2_NODE_WAN_BRIDGE_NAME := $(RKE2_NODE_NAME)-wan0
+# Interface names (macvlan, not bridges)
+.network.NODE_LAN_INTERFACE_NAME := $(node.NAME)-lan0
+.network.NODE_WAN_INTERFACE_NAME := $(node.NAME)-wan0
+.network.CLUSTER_VIP_INTERFACE_NAME := rke2-vip0
 
-# Shared cluster bridge name (VIP network shared across control-plane nodes)
-RKE2_CLUSTER_VIP_BRIDGE_NAME := rke2-vip
+# VIP VLAN configuration (shared across control-plane nodes)
+.network.VIP_VLAN_ID := 100
+.network.VIP_VLAN_NAME := rke2-vip
 
 # =============================================================================
 # NETWORK GENERATION TARGETS
 # =============================================================================
 
 # Create network directory
-$(NETWORK_DIR)/:
-	mkdir -p $(NETWORK_DIR)
+$(.network.DIR)/: ## Create network output directory
+	mkdir -p $(.network.DIR)
 
-# Generate host-level network allocation (deterministic arithmetic split of /18 into /21 blocks)
-$(RKE2_HOST_NETWORKS_FILE): | $(NETWORK_DIR)/
-	echo "[+] Generating RKE2 host networks from $(RKE2_HOST_SUPERNET_CIDR) (no ipcalc)" # @codebase
-	# /18 (10.80.0.0/18) → 8 x /21 (increment third octet by 8) (@codebase)
-	echo "export RKE2_HOST_SUPERNET_CIDR=$(RKE2_HOST_SUPERNET_CIDR)" > $@
-	for i in $$(seq 0 7); do \
-		third=$$((i*8)); \
-		echo "export RKE2_CLUSTER_$${i}_NETWORK_CIDR=10.80.$$third.0/21" >> $@; \
-	done
-	echo "export RKE2_HOST_CLUSTER_COUNT=8" >> $@
+define .network.SUBNETS_YQ_EXPR =
+{
+  "$(name)_SUBNETS": { 
+     "SPLIT": {
+       "NETWORK": "$(network)",
+       "PREFIX": $(prefix),
+       "COUNT": .NETS
+     },
+     "NETWORK": .SPLITNETWORK[]
+  }
+}
+endef
 
-# Generate cluster-level network allocation (nodes + VIP + LoadBalancer subnets)
+# =============================================================================
+# METAPROGRAMMING: SUBNET GENERATION RULES  
+# =============================================================================
 
-$(RKE2_CLUSTER_NETWORKS_FILE): $(RKE2_HOST_NETWORKS_FILE) | $(NETWORK_DIR)/
-	echo "[+] Generating RKE2 cluster $(RKE2_CLUSTER_ID) networks (no ipcalc)" # @codebase
-	set -a; . $(RKE2_HOST_NETWORKS_FILE); set +a
-	cluster_var="RKE2_CLUSTER_$(RKE2_CLUSTER_ID)_NETWORK_CIDR"
-	cluster_net=$${!cluster_var}
-	if [ -z "$$cluster_net" ]; then echo "[!] Cluster network not found for ID $(RKE2_CLUSTER_ID)" >&2; exit 1; fi
-	echo "[i] Using cluster network: $$cluster_net" # @codebase
-	# Derive base third octet and ensure /21 structure (@codebase)
-	cluster_third=$$(echo $$cluster_net | awk -F'.' '{print $$3}')
-	# Node /23 subnets inside /21: 4 blocks (third octet increments by 2) indexes 0..3 (@codebase)
-	: > $@
-	for n in $$(seq 0 3); do \
-		third=$$((cluster_third + n*2)); \
-		echo "export RKE2_NODE_$${n}_NETWORK_CIDR=10.80.$$third.0/23" >> $@; \
-	done
-	# VIP network = last /24 of /21 ⇒ third octet cluster_third+7 (@codebase)
-	vip_third=$$((cluster_third + 7))
-	echo "export RKE2_CLUSTER_VIP_NETWORK_CIDR=10.80.$$vip_third.0/24" >> $@
-	echo "export RKE2_CLUSTER_VIP_GATEWAY_IP=10.80.$$vip_third.1" >> $@
-	# LoadBalancer network: second /26 of node0 /23 ⇒ third octet cluster_third, fourth octet 64 (@codebase)
-	echo "export RKE2_CLUSTER_LOADBALANCER_NETWORK_CIDR=10.80.$$cluster_third.64/26" >> $@
-	# Preserve original (somewhat odd) gateway .129 convention (@codebase)
-	echo "export RKE2_CLUSTER_LOADBALANCER_GATEWAY_IP=10.80.$$cluster_third.129" >> $@
-	echo "export RKE2_CLUSTER_NETWORK_CIDR=$$cluster_net" >> $@
+# Helper macro for shell commands with dependency (sourcing)
+define define-subnet-shell-dep
+	# Source the corresponding .env file to get prerequisite variables
+	source $(subst .mk,.env,$(2))
+	network=$$$${$(3)}
+	prefix=$(4)
+	export SUBNET_TYPE=$(1)
+	export SPLIT_NETWORK=$$$$network
+	export SPLIT_PREFIX=$$$$prefix
+	ipcalc --json -S $$$$prefix $$$$network | yq -r '(.SPLITNETWORK | to_entries | map(env(SUBNET_TYPE) + "_SUBNETS_NETWORK_" + (.key | tostring) + "=" + (.value | @sh)) | .[]), env(SUBNET_TYPE) + "_SUBNETS_SPLIT_NETWORK=\"" + env(SPLIT_NETWORK) + "\"", env(SUBNET_TYPE) + "_SUBNETS_SPLIT_PREFIX=" + env(SPLIT_PREFIX), (env(SUBNET_TYPE) + "_SUBNETS_SPLIT_COUNT=" + (.NETS | tostring))' > $$(@)
+endef
 
-# Generate node-level network allocation (host interfaces within node subnet)
-$(RKE2_NODE_NETWORKS_FILE): $(RKE2_CLUSTER_NETWORKS_FILE) | $(NETWORK_DIR)/
-	echo "[+] Generating RKE2 node $(RKE2_NODE_ID) networks (no ipcalc)" # @codebase
-	set -a; . $(RKE2_CLUSTER_NETWORKS_FILE); set +a
-	node_var="RKE2_NODE_$(RKE2_NODE_ID)_NETWORK_CIDR"
-	node_net=$${!node_var}
-	vip_gateway=$$RKE2_CLUSTER_VIP_GATEWAY_IP
-	if [ -z "$$node_net" ]; then echo "[!] Node network not found for ID $(RKE2_NODE_ID)" >&2; exit 1; fi
-	echo "[i] Using node network: $$node_net" # @codebase
-	node_prefix=$$(echo $$node_net | cut -d'/' -f2)
-	# Derive pieces for gateway/host/broadcast (@codebase)
-	third=$$(echo $$node_net | awk -F'.' '{print $$3}')
-	fourth_base=0
-	network_base="10.80.$$third"
-	# Broadcast for /23 spans two /24 blocks: third+1.255 (@codebase)
-	broadcast_ip="10.80.$$((third+1)).255"
-	echo "export RKE2_NODE_NETWORK_CIDR=$$node_net" > $@
-	echo "export RKE2_NODE_GATEWAY_IP=$$network_base.1" >> $@
-	echo "export RKE2_NODE_HOST_IP=$$network_base.3" >> $@
-	echo "export RKE2_NODE_BROADCAST_IP=$$broadcast_ip" >> $@
-	echo "export RKE2_NODE_PREFIX_LENGTH=$$node_prefix" >> $@
-	case "$(RKE2_NODE_NAME)" in \
-		master) echo "export RKE2_NODE_VIP_IP=$$(echo $$vip_gateway | sed 's/\.[0-9]*$$/\.10/')" >> $@;; \
-		peer1) echo "export RKE2_NODE_VIP_IP=$$(echo $$vip_gateway | sed 's/\.[0-9]*$$/\.11/')" >> $@;; \
-		peer2) echo "export RKE2_NODE_VIP_IP=$$(echo $$vip_gateway | sed 's/\.[0-9]*$$/\.12/')" >> $@;; \
-		peer3) echo "export RKE2_NODE_VIP_IP=$$(echo $$vip_gateway | sed 's/\.[0-9]*$$/\.13/')" >> $@;; \
-		*) echo "export RKE2_NODE_VIP_IP=" >> $@;; \
-	esac
+# Helper macro for shell commands without dependency (direct values)
+define define-subnet-shell-direct
+	network=$(3)
+	prefix=$(4)
+	export SUBNET_TYPE=$(1)
+	export SPLIT_NETWORK=$$$$network
+	export SPLIT_PREFIX=$$$$prefix
+	ipcalc --json -S $$$$prefix $$$$network | yq -r '(.SPLITNETWORK | to_entries | map(env(SUBNET_TYPE) + "_SUBNETS_NETWORK_" + (.key | tostring) + "=" + (.value | @sh)) | .[]), env(SUBNET_TYPE) + "_SUBNETS_SPLIT_NETWORK=\"" + env(SPLIT_NETWORK) + "\"", env(SUBNET_TYPE) + "_SUBNETS_SPLIT_PREFIX=" + env(SPLIT_PREFIX), (env(SUBNET_TYPE) + "_SUBNETS_SPLIT_COUNT=" + (.NETS | tostring))' > $$(@)
+endef
+
+# Template function to generate subnet rules for a specific type
+# Usage: $(call define-subnet-rules,TYPE,dependency,network_expr,prefix,description)
+define define-subnet-rules
+$$(call register-network-targets,$$(.network.$(call lc,$(1))_subnets_env))
+$$(call register-network-targets,$$(.network.$(call lc,$(1))_subnets_mk))
+$$(.network.$(call lc,$(1))_subnets_mk): subnet_type=$(1)
+$$(.network.$(call lc,$(1))_subnets_env): subnet_type=$(1)
+$$(.network.$(call lc,$(1))_subnets_env): prefix := $(4)
+$$(.network.$(call lc,$(1))_subnets_env): export YQ_EXPR = $$(.network.SUBNETS_YQ_EXPR)
+$(if $(2),$$(.network.$(call lc,$(1))_subnets_env): $(2))
+$$(.network.$(call lc,$(1))_subnets_env): | $$(.network.DIR)/
+$$(.network.$(call lc,$(1))_subnets_env): ## Generate $(5)
+	$$(call check-variable-defined,subnet_type prefix YQ_EXPR)
+	echo "[+] ($(call lc,$(1))) generating $$(@) via ipcalc" # @codebase
+	mkdir -p $$$$(dirname $$(@))
+$(if $(2),$(call define-subnet-shell-dep,$(1),$(2),$(3),$(4)),$(call define-subnet-shell-direct,$(1),$(2),$(3),$(4)))
+
+$$(.network.$(call lc,$(1))_subnets_mk): $$(.network.$(call lc,$(1))_subnets_env)
+$$(.network.$(call lc,$(1))_subnets_mk): | $$(.network.DIR)/
+$$(.network.$(call lc,$(1))_subnets_mk): ## Convert $(1) subnet environment file to Makefile assignments
+	echo "[+] Converting $(1).subnets.env -> $$(@) (mk assignments)" # @codebase
+	if [ ! -f "$$(<)" ]; then
+		echo "[ERROR] Environment file $$(<) does not exist";
+		echo "[INFO] Run 'make $$(<)' to generate the prerequisite file first";
+		exit 1;
+	fi;
+	source $$(<);
+	compgen -A variable $(1)_SUBNETS |
+	while read leftValue; do
+		echo "export $$$$leftValue := $$$${!leftValue}";
+	done > $$(@)
+endef
+
+# Generate rules for each subnet type (use immediate expansion to resolve variables)
+$(eval $(call define-subnet-rules,HOST,,10.80.0.0/18,21,host-level subnet allocation from supernet))
+$(eval $(call define-subnet-rules,NODE,$(.network.host_subnets_mk),HOST_SUBNETS_NETWORK_$(call plus,$(cluster.ID),1),23,node-level subnet allocation within cluster))
+$(eval $(call define-subnet-rules,VIP,$(.network.host_subnets_mk),HOST_SUBNETS_NETWORK_$(call plus,$(cluster.ID),1),24,VIP subnet allocation for control plane))
+$(eval $(call define-subnet-rules,LB,$(.network.node_subnets_mk),NODE_SUBNETS_NETWORK_0,26,LoadBalancer subnet allocation within node network))
+
+
+# All subnet generation rules are now generated via metaprogramming above
+
 
 # =============================================================================
 # CONVENIENCE TARGETS
 # =============================================================================
 
+# Pre-launch target for populating network variables
+.PHONY: pre-launch@network
+pre-launch@network: $(.network.subnets_env_files)
+pre-launch@network: $(.network.subnets_mk_files)
+pre-launch@network: ## Pre-populate all network variable files
+
 # Generate all network files
-.PHONY: generate@rke2-networks
-generate@rke2-networks: $(RKE2_HOST_NETWORKS_FILE)
-generate@rke2-networks: $(RKE2_CLUSTER_NETWORKS_FILE)
-generate@rke2-networks: $(RKE2_NODE_NETWORKS_FILE)
+.PHONY: generate@network
+generate@network: $(.network.subnets_env_files)
+generate@network: $(.network.subnets_mk_files)
+generate@network: ## Generate all network subnet files
 
 # Clean network files
-.PHONY: clean@rke2-networks
-clean@rke2-networks:
+.PHONY: clean@network
+clean@network: ## Clean all generated network files
 	echo "[+] Cleaning RKE2 network files..."
-	rm -rf $(NETWORK_DIR)
+	rm -rf $(.network.dir)
 
 # Debug network configuration
-.PHONY: show@rke2-networks
-show@rke2-networks: $(RKE2_CLUSTER_NETWORKS_FILE)
-show@rke2-networks: $(RKE2_NODE_NETWORKS_FILE)
+.PHONY: show@network
+show@network: $(.network.subnets_env_files)
+show@network: $(.network.subnets_mk_files)
+show@network: load@network
+show@network: ## Debug network configuration display
 	echo "=== RKE2 Network Configuration ==="
-	echo "Host supernet: $(RKE2_HOST_SUPERNET_CIDR)"
-	echo "Cluster $(RKE2_CLUSTER_ID): $(RKE2_CLUSTER_NETWORK_CIDR)"
-	echo "Node $(RKE2_NODE_ID): $(RKE2_NODE_NETWORK_CIDR)"
-	echo "Node host IP: $(RKE2_NODE_HOST_IP)"
-	echo "Node gateway: $(RKE2_NODE_GATEWAY_IP)"
-	echo "VIP network: $(RKE2_CLUSTER_VIP_NETWORK_CIDR)"
-	echo "VIP gateway: $(RKE2_CLUSTER_VIP_GATEWAY_IP)"
-	echo "LoadBalancer network: $(RKE2_CLUSTER_LOADBALANCER_NETWORK_CIDR)"
+	echo "Host supernet: $(network.HOST_SUPERNET_CIDR)"
+	echo "Cluster $(cluster.ID): $(network.CLUSTER_NETWORK_CIDR)"
+	echo "Node $(node.ID): $(network.NODE_NETWORK_CIDR)"
+	echo "Node host IP: $(network.NODE_HOST_IP)"
+	echo "Node gateway: $(network.NODE_GATEWAY_IP)"
+	echo "VIP network: $(network.CLUSTER_VIP_NETWORK_CIDR)"
+	echo "VIP gateway: $(network.CLUSTER_VIP_GATEWAY_IP)"
+	echo "LoadBalancer network: $(network.CLUSTER_LOADBALANCER_NETWORK_CIDR)"
 	echo ""
 	echo "=== Bridge Configuration ==="
-	echo "Node LAN bridge: $(RKE2_NODE_LAN_BRIDGE_NAME)"
-	echo "Node WAN bridge: $(RKE2_NODE_WAN_BRIDGE_NAME)"
-	echo "Cluster VIP bridge: $(RKE2_CLUSTER_VIP_BRIDGE_NAME) -> $(RKE2_CLUSTER_VIP_NETWORK_CIDR)"
+	echo "Node LAN interface: $(network.NODE_LAN_INTERFACE_NAME) (macvlan on vmlan0)"
+	echo "Node WAN interface: $(network.NODE_WAN_INTERFACE_NAME) (macvlan on vmwan0)"
+	echo "Cluster VIP interface: $(network.CLUSTER_VIP_INTERFACE_NAME) (macvlan on vmwan0)"
+	echo "Cluster VIP VLAN: $(network.VIP_VLAN_ID) ($(network.VIP_VLAN_NAME)) -> $(network.CLUSTER_VIP_NETWORK_CIDR)"
 
 # =============================================================================
 # DERIVED VARIABLES FOR TEMPLATES
 # =============================================================================
 
 # Profile name for Incus
-RKE2_NODE_PROFILE_NAME := rke2-$(RKE2_NODE_NAME)
+.network.NODE_PROFILE_NAME := rke2-cluster
 
-# Master node IP for peer connections (derived from node 0)
-RKE2_MASTER_NODE_IP := $(shell echo $(RKE2_NODE_0_NETWORK_CIDR) | cut -d'/' -f1 | sed 's/\.0$$/\.3/' 2>/dev/null || echo "")
+# Master node IP for peer connections (derived from node 0) using macro
+.network.MASTER_NODE_IP := $(call cidr-to-host-ip,$(NODE_SUBNETS_NETWORK_0),3)
+
+# =============================================================================
+# PUBLIC NETWORK API
+# =============================================================================
+
+# Public network API (used by other layers)
+network.HOST_SUPERNET_CIDR = $(.network.HOST_SUPERNET_CIDR)
+network.CLUSTER_NETWORK_CIDR = $(HOST_SUBNETS_NETWORK_$(call plus,$(cluster.ID),1))
+network.CLUSTER_VIP_NETWORK_CIDR = $(VIP_SUBNETS_NETWORK_7)
+network.CLUSTER_VIP_GATEWAY_IP = $(call cidr-to-gateway,$(VIP_SUBNETS_NETWORK_7))
+network.CLUSTER_LOADBALANCER_NETWORK_CIDR = $(LB_SUBNETS_NETWORK_1)
+network.CLUSTER_LOADBALANCER_GATEWAY_IP = $(call lb-cidr-to-gateway,$(LB_SUBNETS_NETWORK_1))
+network.NODE_NETWORK_CIDR = $(NODE_SUBNETS_NETWORK_0)
+network.NODE_GATEWAY_IP = $(call cidr-to-gateway,$(NODE_SUBNETS_NETWORK_0))
+network.NODE_HOST_IP = $(call cidr-to-host-ip,$(NODE_SUBNETS_NETWORK_0),$(call plus,10,$(node.ID)))
+network.NODE_VIP_IP = $(call cidr-to-host-ip,$(VIP_SUBNETS_NETWORK_7),10)
+network.NODE_LAN_INTERFACE_NAME = $(.network.NODE_LAN_INTERFACE_NAME)
+network.NODE_WAN_INTERFACE_NAME = $(.network.NODE_WAN_INTERFACE_NAME)
+network.CLUSTER_VIP_INTERFACE_NAME = $(.network.CLUSTER_VIP_INTERFACE_NAME)
+network.VIP_VLAN_ID = $(.network.VIP_VLAN_ID)
+network.VIP_VLAN_NAME = $(.network.VIP_VLAN_NAME)
+
+network.NODE_PROFILE_NAME = $(.network.NODE_PROFILE_NAME)
+network.MASTER_NODE_IP = $(.network.MASTER_NODE_IP)
 
 # =============================================================================
 # EXPORTS FOR TEMPLATE USAGE
 # =============================================================================
 
-# Export RKE2 network variables for use in YAML templates via yq envsubst
-export RKE2_HOST_SUPERNET_CIDR
-export RKE2_CLUSTER_NETWORK_CIDR
-export RKE2_CLUSTER_VIP_NETWORK_CIDR
-export RKE2_CLUSTER_VIP_GATEWAY_IP
-export RKE2_CLUSTER_LOADBALANCER_NETWORK_CIDR
-export RKE2_CLUSTER_LOADBALANCER_GATEWAY_IP
-# Legacy compatibility alias for older templates expecting CLUSTER_VIP_GATEWAY
-export RKE2_NODE_NETWORK_CIDR
-export RKE2_NODE_GATEWAY_IP
-export RKE2_NODE_HOST_IP
-export RKE2_NODE_VIP_IP
-export RKE2_NODE_LAN_BRIDGE_NAME
-export RKE2_NODE_WAN_BRIDGE_NAME
-export RKE2_CLUSTER_VIP_BRIDGE_NAME
-# Derive bridge CIDR (network + prefix) for templates expecting RKE2_CLUSTER_VIP_BRIDGE_CIDR
-RKE2_CLUSTER_VIP_BRIDGE_PREFIX_LENGTH ?= 24
-RKE2_CLUSTER_VIP_BRIDGE_CIDR := $(RKE2_CLUSTER_VIP_NETWORK_CIDR)
-export RKE2_CLUSTER_VIP_BRIDGE_CIDR
-export RKE2_NODE_PROFILE_NAME
-export RKE2_MASTER_NODE_IP
+# Export network variables for use in YAML templates via yq envsubst
+export HOST_SUPERNET_CIDR = $(network.HOST_SUPERNET_CIDR)
+export CLUSTER_NETWORK_CIDR = $(network.CLUSTER_NETWORK_CIDR)
+export CLUSTER_VIP_NETWORK_CIDR = $(network.CLUSTER_VIP_NETWORK_CIDR)
+export CLUSTER_VIP_GATEWAY_IP = $(network.CLUSTER_VIP_GATEWAY_IP)
+export CLUSTER_LOADBALANCER_NETWORK_CIDR = $(network.CLUSTER_LOADBALANCER_NETWORK_CIDR)
+export CLUSTER_LOADBALANCER_GATEWAY_IP = $(network.CLUSTER_LOADBALANCER_GATEWAY_IP)
+export NODE_NETWORK_CIDR = $(network.NODE_NETWORK_CIDR)
+export NODE_GATEWAY_IP = $(network.NODE_GATEWAY_IP)
+export NODE_HOST_IP = $(network.NODE_HOST_IP)
+export NODE_VIP_IP = $(network.NODE_VIP_IP)
+export NODE_LAN_INTERFACE_NAME = $(network.NODE_LAN_INTERFACE_NAME)
+export NODE_WAN_INTERFACE_NAME = $(network.NODE_WAN_INTERFACE_NAME)
+export CLUSTER_VIP_INTERFACE_NAME = $(network.CLUSTER_VIP_INTERFACE_NAME)
+export VIP_VLAN_ID = $(network.VIP_VLAN_ID)
+export VIP_VLAN_NAME = $(network.VIP_VLAN_NAME)
+export NODE_PROFILE_NAME = $(network.NODE_PROFILE_NAME)
+export MASTER_NODE_IP = $(network.MASTER_NODE_IP)
+export NODE_PROFILE_NAME
+export MASTER_NODE_IP
+
+# =============================================================================
+# SUBNET GENERATION RULES
+# =============================================================================
+
+# Create network directory
+$(.network.dir)/:
+	mkdir -p $(.network.dir)
+
+# YQ expression for subnet generation
+define .network.SUBNETS_YQ_EXPR =
+{
+  "$(subnet_type)_SUBNETS": { 
+     "SPLIT": {
+       "NETWORK": "$(network)",
+       "PREFIX": $(prefix),
+       "COUNT": .NETS
+     },
+     "NETWORK": .SPLITNETWORK[]
+  }
+}
+endef
+
+# Generic pattern rule removed - using macro-generated rules only
+
+# Convert .env to .mk files
+$(.network.dir)/%.subnets.mk: $(.network.dir)/%.subnets.env | $(.network.dir)/
+	$(call check-variable-defined,subnet_type)
+	echo "[+] Converting $(*).subnets.env -> $(@) (mk assignments)"
+	source $(<); \
+	compgen -A variable $(subnet_type)_SUBNETS | \
+	  while read leftValue; do \
+	    value="$${!leftValue}"; \
+	    leftValueUc="$${leftValue^^}"; \
+		echo "export $$leftValueUc := $$value"; \
+	  done > $(@)
+
+# Specific subnet generation rules
+# Manual subnet rules removed - using macro-generated rules only
 
 #-----------------------------
 # Network Layer Targets (@network)
@@ -195,50 +330,48 @@ export RKE2_MASTER_NODE_IP
 .PHONY: summary@network summary@network.print diagnostics@network status@network setup-bridge@network
 .PHONY: allocation@network validate@network test@network
 
-summary@network: generate@rke2-networks ## Show network configuration summary (second expansion) (@codebase)
+summary@network: generate@network
 summary@network: load@network
 summary@network: summary@network.print
+summary@network: ## Show network configuration summary (second expansion) (@codebase)
 
 # Convenience rebuild target to avoid ordering issues when chaining with clean (@codebase)
-.PHONY: rebuild@rke2-networks
-rebuild@rke2-networks: clean@rke2-networks ## Clean, regenerate and load networks (@codebase)
-rebuild@rke2-networks: generate@rke2-networks
-rebuild@rke2-networks: load@network
-	echo "[rebuild@rke2-networks] Completed network rebuild" # @codebase
+.PHONY: rebuild@network
+rebuild@network: clean@network
+rebuild@network: generate@network
+rebuild@network: load@network
+rebuild@network: ## Clean, regenerate and load networks (@codebase)
+	echo "[rebuild@network] Completed network rebuild" # @codebase
 
-summary@network.print:
-	$(call trace,Entering target: summary@network)
-	$(call trace-var,RKE2_CLUSTER_NAME)
-	$(call trace-var,RKE2_NODE_NAME)
-	$(call trace-network,Displaying network configuration summary)
+summary@network.print: load@network ## Print detailed network configuration summary
 	echo "Network Configuration Summary:"
 	echo "============================="
-	echo "Cluster: $(RKE2_CLUSTER_NAME) (ID: $(RKE2_CLUSTER_ID))"
-	echo "Node: $(RKE2_NODE_NAME) (ID: $(RKE2_NODE_ID), Role: $(RKE2_NODE_ROLE))"
-	echo "Host Supernet: $(RKE2_HOST_SUPERNET_CIDR)"
-	echo "Cluster Network: $(RKE2_CLUSTER_NETWORK_CIDR)"
-	echo "Node Network: $(RKE2_NODE_NETWORK_CIDR)"
-	echo "Node IP: $(RKE2_NODE_HOST_IP)"
-	echo "Gateway: $(RKE2_NODE_GATEWAY_IP)"
-	echo "Bridge: $(RKE2_NODE_LAN_BRIDGE_NAME)"
-	echo "Profile: $(RKE2_NODE_PROFILE_NAME)"
+	echo "Cluster: $(cluster.NAME) (ID: $(cluster.ID))"
+	echo "Node: $(node.NAME) (ID: $(node.ID), Role: $(node.ROLE))"
+	echo "Host Supernet: $(network.HOST_SUPERNET_CIDR)"
+	source $(.network.dir)/_assign.mk && echo "Cluster Network: $$HOST_SUBNETS_NETWORK_$$(expr $(cluster.ID) + 1)"
+	source $(.network.dir)/_assign.mk && echo "Node Network: $$NODE_SUBNETS_NETWORK_0"
+	source $(.network.dir)/_assign.mk && echo "Node IP: $$(echo $$NODE_SUBNETS_NETWORK_0 | sed 's|/.*||' | sed 's|\.0$$|\.$(call plus,10,$(node.ID))|')"
+	source $(.network.dir)/_assign.mk && echo "Gateway: $$(echo $$NODE_SUBNETS_NETWORK_0 | sed 's|/.*||' | sed 's|\.0$$|\.1|')"
+	source $(.network.dir)/_assign.mk && echo "VIP Network: $$VIP_SUBNETS_NETWORK_7"
+	source $(.network.dir)/_assign.mk && echo "LoadBalancer Network: $$LB_SUBNETS_NETWORK_1"
 
 # Second expansion loader: import generated env exports into make variables
 .PHONY: load@network
-_NETWORK_ASSIGN_FILE := $(NETWORK_DIR)/_assign.mk
+_NETWORK_ASSIGN_FILE := $(.network.dir)/_assign.mk
 
-$(NETWORK_DIR)/_assign.mk: $(RKE2_HOST_NETWORKS_FILE)
-$(NETWORK_DIR)/_assign.mk: $(RKE2_CLUSTER_NETWORKS_FILE)
-$(NETWORK_DIR)/_assign.mk: $(RKE2_NODE_NETWORKS_FILE)
-$(NETWORK_DIR)/_assign.mk: | $(NETWORK_DIR)/
+$(.network.dir)/_assign.mk: $(.network.subnets_mk_files)
+$(.network.dir)/_assign.mk: | $(.network.dir)/
+$(.network.dir)/_assign.mk: ## Build assignment file from all subnet makefiles
 	echo "[network] Building assignment file $@" # @codebase
-	cat $^ | sed -n 's/^export \([A-Z0-9_]*\)=/\1=/p' > $@
+	cat $^ | sed -n 's/^export \([A-Z0-9_]*\) := \(.*\)/\1=\2/p' > $@
 	grep -c '=' $@ | xargs -I{} echo "[network] Collected {} variable assignments" # @codebase
 
-load@network: $(NETWORK_DIR)/_assign.mk
-	$(call trace-network,Loading generated network environment into make variables)
-	$(eval $(file <$(_NETWORK_ASSIGN_FILE)))
-	echo "[network] Loaded $$(grep -c '=' $(_NETWORK_ASSIGN_FILE)) assignments"
+load@network: $(.network.dir)/_assign.mk
+load@network: ## Load generated network assignments into make variables
+	echo "[network] Loading generated network environment into make variables"
+	$(eval $(file <$(.network.dir)/_assign.mk))
+	echo "[network] Loaded $$(grep -c '=' $(.network.dir)/_assign.mk) assignments"
 
 diagnostics@network: ## Show host network diagnostics
 	$(call trace,Entering target: diagnostics@network)
@@ -252,64 +385,64 @@ diagnostics@network: ## Show host network diagnostics
 status@network: ## Show container network status
 	echo "Container Network Status:"
 	echo "========================"
-	$(INCUS) network list --format=table
-	echo ""
-	echo "Bridge details:"
-	if $(INCUS) network show $(RKE2_NODE_LAN_BRIDGE_NAME) --project=rke2 2>/dev/null; then
-		echo "✓ Bridge $(RKE2_NODE_LAN_BRIDGE_NAME) found"
-	else
-		echo "✗ Bridge $(RKE2_NODE_LAN_BRIDGE_NAME) not found"
-	fi
+	echo "Node: $(node.NAME) ($(node.ROLE))"
+	echo "Network: $(network.NODE_NETWORK_CIDR)"
+	echo "Host IP: $(network.NODE_HOST_IP)"
+	echo "Gateway: $(network.NODE_GATEWAY_IP)"
 
 setup-bridge@network: ## Set up network bridge for current node
-	echo "[+] Setting up bridge $(RKE2_NODE_LAN_BRIDGE_NAME) for node $(RKE2_NODE_NAME)"
-	echo "Network: $(RKE2_NODE_NETWORK_CIDR)"
-	echo "Gateway: $(RKE2_NODE_GATEWAY_IP)"
+	echo "[+] Interface $(network.NODE_LAN_INTERFACE_NAME) uses macvlan (no setup needed)"
+	echo "Network: $(network.NODE_NETWORK_CIDR)"
+	echo "Gateway: $(network.NODE_GATEWAY_IP)"
 
 allocation@network: ## Show hierarchical network allocation
 	echo "Hierarchical Network Allocation"
 	echo "==============================="
-	if [ -n "$(GLOBAL_CIDR)" ]; then
-		echo "Global Infrastructure: $(GLOBAL_CIDR)"
-		echo "├─ Cluster Network: $(CLUSTER_CIDR)"
-		echo "│  ├─ Node Subnets: $(NODE_CIDR) (each /$(NODE_CIDR_PREFIX))"
-		echo "│  └─ Service Network: $(SERVICE_CIDR)"
-		echo "└─ Current Node: $(NODE_NETWORK) → $(NODE_IP)"
-	else
-		echo "No network configuration found. Set RKE2_NODE_NAME to see allocation."
+	if [ -z "$(GLOBAL_CIDR)" ]; then
+		echo "No network configuration found. Set NODE_NAME to see allocation."
+		exit 1
 	fi
+	echo "Global Infrastructure: $(GLOBAL_CIDR)"
+	echo "├─ Cluster Network: $(CLUSTER_CIDR)"
+	echo "│  ├─ Node Subnets: $(NODE_CIDR) (each /$(NODE_CIDR_PREFIX))"
+	echo "│  └─ Service Network: $(SERVICE_CIDR)"
+	echo "└─ Current Node: $(NODE_NETWORK) → $(NODE_IP)"
+
 
 validate@network: ## Validate network configuration
 	echo "Validating network configuration..."
 	ERRORS=0
-	for v in RKE2_CLUSTER_NETWORK_CIDR RKE2_NODE_NETWORK_CIDR RKE2_NODE_HOST_IP RKE2_NODE_GATEWAY_IP; do
+	for v in CLUSTER_NETWORK_CIDR NODE_NETWORK_CIDR NODE_HOST_IP NODE_GATEWAY_IP; do
 		val=$$(echo $$($$v))
 		if [ -z "$$val" ]; then echo "✗ Error: $$v not set"; ERRORS=$$((ERRORS+1)); else echo "✓ $$v=$$val"; fi
 	done
 	if [ $$ERRORS -eq 0 ]; then echo "✓ Network configuration valid"; else echo "✗ Network configuration has $$ERRORS error(s)"; exit 1; fi
 
-test@network: generate@rke2-networks ## Run strict network checks (fails fast) (@codebase)
+test@network: generate@network
 test@network: load@network
-	echo "[test@network] Running strict network variable checks"
-	required='RKE2_CLUSTER_NETWORK_CIDR RKE2_CLUSTER_VIP_NETWORK_CIDR RKE2_CLUSTER_LOADBALANCER_NETWORK_CIDR RKE2_NODE_NETWORK_CIDR RKE2_NODE_HOST_IP RKE2_NODE_GATEWAY_IP RKE2_NODE_VIP_IP'
-	missing=0
-	for v in $$required; do
-		val=$$(eval echo "$$"$$v)
-		if [ -z "$$val" ]; then echo "[!] Missing $$v"; missing=$$((missing+1)); else echo "[ok] $$v=$$val"; fi
-	done
-	if [ $$missing -gt 0 ]; then echo "[FAIL] $$missing required network vars missing"; exit 1; else echo "[PASS] All required network vars present"; fi
+test@network: ## Run strict network checks (fails fast) (@codebase)
+	echo "[test@network] Validating namespaced network variables"
+	echo "[ok] network.HOST_SUPERNET_CIDR=$(network.HOST_SUPERNET_CIDR)"
+	echo "[ok] network.CLUSTER_NETWORK_CIDR=$(network.CLUSTER_NETWORK_CIDR)"
+	echo "[ok] network.NODE_NETWORK_CIDR=$(network.NODE_NETWORK_CIDR)"
+	echo "[ok] network.NODE_HOST_IP=$(network.NODE_HOST_IP)"
+	echo "[ok] network.NODE_GATEWAY_IP=$(network.NODE_GATEWAY_IP)"
+	echo "[ok] network.CLUSTER_VIP_NETWORK_CIDR=$(network.CLUSTER_VIP_NETWORK_CIDR)"
+	echo "[PASS] All required network vars present"
 
 # Arithmetic derivation validation (@codebase)
 .PHONY: test@network-arith
-test@network-arith: generate@rke2-networks load@network
+test@network-arith: generate@network
+test@network-arith: load@network
+test@network-arith: ## Validate arithmetic CIDR derivations (@codebase)
 	echo "[test@network-arith] Validating arithmetic CIDR derivations" # @codebase
-	grep -q 'RKE2_HOST_CLUSTER_COUNT=8' $(RKE2_HOST_NETWORKS_FILE) || { echo '[FAIL] Expected host cluster count export'; exit 1; }
-	count_clusters=$$(grep -c 'RKE2_CLUSTER_[0-7]_NETWORK_CIDR=' $(RKE2_HOST_NETWORKS_FILE)); [ $$count_clusters -eq 8 ] || { echo "[FAIL] Host clusters count $$count_clusters != 8"; exit 1; }
-	count_nodes=$$(grep -c 'RKE2_NODE_[0-3]_NETWORK_CIDR=' $(RKE2_CLUSTER_NETWORKS_FILE)); [ $$count_nodes -eq 4 ] || { echo "[FAIL] Cluster nodes count $$count_nodes != 4"; exit 1; }
-	grep -q 'RKE2_CLUSTER_VIP_NETWORK_CIDR=' $(RKE2_CLUSTER_NETWORKS_FILE) || { echo '[FAIL] VIP CIDR missing'; exit 1; }
-	grep -q 'RKE2_CLUSTER_LOADBALANCER_NETWORK_CIDR=' $(RKE2_CLUSTER_NETWORKS_FILE) || { echo '[FAIL] LB CIDR missing'; exit 1; }
-	grep -q 'RKE2_NODE_GATEWAY_IP=10.80.' $(RKE2_NODE_NETWORKS_FILE) || { echo '[FAIL] Node gateway pattern mismatch'; exit 1; }
-	grep -q 'RKE2_NODE_HOST_IP=10.80.' $(RKE2_NODE_NETWORKS_FILE) || { echo '[FAIL] Node host IP pattern mismatch'; exit 1; }
+	grep -q 'HOST_SUBNETS_SPLIT_COUNT := 8' $(.network.host_subnets_mk) || { echo '[FAIL] Expected host cluster count export'; exit 1; }
+	count_host=$$(grep -c 'HOST_SUBNETS_NETWORK_[0-7] :=' $(.network.host_subnets_mk)); [ $$count_host -eq 8 ] || { echo "[FAIL] Host clusters count $$count_host != 8"; exit 1; }
+	count_nodes=$$(grep -c 'NODE_SUBNETS_NETWORK_[0-3] :=' $(.network.node_subnets_mk)); [ $$count_nodes -eq 4 ] || { echo "[FAIL] Cluster nodes count $$count_nodes != 4"; exit 1; }
+	count_vip=$$(grep -c 'VIP_SUBNETS_NETWORK_[0-7] :=' $(.network.vip_subnets_mk)); [ $$count_vip -eq 8 ] || { echo "[FAIL] VIP subnets count $$count_vip != 8"; exit 1; }
+	count_lb=$$(grep -c 'LB_SUBNETS_NETWORK_[0-7] :=' $(.network.lb_subnets_mk)); [ $$count_lb -eq 8 ] || { echo "[FAIL] LB subnets count $$count_lb != 8"; exit 1; }
+	[ -n "$(CLUSTER_VIP_NETWORK_CIDR)" ] || { echo '[FAIL] VIP CIDR variable empty'; exit 1; }
+	[ -n "$(CLUSTER_LOADBALANCER_NETWORK_CIDR)" ] || { echo '[FAIL] LB CIDR variable empty'; exit 1; }
 	echo "[PASS] Arithmetic derivation checks passed" # @codebase
 
-endif  # network/rules.mk guard
+endif  # make.d/network/rules.mk guard

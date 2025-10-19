@@ -29,7 +29,7 @@ bridge-%:
 	$(INCUS) network create $* --project=rke2 || echo "Bridge $* already exists"
 
 # Instance startup depends on network setup (using secondary expansion)
-start@incus: | setup-network-$$(RKE2_NODE_NAME)
+start@incus: | setup-network-$$(NODE_NAME)
 	@echo "[+] Starting instance with network dependencies satisfied"
 
 # Clean bridge dependencies

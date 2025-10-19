@@ -30,24 +30,24 @@ network:
       optional: false
 
     # ===== WAN INTERFACE (STATIC) =====
-    # Cluster network with static IP, routing, and DNS
+    # Internet gateway via macvlan with static IP from network layer
     wan0:
       # DHCP disabled for static IP configuration
       dhcp4: false
 
-      # Static IP Configuration
+      # Static IP Configuration from network layer
       addresses:
-        - ${RKE2_NODE_HOST_IP}/24
+        - ${NODE_HOST_IP}/24
       routes:
         - to: 0.0.0.0/0
-          via: ${RKE2_NODE_GATEWAY_IP}
+          via: ${NODE_GATEWAY_IP}
           metric: 100
 
       # DNS Configuration
       nameservers:
         addresses:
-          - ${RKE2_NODE_GATEWAY_IP}     # Primary: node gateway
-          - 1.1.1.1                  # Fallback: Cloudflare DNS
+          - ${NODE_GATEWAY_IP}     # Primary: node gateway
+          - 1.1.1.1                    # Fallback: Cloudflare DNS
 
       # Interface Options
       optional: false
@@ -61,7 +61,19 @@ network:
 
       # Static IP from dedicated VIP network (each node gets a unique IP)
       addresses:
-        - ${RKE2_NODE_VIP_IP}/24
+        - ${NODE_VIP_IP}/24
+
+      # VIP needs gateway for external API server access (kubectl, CI/CD, etc.)
+      routes:
+        - to: 0.0.0.0/0
+          via: ${NODE_GATEWAY_IP}
+          metric: 200  # Higher metric than wan0 (100) for proper routing precedence
+
+      # DNS Configuration (same as wan0 for consistency)
+      nameservers:
+        addresses:
+          - ${NODE_GATEWAY_IP}     # Primary: node gateway
+          - 1.1.1.1                    # Fallback: Cloudflare DNS
 
       # Interface Options
       optional: false

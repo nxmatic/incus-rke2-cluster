@@ -1,7 +1,7 @@
 # metaprogramming/rules.mk - Advanced metaprogramming features (@codebase)
 # Self-guarding include pattern for idempotent multiple inclusion.
 
-ifndef metaprogramming/rules.mk
+ifndef make.d/metaprogramming/rules.mk
 
 include make.d/make.mk  # Ensure availability when file used standalone (@codebase)
 
@@ -11,7 +11,7 @@ include make.d/make.mk  # Ensure availability when file used standalone (@codeba
 
 # Only include these for non-help targets to avoid evaluation issues
 ifneq ($(MAKECMDGOALS),help)
--include metaprogramming/cluster-config.mk
+# Note: cluster configuration now inlined in make.d/node/rules.mk
 -include metaprogramming/runtime-config.mk  
 -include metaprogramming/advanced.mk
 endif

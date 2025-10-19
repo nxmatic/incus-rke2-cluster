@@ -1,31 +1,31 @@
 # cluster/rules.mk - Cluster-level identification & CIDR allocation (@codebase)
 # Self-guarding include; safe for multiple -include occurrences.
 
-ifndef cluster/rules.mk
+ifndef make.d/cluster/rules.mk
 
-include make.d/make.mk  # Ensure availability when file used standalone (@codebase)
+-include make.d/make.mk  # Ensure availability when file used standalone (@codebase)
+-include make.d/node/rules.mk  # Node identity and role variables (@codebase)
+# Note: Node and cluster configuration now inlined in make.d/node/rules.mk (@codebase)
 
 # -----------------------------------------------------------------------------
 # Ownership: This layer owns cluster identity + pod/service CIDR mapping and
 # hierarchical addressing comments. Other layers (network/incus/cloud-config)
-# consume exported RKE2_* variables. Keep Makefile slim. (@codebase)
+# consume exported * variables. Keep Makefile slim. (@codebase)
 # -----------------------------------------------------------------------------
 
-# Cluster identity (may already be set in parent; provide defaults)
-RKE2_CLUSTER_NAME ?= $(LIMA_HOSTNAME)
-RKE2_CLUSTER_TOKEN ?= $(RKE2_CLUSTER_NAME)
-RKE2_CLUSTER_DOMAIN ?= cluster.local
+# =============================================================================
+# PRIVATE VARIABLES (internal layer implementation)  
+# =============================================================================
 
-# Pod/Service CIDR mapping (previously inline in Makefile)
-ifeq (bioskop,$(RKE2_CLUSTER_NAME))
-  RKE2_POD_NETWORK_CIDR ?= 10.42.0.0/16
-  RKE2_SERVICE_NETWORK_CIDR ?= 10.43.0.0/16
-else ifeq (alcide,$(RKE2_CLUSTER_NAME))
-  RKE2_POD_NETWORK_CIDR ?= 10.44.0.0/16
-  RKE2_SERVICE_NETWORK_CIDR ?= 10.45.0.0/16
-else
-  $(error [cluster] No Pod/Service CIDR mapping for cluster: $(RKE2_CLUSTER_NAME))
-endif
+# Note: Cluster configuration now managed in node/rules.mk
+# This layer provides validation and exports only
+
+# =============================================================================
+# PUBLIC CLUSTER API
+# =============================================================================
+
+# Public cluster API (re-export from node layer)
+# (All cluster variables defined in node/rules.mk)
 
 # -----------------------------------------------------------------------------
 # Hierarchical Addressing Reference (moved from Makefile) (@codebase)
@@ -43,24 +43,28 @@ endif
 #   fd70:80:<cluster>::<nodeIndex>:/64
 # -----------------------------------------------------------------------------
 
-# Export cluster-layer variables for downstream envsubst usage
-export RKE2_CLUSTER_NAME
-export RKE2_CLUSTER_TOKEN
-export RKE2_CLUSTER_DOMAIN
-export RKE2_POD_NETWORK_CIDR
-export RKE2_SERVICE_NETWORK_CIDR
+# =============================================================================
+# EXPORTS FOR TEMPLATE USAGE
+# =============================================================================
+
+# Export cluster variables (already handled in node/rules.mk)
+# This layer focuses on validation only
+
+# =============================================================================
+# VALIDATION TARGETS
+# =============================================================================
 
 # Validation target for this layer
 .PHONY: test@cluster
-
 test@cluster:
-	@echo "[test@cluster] Validating cluster CIDR mapping"; \
-	missing=0; \
-	for v in RKE2_CLUSTER_NAME RKE2_CLUSTER_TOKEN RKE2_CLUSTER_DOMAIN RKE2_POD_NETWORK_CIDR RKE2_SERVICE_NETWORK_CIDR; do \
-	  val=$$(eval echo "$$"$$v); \
-	  if [ -z "$$val" ]; then echo "[!] Missing $$v"; missing=$$((missing+1)); else echo "[ok] $$v=$$val"; fi; \
-	done; \
-	if [ $$missing -gt 0 ]; then echo "[FAIL] $$missing cluster vars missing"; exit 1; else echo "[PASS] Cluster variables present"; fi
+	echo "[test@cluster] Validating cluster configuration from node layer"
+	echo "[ok] cluster.NAME=$(cluster.NAME)"
+	echo "[ok] cluster.TOKEN=$(cluster.TOKEN)"
+	echo "[ok] cluster.DOMAIN=$(cluster.DOMAIN)"
+	echo "[ok] cluster.ID=$(cluster.ID)"
+	echo "[ok] cluster.POD_NETWORK_CIDR=$(cluster.POD_NETWORK_CIDR)"
+	echo "[ok] cluster.SERVICE_NETWORK_CIDR=$(cluster.SERVICE_NETWORK_CIDR)"
+	echo "[PASS] All cluster variables present from node layer"
 
 endif # cluster/rules.mk guard
 

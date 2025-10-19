@@ -19,12 +19,12 @@ write_files:
   # Dedicated token fragment
   - path: /etc/rancher/rke2/config.yaml.d/token.yaml
     content: |
-      token: ${RKE2_CLUSTER_TOKEN}
+      token: ${CLUSTER_TOKEN}
 
   # Dedicated advertise-address fragment
   - path: /etc/rancher/rke2/config.yaml.d/advertise-address.yaml
     content: |
-      advertise-address: ${RKE2_NODE_HOST_IP}
+      advertise-address: ${NODE_HOST_IP}
 
   # Disable default controllers we don't want (consistent across cluster)
   - path: /etc/rancher/rke2/config.yaml.d/disable.yaml

@@ -23,18 +23,18 @@ define RUNTIME_CONFIG_TEMPLATE
 # Generated at $(shell date)
 
 # Current runtime context
-CURRENT_CLUSTER := $(RKE2_CLUSTER_NAME)
-CURRENT_NODE := $(RKE2_NODE_NAME)  
-CURRENT_NODE_TYPE := $(RKE2_NODE_TYPE)
+CURRENT_CLUSTER := $(CLUSTER_NAME)
+CURRENT_NODE := $(NODE_NAME)  
+CURRENT_NODE_TYPE := $(NODE_TYPE)
 
 # Generated network variables
 ## Removed recursive $(MAKE) calls to non-existent show@rke2-node-host-ip/show@rke2-node-vip-ip to avoid infinite recursion.
-RKE2_NODE_HOST_IP := $(RKE2_NODE_HOST_IP)
-RKE2_NODE_VIP_IP := $(RKE2_NODE_VIP_IP)
+NODE_HOST_IP := $(NODE_HOST_IP)
+NODE_VIP_IP := $(NODE_VIP_IP)
 
 # Runtime instance status
-INSTANCE_EXISTS := $(shell $(REMOTE_EXEC) incus info $(RKE2_NODE_NAME) --project=rke2 >/dev/null 2>&1 && echo "true" || echo "false")
-INSTANCE_RUNNING := $(shell $(REMOTE_EXEC) incus info $(RKE2_NODE_NAME) --project=rke2 2>/dev/null | grep -q "Status: Running" && echo "true" || echo "false")
+INSTANCE_EXISTS := $(shell $(REMOTE_EXEC) incus info $(NODE_NAME) --project=rke2 >/dev/null 2>&1 && echo "true" || echo "false")
+INSTANCE_RUNNING := $(shell $(REMOTE_EXEC) incus info $(NODE_NAME) --project=rke2 2>/dev/null | grep -q "Status: Running" && echo "true" || echo "false")
 
 # (No dynamic target injection; rely on canonical definitions in incus/rules.mk)
 # Environment overrides removed (use existing REMOTE_EXEC from make.mk)
@@ -69,10 +69,10 @@ show-runtime-config: $(RUNTIME_CONFIG_FILE) ## Display auto-generated runtime co
 check-runtime-state: ## Check current runtime state of cluster and nodes
 	echo "Current Runtime State:"
 	echo "====================="
-	echo "Cluster: $(RKE2_CLUSTER_NAME)"
-	echo "Node: $(RKE2_NODE_NAME) ($(RKE2_NODE_TYPE)/$(RKE2_NODE_ROLE))"
-	echo "Instance exists: $(shell incus info $(RKE2_NODE_NAME) --project=rke2 >/dev/null 2>&1 && echo "yes" || echo "no")"
-	echo "Instance running: $(shell incus info $(RKE2_NODE_NAME) --project=rke2 2>/dev/null | grep -q "Status: Running" && echo "yes" || echo "no")"
+	echo "Cluster: $(CLUSTER_NAME)"
+	echo "Node: $(NODE_NAME) ($(NODE_TYPE)/$(NODE_ROLE))"
+	echo "Instance exists: $(shell incus info $(NODE_NAME) --project=rke2 >/dev/null 2>&1 && echo "yes" || echo "no")"
+	echo "Instance running: $(shell incus info $(NODE_NAME) --project=rke2 2>/dev/null | grep -q "Status: Running" && echo "yes" || echo "no")"
 	echo "Network allocated: $(shell test -f $(CLUSTER_ENV_FILE) && echo "yes" || echo "no")"
 
 # Define newline for template substitution

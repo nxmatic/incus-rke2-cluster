@@ -9,7 +9,7 @@ write_files:
   - path: /etc/rancher/rke2/config.yaml.d/etcd.yaml
     content: |
       etcd-expose-metrics: true
-      node-name: peer1-control-node
+      node-name: ${NODE_NAME}-control-node
       with-node-id: false
 
   # Dedicated server fragment (templated -> rendered server.yaml)
@@ -17,7 +17,7 @@ write_files:
     content: |
       # NOTE:
       # Port 9345 is the RKE2 supervisor (bootstrap) port used by joining server nodes.
-      # The control-plane VIP (${RKE2_CLUSTER_VIP_GATEWAY_IP}) is only advertising the Kubernetes
+      # The control-plane VIP (${CLUSTER_VIP_GATEWAY_IP}) is only advertising the Kubernetes
       # API server on 6443 via the Service load balancer and does NOT forward 9345.
       # Therefore peers must talk directly to an existing server node (the initial master)
       # on its node IP for the 9345 endpoint. Keep using the VIP only for kubectl / API (6443).

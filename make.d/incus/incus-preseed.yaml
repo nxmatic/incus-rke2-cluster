@@ -22,9 +22,10 @@ storage_pools:
     driver: zfs
     config:
       source: tank/nerd/incus
-networks: []  # no Incus-managed bridges; macvlan attachments only
+# no Incus-managed bridges; macvlan attachments only
+networks: []
 profiles:
-  - name: ${RKE2_NODE_PROFILE_NAME}
+  - name: ${NODE_PROFILE_NAME}
     description: RKE2 profile (mode=${NETWORK_MODE}, dual-NIC macvlan)
     devices:
       root:
@@ -38,6 +39,11 @@ profiles:
         type: nic
       wan0:
         name: wan0
+        nictype: macvlan
+        parent: vmwan0
+        type: nic
+      vip0:
+        name: vip0
         nictype: macvlan
         parent: vmwan0
         type: nic
