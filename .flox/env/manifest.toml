@@ -17,7 +17,7 @@ version = 1
 [install]
 distrobuilder.pkg-path = "distrobuilder"
 distrobuilder.systems = ["aarch64-linux", "x86_64-linux"]
-lazygit.pkg-path = "lazygit"
+# lazygit.pkg-path = "lazygit"  # Disabled - using nix-darwin overlay version
 gh.pkg-path = "gh"
 gnupg.pkg-path = "gnupg"
 lsof.pkg-path = "lsof"
