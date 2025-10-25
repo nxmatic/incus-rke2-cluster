@@ -50,7 +50,7 @@ config-instance@incus:
 define CONTEXT_AWARE_RECIPE_TEMPLATE
 $(1)@incus: config-instance@incus
 $(1)@incus:
-	@echo "[+] Executing $(1) for node $$(NODE_NAME) with flags: $$($$($$(NODE_NAME)_SPECIAL_FLAGS))"
+	: "[+] Executing $(1) for node $$(NODE_NAME) with flags: $$($$($$(NODE_NAME)_SPECIAL_FLAGS))"
 	$(2) $$($$($$(NODE_NAME)_SPECIAL_FLAGS))
 endef
 

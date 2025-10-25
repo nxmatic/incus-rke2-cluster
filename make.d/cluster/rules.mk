@@ -57,14 +57,14 @@ ifndef make.d/cluster/rules.mk
 # Validation target for this layer
 .PHONY: test@cluster
 test@cluster:
-	echo "[test@cluster] Validating cluster configuration from node layer"
-	echo "[ok] cluster.NAME=$(cluster.NAME)"
-	echo "[ok] cluster.TOKEN=$(cluster.TOKEN)"
-	echo "[ok] cluster.DOMAIN=$(cluster.DOMAIN)"
-	echo "[ok] cluster.ID=$(cluster.ID)"
-	echo "[ok] cluster.POD_NETWORK_CIDR=$(cluster.POD_NETWORK_CIDR)"
-	echo "[ok] cluster.SERVICE_NETWORK_CIDR=$(cluster.SERVICE_NETWORK_CIDR)"
-	echo "[PASS] All cluster variables present from node layer"
+	: "[test@cluster] Validating cluster configuration from node layer"
+	: "[ok] cluster.NAME=$(cluster.NAME)"
+	: "[ok] cluster.TOKEN=$(cluster.TOKEN)"
+	: "[ok] cluster.DOMAIN=$(cluster.DOMAIN)"
+	: "[ok] cluster.ID=$(cluster.ID)"
+	: "[ok] cluster.POD_NETWORK_CIDR=$(cluster.POD_NETWORK_CIDR)"
+	: "[ok] cluster.SERVICE_NETWORK_CIDR=$(cluster.SERVICE_NETWORK_CIDR)"
+	: "[PASS] All cluster variables present from node layer"
 
 endif # cluster/rules.mk guard
 

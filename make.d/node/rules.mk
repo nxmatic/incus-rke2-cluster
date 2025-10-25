@@ -16,12 +16,12 @@ ifndef make.d/node/rules.mk
 .node.NAME ?= $(if $(name),$(name),master)
 
 # Node configuration lookup key for .node-config.* rules
-.node.config_key := .node-config.$(.node.NAME)
+.node.config_key = .node-config.$(.node.NAME)
 
 # Cluster configuration (inlined from cluster-templates.mk)
 .cluster.NAME ?= $(if $(LIMA_HOSTNAME),$(LIMA_HOSTNAME),bioskop)
 .cluster.TOKEN ?= $(.cluster.NAME)
-.cluster.DOMAIN := cluster.local
+.cluster.DOMAIN = cluster.local
 
 # Cluster-specific configurations
 ifeq ($(.cluster.NAME),bioskop)
@@ -65,7 +65,7 @@ export LIMA_WAN_INTERFACE := $(cluster.LIMA_WAN_INTERFACE)
 # =============================================================================
 
 # Node configuration data (inlined from cluster-templates.mk)
-.node.CONFIG_master := server master 0
+.node.CONFIG_master = server master 0
 .node.CONFIG_peer1 := server peer 1  
 .node.CONFIG_peer2 := server peer 2
 .node.CONFIG_peer3 := server peer 3
@@ -104,13 +104,13 @@ export NODE_ID := $(node.ID)
 .PHONY: test@node
 
 test@node:
-	echo "[test@node] Validating node role/type derivation"
-	echo "[ok] node.NAME=$(node.NAME)"
-	echo "[ok] node.TYPE=$(node.TYPE)" 
-	echo "[ok] node.ROLE=$(node.ROLE)"
-	echo "[ok] node.ID=$(node.ID)"
-	echo "[ok] .node.config_key=$(.node.config_key)"
-	echo "[PASS] Node variables present"
+	: "[test@node] Validating node role/type derivation"
+	: "[ok] node.NAME=$(node.NAME)"
+	: "[ok] node.TYPE=$(node.TYPE)" 
+	: "[ok] node.ROLE=$(node.ROLE)"
+	: "[ok] node.ID=$(node.ID)"
+	: "[ok] .node.config_key=$(.node.config_key)"
+	: "[PASS] Node variables present"
 
 
 

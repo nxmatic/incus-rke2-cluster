@@ -23,16 +23,16 @@ endif
 .PHONY: enable@meta disable@meta features@meta targets@meta
 
 enable@meta: ## Enable advanced metaprogramming features
-	echo "[+] Metaprogramming features are enabled"
-	echo "Available generated targets:"
-	echo "  Per-node: start-master, start-peer1, start-worker1, etc."
-	echo "  Per-cluster: start-cluster-bioskop, stop-cluster-alcide"
-	echo "  Scaling: scale-master-memory, scale-cluster-resources"
-	echo "  Debugging: debug-variables, show-constructed-values"
+	: "[+] Metaprogramming features are enabled"
+	: "Available generated targets:"
+	: "  Per-node: start-master, start-peer1, start-worker1, etc."
+	: "  Per-cluster: start-cluster-bioskop, stop-cluster-alcide"
+	: "  Scaling: scale-master-memory, scale-cluster-resources"
+	: "  Debugging: debug-variables, show-constructed-values"
 
 disable@meta: ## Disable metaprogramming (use basic targets only)
-	echo "[+] Using basic targets only (metaprogramming disabled)"
-	echo "Use standard targets: make start NAME=node, make clean-all, etc."
+	: "[+] Using basic targets only (metaprogramming disabled)"
+	: "Use standard targets: make start NAME=node, make clean-all, etc."
 
 #-----------------------------
 # Metaprogramming Documentation Targets

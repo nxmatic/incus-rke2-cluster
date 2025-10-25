@@ -43,10 +43,10 @@ ifndef make.d/incus/rules.mk
 .incus.instance_netcfg_file ?= $(.incus.nocloud_dir)/network-config
 
 # RUN_ prefixed variables for template compatibility
-.incus.run_instance_dir := $(.incus.instance_dir)
-.incus.run_nocloud_metadata_file := $(.incus.instance_metadata_file)
-.incus.run_nocloud_userdata_file := $(.incus.instance_userdata_file)
-.incus.run_nocloud_netcfg_file := $(.incus.instance_netcfg_file)
+.incus.run_instance_dir = $(.incus.instance_dir)
+.incus.run_nocloud_metadata_file = $(.incus.instance_metadata_file)
+.incus.run_nocloud_userdata_file = $(.incus.instance_userdata_file)
+.incus.run_nocloud_netcfg_file = $(.incus.instance_netcfg_file)
 
 # Cluster environment file
 .incus.cluster_env_file ?= $(.incus.instance_dir)/cluster-env.mk
@@ -115,7 +115,7 @@ endef
 
 $(.incus.cluster_env_file): | $(.incus.instance_dir)/
 $(.incus.cluster_env_file):
-	@: "[+] Generating cluster environment file $(.incus.cluster_env_file)";
+	: "[+] Generating cluster environment file $(.incus.cluster_env_file)";
 	echo "CLUSTER_NAME=$(cluster.NAME)" > $@;
 	echo "NODE_NAME=$(node.NAME)" >> $@;
 	echo "NODE_ROLE=$(node.ROLE)" >> $@;
@@ -123,12 +123,32 @@ $(.incus.cluster_env_file):
 	echo "NODE_ID=$(node.ID)" >> $@;
 	echo "IMAGE_NAME=$(.incus.image_name)" >> $@;
 
-# Incus command invocation with timeout (defined here, removed from make.mk)
+# Incus execution mode: local (on NixOS) or remote (Darwin -> Lima) (@codebase)
+.incus.remote_repo_root ?= /var/lib/nixos/config
+.incus.exec.mode = $(if $(filter $(true),$(host.IS_REMOTE_INCUS_BUILD)),remote,local)
+
+# Incus command invocation with conditional remote wrapper (@codebase)
 .incus.timeout ?= 30
-# INCUS remote command wrapper: ensures execution inside Lima VM or locally if already on NixOS
-# Uses bash -lc to preserve environment activation. REMOTE_EXEC already includes any flox activate logic.
-.incus.command ?= $(REMOTE_EXEC) timeout $(.incus.timeout) incus
-.incus.distrobuilder_command ?= $(REMOTE_EXEC) sudo distrobuilder
+.incus.remote_prefix = $(if $(filter remote,$(.incus.exec.mode)),$(REMOTE_EXEC),)
+.incus.command = $(.incus.remote_prefix) timeout $(.incus.timeout) incus
+.incus.distrobuilder_command = $(.incus.remote_prefix) sudo distrobuilder
+
+# Distrobuilder build context resolution (@codebase)
+.incus.build.mode = $(.incus.exec.mode)
+.incus.distrobuilder_workdir = $(if $(filter remote,$(.incus.build.mode)),$(.incus.remote_repo_root),$(abspath $(top-dir)))
+# Absolute path used in build command; local mode uses repository-relative path directly
+.incus.distrobuilder_file_abs = $(if $(filter remote,$(.incus.build.mode)),$(.incus.remote_repo_root)/$(.incus.distrobuilder_file),$(.incus.distrobuilder_file))
+
+# Preflight verification: ensure remote repo root and distrobuilder file exist (@codebase)
+.PHONY: verify-context@incus
+verify-context@incus:
+	: "[+] Verifying distrobuilder context (mode: $(.incus.build.mode))"
+	if [ "$(.incus.build.mode)" = "remote" ]; then \
+		if $(REMOTE_EXEC) sudo test -d $(.incus.remote_repo_root); then echo "  ✓ remote repo root: $(.incus.remote_repo_root)"; else echo "  ✗ missing remote repo root: $(.incus.remote_repo_root)"; fi; \
+		if $(REMOTE_EXEC) sudo test -f $(.incus.distrobuilder_file_abs); then echo "  ✓ remote distrobuilder file: $(.incus.distrobuilder_file_abs)"; else echo "  ✗ missing remote distrobuilder file: $(.incus.distrobuilder_file_abs)"; fi; \
+	else \
+		if test -f $(.incus.distrobuilder_file_abs); then echo "  ✓ local distrobuilder file: $(.incus.distrobuilder_file_abs)"; else echo "  ✗ missing local distrobuilder file: $(.incus.distrobuilder_file_abs)"; fi; \
+	fi
 
 
 
@@ -138,7 +158,7 @@ $(.incus.cluster_env_file):
 
 .PHONY: deps@incus
 deps@incus: ## Check availability of remote incus and required tools (@codebase)
-	echo "[+] Checking remote Incus dependencies via $(REMOTE_EXEC) ...";
+	: "[+] Checking remote Incus dependencies via $(REMOTE_EXEC) ...";
 	ERR=0;
 	for cmd in incus yq timeout distrobuilder; do
 		if $(REMOTE_EXEC) command -v $$cmd >/dev/null 2>&1; then
@@ -148,8 +168,8 @@ deps@incus: ## Check availability of remote incus and required tools (@codebase)
 		fi;
 	done;
 	if [ "$$ERR" = "1" ]; then echo "[!] Required dependencies missing"; exit 1; fi;
-	echo "[+] Required dependencies present";
-	echo "[i] ipcalc usage confined to network layer (not required for incus lifecycle)"; ## @codebase
+	: "[+] Required dependencies present";
+	: "[i] ipcalc usage confined to network layer (not required for incus lifecycle)"; ## @codebase
 
 # Re-enable advanced targets include (non-recursive refactor complete)
 -include advanced-targets.mk
@@ -185,7 +205,7 @@ $(.incus.instance_config_file): | $(.incus.nocloud_dir)/
 $(.incus.instance_config_file): export TSKEY_CLIENT := $(TSKEY_CLIENT)
 # Note: RUN_ variables exported globally above, NOCLOUD_ variables exported from cloud-config rules
 $(.incus.instance_config_file):
-	@: "[+] Rendering instance config (envsubst via yq) ...";
+	: "[+] Rendering instance config (envsubst via yq) ...";
 	yq eval '( ... | select(tag=="!!str") ) |= envsubst(ne,nu)' $(.incus.instance_config_template) > $(@)
 
 #-----------------------------
@@ -195,29 +215,29 @@ $(.incus.instance_config_file):
 # Metadata and userdata now generated directly by cloud-config layer
 # $(.incus.instance_metadata_file): $(NOCLOUD_METADATA_FILE) | $(.incus.nocloud_dir)/
 # $(.incus.instance_metadata_file):
-#	@: "[+] Copying per-instance metadata file ..."
+#	: "[+] Copying per-instance metadata file ..."
 #	cp $(NOCLOUD_METADATA_FILE) $@
 
 # $(.incus.instance_userdata_file): $(NOCLOUD_USERDATA_FILE) | $(.incus.nocloud_dir)/
 # $(.incus.instance_userdata_file):
-#	@: "[+] Copying per-instance userdata file ..."  
+#	: "[+] Copying per-instance userdata file ..."  
 #	cp $(NOCLOUD_USERDATA_FILE) $@
 
 # Network-config now generated directly by cloud-config layer
 # $(.incus.instance_netcfg_file): $(make-dir)/network/network-config.yaml test@network | $(.incus.nocloud_dir)/
 # $(.incus.instance_netcfg_file):
-#	@: "[+] Rendering per-instance network-config (envsubst via yq) ..."
+#	: "[+] Rendering per-instance network-config (envsubst via yq) ..."
 #	yq eval '( .. | select(tag=="!!str") ) |= envsubst(ne,nu)' $< > $@
 
 .PHONY: render@instance-config
 render@instance-config: test@network $(.incus.instance_config_file) ## Explicit render of Incus instance config
 render@instance-config:
-	@echo "[+] Instance config rendered at $(.incus.instance_config_file)"
+	: "[+] Instance config rendered at $(.incus.instance_config_file)"
 
 .PHONY: validate@cluster
 validate@cluster: test@network validate@cloud-config ## Aggregate cluster validation (network + cloud-config)
 validate@cluster:
-	@echo "[+] Cluster validation complete (network + cloud-config)"
+	: "[+] Cluster validation complete (network + cloud-config)"
 
 #-----------------------------
 # Project Management Targets
@@ -229,7 +249,7 @@ validate@cluster:
 switch-project@incus: preseed@incus ## Switch to RKE2 project and ensure images are available (@codebase)
 switch-project@incus: $(.incus.project_marker_file)
 switch-project@incus:
-	: [+] Switching to project $(CLUSTER_NAME)
+	: "[+] Switching to project $(CLUSTER_NAME)"
 	$(.incus.command) project switch rke2 || true
 
 remove-project@incus: cleanup-project-instances@incus ## Remove entire RKE2 project (destructive) (@codebase)
@@ -238,7 +258,7 @@ remove-project@incus: cleanup-project-networks@incus
 remove-project@incus: cleanup-project-profiles@incus
 remove-project@incus: cleanup-project-volumes@incus
 remove-project@incus:
-	: [+] Deleting project $(CLUSTER_NAME)
+	: "[+] Deleting project $(CLUSTER_NAME)"
 	$(.incus.command) project delete rke2 || true
 
 # =============================================================================
@@ -290,18 +310,14 @@ cleanup-project-volumes-snapshots@incus:
 	    xargs -r -n1 $(.incus.command) storage volume snapshot delete --project=rke2 default
 
 $(.incus.project_marker_file): $(.incus.preseed_file)
-$(.incus.project_marker_file): $(.incus.image_import_marker_file)
 $(.incus.project_marker_file): | $(.incus.dir)/
 $(.incus.project_marker_file):
-	: [+] Ensuring preseed configuration is applied...
+	: "[+] Ensuring preseed configuration is applied..."
 	$(.incus.command) admin init --preseed < $(.incus.preseed_file) || true
-	: [+] Creating incus project rke2 if not exists...
+	: "[+] Creating incus project rke2 if not exists..."
 	$(.incus.command) project create rke2 || true
-	: [+] Importing incus profile $(NODE_PROFILE_NAME) from default to rke2 project
-	echo "[+] Copying profile $(NODE_PROFILE_NAME) from default to rke2"
-	$(.incus.command) profile copy --project=default --target-project=rke2 $(NODE_PROFILE_NAME) $(NODE_PROFILE_NAME) || true; \
-	echo "[+] Importing image $(NODE_PROFILE_NAME) from default to rke2"
-	$(.incus.command) image import --project=rke2 --alias=$(IMAGE_NAME) --reuse $(.incus.image_build_files) || true; \
+	: "[+] Copying incus profile $(NODE_PROFILE_NAME) from default to rke2 project"
+	$(.incus.command) profile copy --project=default --target-project=rke2 $(NODE_PROFILE_NAME) $(NODE_PROFILE_NAME) || true
 	touch $@
 
 #-----------------------------
@@ -312,50 +328,51 @@ $(.incus.project_marker_file):
 
 show-network@incus: preseed@incus ## Show network configuration summary
 show-network@incus:
-	echo "[i] Network Configuration Summary"
-	echo "=================================="
+	: "[i] Network Configuration Summary"
+	: "================================="
 	echo "Host LAN parent: $(LIMA_LAN_INTERFACE) -> container lan0 (macvlan)"
 	echo "Host WAN parent: $(LIMA_WAN_INTERFACE) -> container wan0 (macvlan)"
 	echo "Host VIP parent: $(LIMA_WAN_INTERFACE) -> container vip0 (macvlan, shared with wan0)"
 	echo "VIP Gateway: $(CLUSTER_VIP_GATEWAY_IP) ($(CLUSTER_VIP_NETWORK_CIDR))"
-	echo "Mode: Triple macvlan (lan0/wan0/vip0) - consistent interface approach"
-	echo ""
-	echo "[i] Host interface state:"
-	echo "  $(LIMA_LAN_INTERFACE): $$(ip link show $(LIMA_LAN_INTERFACE) | grep -o 'state [A-Z]*' || echo 'unknown state')"
-	echo "  $(LIMA_WAN_INTERFACE): $$(ip link show $(LIMA_WAN_INTERFACE) | grep -o 'state [A-Z]*' || echo 'unknown state')"
-	echo ""
-	echo "[i] IP assignments:"
-	echo "  $(LIMA_LAN_INTERFACE) IPv4: $$(ip -o -4 addr show $(LIMA_LAN_INTERFACE) | awk '{print $$4}' || echo '<none>')"
-	echo "  $(LIMA_WAN_INTERFACE) IPv4: $$(ip -o -4 addr show $(LIMA_WAN_INTERFACE) | awk '{print $$4}' || echo '<none>')"
-	echo ""
-	echo "(Container macvlan interfaces visible after instance start)"
+	: "Mode: Triple macvlan (lan0/wan0/vip0) - consistent interface approach"
+	: ""
+	: "[i] Host interface state:"
+	: "  $(LIMA_LAN_INTERFACE): $$(ip link show $(LIMA_LAN_INTERFACE) | grep -o 'state [A-Z]*' || echo 'unknown state')"
+	: "  $(LIMA_WAN_INTERFACE): $$(ip link show $(LIMA_WAN_INTERFACE) | grep -o 'state [A-Z]*' || echo 'unknown state')"
+	: ""
+	: "[i] IP assignments:"
+	: "  $(LIMA_LAN_INTERFACE) IPv4: $$(ip -o -4 addr show $(LIMA_LAN_INTERFACE) | awk '{print $$4}' || echo '<none>')"
+	: "  $(LIMA_WAN_INTERFACE) IPv4: $$(ip -o -4 addr show $(LIMA_WAN_INTERFACE) | awk '{print $$4}' || echo '<none>')"
+	: ""
+	: "(Container macvlan interfaces visible after instance start)"
 
-diagnostics@incus: ## Show host network diagnostics
-	echo "[i] Host Network Diagnostics"
-	echo "============================"
-	echo "Parent interfaces: $(LIMA_LAN_INTERFACE), $(LIMA_WAN_INTERFACE)"
-	echo "Host MACs:"
-	echo "  $(LIMA_LAN_INTERFACE): $$(cat /sys/class/net/$(LIMA_LAN_INTERFACE)/address 2>/dev/null || echo 'n/a')"
-	echo "  $(LIMA_WAN_INTERFACE): $$(cat /sys/class/net/$(LIMA_WAN_INTERFACE)/address 2>/dev/null || echo 'n/a')"
-	echo ""
-	echo "Host IP assignments:"
-	echo "  $(LIMA_LAN_INTERFACE) IPv4: $$(ip -o -4 addr show $(LIMA_LAN_INTERFACE) | awk '{print $$4}' || echo '<none>')"
-	echo "  $(LIMA_WAN_INTERFACE) IPv4: $$(ip -o -4 addr show $(LIMA_WAN_INTERFACE) | awk '{print $$4}' || echo '<none>')"
+diagnostics@incus: ## Run complete network diagnostics from host
+diagnostics@incus:
+	: "[i] Host Network Diagnostics"
+	: "============================"
+	: "Parent interfaces: $(LIMA_LAN_INTERFACE), $(LIMA_WAN_INTERFACE)"
+	: "Host MACs:"
+	: "  $(LIMA_LAN_INTERFACE): $$(cat /sys/class/net/$(LIMA_LAN_INTERFACE)/address 2>/dev/null || echo 'n/a')"
+	: "  $(LIMA_WAN_INTERFACE): $$(cat /sys/class/net/$(LIMA_WAN_INTERFACE)/address 2>/dev/null || echo 'n/a')"
+	: ""
+	: "Host IP assignments:"
+	: "  $(LIMA_LAN_INTERFACE) IPv4: $$(ip -o -4 addr show $(LIMA_LAN_INTERFACE) | awk '{print $$4}' || echo '<none>')"
+	: "  $(LIMA_WAN_INTERFACE) IPv4: $$(ip -o -4 addr show $(LIMA_WAN_INTERFACE) | awk '{print $$4}' || echo '<none>')"
 
 network-status@incus: ## Show container network status
-	echo "[i] Container Network Status"
-	echo "============================"
-	echo "Container: $(NODE_NAME)"
+	: "[i] Container Network Status"
+	: "============================"
+	: "Container: $(NODE_NAME)"
 	if $(.incus.command) info $(NODE_NAME) --project=rke2 >/dev/null 2>&1; then
-		echo "Container network interfaces:";
+		: "Container network interfaces:";
 		$(.incus.command) exec $(NODE_NAME) --project=rke2 -- ip -o addr show lan0 2>/dev/null || echo "  lan0: not available";
 		$(.incus.command) exec $(NODE_NAME) --project=rke2 -- ip -o addr show wan0 2>/dev/null || echo "  wan0: not available";
 		$(.incus.command) exec $(NODE_NAME) --project=rke2 -- ip -o addr show vip0 2>/dev/null || echo "  vip0: not available";
-		echo "";
-		echo "Connectivity test:";
+		: "";
+		: "Connectivity test:";
 		$(.incus.command) exec $(NODE_NAME) --project=rke2 -- ping -c1 -W2 8.8.8.8 >/dev/null 2>&1 && echo "  Internet: OK" || echo "  Internet: FAILED";
 	else
-		echo "Container $(NODE_NAME) not found or not running";
+		: "Container $(NODE_NAME) not found or not running";
 	fi
 
 #-----------------------------
@@ -367,23 +384,41 @@ network-status@incus: ## Show container network status
 image@incus: $(.incus.image_import_marker_file) ## Aggregate image build/import marker (@codebase)
 
 $(.incus.image_import_marker_file): $(.incus.image_build_files)
+$(.incus.image_import_marker_file): switch-project@incus
 $(.incus.image_import_marker_file): | $(.incus.dir)/
 $(.incus.image_import_marker_file):
-	: [+] Importing image for instance $(NODE_NAME)...
-	$(.incus.command) image import --alias $(IMAGE_NAME) --reuse $(^)
+	: "[+] Importing image for instance $(NODE_NAME) into rke2 project..."
+	$(.incus.command) image import --alias $(IMAGE_NAME) --reuse $(.incus.image_build_files)
 	touch $@
 
 $(call register-distrobuilder-targets,$(.incus.image_build_files))
 $(.incus.image_build_files): $(.incus.distrobuilder_file)
 $(.incus.image_build_files): | $(.incus.dir)/
+$(.incus.image_build_files): verify-context@incus
 $(.incus.image_build_files): export TSID := $(TSID)
 $(.incus.image_build_files): export TSKEY := $(TSKEY_CLIENT)
 $(.incus.image_build_files)&:
-	: [+] Building instance $(NODE_NAME)...
-	$(.incus.distrobuilder_command) --debug --disable-overlay \
-		build-incus $(.incus.distrobuilder_file) 2>&1 |\
-		tee $(.incus.distrobuilder_logfile)
+	: "[+] Building instance $(NODE_NAME) (mode=$(.incus.build.mode))..."
+ifeq (remote,$(.incus.build.mode))
+	$(REMOTE_EXEC) sudo bash -lc 'cd $(.incus.distrobuilder_workdir) && distrobuilder --debug --disable-overlay build-incus $(.incus.distrobuilder_file_abs)' 2>&1 | tee $(.incus.distrobuilder_logfile)
+else
+	sudo distrobuilder --debug --disable-overlay build-incus $(.incus.distrobuilder_file_abs) 2>&1 | tee $(.incus.distrobuilder_logfile)
+endif
 	mv incus.tar.xz rootfs.squashfs $(.incus.dir)/
+
+# Explicit user-invocable phony targets for image build lifecycle (@codebase)
+.PHONY: build-image@incus force-build-image@incus
+
+# Normal build: rely on existing incremental rule; just report artifacts
+build-image@incus: $(.incus.image_build_files)
+	: "[+] Incus image artifacts present: $(.incus.image_build_files)"
+
+# Force rebuild: remove artifacts then invoke underlying build rule
+force-build-image@incus:
+	: "[+] Forcing Incus image rebuild (removing old artifacts)";
+	rm -f $(.incus.image_build_files)
+	$(MAKE) $(.incus.image_build_files)
+	: "[✓] Rebuild complete: $(.incus.image_build_files)"
 
 #-----------------------------
 # Instance Lifecycle Targets
@@ -409,13 +444,13 @@ instance@incus: | $(.incus.kubeconfig_dir)/
 instance@incus: | $(.incus.logs_dir)/
 instance@incus: switch-project@incus
 instance@incus:
-	echo "[+] Ensuring Incus instance $(NODE_NAME) in project rke2...";
+	: "[+] Ensuring Incus instance $(NODE_NAME) in project rke2...";
 	if ! $(.incus.command) info $(NODE_NAME) --project=rke2 >/dev/null 2>&1; then
-		echo "[!] Instance $(NODE_NAME) missing; creating";
+		: "[!] Instance $(NODE_NAME) missing; creating";
 		rm -f $(.incus.config_instance_marker_file);
 		$(.incus.command) init $(IMAGE_NAME) $(NODE_NAME) --project=rke2 < $(.incus.instance_config_file);
 	else
-		echo "[✓] Instance $(NODE_NAME) already exists";
+		: "[✓] Instance $(NODE_NAME) already exists";
 	fi
 
 .PHONY: recreate-instance@incus
@@ -435,13 +470,13 @@ create-instance@incus: | $(.incus.shared_dir)/
 create-instance@incus: | $(.incus.kubeconfig_dir)/
 create-instance@incus: | $(.incus.logs_dir)/
 create-instance@incus:
-	echo "[+] Recreating Incus instance $(NAME) in project rke2...";
+	: "[+] Recreating Incus instance $(NAME) in project rke2...";
 	$(.incus.command) init $(IMAGE_NAME) $(NAME) --project=rke2 < $(.incus.instance_config_file);
 
 # Image ensure target (build + import if missing)
 .PHONY: ensure-image@incus
 ensure-image@incus:
-	echo "[+] Ensuring image $(IMAGE_NAME) exists in project rke2...";
+	: "[+] Ensuring image $(IMAGE_NAME) exists in project rke2...";
 	if ! $(.incus.command) image show $(IMAGE_NAME) --project=rke2 >/dev/null 2>&1; then
 		echo "[e] Image $(IMAGE_NAME) missing";
 		exit 1;
@@ -484,7 +519,7 @@ start@incus:
 	$(call trace,Entering target: start@incus)
 	$(call trace-var,NODE_NAME)
 	$(call trace-incus,Starting instance $(NODE_NAME))
-	echo "[+] Starting instance $(NODE_NAME)...";
+	: "[+] Starting instance $(NODE_NAME)...";
 	if $(.incus.command) start $(NODE_NAME); then
 		echo "✓ Instance $(NODE_NAME) started successfully";
 	else
@@ -494,7 +529,7 @@ start@incus:
 	$(call trace,Completed target: start@incus)
 
 shell@incus: ## Open interactive shell in the instance
-	echo "[+] Opening a shell in instance $(NODE_NAME)...";
+	: "[+] Opening a shell in instance $(NODE_NAME)...";
 	if $(.incus.command) info $(NODE_NAME) --project=rke2 >/dev/null 2>&1; then
 		echo "✓ Instance $(NODE_NAME) is available";
 		$(.incus.command) exec $(NODE_NAME) --project=rke2 -- zsh;
@@ -517,17 +552,17 @@ clean@incus: delete@incus
 clean@incus: remove-hosts@tailscale
 clean@incus: nodeName ?= $(NODE_NAME)
 clean@incus: ## Remove instance, profiles, storage volumes, and runtime directories
-	: [+] Removing $(nodeName) if exists...
+	: "[+] Removing $(nodeName) if exists..."
 	$(.incus.command) profile delete rke2-$(nodeName) --project=rke2 || true
 	$(.incus.command) profile delete rke2-$(nodeName) --project default || true
 	# All networks (LAN/WAN/VIP) are macvlan (no Incus-managed networks to delete)
 	# Remove persistent storage volume to ensure clean cloud-init state
 	$(.incus.command) storage volume delete default containers/$(node) || true
-	: [+] Cleaning up run directory...
+	: "[+] Cleaning up run directory..."
 	rm -fr $(.incus.instance_dir)/$(nodeName);
 
 clean-all@incus: ## Clean all cluster nodes and shared resources (destructive)
-	echo "[+] Cleaning all nodes (master peers workers)...";
+	: "[+] Cleaning all nodes (master peers workers)...";
 	for name in master peer1 peer2 peer3 worker1 worker2; do \
 		echo "[+] Cleaning node $${name}..."; \
 		$(.incus.command) delete $${name} --project=rke2 --force 2>/dev/null || true; \
@@ -536,11 +571,11 @@ clean-all@incus: ## Clean all cluster nodes and shared resources (destructive)
 		$(.incus.command) profile delete rke2-$${name} --project=default 2>/dev/null || true; \
 		$(.incus.command) storage volume delete default containers/$${name} 2>/dev/null || true; \
 	done; \
-	echo "[+] Removing entire local run directory..."; \
+	: "[+] Removing entire local run directory..."; \
 	rm -rf $(.incus.dir) 2>/dev/null || true; \
-	echo "[+] Cleaning shared cluster resources..."; \
-	echo "[i] No Incus-managed networks to clean - all interfaces use macvlan"; \
-	echo "[+] All cluster resources cleaned up"
+	: "[+] Cleaning shared cluster resources..."; \
+	: "[i] No Incus-managed networks to clean - all interfaces use macvlan"; \
+	: "[+] All cluster resources cleaned up"
 
 #-----------------------------
 # ZFS Permissions Target

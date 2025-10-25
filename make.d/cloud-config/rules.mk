@@ -12,20 +12,20 @@ ifndef make.d/cloud-config/rules.mk
 # PRIVATE VARIABLES (internal layer implementation)
 # =============================================================================
 
-# Cloud-config source template paths
-.cloud-config.source_dir := $(make-dir)/cloud-config
-.cloud-config.common := $(.cloud-config.source_dir)/cloud-config.common.yaml
-.cloud-config.server := $(.cloud-config.source_dir)/cloud-config.server.yaml
-.cloud-config.master_base := $(.cloud-config.source_dir)/cloud-config.master.base.yaml
-.cloud-config.master_cilium := $(.cloud-config.source_dir)/cloud-config.master.cilium.yaml
-.cloud-config.master_kube_vip := $(.cloud-config.source_dir)/cloud-config.master.kube-vip.yaml
-.cloud-config.peer := $(.cloud-config.source_dir)/cloud-config.peer.yaml
+# Cloud-config source template paths (lazy evaluation for dynamic reload) (@codebase)
+.cloud-config.source_dir = $(make-dir)/cloud-config
+.cloud-config.common = $(.cloud-config.source_dir)/cloud-config.common.yaml
+.cloud-config.server = $(.cloud-config.source_dir)/cloud-config.server.yaml
+.cloud-config.master_base = $(.cloud-config.source_dir)/cloud-config.master.base.yaml
+.cloud-config.master_cilium = $(.cloud-config.source_dir)/cloud-config.master.cilium.yaml
+.cloud-config.master_kube_vip = $(.cloud-config.source_dir)/cloud-config.master.kube-vip.yaml
+.cloud-config.peer = $(.cloud-config.source_dir)/cloud-config.peer.yaml
 
-# Output files (nocloud format) - node-specific paths matching incus structure
-.cloud-config.nocloud_dir := $(run-dir)/incus/$(node.NAME)/nocloud
-.cloud-config.metadata_file := $(.cloud-config.nocloud_dir)/metadata
-.cloud-config.userdata_file := $(.cloud-config.nocloud_dir)/userdata
-.cloud-config.netcfg_file := $(.cloud-config.nocloud_dir)/network-config
+# Output files (nocloud format) - node-specific paths matching incus structure (@codebase)
+.cloud-config.nocloud_dir = $(run-dir)/incus/$(node.NAME)/nocloud
+.cloud-config.metadata_file = $(.cloud-config.nocloud_dir)/metadata
+.cloud-config.userdata_file = $(.cloud-config.nocloud_dir)/userdata
+.cloud-config.netcfg_file = $(.cloud-config.nocloud_dir)/network-config
 
 # =============================================================================
 # PUBLIC CLOUD-CONFIG API
@@ -51,8 +51,12 @@ export NOCLOUD_NETCFG_FILE := $(cloud-config.NETWORK_CONFIG_FILE)
 # =============================================================================
 
 # Metadata template (private)
+## Metadata template (deterministic instance-id) (@codebase)
+## Decision: Use stable instance-id format to avoid unnecessary cloud-init reinitialization.
+## Format: <name>-cluster<clusterID>-node<nodeID>
+cloud-config.INSTANCE_ID = $(node.NAME)-cluster$(cluster.ID)-node$(node.ID)
 define .cloud-config.metadata_template :=
-instance-id: $(node.NAME)-$(shell uuidgen | tr '[:upper:]' '[:lower:]')
+instance-id: $(cloud-config.INSTANCE_ID)
 local-hostname: $(node.NAME).$(cluster.DOMAIN)
 endef
 
@@ -60,7 +64,7 @@ $(call register-cloud-config-targets,$(.cloud-config.metadata_file))
 $(.cloud-config.metadata_file): | $(.cloud-config.nocloud_dir)/
 $(.cloud-config.metadata_file): export METADATA_INLINE := $(.cloud-config.metadata_template)
 $(.cloud-config.metadata_file):
-	echo "[+] Generating meta-data file for instance $(node.NAME)..."
+	: "[+] Generating meta-data file for instance $(node.NAME)..."
 	echo "$$METADATA_INLINE" > $(@)
 
 #-----------------------------
@@ -120,7 +124,7 @@ endef
 # Note: Dependencies already defined above for different node roles
 $(call register-cloud-config-targets,$(.cloud-config.userdata_file))
 $(.cloud-config.userdata_file):
-	echo "[+] Merging cloud-config fragments (common/server/node) with envsubst ..."
+	: "[+] Merging cloud-config fragments (common/server/node) with envsubst ..."
 	$(eval _file_count := $(call length,$^))
 	$(call EXECUTE_YQ_CLOUD_CONFIG_MERGE,$(_file_count),$^,$@)
 
@@ -132,7 +136,7 @@ $(call register-network-targets,$(.cloud-config.netcfg_file))
 $(.cloud-config.netcfg_file): $(make-dir)/network/network-config.yaml
 $(.cloud-config.netcfg_file): | $(.cloud-config.nocloud_dir)/
 $(.cloud-config.netcfg_file):
-	echo "[+] Rendering network-config (envsubst via yq) ..."
+	: "[+] Rendering network-config (envsubst via yq) ..."
 	yq eval '( .. | select(tag=="!!str") ) |= envsubst(ne,nu)' $< > $@
 
 #-----------------------------
@@ -144,11 +148,11 @@ CLOUD_CONFIG_FILES := $(wildcard $(.cloud-config.source_dir)/*.yaml)
 .PHONY: lint@cloud-config validate@cloud-config
 
 lint@cloud-config: ## Lint cloud-config YAML files
-	echo "[+] Linting cloud-config files..."
+	: "[+] Linting cloud-config files..."
 	yamllint $(CLOUD_CONFIG_FILES)
 
 validate@cloud-config: $(.cloud-config.userdata_file) ## Validate merged cloud-config
-	echo "[+] Validating merged cloud-config..."
+	: "[+] Validating merged cloud-config..."
 	cloud-init schema --config-file $(.cloud-config.userdata_file) || echo "cloud-init not available for validation"
 
 #-----------------------------
@@ -170,9 +174,9 @@ else ifeq ($(node.ROLE),peer)
 endif
 
 debug-merge@cloud-config: ## Debug cloud-config merge process
-	echo "[+] Debugging cloud-config merge for $(node.NAME)..."
-	echo "Files to merge: $^"
-	echo "Output file: $(.cloud-config.userdata_file)"
-	echo "File count: $(call length,$^)"
+	: "[+] Debugging cloud-config merge for $(node.NAME)..."
+	: "Files to merge: $^"
+	: "Output file: $(.cloud-config.userdata_file)"
+	: "File count: $(call length,$^)"
 
 endif  # make.d/cloud-config/rules.mk guard

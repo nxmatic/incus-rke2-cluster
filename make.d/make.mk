@@ -165,10 +165,31 @@ override make.trace = $(warning make.mk: $(1) $(if $(2),($(foreach var,$(2),$(va
 make.is-trace := $(true)
 make.if-trace = $(1)
 $(call make.trace,enabling make-level trace)
+# Preserve all intermediate build artifacts when make-level tracing is enabled (@codebase)
+# This aids debugging by retaining generated .env/.mk subnet assignments, merged YAML, etc.
+.SECONDARY:
 else
 make.is-trace := $(false)
 make.if-trace = $(2)
 endif
+
+# ----------------------------------------------------------------------------
+# Host / platform detection (Darwin vs NixOS) (@codebase)
+# ----------------------------------------------------------------------------
+# Determines whether Incus image builds should execute locally (NixOS host)
+# or via REMOTE_EXEC (Darwin host controlling a Lima VM). Containers are
+# never the build context for distrobuilder.
+
+host.UNAME := $(shell uname -s)
+host.IS_DARWIN := $(if $(filter Darwin,$(host.UNAME)),$(true),$(false))
+host.IS_LINUX := $(if $(filter Linux,$(host.UNAME)),$(true),$(false))
+host.IS_NIXOS := $(if $(and $(host.IS_LINUX),$(wildcard /etc/NIXOS)),$(true),$(false))
+
+# Build mode predicates
+host.IS_LOCAL_INCUS_BUILD := $(if $(filter $(true),$(host.IS_NIXOS)),$(true),$(false))
+host.IS_REMOTE_INCUS_BUILD := $(if $(filter $(true),$(host.IS_DARWIN)),$(true),$(false))
+
+$(call make.trace,host-detection,(host.UNAME host.IS_DARWIN host.IS_NIXOS host.IS_REMOTE_INCUS_BUILD host.IS_LOCAL_INCUS_BUILD))
 
 # Layer-specific trace macros
 define trace
@@ -295,12 +316,12 @@ $(.make.files): ;
 # generate/load caches
 
 $(cache-dir)/%.mk:
-	@: $(file >$(@),$(.make.cache.mk.template))
+	: $(file >$(@),$(.make.cache.mk.template))
 
 $(cache-dir)/%.mk: name = $(*)
 
 $(cache-dir)/%.env:
-	@: $(file >$(@),$(.make.cache.env.template))
+	: $(file >$(@),$(.make.cache.env.template))
 
 $(cache-dir)/%.env: name = $(*)
 
