@@ -111,7 +111,7 @@ write_files:
         valuesContent: |-
           oauth:
             clientId: "${TSID}"
-            clientSecret: "${TSKEY}"
+            clientSecret: "${TSKEY_CLIENT}" # canonical variable name (@codebase)
           operatorConfig:
             hostname: "${CLUSTER_NAME}-tailscale-operator"
             debug: true

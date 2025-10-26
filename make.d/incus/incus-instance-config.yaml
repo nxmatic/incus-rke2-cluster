@@ -35,7 +35,7 @@ config:
   environment.NODE_WAN_INTERFACE_NAME: "${NODE_WAN_INTERFACE_NAME}"
   # Tailscale Configuration
   environment.TSID: "${TSID}"
-  environment.TSKEY: "${TSKEY_CLIENT}"
+  environment.TSKEY_CLIENT: "${TSKEY_CLIENT}" # canonical secret variable (@codebase)
 devices:
   kmsg.dev:
     type: unix-char
