@@ -62,10 +62,14 @@ ifndef make.d/incus/rules.mk
 # Network mode for templates
 .incus.network_mode ?= L2-bridge
 
-# Tailscale secrets (only read if files exist) – used for image build & cleanup
-.incus.tsid ?= $(file <$(.incus.secrets_dir)/tsid)
-.incus.tskey_client ?= $(file <$(.incus.secrets_dir)/tskey-client)
-.incus.tskey_api ?= $(file <$(.incus.secrets_dir)/tskey-api)
+# Tailscale secrets (canonical naming only, no legacy fallback) – used for image build & cleanup (@codebase)
+# Notes:
+#  - Canonical files: tsid, tskey-client, tskey-api.
+#  - Legacy "tskey" fallback removed for clarity and maintenance.
+#  - Whitespace stripped to avoid false empty detection.
+.incus.tsid ?= $(strip $(if $(wildcard $(.incus.secrets_dir)/tsid),$(file <$(.incus.secrets_dir)/tsid),))
+.incus.tskey_client ?= $(strip $(if $(wildcard $(.incus.secrets_dir)/tskey-client),$(file <$(.incus.secrets_dir)/tskey-client),))
+.incus.tskey_api ?= $(strip $(if $(wildcard $(.incus.secrets_dir)/tskey-api),$(file <$(.incus.secrets_dir)/tskey-api),))
 
 # Instance naming defaults (image alias)
 .incus.image_name ?= control-node
@@ -93,8 +97,8 @@ export RUN_NOCLOUD_NETCFG_FILE := $(.incus.run_nocloud_netcfg_file)
 export INCUS_EGRESS_INTERFACE := $(.incus.egress_interface)
 export NETWORK_MODE := $(.incus.network_mode)
 export TSID := $(.incus.tsid)
-export TSKEY := $(.incus.tskey_client)
 export TSKEY_API := $(.incus.tskey_api)
+export TSKEY_CLIENT := $(.incus.tskey_client) # Canonical secret variable (@codebase)
 export NODE_PROFILE_NAME := $(network.NODE_PROFILE_NAME)
 export IMAGE_NAME := $(.incus.image_name)
 export CLUSTER_INET_MASTER := $(call cidr-to-host-ip,$(NODE_SUBNETS_NETWORK_0),$(call plus,10,0))
@@ -113,15 +117,18 @@ endef
 # Cluster Environment File Generation (@codebase)
 # =============================================================================
 
+define .incus.cluster_env_template :=
+CLUSTER_NAME=$(cluster.NAME)
+NODE_NAME=$(node.NAME)
+NODE_ROLE=$(node.ROLE)
+CLUSTER_ID=$(cluster.ID)
+NODE_ID=$(node.ID)
+IMAGE_NAME=$(.incus.image_name)
+endef
+
 $(.incus.cluster_env_file): | $(.incus.instance_dir)/
 $(.incus.cluster_env_file):
-	: "[+] Generating cluster environment file $(.incus.cluster_env_file)";
-	echo "CLUSTER_NAME=$(cluster.NAME)" > $@;
-	echo "NODE_NAME=$(node.NAME)" >> $@;
-	echo "NODE_ROLE=$(node.ROLE)" >> $@;
-	echo "CLUSTER_ID=$(cluster.ID)" >> $@;
-	echo "NODE_ID=$(node.ID)" >> $@;
-	echo "IMAGE_NAME=$(.incus.image_name)" >> $@;
+	: "[+] Generating cluster environment file $(@)" $(file >$(@),$(.incus.cluster_env_template))
 
 # Incus execution mode: local (on NixOS) or remote (Darwin -> Lima) (@codebase)
 .incus.remote_repo_root ?= /var/lib/nixos/config
@@ -202,7 +209,6 @@ $(.incus.instance_config_file): $(.incus.instance_userdata_file)
 $(.incus.instance_config_file): $(.incus.instance_netcfg_file)
 $(.incus.instance_config_file): | $(.incus.instance_dir)/
 $(.incus.instance_config_file): | $(.incus.nocloud_dir)/
-$(.incus.instance_config_file): export TSKEY_CLIENT := $(TSKEY_CLIENT)
 # Note: RUN_ variables exported globally above, NOCLOUD_ variables exported from cloud-config rules
 $(.incus.instance_config_file):
 	: "[+] Rendering instance config (envsubst via yq) ...";
@@ -395,16 +401,22 @@ $(call register-distrobuilder-targets,$(.incus.image_build_files))
 $(.incus.image_build_files): $(.incus.distrobuilder_file)
 $(.incus.image_build_files): | $(.incus.dir)/
 $(.incus.image_build_files): verify-context@incus
+$(.incus.image_build_files): switch-project@incus
 $(.incus.image_build_files): export TSID := $(TSID)
-$(.incus.image_build_files): export TSKEY := $(TSKEY_CLIENT)
+# ($(IMAGE_NAME)) TSKEY export removed; image build uses TSKEY_CLIENT directly (@codebase)
 $(.incus.image_build_files)&:
-	: "[+] Building instance $(NODE_NAME) (mode=$(.incus.build.mode))..."
+	@if $(.incus.command) image show $(IMAGE_NAME) --project=rke2 >/dev/null 2>&1; then \
+		: "[✓] Image $(IMAGE_NAME) already imported in Incus; creating placeholder build artifacts"; \
+		touch $(.incus.dir)/incus.tar.xz $(.incus.dir)/rootfs.squashfs; \
+	else \
+		: "[+] Image $(IMAGE_NAME) not found; building from distrobuilder (mode=$(.incus.build.mode))..."; \
 ifeq (remote,$(.incus.build.mode))
-	$(REMOTE_EXEC) sudo bash -lc 'cd $(.incus.distrobuilder_workdir) && distrobuilder --debug --disable-overlay build-incus $(.incus.distrobuilder_file_abs)' 2>&1 | tee $(.incus.distrobuilder_logfile)
+		$(REMOTE_EXEC) sudo bash -lc 'cd $(.incus.distrobuilder_workdir) && distrobuilder --debug --disable-overlay build-incus $(.incus.distrobuilder_file_abs)' 2>&1 | tee $(.incus.distrobuilder_logfile); \
 else
-	sudo distrobuilder --debug --disable-overlay build-incus $(.incus.distrobuilder_file_abs) 2>&1 | tee $(.incus.distrobuilder_logfile)
+		sudo distrobuilder --debug --disable-overlay build-incus $(.incus.distrobuilder_file_abs) 2>&1 | tee $(.incus.distrobuilder_logfile); \
 endif
-	mv incus.tar.xz rootfs.squashfs $(.incus.dir)/
+		mv incus.tar.xz rootfs.squashfs $(.incus.dir)/; \
+	fi
 
 # Explicit user-invocable phony targets for image build lifecycle (@codebase)
 .PHONY: build-image@incus force-build-image@incus
@@ -429,7 +441,7 @@ force-build-image@incus:
 
 # Ensure instance exists; if marker file is present but Incus instance is missing (e.g. created locally only), recreate.
 ## Grouped prerequisites for instance@incus
-# Image artifacts
+# Image artifacts (auto-placeholders if image already imported in Incus) (@codebase)
 instance@incus: $(.incus.image_build_files)
 # Instance configuration
 instance@incus: $(.incus.instance_config_file)
@@ -598,9 +610,9 @@ $(INCUS_ZFS_ALLOW_MARKER_FILE):| $(DIR)/
 .PHONY: remove-hosts@tailscale
 
 define TAILSCALE_RM_HOSTS_SCRIPT
-curl -fsSL -H "Authorization: Bearer $${TSKEY}" https://api.tailscale.com/api/v2/tailnet/-/devices |
+curl -fsSL -H "Authorization: Bearer $${TSKEY_API}" https://api.tailscale.com/api/v2/tailnet/-/devices |
 	yq -p json eval --from-file=<(echo "$${YQ_EXPR}") |
-	xargs -I{} curl -fsS -X DELETE -H "Authorization: Bearer $${TSKEY}" "https://api.tailscale.com/api/v2/device/{}"
+	xargs -I{} curl -fsS -X DELETE -H "Authorization: Bearer $${TSKEY_API}" "https://api.tailscale.com/api/v2/device/{}"
 endef
 
 define TAILSCALE_RM_HOSTS_YQ_EXPR
@@ -611,13 +623,13 @@ define TAILSCALE_RM_HOSTS_YQ_EXPR
 endef
 
 remove-hosts@tailscale: export TSID := $(TSID)
-remove-hosts@tailscale: export TSKEY := $(TSKEY_API)
+# (legacy TSKEY removed; using global TSKEY_API) (@codebase)
 remove-hosts@tailscale: export HOST := $(CLUSTER_NAME)
 remove-hosts@tailscale: export SCRIPT := $(TAILSCALE_RM_HOSTS_SCRIPT)
 remove-hosts@tailscale: export YQ_EXPR := $(TAILSCALE_RM_HOSTS_YQ_EXPR)
 remove-hosts@tailscale: export NODE := $(NAME)
 remove-hosts@tailscale:
-	: "[+] Querying Tailscale devices with key $${TSKEY},prefix $${HOST}, yq-expr $${YQ_EXPR} ..."
+	: "[+] Querying Tailscale devices with key $${TSKEY_API},prefix $${HOST}, yq-expr $${YQ_EXPR} ..."
 	( [[ $$NODE == "master" ]] && eval "$$SCRIPT" ) || true
 
 endif  # incus/rules.mk guard
