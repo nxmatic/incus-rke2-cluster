@@ -125,8 +125,8 @@ endef
 $(call register-cloud-config-targets,$(.cloud-config.userdata_file))
 $(.cloud-config.userdata_file):
 	: "[+] Merging cloud-config fragments (common/server/node) with envsubst ..."
-	@if [ -z "$(TSID)" ]; then echo "  ✗ TSID unset/empty (expected .secrets.d/tsid)"; exit 1; else echo "  ✓ TSID loaded"; fi
-	@if [ -z "$(TSKEY_CLIENT)" ]; then echo "  ✗ TSKEY_CLIENT unset/empty (expected .secrets.d/tskey-client)"; exit 1; else echo "  ✓ TSKEY_CLIENT loaded"; fi
+	if [ -z "$(TSID)" ]; then echo "  ✗ TSID unset/empty (expected .secrets.d/tsid)"; exit 1; else echo "  ✓ TSID loaded"; fi
+	if [ -z "$(TSKEY_CLIENT)" ]; then echo "  ✗ TSKEY_CLIENT unset/empty (expected .secrets.d/tskey-client)"; exit 1; else echo "  ✓ TSKEY_CLIENT loaded"; fi
 	$(eval _file_count := $(call length,$^))
 	$(call EXECUTE_YQ_CLOUD_CONFIG_MERGE,$(_file_count),$^,$@)
 

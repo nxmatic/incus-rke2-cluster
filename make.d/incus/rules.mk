@@ -393,8 +393,12 @@ $(.incus.image_import_marker_file): $(.incus.image_build_files)
 $(.incus.image_import_marker_file): switch-project@incus
 $(.incus.image_import_marker_file): | $(.incus.dir)/
 $(.incus.image_import_marker_file):
-	: "[+] Importing image for instance $(NODE_NAME) into rke2 project..."
-	$(.incus.command) image import --alias $(IMAGE_NAME) --reuse $(.incus.image_build_files)
+	if $(.incus.command) image show $(IMAGE_NAME) --project=rke2 >/dev/null 2>&1; then
+		: "[✓] Image $(IMAGE_NAME) already present; skipping import"
+	else
+		: "[+] Importing image for instance $(NODE_NAME) into rke2 project..."
+		$(.incus.command) image import --alias $(IMAGE_NAME) $(.incus.image_build_files)
+	fi
 	touch $@
 
 $(call register-distrobuilder-targets,$(.incus.image_build_files))
@@ -405,17 +409,17 @@ $(.incus.image_build_files): switch-project@incus
 $(.incus.image_build_files): export TSID := $(TSID)
 # ($(IMAGE_NAME)) TSKEY export removed; image build uses TSKEY_CLIENT directly (@codebase)
 $(.incus.image_build_files)&:
-	@if $(.incus.command) image show $(IMAGE_NAME) --project=rke2 >/dev/null 2>&1; then \
-		: "[✓] Image $(IMAGE_NAME) already imported in Incus; creating placeholder build artifacts"; \
-		touch $(.incus.dir)/incus.tar.xz $(.incus.dir)/rootfs.squashfs; \
-	else \
-		: "[+] Image $(IMAGE_NAME) not found; building from distrobuilder (mode=$(.incus.build.mode))..."; \
-ifeq (remote,$(.incus.build.mode))
-		$(REMOTE_EXEC) sudo bash -lc 'cd $(.incus.distrobuilder_workdir) && distrobuilder --debug --disable-overlay build-incus $(.incus.distrobuilder_file_abs)' 2>&1 | tee $(.incus.distrobuilder_logfile); \
-else
-		sudo distrobuilder --debug --disable-overlay build-incus $(.incus.distrobuilder_file_abs) 2>&1 | tee $(.incus.distrobuilder_logfile); \
-endif
-		mv incus.tar.xz rootfs.squashfs $(.incus.dir)/; \
+	if $(.incus.command) image show $(IMAGE_NAME) --project=rke2 >/dev/null 2>&1; then
+		: "[✓] Image $(IMAGE_NAME) already imported; creating placeholder build artifacts"
+		touch $(.incus.dir)/incus.tar.xz $(.incus.dir)/rootfs.squashfs
+	else
+		: "[+] Image $(IMAGE_NAME) not found; building via distrobuilder (mode=$(.incus.build.mode))"
+		if [ "$(.incus.build.mode)" = "remote" ]; then
+			$(REMOTE_EXEC) sudo bash -lc 'cd $(.incus.distrobuilder_workdir) && distrobuilder --debug --disable-overlay build-incus $(.incus.distrobuilder_file_abs)'
+		else
+			sudo distrobuilder --debug --disable-overlay build-incus $(.incus.distrobuilder_file_abs)
+		fi
+		mv incus.tar.xz rootfs.squashfs $(.incus.dir)/
 	fi
 
 # Explicit user-invocable phony targets for image build lifecycle (@codebase)
