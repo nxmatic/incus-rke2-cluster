@@ -8,6 +8,18 @@
 
 This document describes the hierarchical network architecture for the RKE2 cluster deployment using Incus containers.
 
+== Lima VM Deterministic Network Mask Update (@codebase)
+
+Lima virtual machine networking for each Darwin host now adopts the full cluster `/21` netmask (`255.255.248.0`) matching the documented cluster slice (e.g. `10.80.8.0/21` for bioskop, `10.80.16.0/21` for alcide). Previously only the first `/24` was exposed via vmnet. DHCP leases are still intentionally constrained to the first `/24` (ending at `.224`) for stability and predictable reuse while higher address ranges remain reserved for future static assignments (service networks, overlay experiments, additional Lima instances).
+
+Summary:
+* Netmask widened: `/24 -> /21` (255.255.255.0 → 255.255.248.0)
+* Gateway unchanged: first host IP of first `/24` (e.g. `10.80.8.1`)
+* DHCP range limited: up to `10.80.<base>.224` (can be expanded later to include additional `/24` slices by adjusting `dhcpEnd`)
+* Rationale: Avoid later disruptive netmask changes, reserve contiguous space for future segmentation (e.g. app, infra, storage sub‑ranges), and align Lima VM view with cluster planning diagrams.
+
+To revert to the legacy narrow mask, set `lima.networks.netmask = "255.255.255.0"` in host configuration. To expand DHCP to the full `/21`, update `dhcpEnd` to the last desired address (e.g. `10.80.15.254` for bioskop's cluster slice).
+
 == Network Hierarchy
 
 The network allocation follows a strict hierarchical structure designed for scalability and isolation:
