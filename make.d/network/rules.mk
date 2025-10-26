@@ -173,8 +173,8 @@ endef
 
 # Generate rules for each subnet type (use immediate expansion to resolve variables)
 $(eval $(call define-subnet-rules,HOST,,10.80.0.0/18,21,host-level subnet allocation from supernet))
-$(eval $(call define-subnet-rules,NODE,$(.network.host_subnets_mk),HOST_SUBNETS_NETWORK_$(call plus,$(cluster.ID),1),23,node-level subnet allocation within cluster))
-$(eval $(call define-subnet-rules,VIP,$(.network.host_subnets_mk),HOST_SUBNETS_NETWORK_$(call plus,$(cluster.ID),1),24,VIP subnet allocation for control plane))
+$(eval $(call define-subnet-rules,NODE,$(.network.host_subnets_mk),HOST_SUBNETS_NETWORK_$(.cluster.ID),23,node-level subnet allocation within cluster))
+$(eval $(call define-subnet-rules,VIP,$(.network.host_subnets_mk),HOST_SUBNETS_NETWORK_$(.cluster.ID),24,VIP subnet allocation for control plane))
 $(eval $(call define-subnet-rules,LB,$(.network.node_subnets_mk),NODE_SUBNETS_NETWORK_0,26,LoadBalancer subnet allocation within node network))
 
 
@@ -241,7 +241,9 @@ show@network: ## Debug network configuration display
 
 # Public network API (used by other layers)
 network.HOST_SUPERNET_CIDR = $(.network.HOST_SUPERNET_CIDR)
-network.CLUSTER_NETWORK_CIDR = $(HOST_SUBNETS_NETWORK_$(call plus,$(cluster.ID),1))
+# Public API variables (@codebase)
+# CLUSTER_NETWORK_CIDR - the cluster's allocated /21 slice from the host supernet
+network.CLUSTER_NETWORK_CIDR = $(HOST_SUBNETS_NETWORK_$(.cluster.ID))
 network.CLUSTER_VIP_NETWORK_CIDR = $(VIP_SUBNETS_NETWORK_7)
 network.CLUSTER_VIP_GATEWAY_IP = $(call cidr-to-gateway,$(VIP_SUBNETS_NETWORK_7))
 network.CLUSTER_LOADBALANCER_NETWORK_CIDR = $(LB_SUBNETS_NETWORK_1)
@@ -349,7 +351,7 @@ summary@network.print: load@network ## Print detailed network configuration summ
 	echo "Cluster: $(cluster.NAME) (ID: $(cluster.ID))"
 	echo "Node: $(node.NAME) (ID: $(node.ID), Role: $(node.ROLE))"
 	echo "Host Supernet: $(network.HOST_SUPERNET_CIDR)"
-	source $(.network.dir)/_assign.mk && echo "Cluster Network: $$HOST_SUBNETS_NETWORK_$$(expr $(cluster.ID) + 1)"
+	source $(.network.dir)/_assign.mk && echo "Cluster Network: $$HOST_SUBNETS_NETWORK_$(.cluster.ID)"
 	source $(.network.dir)/_assign.mk && echo "Node Network: $$NODE_SUBNETS_NETWORK_0"
 	source $(.network.dir)/_assign.mk && echo "Node IP: $$(echo $$NODE_SUBNETS_NETWORK_0 | sed 's|/.*||' | sed 's|\.0$$|\.$(call plus,10,$(node.ID))|')"
 	source $(.network.dir)/_assign.mk && echo "Gateway: $$(echo $$NODE_SUBNETS_NETWORK_0 | sed 's|/.*||' | sed 's|\.0$$|\.1|')"
