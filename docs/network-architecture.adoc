@@ -83,19 +83,21 @@ Each node uses three network interfaces:
 
 |`lan0`
 |192.168.1.0/24 (DHCP)
-|Local network access
-|192.168.1.1
+|**Primary internet access** + local network
+|192.168.1.254 (home router)
 
 |`wan0` 
-|Node network (/23)
-|Internet access & cluster communication
-|NODE_HOST_GATEWAY
+|10.80.16.0/21 (cluster network)
+|**Cluster node communication only**
+|10.80.16.1 (fallback, NAT disabled)
 
 |`vip0`
 |10.80.15.0/24 (VIP network)
 |Control plane VIP management
 |CLUSTER_VIP_GATEWAY
 |===
+
+NOTE: Route metrics ensure `lan0` (metric 100) is preferred over `wan0` (metric 9999) for internet traffic.
 
 === Master Node Example (10.80.8.0/23)
 ```
@@ -104,12 +106,83 @@ wan0: 10.80.8.3/24           → Cluster via 10.80.8.1
 vip0: 10.80.15.10/24         → VIP via 10.80.15.1
 ```
 
+== Current Network Architecture (November 2025)
+
+=== Dual-Interface Configuration
+
+The cluster currently uses a dual-interface setup optimized for reliability:
+
+==== LAN Interface (`lan0`)
+[cols="1,3"]
+|===
+|Type |macvlan on `vmlan0` (Lima VM interface)
+|Network |192.168.1.0/24 (home network)
+|DHCP |Provided by home router
+|Purpose |**Primary internet gateway** (reliable NAT)
+|Metric |100 (preferred route)
+|===
+
+==== Cluster Network Interface (`wan0`) 
+[cols="1,3"]
+|===
+|Type |Incus bridge network
+|Network |10.80.16.0/21 (cluster 2 - alcide)
+|DHCP |Provided by Incus (static leases)
+|Purpose |**Inter-node communication only**
+|Metric |9999 (fallback only)
+|Gateway |10.80.16.1 (Lima VM) - NAT disabled for TCP reliability
+|===
+
+=== Rationale for LAN as Primary Gateway
+
+**Issue**: Lima VM NAT exhibited unreliable TCP connection behavior:
+- ICMP (ping) worked correctly
+- TCP connections to external services timed out or were extremely slow
+- Affected container image pulls from Docker Hub
+
+**Solution**: Use home router (via `lan0`) as primary internet gateway:
+- Home router provides stable, tested NAT
+- Lima VM bridge (`wan0`) used only for cluster-internal traffic
+- Route metrics ensure `lan0` is preferred (100 vs 9999)
+
+=== Network Rename Plan
+
+The `wan` network name is now misleading since it no longer provides internet access. Future migration plan:
+
+**Current State**:
+```
+- Network name: wan (Incus bridge)
+- Interface name: wan0 (in containers)
+- Purpose: Inter-node communication (NOT internet)
+```
+
+**Target State**:
+```
+- Network name: vmnet (VM network - cluster nodes)
+- Interface name: vmnet0 (in containers)  
+- Purpose: Explicit cluster-internal networking
+```
+
+**Migration Requirements**:
+- Full cluster recreation (network rename not supported live)
+- Update all references in:
+  * `make.d/incus/incus-preseed.yaml` - network definition
+  * `make.d/network/network-config.yaml` - netplan configuration
+  * `make.d/cloud-config/*.yaml` - cloud-init files
+  * Makefiles and documentation
+- Coordinate with any external integrations
+
+**Benefits of Rename**:
+- Clear semantic naming (vmnet = VM network for nodes)
+- Matches existing pattern (`vmlan0`, `vmwan0` on Lima host)
+- Eliminates confusion about "WAN" not providing internet
+
 == Routing Strategy
 
 === Primary Routing
-- **Internet access**: via `wan0` interface using `NODE_HOST_GATEWAY`
-- **Cluster communication**: via `wan0` interface within node network
-- **VIP management**: via `vip0` interface in dedicated VIP network
+- **Internet access**: via `lan0` interface using home router gateway (192.168.1.254)
+- **Cluster communication**: via `wan0` interface within cluster network (10.80.16.0/21)
+- **VIP management**: via `vip0` interface in dedicated VIP network (10.80.15.0/24)
 
 === Network Isolation
 - Each node has its own `/23` subnet for isolation

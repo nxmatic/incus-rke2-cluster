@@ -1,37 +1,40 @@
-# incus preseed for rke2 cluster (LAN macvlan + WAN bridge) (@codebase)
+# incus preseed for rke2 cluster (LAN macvlan + cluster bridge) (@codebase)
 #
 # Architecture:
-# - lan0: macvlan device on vmlan0 for dedicated load balancer LAN access
-# - wan0: Incus-managed bridge network providing cluster networking + internet via Lima VM gateway
+# - lan0: macvlan device on vmlan0 for PRIMARY internet access via home router
+# - wan0: Incus-managed bridge network for inter-node cluster communication ONLY
+#
+# NOTE: Network naming is historical - "wan" no longer provides internet (see migration plan in docs)
+#
+# Current routing strategy (November 2025):
+# - Internet: via lan0 (metric 100) → home router → reliable NAT
+# - Cluster: via wan0 (metric 9999) → Lima VM bridge → node-to-node communication
+# - Lima VM NAT disabled due to TCP reliability issues (ICMP works, TCP timeouts)
 #
 # Previous approach used dual macvlan for both interfaces, which prevented Lima VM from being
 # reachable as a gateway due to macvlan isolation (parent cannot communicate with children).
 #
-# Current approach:
-# - LAN: macvlan on vmlan0 (external DHCP from home network)
-# - WAN: Incus bridge with Lima VM at .1 as gateway for cluster traffic + internet NAT
-#
-# This enables:
-# - Lima VM reachable at 10.80.16.1 (cluster 2) as default gateway
-# - Cluster nodes on same /21 network with DHCP
-# - Lima VM provides routing/NAT to uplink for internet access
-# - LAN access preserved for dedicated load balancers
+# Migration Plan:
+# - Rename "wan" network to "vmnet" (VM network for cluster nodes)
+# - Rename "wan0" interface to "vmnet0" (requires cluster recreation)
+# - See docs/network-architecture.adoc for details
 config: {}
 storage_pools:
   - name: default
     driver: zfs
     config:
       source: tank/nerd/incus
-# Incus-managed bridge network for WAN (cluster network + internet gateway)
-# This replaces the macvlan vmwan0 approach to allow the Lima VM to be reachable as a gateway
-# The Lima VM will have IP .1 on this bridge and provide routing/NAT to uplink
+# Incus-managed bridge network for cluster node communication
+# Historical name "wan" is misleading - this network provides inter-node connectivity ONLY
+# Internet access is via lan0/home router due to Lima VM NAT TCP reliability issues
+# Future: Rename to "vmnet" to reflect actual purpose (requires cluster recreation)
 # Cluster allocation: 10.80.(CLUSTER_ID * 8).0/21
 networks:
   - name: wan
     type: bridge
     config:
       ipv4.address: ${CLUSTER_GATEWAY_IP}/21
-      ipv4.nat: "true"
+      ipv4.nat: "true"  # Enabled but TCP unreliable, used only for fallback
       ipv4.routing: "true"
       ipv4.dhcp: "true"
       ipv4.dhcp.gateway: ${CLUSTER_GATEWAY_IP}
