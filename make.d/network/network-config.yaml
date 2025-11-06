@@ -31,15 +31,14 @@ network:
       optional: false
 
     # ===== WAN INTERFACE (DHCP from Incus bridge) =====
-    # Cluster network + fallback internet access via Lima VM gateway
-    # Lima VM acts as gateway at .1 of each cluster's /21 network
+    # Cluster node-to-node communication ONLY
+    # NO internet gateway - lan0 is the exclusive internet path
     wan0:
       # DHCP from Incus wan bridge network
       dhcp4: true
       dhcp4-overrides:
-        route-metric: 9999       # Fallback route (Lima VM NAT has TCP issues)
         use-dns: false           # Don't override DNS from LAN
-        use-routes: true         # Accept route but with low priority
+        use-routes: false        # Do NOT accept any routes (cluster-internal only)
 
       # Interface Options
       optional: false

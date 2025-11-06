@@ -8,18 +8,6 @@
 
 This document describes the hierarchical network architecture for the RKE2 cluster deployment using Incus containers.
 
-== Lima VM Deterministic Network Mask Update (@codebase)
-
-Lima virtual machine networking for each Darwin host now adopts the full cluster `/21` netmask (`255.255.248.0`) matching the documented cluster slice (e.g. `10.80.8.0/21` for bioskop, `10.80.16.0/21` for alcide). Previously only the first `/24` was exposed via vmnet. DHCP leases are still intentionally constrained to the first `/24` (ending at `.224`) for stability and predictable reuse while higher address ranges remain reserved for future static assignments (service networks, overlay experiments, additional Lima instances).
-
-Summary:
-* Netmask widened: `/24 -> /21` (255.255.255.0 → 255.255.248.0)
-* Gateway unchanged: first host IP of first `/24` (e.g. `10.80.8.1`)
-* DHCP range limited: up to `10.80.<base>.224` (can be expanded later to include additional `/24` slices by adjusting `dhcpEnd`)
-* Rationale: Avoid later disruptive netmask changes, reserve contiguous space for future segmentation (e.g. app, infra, storage sub‑ranges), and align Lima VM view with cluster planning diagrams.
-
-To revert to the legacy narrow mask, set `lima.networks.netmask = "255.255.255.0"` in host configuration. To expand DHCP to the full `/21`, update `dhcpEnd` to the last desired address (e.g. `10.80.15.254` for bioskop's cluster slice).
-
 == Network Hierarchy
 
 The network allocation follows a strict hierarchical structure designed for scalability and isolation:
@@ -89,22 +77,13 @@ Each node uses three network interfaces:
 |`wan0` 
 |10.80.16.0/21 (cluster network)
 |**Cluster node communication only**
-|10.80.16.1 (fallback, NAT disabled)
+|None (cluster-internal, no gateway)
 
 |`vip0`
 |10.80.15.0/24 (VIP network)
 |Control plane VIP management
 |CLUSTER_VIP_GATEWAY
 |===
-
-NOTE: Route metrics ensure `lan0` (metric 100) is preferred over `wan0` (metric 9999) for internet traffic.
-
-=== Master Node Example (10.80.8.0/23)
-```
-lan0: 192.168.1.84/24 (DHCP) → Internet via 192.168.1.1
-wan0: 10.80.8.3/24           → Cluster via 10.80.8.1
-vip0: 10.80.15.10/24         → VIP via 10.80.15.1
-```
 
 == Current Network Architecture (November 2025)
 
@@ -119,10 +98,10 @@ The cluster uses three distinct network types with different provisioning method
 |**Provider** |Incus network subsystem
 |**DHCP Server** |dnsmasq (managed by Incus)
 |**Network** |10.80.16.0/21 (cluster 2 - alcide)
-|**Gateway** |10.80.16.1 (Lima VM IP on bridge)
+|**Gateway** |None (cluster-internal only, no routing)
 |**Static Leases** |MAC-based (52:54:00:02:00:xx → 10.80.16.1x)
-|**NAT** |Enabled but unreliable for TCP (ICMP works)
-|**IPv6** |fd42:21ea:8a29:f3c9::/64 with NAT
+|**NAT** |Disabled (cluster-internal traffic only)
+|**IPv6** |fd42:21ea:8a29:f3c9::/64 (no NAT)
 |**DNS Mode** |none (no DNS server)
 |**Bridge Driver** |native (kernel bridge)
 |**Purpose** |**Inter-node cluster communication**
@@ -136,10 +115,9 @@ networks:
     config:
       ipv4.address: 10.80.16.1/21
       ipv4.dhcp: "true"
-      ipv4.dhcp.gateway: 10.80.16.1
       ipv4.dhcp.ranges: 10.80.16.2-10.80.16.9,10.80.16.31-10.80.23.254
-      ipv4.nat: "true"
-      ipv4.routing: "true"
+      ipv4.nat: "false"
+      ipv4.routing: "false"
       ipv6.address: fd42:21ea:8a29:f3c9::1/64
       ipv6.nat: "true"
       dns.mode: none
@@ -219,21 +197,21 @@ The cluster uses a dual-interface setup optimized for reliability:
 |Network |10.80.16.0/21 (cluster 2 - alcide)
 |DHCP |Provided by Incus (static leases)
 |Purpose |**Inter-node communication only**
-|Metric |9999 (fallback only)
-|Gateway |10.80.16.1 (Lima VM) - NAT disabled for TCP reliability
+|Gateway |None (cluster-internal, no routing)
 |===
 
-=== Rationale for LAN as Primary Gateway
+=== Rationale for LAN-Only Internet Access
 
 **Issue**: Lima VM NAT exhibited unreliable TCP connection behavior:
 - ICMP (ping) worked correctly
 - TCP connections to external services timed out or were extremely slow
 - Affected container image pulls from Docker Hub
 
-**Solution**: Use home router (via `lan0`) as primary internet gateway:
+**Solution**: Use home router (via `lan0`) as **exclusive** internet gateway:
 - Home router provides stable, tested NAT
-- Lima VM bridge (`wan0`) used only for cluster-internal traffic
-- Route metrics ensure `lan0` is preferred (100 vs 9999)
+- Lima VM bridge (`wan0`) provides **only** cluster-internal connectivity
+- wan0 interface: `use-routes: false` (no default route, no gateway)
+- Simplified routing: only one internet path (lan0)
 
 === Network Rename Plan
 
@@ -298,9 +276,8 @@ lan0:
 wan0:
   dhcp4: true
   dhcp4-overrides:
-    route-metric: 9999     # FALLBACK route (very low priority)
     use-dns: false         # Don't override LAN DNS
-    use-routes: true       # Accept route but deprioritized
+    use-routes: false      # Do NOT accept any routes (cluster-internal only)
   optional: false
 ```
 
@@ -310,15 +287,10 @@ wan0:
 |===
 |Parameter |lan0 |wan0 |Effect
 
-|`route-metric`
-|100
-|9999
-|Lower = higher priority. lan0 preferred for all internet traffic
-
 |`use-routes`
 |true
-|true
-|Both accept default routes, metric determines preference
+|false
+|Only lan0 accepts routes. wan0 has no gateway (cluster-internal only)
 
 |`use-dns`
 |true
@@ -338,12 +310,12 @@ wan0:
 
 ==== Runtime Verification
 
-Check actual metrics on a running node:
+Check actual routes on a running node:
 ```bash
 ip route show default
 # Expected output:
 # default via 192.168.1.254 dev lan0 proto dhcp src 192.168.1.x metric 100
-# default via 10.80.16.1 dev wan0 proto dhcp src 10.80.16.x metric 9999
+# (wan0 should NOT appear - no default route)
 ```
 
 Check DNS configuration:
@@ -352,23 +324,23 @@ resolvectl status
 # Should show DNS servers from lan0 (home router)
 ```
 
-WARNING: If metrics are inverted (lan0=9999, wan0=100), internet traffic will route through Lima VM NAT (unreliable TCP). Apply correct netplan config with `netplan apply`.
+WARNING: If wan0 shows a default route, internet traffic may fail. Ensure `use-routes: false` is set for wan0 in netplan config.
 
 ==== Troubleshooting Network Configuration
 
-**Problem: Inverted Route Metrics**
+**Problem: wan0 Has Default Route**
 
-Some nodes (peer1, peer2) may still have the old netplan configuration with inverted metrics:
+Old netplan configuration may allow wan0 to have a default route:
 ```bash
-# INCORRECT (old config):
-default via 10.80.16.1 dev wan0 proto dhcp src 10.80.16.x metric 100    # wan is primary
-default via 192.168.1.254 dev lan0 proto dhcp src 192.168.1.x metric 9999  # lan is fallback
+# INCORRECT (old config with use-routes: true):
+default via 192.168.1.254 dev lan0 proto dhcp src 192.168.1.x metric 100
+default via 10.80.16.1 dev wan0 proto dhcp src 10.80.16.x metric 9999   # Should NOT exist
 ```
 
-These nodes will route internet traffic through Lima VM NAT (unreliable TCP), causing:
-- Slow or failed container image pulls
-- Timeouts connecting to external services (Docker Hub, GitHub, etc.)
-- ICMP (ping) working but TCP failing
+Having ANY route via wan0 can cause issues:
+- wan0 bridge is cluster-internal only (no internet access)
+- Routing conflicts between lan0 and wan0
+- Unnecessary fallback path that doesn't work
 
 **Fix: Apply Updated Netplan Configuration**
 
@@ -382,12 +354,12 @@ ssh lima-nerd-nixos "incus file push make.d/network/network-config.yaml peer1/et
 ssh lima-nerd-nixos "incus exec peer1 -- netplan apply"
 ```
 
-3. Verify metrics are now correct:
+3. Verify only lan0 has a default route:
 ```bash
 ssh lima-nerd-nixos "incus exec peer1 -- ip route show default"
-# Should show:
-# default via 192.168.1.254 dev lan0 ... metric 100      # LAN is primary
-# default via 10.80.16.1 dev wan0 ... metric 9999        # wan is fallback
+# Should show ONLY:
+# default via 192.168.1.254 dev lan0 proto dhcp src 192.168.1.x metric 100
+# (wan0 should NOT appear)
 ```
 
 4. Test internet connectivity via lan0:
@@ -424,6 +396,7 @@ use-dns: true
 
 # wan0 should have:
 use-dns: false
+use-routes: false  # Critical: no routes from wan0
 ```
 
 3. Re-apply netplan if needed:
@@ -434,8 +407,8 @@ netplan apply
 == Routing Strategy
 
 === Primary Routing
-- **Internet access**: via `lan0` interface using home router gateway (192.168.1.254)
-- **Cluster communication**: via `wan0` interface within cluster network (10.80.16.0/21)
+- **Internet access**: via `lan0` interface **only** using home router gateway (192.168.1.254)
+- **Cluster communication**: via `wan0` interface within cluster network (10.80.16.0/21) - **no gateway**
 - **VIP management**: via `vip0` interface in dedicated VIP network (10.80.15.0/24)
 
 === Network Isolation
@@ -476,45 +449,6 @@ The network allocation is automatically generated using `ipcalc` in `network.mk`
 ├── host-networks.env           # Host supernet allocation
 ├── cluster-1-networks.env     # Cluster 1 node + VIP networks  
 └── cluster-1-node-0-networks.env  # Node 0 specific networks
-```
-
-== Variable Naming Convention
-
-=== Modern Network Variables (from network.mk)
-```bash
-# Host level
-HOST_SUPERNET_CIDR=10.80.0.0/18
-HOST_CLUSTER_1_NETWORK=10.80.8.0/21
-
-# Cluster level (legacy examples shown for historical context)
-CLUSTER_NETWORK_CIDR=10.80.8.0/21
-CLUSTER_VIP_NETWORK=10.80.15.0/24
-CLUSTER_VIP_GATEWAY=10.80.15.1
-CLUSTER_LOADBALANCERS_NETWORK=10.80.8.64/26
-
-# Canonical exported RKE2 variables (preferred going forward)
-CLUSTER_NETWORK_CIDR=10.80.8.0/21
-CLUSTER_VIP_NETWORK_CIDR=10.80.15.0/24
-CLUSTER_VIP_GATEWAY_IP=10.80.15.1
-CLUSTER_LOADBALANCER_NETWORK_CIDR=10.80.8.64/26
-
-# Node level
-NODE_NETWORK_CIDR=10.80.8.0/23
-NODE_HOST_GATEWAY=10.80.8.1
-NODE_HOST_NETWORK=10.80.8.0
-```
-
-=== Template Variable Mappings
-```makefile
-# Legacy → Canonical template variable mappings
-CLUSTER_LOADBALANCERS_CIDR := $(CLUSTER_LOADBALANCERS_NETWORK)   # legacy; replaced by CLUSTER_LOADBALANCER_NETWORK_CIDR
-CLUSTER_VIRTUAL_CIDR := $(CLUSTER_VIP_NETWORK)                   # legacy; replaced by CLUSTER_VIP_NETWORK_CIDR
-CLUSTER_VIP_BRIDGE_CIDR := $(CLUSTER_VIP_NETWORK)                # legacy; replaced by CLUSTER_VIP_NETWORK_CIDR
-
-# Canonical template variables (used in cloud-config templates)
-CLUSTER_LOADBALANCER_NETWORK_CIDR := $(CLUSTER_LOADBALANCER_NETWORK_CIDR)
-CLUSTER_VIP_NETWORK_CIDR := $(CLUSTER_VIP_NETWORK_CIDR)
-CLUSTER_VIP_BRIDGE_CIDR := $(CLUSTER_VIP_NETWORK_CIDR)
 ```
 
 == Benefits of This Architecture

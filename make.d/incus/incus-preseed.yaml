@@ -24,9 +24,9 @@ storage_pools:
     driver: zfs
     config:
       source: tank/nerd/incus
-# Incus-managed bridge network for cluster node communication
-# Historical name "wan" is misleading - this network provides inter-node connectivity ONLY
-# Internet access is via lan0/home router due to Lima VM NAT TCP reliability issues
+# Incus-managed bridge network for cluster node communication ONLY
+# Historical name "wan" is misleading - provides inter-node connectivity, NOT internet
+# Internet access is exclusively via lan0/home router
 # Future: Rename to "vmnet" to reflect actual purpose (requires cluster recreation)
 # Cluster allocation: 10.80.(CLUSTER_ID * 8).0/21
 networks:
@@ -34,10 +34,9 @@ networks:
     type: bridge
     config:
       ipv4.address: ${CLUSTER_GATEWAY_IP}/21
-      ipv4.nat: "true"  # Enabled but TCP unreliable, used only for fallback
-      ipv4.routing: "true"
+      ipv4.nat: "false"         # NAT disabled - cluster-internal only
+      ipv4.routing: "false"      # No routing - isolated bridge
       ipv4.dhcp: "true"
-      ipv4.dhcp.gateway: ${CLUSTER_GATEWAY_IP}
       ipv4.dhcp.ranges: ${WAN_DHCP_RANGE}
       dns.mode: none
       bridge.driver: native
