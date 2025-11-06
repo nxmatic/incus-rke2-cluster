@@ -215,8 +215,10 @@ write_files:
         : "Extract environment variables from init process"
         while IFS='=' read -r key value; do
           case "$$key" in
-            NODE_TYPE|CLUSTER_*|CILIUM_PROFILE)
-              declare "$$key=$$value"
+            CLUSTER_*|NODE_*|POD_*|SERVICE_*) ;&
+            CILIUM_*) ;&
+            DEBUG)
+              eval "$$key=$$value"
               ;;
           esac
         done < <(cat /proc/1/environ | tr '\0' '\n')
@@ -265,10 +267,6 @@ write_files:
         : "Extract environment variables from init process"
         while IFS='=' read -r key value; do
           case "$$key" in
-            NODE_NAME|NODE_ID|NODE_HOST_IP|NODE_VIP_IP|NODE_NETWORK_CIDR|NODE_GATEWAY_IP) ;&
-            NODE_LAN_INTERFACE_NAME|NODE_WAN_INTERFACE_NAME|NODE_ROLE) ;&
-            POD_*|SERVICE_*) ;&
-            DEBUG) ;&
             ETCDCTL_*) ;&
             KUBECTL_*) ;&
             CONTAINERD_*) ;&
@@ -277,7 +275,7 @@ write_files:
             HUBBLE_*) ;&
             HELM_*) ;&
             KREW_*)
-              declare "$$key=$$value"
+              eval "$$key=$$value"
               ;;
           esac
         done < <(cat /proc/1/environ | tr '\0' '\n')
