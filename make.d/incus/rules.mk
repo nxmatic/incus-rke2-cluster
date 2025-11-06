@@ -565,39 +565,39 @@ delete@incus: ## Delete the instance (keeps configuration)
 .PHONY: remove-member@etcd
 remove-member@etcd: nodeName ?= $(NODE_NAME)
 remove-member@etcd: ## Remove etcd member for peer/server nodes from cluster
-	@if [ "$(nodeName)" != "master" ] && [ "$(NODE_TYPE)" = "server" ]; then \
-		: "[+] Removing etcd member for $(nodeName)..."; \
-		if $(.incus.command) info master --project=rke2 >/dev/null 2>&1; then \
-			NODE_IP="10.80.$$(( $(cluster.ID) * 8 )).$$(( 10 + $(NODE_ID) ))"; \
-			MEMBER_ID=$$($(.incus.command) exec master --project=rke2 -- \
-				sh -c 'cd /var/lib/rancher/rke2 && \
-				ETCDCTL_API=3 \
-				ETCDCTL_CERT=$${PWD}/server/tls/etcd/server-client.crt \
-				ETCDCTL_KEY=$${PWD}/server/tls/etcd/server-client.key \
-				ETCDCTL_CACERT=$${PWD}/server/tls/etcd/server-ca.crt \
-				ETCDCTL_ENDPOINTS=https://127.0.0.1:2379 \
-				etcdctl member list --write-out=simple' | \
-				grep "$(shell printf '%s' "$$NODE_IP")" | \
-				awk '{print $$1}' | tr -d ',' || true); \
-			if [ -n "$$MEMBER_ID" ]; then \
-				: "[+] Found etcd member $$MEMBER_ID for $(nodeName) at $$NODE_IP"; \
-				$(.incus.command) exec master --project=rke2 -- \
-					sh -c "cd /var/lib/rancher/rke2 && \
-					ETCDCTL_API=3 \
-					ETCDCTL_CERT=\$${PWD}/server/tls/etcd/server-client.crt \
-					ETCDCTL_KEY=\$${PWD}/server/tls/etcd/server-client.key \
-					ETCDCTL_CACERT=\$${PWD}/server/tls/etcd/server-ca.crt \
-					ETCDCTL_ENDPOINTS=https://127.0.0.1:2379 \
-					etcdctl member remove $$MEMBER_ID" || true; \
-				: "[✓] Removed etcd member $$MEMBER_ID"; \
-			else \
-				: "[i] No etcd member found for $(nodeName) at $$NODE_IP"; \
-			fi; \
-		else \
-			: "[!] Master node not running, cannot remove etcd member"; \
-		fi; \
-	else \
-		: "[i] Skipping etcd member removal for $(nodeName) (master or non-server node)"; \
+	@if [ "$(nodeName)" != "master" ] && [ "$(NODE_TYPE)" = "server" ]; then
+		: "[+] Removing etcd member for $(nodeName)..."
+		if $(.incus.command) info master --project=rke2 >/dev/null 2>&1; then
+			NODE_IP="10.80.$$(( $(cluster.ID) * 8 )).$$(( 10 + $(NODE_ID) ))"
+			MEMBER_ID=$$($(.incus.command) exec master --project=rke2 --
+				sh -c 'cd /var/lib/rancher/rke2 &&
+				ETCDCTL_API=3
+				ETCDCTL_CERT=$${PWD}/server/tls/etcd/server-client.crt
+				ETCDCTL_KEY=$${PWD}/server/tls/etcd/server-client.key
+				ETCDCTL_CACERT=$${PWD}/server/tls/etcd/server-ca.crt
+				ETCDCTL_ENDPOINTS=https://127.0.0.1:2379
+				etcdctl member list --write-out=simple' |
+				grep "$(shell printf '%s' "$$NODE_IP")" |
+				awk '{print $$1}' | tr -d ',' || true)
+			if [ -n "$$MEMBER_ID" ]; then
+				: "[+] Found etcd member $$MEMBER_ID for $(nodeName) at $$NODE_IP"
+				$(.incus.command) exec master --project=rke2 --
+					sh -c "cd /var/lib/rancher/rke2 &&
+					ETCDCTL_API=3
+					ETCDCTL_CERT=\$${PWD}/server/tls/etcd/server-client.crt
+					ETCDCTL_KEY=\$${PWD}/server/tls/etcd/server-client.key
+					ETCDCTL_CACERT=\$${PWD}/server/tls/etcd/server-ca.crt
+					ETCDCTL_ENDPOINTS=https://127.0.0.1:2379
+					etcdctl member remove $$MEMBER_ID" || true
+				: "[✓] Removed etcd member $$MEMBER_ID"
+			else
+				: "[i] No etcd member found for $(nodeName) at $$NODE_IP"
+			fi
+		else
+			: "[!] Master node not running, cannot remove etcd member"
+		fi
+	else
+		: "[i] Skipping etcd member removal for $(nodeName) (master or non-server node)"
 	fi
 
 clean@incus: remove-member@etcd
