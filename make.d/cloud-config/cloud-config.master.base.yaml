@@ -15,23 +15,7 @@ write_files:
     content: |
       cluster-init: true
 
-  # Cilium validation script (kept in base so it runs for both profiles, will no-op if resources absent)
-  - path: /usr/local/sbin/rke2-cilium-check
-    permissions: "0755"
-    content: |
-      #!/usr/bin/env -S bash -xu -o pipefail
-      source <( flox activate --dir /var/lib/rancher/rke2 )
-      kubectl wait --for=condition=Ready nodes --all --timeout=300s || true
-      kubectl wait --for=condition=Ready pods -l k8s-app=cilium -n kube-system --timeout=300s || true
-      kubectl wait --for=condition=Available deployment/cilium-operator -n kube-system --timeout=300s || true
-      cilium status --wait --wait-duration=300s || true
-      kubectl get ciliumloadbalancerippool -o wide || true
-      kubectl get svc control-plane-lb -n kube-system -o wide || true
-      kubectl get endpoints control-plane-lb -n kube-system -o wide || true
-      kubectl get ciliumBGPClusterConfig -o wide || true
-      kubectl get ciliumBGPAdvertisement -o wide || true
-      kubectl get ciliumL2AnnouncementPolicy -o wide || true
-
+  # Cilium validation execution (script itself is in common.yaml, available on all nodes)
   - path: /etc/systemd/system/rke2-server.service.d/post-start-master.conf
     content: |
       [Service]

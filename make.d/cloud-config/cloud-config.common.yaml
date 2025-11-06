@@ -359,7 +359,6 @@ write_files:
       [Service]
       ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-tools-configuration-directories'
       ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-vip-kubeconfig'
-      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-cilium-check'
 
   - path: /etc/systemd/system/rke2-agent.service.d/kubeconfig.conf
     content: |
@@ -702,6 +701,23 @@ write_files:
       .current-context = "${CLUSTER_NAME}"
       EoE
       ) "$$KUBECONFIG"
+
+  # Cilium validation script (available on all nodes, executed only on master via post-start-master.conf)
+  - path: /usr/local/sbin/rke2-cilium-check
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -xu -o pipefail
+      source <( flox activate --dir /var/lib/rancher/rke2 )
+      kubectl wait --for=condition=Ready nodes --all --timeout=300s || true
+      kubectl wait --for=condition=Ready pods -l k8s-app=cilium -n kube-system --timeout=300s || true
+      kubectl wait --for=condition=Available deployment/cilium-operator -n kube-system --timeout=300s || true
+      cilium status --wait --wait-duration=300s || true
+      kubectl get ciliumloadbalancerippool -o wide || true
+      kubectl get svc control-plane-lb -n kube-system -o wide || true
+      kubectl get endpoints control-plane-lb -n kube-system -o wide || true
+      kubectl get ciliumBGPClusterConfig -o wide || true
+      kubectl get ciliumBGPAdvertisement -o wide || true
+      kubectl get ciliumL2AnnouncementPolicy -o wide || true
 
 # =============================================================================
 # SYSTEMD UNIT OVERRIDES (processed early in boot, before write_files)
