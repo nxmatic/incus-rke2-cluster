@@ -119,6 +119,7 @@ write_files:
         - node-cidr-mask-size-ipv4=24
 
   # IPv4-only node IP configuration to prevent dual-stack auto-detection
+  # Static DHCP lease ensures this matches the actual assigned IP
   - path: /etc/rancher/rke2/config.yaml.d/node-ip.yaml
     content: |
       node-ip: ${NODE_HOST_IP}
@@ -214,7 +215,7 @@ write_files:
         : "Extract environment variables from init process"
         while IFS='=' read -r key value; do
           case "$$key" in
-            NODE_TYPE|CLUSTER_*|TSID|TSKEY|CILIUM_PROFILE)
+            NODE_TYPE|CLUSTER_*|CILIUM_PROFILE)
               declare "$$key=$$value"
               ;;
           esac

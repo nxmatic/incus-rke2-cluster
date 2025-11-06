@@ -59,17 +59,13 @@ ifndef make.d/incus/rules.mk
 .incus.lima_secondary_interface ?= $(.incus.lima_wan_interface)
 .incus.egress_interface ?= $(.incus.lima_primary_interface)
 
-# Network mode for templates
-.incus.network_mode ?= L2-bridge
-
 # Tailscale secrets (canonical naming only, no legacy fallback) – used for image build & cleanup (@codebase)
 # Notes:
 #  - Canonical files: tsid, tskey-client, tskey-api.
 #  - Legacy "tskey" fallback removed for clarity and maintenance.
 #  - Whitespace stripped to avoid false empty detection.
-.incus.tsid ?= $(strip $(if $(wildcard $(.incus.secrets_dir)/tsid),$(file <$(.incus.secrets_dir)/tsid),))
-.incus.tskey_client ?= $(strip $(if $(wildcard $(.incus.secrets_dir)/tskey-client),$(file <$(.incus.secrets_dir)/tskey-client),))
-.incus.tskey_api ?= $(strip $(if $(wildcard $(.incus.secrets_dir)/tskey-api),$(file <$(.incus.secrets_dir)/tskey-api),))
+.incus.tskey_client_id ?= $(strip $(if $(wildcard $(.incus.secrets_dir)/tskey-client-id),$(file <$(.incus.secrets_dir)/tskey-client-id),))
+.incus.tskey_client_token ?= $(strip $(if $(wildcard $(.incus.secrets_dir)/tskey-client-token),$(file <$(.incus.secrets_dir)/tskey-client-token),))
 
 # Instance naming defaults (image alias)
 .incus.image_name ?= control-node
@@ -90,15 +86,12 @@ ifndef make.d/incus/rules.mk
 # Export variables for use in YAML templates via yq envsubst
 export RUN_INSTANCE_DIR := $(.incus.instance_dir)
 export INCUS_PROJECT_NAME := rke2
-export INCUS_NETWORK_MODE := $(.incus.network_mode)
 export RUN_NOCLOUD_METADATA_FILE := $(.incus.run_nocloud_metadata_file)
 export RUN_NOCLOUD_USERDATA_FILE := $(.incus.run_nocloud_userdata_file)
 export RUN_NOCLOUD_NETCFG_FILE := $(.incus.run_nocloud_netcfg_file)
 export INCUS_EGRESS_INTERFACE := $(.incus.egress_interface)
-export NETWORK_MODE := $(.incus.network_mode)
-export TSID := $(.incus.tsid)
-export TSKEY_API := $(.incus.tskey_api)
-export TSKEY_CLIENT := $(.incus.tskey_client) # Canonical secret variable (@codebase)
+export TSKEY_CLIENT_ID := $(.incus.tskey_client_id)
+export TSKEY_CLIENT_TOKEN := $(.incus.tskey_client_token)
 export NODE_PROFILE_NAME := $(network.NODE_PROFILE_NAME)
 export IMAGE_NAME := $(.incus.image_name)
 export CLUSTER_INET_MASTER := $(call cidr-to-host-ip,$(NODE_SUBNETS_NETWORK_0),$(call plus,10,0))
@@ -142,9 +135,10 @@ $(.incus.cluster_env_file):
 
 # Distrobuilder build context resolution (@codebase)
 .incus.build.mode = $(.incus.exec.mode)
-.incus.distrobuilder_workdir = $(if $(filter remote,$(.incus.build.mode)),$(.incus.remote_repo_root),$(abspath $(top-dir)))
+.incus.distrobuilder_workdir = $(if $(filter remote,$(.incus.build.mode)),$(.incus.remote_repo_root)/modules/nixos/incus-rke2-cluster,$(abspath $(top-dir)))
 # Absolute path used in build command; local mode uses repository-relative path directly
-.incus.distrobuilder_file_abs = $(if $(filter remote,$(.incus.build.mode)),$(.incus.remote_repo_root)/$(.incus.distrobuilder_file),$(.incus.distrobuilder_file))
+# Remote mode: prepend full subdirectory path from repo root to reach cluster workspace
+.incus.distrobuilder_file_abs = $(if $(filter remote,$(.incus.build.mode)),$(.incus.remote_repo_root)/modules/nixos/incus-rke2-cluster/$(.incus.distrobuilder_file),$(.incus.distrobuilder_file))
 
 # Preflight verification: ensure remote repo root and distrobuilder file exist (@codebase)
 .PHONY: verify-context@incus
@@ -193,6 +187,7 @@ preseed@incus:
 	$(.incus.command) admin init --preseed < $(.incus.preseed_file)
 
 $(.incus.preseed_file): $(make-dir)/incus/$(.incus.preseed_filename)
+$(.incus.preseed_file): load@network
 $(.incus.preseed_file): | $(.incus.dir)/
 $(.incus.preseed_file):
 	: "[+] Generating preseed file (pure envsubst via yq) ..."
@@ -415,11 +410,13 @@ $(.incus.image_build_files)&:
 	else
 		: "[+] Image $(IMAGE_NAME) not found; building via distrobuilder (mode=$(.incus.build.mode))"
 		if [ "$(.incus.build.mode)" = "remote" ]; then
-			$(REMOTE_EXEC) sudo bash -lc 'cd $(.incus.distrobuilder_workdir) && distrobuilder --debug --disable-overlay build-incus $(.incus.distrobuilder_file_abs)'
+			$(REMOTE_EXEC) sudo bash -lc 'cd $(.incus.distrobuilder_workdir) && distrobuilder --debug --disable-overlay build-dir $(.incus.distrobuilder_file_abs) $(.incus.dir)'
 		else
-			sudo distrobuilder --debug --disable-overlay build-incus $(.incus.distrobuilder_file_abs)
+			sudo distrobuilder --debug --disable-overlay build-dir $(.incus.distrobuilder_file_abs) $(.incus.dir)/
 		fi
-		mv incus.tar.xz rootfs.squashfs $(.incus.dir)/
+		if [ "$(.incus.build.mode)" = "remote" ]; then \
+			$(REMOTE_EXEC) sudo mv $(.incus.dir)/incus.tar.xz $(.incus.dir)/rootfs.squashfs .; \
+		fi
 	fi
 
 # Explicit user-invocable phony targets for image build lifecycle (@codebase)
@@ -440,26 +437,26 @@ force-build-image@incus:
 # Instance Lifecycle Targets
 #-----------------------------
 
-.PHONY: instance@incus start@incus shell@incus stop@incus delete@incus clean@incus
+.PHONY: create@incus start@incus shell@incus stop@incus delete@incus clean@incus
 .ONESHELL:
 
 # Ensure instance exists; if marker file is present but Incus instance is missing (e.g. created locally only), recreate.
-## Grouped prerequisites for instance@incus
+## Grouped prerequisites for create@incus
 # Image artifacts (auto-placeholders if image already imported in Incus) (@codebase)
-instance@incus: $(.incus.image_build_files)
+create@incus: $(.incus.image_build_files)
 # Instance configuration
-instance@incus: $(.incus.instance_config_file)
-instance@incus: $(.incus.config_instance_marker_file) ## Create instance configuration and setup (@codebase)
+create@incus: $(.incus.instance_config_file)
+create@incus: $(.incus.config_instance_marker_file) ## Create instance configuration and setup (@codebase)
 # Network dependencies
-instance@incus: generate@network
+create@incus: generate@network
 # Runtime directories (order-only)
-instance@incus: | $(.incus.dir)/
-instance@incus: | $(.incus.nocloud_dir)/
-instance@incus: | $(.incus.shared_dir)/
-instance@incus: | $(.incus.kubeconfig_dir)/
-instance@incus: | $(.incus.logs_dir)/
-instance@incus: switch-project@incus
-instance@incus:
+create@incus: | $(.incus.dir)/
+create@incus: | $(.incus.nocloud_dir)/
+create@incus: | $(.incus.shared_dir)/
+create@incus: | $(.incus.kubeconfig_dir)/
+create@incus: | $(.incus.logs_dir)/
+create@incus: switch-project@incus
+create@incus:
 	: "[+] Ensuring Incus instance $(NODE_NAME) in project rke2...";
 	if ! $(.incus.command) info $(NODE_NAME) --project=rke2 >/dev/null 2>&1; then
 		: "[!] Instance $(NODE_NAME) missing; creating";
@@ -469,23 +466,23 @@ instance@incus:
 		: "[✓] Instance $(NODE_NAME) already exists";
 	fi
 
-.PHONY: recreate-instance@incus
-## Grouped prerequisites for create-instance@incus
+.PHONY: recreate-create@incus
+## Grouped prerequisites for create-create@incus
 # Image availability / ensure
-create-instance@incus: ensure-image@incus
+create-create@incus: ensure-image@incus
 
 # Rendered instance config
-create-instance@incus: $(.incus.instance_config_file)
+create-create@incus: $(.incus.instance_config_file)
 # Cluster environment context
-create-instance@incus: $(CLUSTER_ENV_FILE)
+create-create@incus: $(CLUSTER_ENV_FILE)
 # Validated network (strict)
-create-instance@incus: test@network
+create-create@incus: test@network
 # Runtime directories (order-only)
-create-instance@incus: | $(.incus.dir)/
-create-instance@incus: | $(.incus.shared_dir)/
-create-instance@incus: | $(.incus.kubeconfig_dir)/
-create-instance@incus: | $(.incus.logs_dir)/
-create-instance@incus:
+create-create@incus: | $(.incus.dir)/
+create-create@incus: | $(.incus.shared_dir)/
+create-create@incus: | $(.incus.kubeconfig_dir)/
+create-create@incus: | $(.incus.logs_dir)/
+create-create@incus:
 	: "[+] Recreating Incus instance $(NAME) in project rke2...";
 	$(.incus.command) init $(IMAGE_NAME) $(NAME) --project=rke2 < $(.incus.instance_config_file);
 
@@ -529,9 +526,10 @@ $(.incus.config_instance_marker_file): | $(.incus.dir)/ ## Ensure incus dir exis
 	: $(.incus.command) exec $(NODE_NAME) -- rm -rf /run/cloud-init /run/systemd/network/10-netplan-* || true
 	touch $@
 
-start@incus: instance@incus zfs.allow ## Start the Incus instance
 start@incus: switch-project@incus
-start@incus:
+start@incus: create@incus
+start@incus: zfs.allow 
+start@incus: ## Start the Incus instance
 	$(call trace,Entering target: start@incus)
 	$(call trace-var,NODE_NAME)
 	$(call trace-incus,Starting instance $(NODE_NAME))

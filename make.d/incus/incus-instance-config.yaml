@@ -12,6 +12,7 @@ config:
     lxc.cgroup.devices.allow = b *:* rwm
   security.privileged: true
   security.nesting: true
+  volatile.wan0.hwaddr: ${NODE_WAN_MAC}
   # RKE2 Core Configuration
   environment.DEBUG: true
   environment.NODE_TYPE: "${NODE_TYPE}"
@@ -33,9 +34,8 @@ config:
   environment.CLUSTER_VIP_NETWORK_CIDR: "${CLUSTER_VIP_NETWORK_CIDR}"
   environment.NODE_LAN_INTERFACE_NAME: "${NODE_LAN_INTERFACE_NAME}"
   environment.NODE_WAN_INTERFACE_NAME: "${NODE_WAN_INTERFACE_NAME}"
-  # Tailscale Configuration
-  environment.TSID: "${TSID}"
-  environment.TSKEY_CLIENT: "${TSKEY_CLIENT}" # canonical secret variable (@codebase)
+  # Cluster Gateway (Lima VM on WAN bridge)
+  environment.CLUSTER_GATEWAY_IP: "${CLUSTER_GATEWAY_IP}"
 devices:
   kmsg.dev:
     type: unix-char

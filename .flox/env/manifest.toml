@@ -110,13 +110,15 @@ common = '''
   
   # Load secrets only if directory and files exist
   if [ -n "$SECRETS_DIR" ]; then
-    [ -f "$SECRETS_DIR/tsid" ] && TSID=$(cat "$SECRETS_DIR/tsid") || TSID=""
-    [ -f "$SECRETS_DIR/tskey-client" ] && TSKEY_CLIENT=$(cat "$SECRETS_DIR/tskey-client") || TSKEY_CLIENT=""
-    [ -f "$SECRETS_DIR/tskey-api" ] && TSKEY_API=$(cat "$SECRETS_DIR/tskey-api") || TSKEY_API=""
-  else
-    TSID=""
-    TSKEY_CLIENT=""
-    TSKEY_API=""
+    [ -f "$SECRETS_DIR/tskey-client-id" ] && TSKEY_CLIENT_ID=$(cat "$SECRETS_DIR/tskey-client-id") || TSKEY_CLIENT_ID=""
+    [ -f "$SECRETS_DIR/tskey-client-token" ] && TSKEY_CLIENT_TOKEN=$(cat "$SECRETS_DIR/tskey-client-token") || TSKEY_CLIENT_TOKEN=""
+    [ -f "$SECRETS_DIR/tskey-api-id" ] && TSKEY_API_ID=$(cat "$SECRETS_DIR/tskey-api-id") || TSKEY_API_ID=""
+    [ -f "$SECRETS_DIR/tskey-api-token" ] && TSKEY_API_TOKEN=$(cat "$SECRETS_DIR/tskey-api-token") || TSKEY_API_TOKEN=""
+   else
+    TSKEY_CLIENT_ID=""
+    TSKEY_CLIENT_TOKEN=""
+    TSKEY_API_ID=""
+    TSKEY_API_TOKEN=""
   fi
   
   set +a

@@ -95,7 +95,13 @@ write_files:
       allowVolumeExpansion: true
 
   # Tailscale operator
-  - path: /var/lib/rancher/rke2/server/manifests/tailscale-operator.yaml
+  - path: /var/lib/rancher/rke2/server/manifests/00-tailscale-namespace.yaml
+    content: |
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: tailscale-system
+  - path: /var/lib/rancher/rke2/server/manifests/01-tailscale-operator.yaml
     content: |
       apiVersion: helm.cattle.io/v1
       kind: HelmChart
@@ -110,12 +116,12 @@ write_files:
         createNamespace: true
         valuesContent: |-
           oauth:
-            clientId: "${TSID}"
-            clientSecret: "${TSKEY_CLIENT}" # canonical variable name (@codebase)
+            clientId: "${TSKEY_CLIENT_ID}"
+            clientSecret: "${TSKEY_CLIENT_TOKEN}"
           operatorConfig:
             hostname: "${CLUSTER_NAME}-tailscale-operator"
             debug: true
-  - path: /var/lib/rancher/rke2/server/manifests/tailscale-controlplane.yaml
+  - path: /var/lib/rancher/rke2/server/manifests/02-tailscale-controlplane.yaml
     content: |
       apiVersion: tailscale.com/v1alpha1
       kind: Connector

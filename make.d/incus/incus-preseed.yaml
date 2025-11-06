@@ -1,32 +1,56 @@
-# incus preseed for rke2 cluster (dual NIC via macvlan) (@codebase)
+# incus preseed for rke2 cluster (LAN macvlan + WAN bridge) (@codebase)
 #
-# Refactor Note:
-# Previously, lan0 and wan0 were attached to Incus-managed bridges (e.g., rke2-<node>-lan-br),
-# which provided DHCP/DNS via Incus (dnsmasq). This approach failed due to Linux bridge constraints:
-# "Only unconfigured network interfaces can be bridged"—host interfaces were already configured.
+# Architecture:
+# - lan0: macvlan device on vmlan0 for dedicated load balancer LAN access
+# - wan0: Incus-managed bridge network providing cluster networking + internet via Lima VM gateway
 #
-# Now, lan0 and wan0 are attached as macvlan (vlan) devices directly to host interfaces (vmlan0, vmwan0).
-# This means:
-#   - Each Incus instance gets its own lan0/wan0 NIC, isolated at L2, but directly on the host's network segment.
-#   - No Incus bridge or managed network is created; vmlan0/vmwan0 are physical, unmanaged Incus networks.
-#   - DHCP/DNS must be provided by an external server on those networks, or by running a DHCP server
-#     (e.g., dnsmasq) on the host.
-#   - The Incus instance cannot communicate with the host via macvlan parent (by design), only with other devices on
-#     the same L2 segment.
+# Previous approach used dual macvlan for both interfaces, which prevented Lima VM from being
+# reachable as a gateway due to macvlan isolation (parent cannot communicate with children).
 #
-# This approach enables deterministic, per-node interface naming (lan0/wan0) and avoids bridge name length issues.
-# However, it requires external DHCP or static IP assignment for connectivity.
+# Current approach:
+# - LAN: macvlan on vmlan0 (external DHCP from home network)
+# - WAN: Incus bridge with Lima VM at .1 as gateway for cluster traffic + internet NAT
+#
+# This enables:
+# - Lima VM reachable at 10.80.16.1 (cluster 2) as default gateway
+# - Cluster nodes on same /21 network with DHCP
+# - Lima VM provides routing/NAT to uplink for internet access
+# - LAN access preserved for dedicated load balancers
 config: {}
 storage_pools:
   - name: default
     driver: zfs
     config:
       source: tank/nerd/incus
-# no Incus-managed bridges; macvlan attachments only
-networks: []
+# Incus-managed bridge network for WAN (cluster network + internet gateway)
+# This replaces the macvlan vmwan0 approach to allow the Lima VM to be reachable as a gateway
+# The Lima VM will have IP .1 on this bridge and provide routing/NAT to uplink
+# Cluster allocation: 10.80.(CLUSTER_ID * 8).0/21
+networks:
+  - name: wan
+    type: bridge
+    config:
+      ipv4.address: ${CLUSTER_GATEWAY_IP}/21
+      ipv4.nat: "false"
+      ipv4.routing: "true"
+      ipv4.dhcp: "true"
+      ipv4.dhcp.gateway: ${CLUSTER_GATEWAY_IP}
+      ipv4.dhcp.ranges: ${WAN_DHCP_RANGE}
+      dns.mode: none
+      bridge.driver: native
+      # Static DHCP leases for RKE2 nodes - ensures predictable IP allocation
+      # Format: dhcp-host=MAC,IP,hostname
+      # MACs use QEMU prefix 52:54:00 + cluster_id:node_type:node_id (in hex, zero-padded)
+      raw.dnsmasq: |
+        dhcp-host=52:54:00:02:00:00,10.80.16.10,master
+        dhcp-host=52:54:00:02:00:01,10.80.16.11,peer1
+        dhcp-host=52:54:00:02:00:02,10.80.16.12,peer2
+        dhcp-host=52:54:00:02:00:03,10.80.16.13,peer3
+        dhcp-host=52:54:00:02:01:0a,10.80.16.20,worker1
+        dhcp-host=52:54:00:02:01:0b,10.80.16.21,worker2
 profiles:
   - name: ${NODE_PROFILE_NAME}
-    description: RKE2 profile (mode=${NETWORK_MODE}, dual-NIC macvlan)
+    description: RKE2 profile (LAN macvlan + WAN bridge)
     devices:
       root:
         path: /
@@ -39,11 +63,6 @@ profiles:
         type: nic
       wan0:
         name: wan0
-        nictype: macvlan
-        parent: vmwan0
+        network: wan
         type: nic
-      vip0:
-        name: vip0
-        nictype: macvlan
-        parent: vmwan0
-        type: nic
+        hwaddr: ${NODE_WAN_MAC}
