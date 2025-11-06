@@ -300,7 +300,7 @@ cache-dir              := $(var-dir)/cache
 manifest-dir           := $(var-dir)/manifest
 make-dir               := $(call top-dir.to,make.d)
 
-.make.dirs = $(etc-dir) $(bin-dir) $(build-dir) $(tmp-dir) $(lib-dir) $(var-dir) $(run-dir) $(cache-dir) $(manifest-dir)
+.make.dirs := $(etc-dir) $(bin-dir) $(build-dir) $(tmp-dir) $(lib-dir) $(var-dir) $(run-dir) $(cache-dir) $(manifest-dir)
 .make.files := $(filter-out make.d/make.mk,$(subst $(top-dir)/,,$(wildcard $(make-dir)/*.mk)))
 
 $(shell mkdir -p $(.make.dirs))
