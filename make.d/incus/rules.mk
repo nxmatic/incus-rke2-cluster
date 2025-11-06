@@ -565,15 +565,36 @@ delete@incus: ## Delete the instance (keeps configuration)
 clean@incus: delete@incus 
 clean@incus: remove-hosts@tailscale
 clean@incus: nodeName ?= $(NODE_NAME)
-clean@incus: ## Remove instance, profiles, storage volumes, and runtime directories
+clean@incus: ## Remove instance, profiles, storage volumes, etcd member, and runtime directories
 	: "[+] Removing $(nodeName) if exists..."
+	# Remove etcd member if this is a peer/server node (not master)
+	@if [ "$(nodeName)" != "master" ] && [ "$(NODE_TYPE)" = "server" ]; then \
+		: "[+] Removing etcd member for $(nodeName)..."; \
+		if $(.incus.command) info master --project=rke2 >/dev/null 2>&1; then \
+			NODE_IP="10.80.$$(( $(cluster.ID) * 8 )).$$(( 10 + $(NODE_ID) ))"; \
+			MEMBER_ID=$$($(.incus.command) exec master --project=rke2 -- \
+				etcdctl member list --write-out=simple | \
+				grep "$$NODE_IP" | \
+				awk '{print $$1}' | tr -d ',' || true); \
+			if [ -n "$$MEMBER_ID" ]; then \
+				: "[+] Found etcd member $$MEMBER_ID for $(nodeName) at $$NODE_IP"; \
+				$(.incus.command) exec master --project=rke2 -- \
+					etcdctl member remove $$MEMBER_ID || true; \
+				: "[✓] Removed etcd member $$MEMBER_ID"; \
+			else \
+				: "[i] No etcd member found for $(nodeName) at $$NODE_IP"; \
+			fi; \
+		else \
+			: "[!] Master node not running, cannot remove etcd member"; \
+		fi; \
+	fi
 	$(.incus.command) profile delete rke2-$(nodeName) --project=rke2 || true
 	$(.incus.command) profile delete rke2-$(nodeName) --project default || true
 	# All networks (LAN/WAN/VIP) are macvlan (no Incus-managed networks to delete)
 	# Remove persistent storage volume to ensure clean cloud-init state
-	$(.incus.command) storage volume delete default containers/$(node) || true
+	$(.incus.command) storage volume delete default containers/$(nodeName) || true
 	: "[+] Cleaning up run directory..."
-	rm -fr $(.incus.instance_dir)/$(nodeName);
+	rm -fr $(.incus.instance_dir)
 
 clean-all@incus: ## Clean all cluster nodes and shared resources (destructive)
 	: "[+] Cleaning all nodes (master peers workers)...";
