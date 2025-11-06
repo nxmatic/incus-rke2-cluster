@@ -12,17 +12,18 @@ network:
   renderer: networkd
   ethernets:
     # ===== LAN INTERFACE (DHCP) =====
-    # Local network access for dedicated load balancers
+    # Local network access - NOW PRIMARY for internet connectivity
+    # Home router provides reliable NAT for internet access
     lan0:
-      # DHCP Configuration with strict overrides
+      # DHCP Configuration - now allows default route
       dhcp4: true
       dhcp4-overrides:
-        use-routes: false      # Prevent ALL routes from DHCP
-        use-dns: false         # Prevent DNS override from DHCP
+        use-routes: true       # Accept default route from home router
+        use-dns: true          # Use home router DNS
         use-domains: false     # Prevent domain override from DHCP
         use-hostname: false    # Prevent hostname override
         send-hostname: false   # Don't send hostname to DHCP server
-        route-metric: 9999     # Set extremely high metric as last resort
+        route-metric: 100      # Primary route for internet access
       dhcp6: false             # Disable IPv6 DHCP
       dhcp-identifier: mac
 
@@ -30,15 +31,15 @@ network:
       optional: false
 
     # ===== WAN INTERFACE (DHCP from Incus bridge) =====
-    # Cluster network + internet access via Lima VM gateway
+    # Cluster network + fallback internet access via Lima VM gateway
     # Lima VM acts as gateway at .1 of each cluster's /21 network
     wan0:
       # DHCP from Incus wan bridge network
       dhcp4: true
       dhcp4-overrides:
-        route-metric: 100        # Default route for internet access via Lima VM
-        use-dns: true            # Use DNS from bridge network
-        use-routes: true         # Accept default route from DHCP
+        route-metric: 9999       # Fallback route (Lima VM NAT has TCP issues)
+        use-dns: false           # Don't override DNS from LAN
+        use-routes: true         # Accept route but with low priority
 
       # Interface Options
       optional: false
