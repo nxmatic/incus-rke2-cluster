@@ -31,7 +31,7 @@ networks:
     type: bridge
     config:
       ipv4.address: ${CLUSTER_GATEWAY_IP}/21
-      ipv4.nat: "false"
+      ipv4.nat: "true"
       ipv4.routing: "true"
       ipv4.dhcp: "true"
       ipv4.dhcp.gateway: ${CLUSTER_GATEWAY_IP}
