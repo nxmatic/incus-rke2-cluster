@@ -108,9 +108,99 @@ vip0: 10.80.15.10/24         → VIP via 10.80.15.1
 
 == Current Network Architecture (November 2025)
 
+=== Network Types and Provisioning
+
+The cluster uses three distinct network types with different provisioning methods:
+
+==== 1. Incus Bridge Network (`wan`)
+[cols="1,3"]
+|===
+|**Type** |Managed Incus bridge
+|**Provider** |Incus network subsystem
+|**DHCP Server** |dnsmasq (managed by Incus)
+|**Network** |10.80.16.0/21 (cluster 2 - alcide)
+|**Gateway** |10.80.16.1 (Lima VM IP on bridge)
+|**Static Leases** |MAC-based (52:54:00:02:00:xx → 10.80.16.1x)
+|**NAT** |Enabled but unreliable for TCP (ICMP works)
+|**IPv6** |fd42:21ea:8a29:f3c9::/64 with NAT
+|**DNS Mode** |none (no DNS server)
+|**Bridge Driver** |native (kernel bridge)
+|**Purpose** |**Inter-node cluster communication**
+|===
+
+Configuration in Incus:
+```yaml
+networks:
+  - name: wan
+    type: bridge
+    config:
+      ipv4.address: 10.80.16.1/21
+      ipv4.dhcp: "true"
+      ipv4.dhcp.gateway: 10.80.16.1
+      ipv4.dhcp.ranges: 10.80.16.2-10.80.16.9,10.80.16.31-10.80.23.254
+      ipv4.nat: "true"
+      ipv4.routing: "true"
+      ipv6.address: fd42:21ea:8a29:f3c9::1/64
+      ipv6.nat: "true"
+      dns.mode: none
+      bridge.driver: native
+      raw.dnsmasq: |
+        dhcp-host=52:54:00:02:00:00,10.80.16.10,master
+        dhcp-host=52:54:00:02:00:01,10.80.16.11,peer1
+        # ... etc
+```
+
+Interface attachment (in Incus profile):
+```yaml
+devices:
+  wan0:
+    name: wan0
+    network: wan
+    type: nic
+```
+
+==== 2. macvlan on Lima VM Interface (`lan0`)
+[cols="1,3"]
+|===
+|**Type** |macvlan (bridge mode)
+|**Provider** |Incus device (parent: vmlan0 on Lima VM)
+|**DHCP Server** |Home network router (192.168.1.254)
+|**Network** |192.168.1.0/24
+|**Gateway** |192.168.1.254 (home router)
+|**IP Assignment** |Dynamic DHCP from home network
+|**NAT** |Home router (reliable, tested)
+|**Purpose** |**Primary internet access + local network**
+|===
+
+Parent interface on Lima VM:
+```
+vmlan0: macvlan on Lima shared network (192.168.1.0/24)
+```
+
+Interface attachment (in Incus profile):
+```yaml
+devices:
+  lan0:
+    name: lan0
+    nictype: macvlan
+    parent: vmlan0
+    type: nic
+```
+
+==== 3. Pod Network (Cilium CNI)
+[cols="1,3"]
+|===
+|**Type** |Overlay network (VXLAN)
+|**Provider** |Cilium CNI
+|**Network** |10.44.0.0/16 (alcide cluster)
+|**Per-Node CIDR** |10.44.x.0/24 (x = node index)
+|**Routing** |Cilium managed (BGP optional)
+|**Purpose** |Pod-to-pod communication
+|===
+
 === Dual-Interface Configuration
 
-The cluster currently uses a dual-interface setup optimized for reliability:
+The cluster uses a dual-interface setup optimized for reliability:
 
 ==== LAN Interface (`lan0`)
 [cols="1,3"]
@@ -163,7 +253,7 @@ The `wan` network name is now misleading since it no longer provides internet ac
 - Purpose: Explicit cluster-internal networking
 ```
 
-**Migration Requirements**:
+**Migration Plan:
 - Full cluster recreation (network rename not supported live)
 - Update all references in:
   * `make.d/incus/incus-preseed.yaml` - network definition
@@ -176,6 +266,170 @@ The `wan` network name is now misleading since it no longer provides internet ac
 - Clear semantic naming (vmnet = VM network for nodes)
 - Matches existing pattern (`vmlan0`, `vmwan0` on Lima host)
 - Eliminates confusion about "WAN" not providing internet
+
+=== Netplan Configuration
+
+Network interfaces inside containers are configured via netplan (systemd-networkd renderer):
+
+==== Configuration File
+Location: `/etc/netplan/01-nocloud.yaml`
+
+Generated from: `make.d/network/network-config.yaml`
+
+==== Interface Parameters
+
+**lan0 (macvlan - PRIMARY)**:
+```yaml
+lan0:
+  dhcp4: true
+  dhcp4-overrides:
+    use-routes: true       # Accept default route
+    use-dns: true          # Use home router DNS (192.168.1.254)
+    use-domains: false     # Don't override search domains
+    use-hostname: false    # Keep configured hostname
+    send-hostname: false   # Privacy - don't send to DHCP
+    route-metric: 100      # PRIMARY route priority
+  dhcp6: false
+  optional: false
+```
+
+**wan0 (bridge - CLUSTER)**:
+```yaml
+wan0:
+  dhcp4: true
+  dhcp4-overrides:
+    route-metric: 9999     # FALLBACK route (very low priority)
+    use-dns: false         # Don't override LAN DNS
+    use-routes: true       # Accept route but deprioritized
+  optional: false
+```
+
+==== Critical Parameters
+
+[cols="2,1,1,3"]
+|===
+|Parameter |lan0 |wan0 |Effect
+
+|`route-metric`
+|100
+|9999
+|Lower = higher priority. lan0 preferred for all internet traffic
+
+|`use-routes`
+|true
+|true
+|Both accept default routes, metric determines preference
+
+|`use-dns`
+|true
+|false
+|Only lan0 provides DNS servers to `/etc/resolv.conf`
+
+|`use-domains`
+|false
+|N/A
+|Prevent DHCP from changing search domains
+
+|`dhcp-identifier`
+|mac
+|implicit
+|Use MAC address for DHCP client ID (stable across reboots)
+|===
+
+==== Runtime Verification
+
+Check actual metrics on a running node:
+```bash
+ip route show default
+# Expected output:
+# default via 192.168.1.254 dev lan0 proto dhcp src 192.168.1.x metric 100
+# default via 10.80.16.1 dev wan0 proto dhcp src 10.80.16.x metric 9999
+```
+
+Check DNS configuration:
+```bash
+resolvectl status
+# Should show DNS servers from lan0 (home router)
+```
+
+WARNING: If metrics are inverted (lan0=9999, wan0=100), internet traffic will route through Lima VM NAT (unreliable TCP). Apply correct netplan config with `netplan apply`.
+
+==== Troubleshooting Network Configuration
+
+**Problem: Inverted Route Metrics**
+
+Some nodes (peer1, peer2) may still have the old netplan configuration with inverted metrics:
+```bash
+# INCORRECT (old config):
+default via 10.80.16.1 dev wan0 proto dhcp src 10.80.16.x metric 100    # wan is primary
+default via 192.168.1.254 dev lan0 proto dhcp src 192.168.1.x metric 9999  # lan is fallback
+```
+
+These nodes will route internet traffic through Lima VM NAT (unreliable TCP), causing:
+- Slow or failed container image pulls
+- Timeouts connecting to external services (Docker Hub, GitHub, etc.)
+- ICMP (ping) working but TCP failing
+
+**Fix: Apply Updated Netplan Configuration**
+
+1. Push updated netplan config to the node:
+```bash
+ssh lima-nerd-nixos "incus file push make.d/network/network-config.yaml peer1/etc/netplan/01-nocloud.yaml"
+```
+
+2. Apply the configuration:
+```bash
+ssh lima-nerd-nixos "incus exec peer1 -- netplan apply"
+```
+
+3. Verify metrics are now correct:
+```bash
+ssh lima-nerd-nixos "incus exec peer1 -- ip route show default"
+# Should show:
+# default via 192.168.1.254 dev lan0 ... metric 100      # LAN is primary
+# default via 10.80.16.1 dev wan0 ... metric 9999        # wan is fallback
+```
+
+4. Test internet connectivity via lan0:
+```bash
+ssh lima-nerd-nixos "incus exec peer1 -- curl --interface lan0 -I https://registry-1.docker.io"
+# Should be fast (~100ms response)
+```
+
+**Problem: Multiple IPs on lan0**
+
+After applying new netplan config, a node may temporarily have both old and new DHCP leases:
+```bash
+# Example from peer3:
+inet 192.168.1.166/24 metric 100 brd 192.168.1.255 scope global dynamic lan0
+inet 192.168.1.165/24 brd 192.168.1.255 scope global secondary dynamic noprefixroute lan0
+```
+
+This is harmless - the old IP will expire according to the DHCP lease time. The primary IP (metric 100) is used for routing.
+
+**Problem: DNS Not Resolving**
+
+If DNS stops working after netplan changes:
+
+1. Check which interface provides DNS:
+```bash
+resolvectl status
+# Should show DNS servers (e.g., 192.168.1.254) from lan0
+```
+
+2. If wan0 is providing DNS instead, check netplan config:
+```bash
+# lan0 should have:
+use-dns: true
+
+# wan0 should have:
+use-dns: false
+```
+
+3. Re-apply netplan if needed:
+```bash
+netplan apply
+```
 
 == Routing Strategy
 
