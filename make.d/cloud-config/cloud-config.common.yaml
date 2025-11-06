@@ -264,40 +264,21 @@ write_files:
         source <(cat /proc/1/environ | tr '\0' '\n')
         set +a
 
-        : "Load RKE2 environment variables directly in flox profile"
+        : "Load RKE2-specific dynamic environment variables"
         set -a
         ARCH="$$(dpkg --print-architecture)"
         [[ -r /etc/rancher/rke2/rke2.yaml ]] &&
           KUBECONFIG="/etc/rancher/rke2/rke2.yaml"
 
-        : "Container Runtime Configuration"
+        : "Path-dependent configuration (relative to /var/lib/rancher/rke2)"
         CONTAINERD_CONFIG_FILE="$${PWD}/agent/etc/containerd/config.toml"
-        CONTAINERD_ADDRESS="/run/k3s/containerd/containerd.sock"
-        CONTAINERD_NAMESPACE="k8s.io"
         CRI_CONFIG_FILE="$${PWD}/agent/etc/crictl.yaml"
-
-        : "kubectl Configuration"
-        KUBECTL_OUTPUT="yaml"
-        KUBECTL_EXTERNAL_DIFF="diff"
-        KUBECTL_COMPLETION="true"
-
-        : "Helm Configuration"
         HELM_DATA_HOME="$${PWD}/helm"
         HELM_CONFIG_HOME="/etc/rancher/rke2/helm"
         HELM_CACHE_HOME="/var/cache/rancher/rke2/helm"
         HELM_REPOSITORY_CONFIG="/etc/rancher/rke2/helm/repositories.yaml"
         HELM_REPOSITORY_CACHE="/var/cache/rancher/rke2/helm/repository"
         HELM_PLUGINS="$${PWD}/helm/plugins"
-
-        : "Cilium CLI Configuration"
-        CILIUM_CLI_MODE="kubernetes"
-        CILIUM_CLI_CONTEXT="default"
-
-        : "Hubble Configuration"
-        HUBBLE_SERVER="localhost:4245"
-        HUBBLE_TLS="false"
-
-        :  Krew Configuration
         KREW_ROOT="$${PWD}/krew"
 
         : "Update PATH"
