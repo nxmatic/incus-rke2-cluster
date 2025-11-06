@@ -265,10 +265,18 @@ write_files:
         : "Extract environment variables from init process"
         while IFS='=' read -r key value; do
           case "$$key" in
-            NODE_*|CLUSTER_*|POD_*|SERVICE_*|DEBUG|\
-            ETCDCTL_*|KUBECTL_*|\
-            CONTAINERD_*|CRI_*|\
-            CILIUM_*|HUBBLE_*|\
+            NODE_*|CLUSTER_*|POD_*|SERVICE_*|DEBUG)
+              declare "$$key=$$value"
+              ;;
+            ETCDCTL_*|KUBECTL_*)
+              declare "$$key=$$value"
+              ;;
+            CONTAINERD_*|CRI_*)
+              declare "$$key=$$value"
+              ;;
+            CILIUM_*|HUBBLE_*)
+              declare "$$key=$$value"
+              ;;
             HELM_*|KREW_*)
               declare "$$key=$$value"
               ;;
