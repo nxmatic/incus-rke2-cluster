@@ -36,6 +36,12 @@ config:
   environment.NODE_WAN_INTERFACE_NAME: "${NODE_WAN_INTERFACE_NAME}"
   # Cluster Gateway (Lima VM on WAN bridge)
   environment.CLUSTER_GATEWAY_IP: "${CLUSTER_GATEWAY_IP}"
+  # etcdctl Configuration
+  environment.ETCDCTL_API: "3"
+  environment.ETCDCTL_CERT: "/var/lib/rancher/rke2/server/tls/etcd/server-client.crt"
+  environment.ETCDCTL_KEY: "/var/lib/rancher/rke2/server/tls/etcd/server-client.key"
+  environment.ETCDCTL_CACERT: "/var/lib/rancher/rke2/server/tls/etcd/server-ca.crt"
+  environment.ETCDCTL_ENDPOINTS: "https://127.0.0.1:2379"
 devices:
   kmsg.dev:
     type: unix-char
