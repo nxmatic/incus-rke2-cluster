@@ -437,7 +437,7 @@ force-build-image@incus:
 # Instance Lifecycle Targets
 #-----------------------------
 
-.PHONY: create@incus start@incus shell@incus stop@incus delete@incus clean@incus
+.PHONY: create@incus start@incus shell@incus stop@incus delete@incus clean@incus remove-member@etcd
 .ONESHELL:
 
 # Ensure instance exists; if marker file is present but Incus instance is missing (e.g. created locally only), recreate.
@@ -562,12 +562,9 @@ delete@incus: ## Delete the instance (keeps configuration)
 	$(.incus.command) delete -f $(NODE_NAME) || true
 	rm -f $(.incus.config_instance_marker_file) || true
 
-clean@incus: delete@incus 
-clean@incus: remove-hosts@tailscale
-clean@incus: nodeName ?= $(NODE_NAME)
-clean@incus: ## Remove instance, profiles, storage volumes, etcd member, and runtime directories
-	: "[+] Removing $(nodeName) if exists..."
-	# Remove etcd member if this is a peer/server node (not master)
+.PHONY: remove-member@etcd
+remove-member@etcd: nodeName ?= $(NODE_NAME)
+remove-member@etcd: ## Remove etcd member for peer/server nodes from cluster
 	@if [ "$(nodeName)" != "master" ] && [ "$(NODE_TYPE)" = "server" ]; then \
 		: "[+] Removing etcd member for $(nodeName)..."; \
 		if $(.incus.command) info master --project=rke2 >/dev/null 2>&1; then \
@@ -587,7 +584,16 @@ clean@incus: ## Remove instance, profiles, storage volumes, etcd member, and run
 		else \
 			: "[!] Master node not running, cannot remove etcd member"; \
 		fi; \
+	else \
+		: "[i] Skipping etcd member removal for $(nodeName) (master or non-server node)"; \
 	fi
+
+clean@incus: remove-member@etcd
+clean@incus: delete@incus 
+clean@incus: remove-hosts@tailscale
+clean@incus: nodeName ?= $(NODE_NAME)
+clean@incus: ## Remove instance, profiles, storage volumes, and runtime directories
+	: "[+] Removing $(nodeName) if exists..."
 	$(.incus.command) profile delete rke2-$(nodeName) --project=rke2 || true
 	$(.incus.command) profile delete rke2-$(nodeName) --project default || true
 	# All networks (LAN/WAN/VIP) are macvlan (no Incus-managed networks to delete)
