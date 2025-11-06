@@ -262,8 +262,10 @@ write_files:
         : "Load environment variables from init process (set by Incus instance config)"
         set -a
         source <(cat /proc/1/environ | tr '\0' '\n')
+        set +a
 
         : "Load RKE2 environment variables directly in flox profile"
+        set -a
         ARCH="$$(dpkg --print-architecture)"
         [[ -r /etc/rancher/rke2/rke2.yaml ]] &&
           KUBECONFIG="/etc/rancher/rke2/rke2.yaml"
@@ -273,16 +275,6 @@ write_files:
         CONTAINERD_ADDRESS="/run/k3s/containerd/containerd.sock"
         CONTAINERD_NAMESPACE="k8s.io"
         CRI_CONFIG_FILE="$${PWD}/agent/etc/crictl.yaml"
-
-        : "etcdctl Configuration (override with absolute paths if not from /proc/1/environ)"
-        ETCDCTL_API="${ETCDCTL_API:-3}"
-        ETCDCTL_CERT="${ETCDCTL_CERT:-$${PWD}/server/tls/etcd/server-client.crt}"
-        ETCDCTL_KEY="${ETCDCTL_KEY:-$${PWD}/server/tls/etcd/server-client.key}"
-        ETCDCTL_CACERT="${ETCDCTL_CACERT:-$${PWD}/server/tls/etcd/server-ca.crt}"
-        ETCDCTL_ENDPOINTS="${ETCDCTL_ENDPOINTS:-https://127.0.0.1:2379}"
-        ETCDCTL_WRITE_OUT="${ETCDCTL_WRITE_OUT:-table}"
-        ETCDCTL_DIAL_TIMEOUT="${ETCDCTL_DIAL_TIMEOUT:-10s}"
-        ETCDCTL_COMMAND_TIMEOUT="${ETCDCTL_COMMAND_TIMEOUT:-30s}"
 
         : "kubectl Configuration"
         KUBECTL_OUTPUT="yaml"
