@@ -261,11 +261,17 @@ write_files:
         cat <<'EoFloxCommonProfile' | cut -c 3- | tee /var/lib/rancher/rke2/.flox/env/profile-common.sh
         : "Load environment variables from init process (set by Incus instance config)"
         set -a
-        source <(cat /proc/1/environ | tr '\0' '\n')
-        set +a
+        
+        : "Extract environment variables from init process"
+        while IFS='=' read -r key value; do
+          case "$$key" in
+            NODE_*|CLUSTER_*|POD_*|SERVICE_*|DEBUG|ETCDCTL_*|KUBECTL_*|CONTAINERD_*|CILIUM_*|HUBBLE_*)
+              declare "$$key=$$value"
+              ;;
+          esac
+        done < <(cat /proc/1/environ | tr '\0' '\n')
 
         : "Load RKE2-specific dynamic environment variables"
-        set -a
         ARCH="$$(dpkg --print-architecture)"
         [[ -r /etc/rancher/rke2/rke2.yaml ]] &&
           KUBECONFIG="/etc/rancher/rke2/rke2.yaml"
