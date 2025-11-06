@@ -265,7 +265,9 @@ write_files:
         : "Extract environment variables from init process"
         while IFS='=' read -r key value; do
           case "$$key" in
-            NODE_*|CLUSTER_*|POD_*|SERVICE_*) ;&
+            NODE_NAME|NODE_ID|NODE_HOST_IP|NODE_VIP_IP|NODE_NETWORK_CIDR|NODE_GATEWAY_IP) ;&
+            NODE_LAN_INTERFACE_NAME|NODE_WAN_INTERFACE_NAME|NODE_ROLE) ;&
+            POD_*|SERVICE_*) ;&
             DEBUG) ;&
             ETCDCTL_*) ;&
             KUBECTL_*) ;&
