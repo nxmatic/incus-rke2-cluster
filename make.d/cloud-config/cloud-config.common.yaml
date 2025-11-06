@@ -265,7 +265,7 @@ write_files:
         : "Extract environment variables from init process"
         while IFS='=' read -r key value; do
           case "$$key" in
-            NODE_*|CLUSTER_*|POD_*|SERVICE_*|DEBUG|ETCDCTL_*|KUBECTL_*|CONTAINERD_*|CILIUM_*|HUBBLE_*|HELM_*)
+            NODE_*|CLUSTER_*|POD_*|SERVICE_*|DEBUG|ETCDCTL_*|KUBECTL_*|CONTAINERD_*|CRI_*|CILIUM_*|HUBBLE_*|HELM_*|KREW_*)
               declare "$$key=$$value"
               ;;
           esac
@@ -276,15 +276,8 @@ write_files:
         [[ -r /etc/rancher/rke2/rke2.yaml ]] &&
           KUBECONFIG="/etc/rancher/rke2/rke2.yaml"
 
-        : "Path-dependent configuration (relative to /var/lib/rancher/rke2)"
-        CONTAINERD_CONFIG_FILE="$${PWD}/agent/etc/containerd/config.toml"
-        CRI_CONFIG_FILE="$${PWD}/agent/etc/crictl.yaml"
-        HELM_DATA_HOME="$${PWD}/helm"
-        HELM_PLUGINS="$${PWD}/helm/plugins"
-        KREW_ROOT="$${PWD}/krew"
-
-        : "Update PATH"
-        PATH="$${PWD}/bin:$$PATH:$${KREW_ROOT}/bin"
+        : "Update PATH with RKE2 tools"
+        PATH="/var/lib/rancher/rke2/bin:$$PATH:$${KREW_ROOT}/bin"
 
         set +a
       EoFloxCommonProfile

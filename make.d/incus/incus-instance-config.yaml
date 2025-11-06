@@ -39,6 +39,8 @@ config:
   # Container Runtime Configuration
   environment.CONTAINERD_ADDRESS: "/run/k3s/containerd/containerd.sock"
   environment.CONTAINERD_NAMESPACE: "k8s.io"
+  environment.CONTAINERD_CONFIG_FILE: "/var/lib/rancher/rke2/agent/etc/containerd/config.toml"
+  environment.CRI_CONFIG_FILE: "/var/lib/rancher/rke2/agent/etc/crictl.yaml"
   # etcdctl Configuration
   environment.ETCDCTL_API: "3"
   environment.ETCDCTL_CERT: "/var/lib/rancher/rke2/server/tls/etcd/server-client.crt"
@@ -58,10 +60,14 @@ config:
   environment.HUBBLE_SERVER: "localhost:4245"
   environment.HUBBLE_TLS: "false"
   # Helm Configuration
+  environment.HELM_DATA_HOME: "/var/lib/rancher/rke2/helm"
   environment.HELM_CONFIG_HOME: "/etc/rancher/rke2/helm"
   environment.HELM_CACHE_HOME: "/var/cache/rancher/rke2/helm"
   environment.HELM_REPOSITORY_CONFIG: "/etc/rancher/rke2/helm/repositories.yaml"
   environment.HELM_REPOSITORY_CACHE: "/var/cache/rancher/rke2/helm/repository"
+  environment.HELM_PLUGINS: "/var/lib/rancher/rke2/helm/plugins"
+  # Krew Configuration
+  environment.KREW_ROOT: "/var/lib/rancher/rke2/krew"
 devices:
   kmsg.dev:
     type: unix-char
