@@ -62,7 +62,7 @@ write_files:
     content: |
       [Unit]
       Description=RKE2 Network Configuration Service
-      After=default.target systemd-networkd.service cloud-init.service
+      After=systemd-networkd.service cloud-init.service
       Wants=systemd-networkd.service
       Before=rke2-install.service
       
@@ -74,7 +74,7 @@ write_files:
       StandardError=journal
       
       [Install]
-      WantedBy=default.target
+      WantedBy=multi-user.target
 
   # ZFS early umount service moved to systemd section
 
