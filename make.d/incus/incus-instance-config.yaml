@@ -57,6 +57,11 @@ config:
   # Hubble Configuration
   environment.HUBBLE_SERVER: "localhost:4245"
   environment.HUBBLE_TLS: "false"
+  # Helm Configuration
+  environment.HELM_CONFIG_HOME: "/etc/rancher/rke2/helm"
+  environment.HELM_CACHE_HOME: "/var/cache/rancher/rke2/helm"
+  environment.HELM_REPOSITORY_CONFIG: "/etc/rancher/rke2/helm/repositories.yaml"
+  environment.HELM_REPOSITORY_CACHE: "/var/cache/rancher/rke2/helm/repository"
 devices:
   kmsg.dev:
     type: unix-char
