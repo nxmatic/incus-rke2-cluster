@@ -221,7 +221,7 @@ cat .run.d/network/*.env
 
 == UML Network Topology Diagram
 
-The following PlantUML diagram illustrates the layered relationships between the Darwin host, the Lima NixOS VM, macvlan parent interfaces, and the Incus master container interfaces across internal (10.80.x) and external (192.168.x / 172.16.x) networks. It also highlights where NAT/masquerading applies when retaining internal subnets (Strategy B).
+The following PlantUML diagram illustrates the layered relationships between the Darwin host, the Lima NixOS VM, macvlan parent interfaces, and the Incus master container interfaces across internal (10.80.x) and external (192.168.x / 172.16.x) networks. It also highlights where outbound IPv4 NAT is now applied on the Darwin host via pf (macOS packet filter) rather than inside the Lima NixOS VM. This reflects the macvlan bypass characteristic: container traffic does not traverse the VM's nftables/iptables chains, so NAT must occur at the outer host layer (en0) for private cluster subnets.
 
 [plantuml,network-topology,svg]
 ----
@@ -235,10 +235,10 @@ skinparam rectangle {
 }
 skinparam componentStyle rectangle
 
-rectangle "Darwin Host (alcide)\nmacOS" as HOST {
+rectangle "Darwin Host (alcide)\nmacOS (pf NAT)" as HOST {
 	node "Lima VM (nerd-nixos)\nNixOS" as LIMA {
 		frame "Host Interfaces" as HOST_IFACES {
-			component "enp0s1\nUpstream WAN\n192.168.5.15" as ENP
+			component "enp0s1 (en0)\nUpstream WAN\n192.168.5.15" as ENP
 			component "vmlan0\nParent LAN\n192.168.1.3/24" as VMLAN0
 			component "vmwan0\nParent WAN\n172.16.105.3/24" as VMWAN0
 		}
@@ -258,8 +258,14 @@ LAN0 --> VMLAN0 : macvlan (LAN access)
 WAN0 --> VMWAN0 : macvlan (cluster node subnet)
 VIP0 --> VMWAN0 : macvlan (VIP subnet)
 
-' NAT / routing path (Strategy B: retain internal subnets)
-VMWAN0 --> ENP : route/NAT (masquerade 10.80.24.0/21,\n10.80.31.0/24)
+"""
+NOTE: Previous documentation referenced nftables-based NAT inside the Lima VM.
+In the current design private Incus macvlan interfaces bypass the VM kernel
+firewall. NAT is performed by macOS pf on the outer host (interface en0/enp0s1).
+"""
+
+' NAT / routing path (pf NAT on Darwin host)
+VMWAN0 --> ENP : pf NAT (10.80.16.0/21, 10.80.31.0/24)
 ENP --> Internet : upstream
 
 ' Notes
@@ -274,25 +280,45 @@ note right of VIP0
 end note
 
 note bottom of ENP
-	Outbound NAT applies here
-	for internal 10.80.* ranges
+	Outbound IPv4 NAT (pf) on Darwin host
+	Subnets translated:
+	10.80.16.0/21
+	10.80.31.0/24
 end note
 
 @enduml
 ----
 
 === Diagram Legend
-* macvlan: Container interface directly on parent host NIC (no bridge)
-* Internal subnets (10.80.24.0/21, 10.80.31.0/24): Require NAT on host if not routable upstream
-* NAT boundary: Implemented via nftables/iptables postrouting masquerade on `enp0s1`
+* macvlan: Container interface directly on parent host NIC (L2 bypass of VM firewall)
+* Internal subnets (10.80.16.0/21, 10.80.31.0/24): Require host-level NAT (pf) for outbound IPv4
+* NAT boundary: macOS pf on en0/enp0s1 (not inside Lima VM)
 * VIP subnet: Control plane virtual IP allocations (e.g. kube-vip)
+* Lima VM firewall note: nftables rules inside VM do not see macvlan-origin traffic
 
 === Next Steps
-If retaining internal subnets (Strategy B), ensure nft NAT rules:
+If retaining internal subnets (Strategy B), ensure Darwin host pf NAT rules (in `/etc/pf.conf` via anchor):
 ```bash
-sudo nft add table ip nat
-sudo nft add chain ip nat postrouting '{ type nat hook postrouting priority 100 ; }'
-sudo nft add rule ip nat postrouting ip saddr 10.80.24.0/21 oif enp0s1 masquerade
-sudo nft add rule ip nat postrouting ip saddr 10.80.31.0/24 oif enp0s1 masquerade
+# /etc/pf.conf excerpt
+anchor "rke2.rancher"
+load anchor "rke2.rancher" from "/etc/pf.anchors/rke2.rancher"
+
+# /etc/pf.anchors/rke2.rancher
+nat on en0 from 10.80.16.0/21 to any -> (en0)
+nat on en0 from 10.80.31.0/24 to any -> (en0)
 ```
-Codify these in a NixOS module for persistence (recommended). The macvlan design keeps container isolation while allowing upstream access via controlled NAT.
+Verification:
+```bash
+sudo pfctl -f /etc/pf.conf
+sudo pfctl -a rke2.rancher -sn
+sudo pfctl -vs nat | grep 10.80.16
+incus exec master -- ping -c1 8.8.8.8
+incus exec master -- curl -4 -s https://ifconfig.me
+```
+Rollback:
+```bash
+sudo sed -i '' '/rke2.rancher/d' /etc/pf.conf
+sudo rm /etc/pf.anchors/rke2.rancher
+sudo pfctl -f /etc/pf.conf -F states
+```
+Note: nftables NAT inside the Lima VM is ineffective for macvlan-attached Incus interfaces due to L2 bypass.

@@ -34,7 +34,6 @@ lb-cidr-to-gateway = $(call network-to-ip,$(subst .64/,.65/,$(1)))
 
 # Network directory structure
 .network.dir = $(run-dir)/network
-network.DIR = $(.network.dir)
 .network.host_networks_mk   = $(.network.dir)/host-networks.mk
 .network.cluster_networks_mk = $(.network.dir)/$(cluster.NAME)-networks.mk
 .network.node_networks_mk    = $(.network.dir)/$(cluster.NAME)-$(node.NAME)-networks.mk
@@ -83,21 +82,17 @@ network.DIR = $(.network.dir)
 
 # Per-node bridge names (isolated bridges for each node)
 # Interface names (macvlan, not bridges)
-.network.NODE_LAN_INTERFACE_NAME = $(node.NAME)-lan0
-.network.NODE_WAN_INTERFACE_NAME = $(node.NAME)-wan0
-.network.CLUSTER_VIP_INTERFACE_NAME = rke2-vip0
+.network.node_lan_interface_name = $(node.NAME)-lan0
+.network.node_wan_interface_name = $(node.NAME)-wan0
+.network.cluster_vip_interface_name = rke2-vip0
 
 # VIP VLAN configuration (shared across control-plane nodes)
-.network.VIP_VLAN_ID = 100
-.network.VIP_VLAN_NAME = rke2-vip
+.network.vip_vlan_id = 100
+.network.vip_vlan_name = rke2-vip
 
 # =============================================================================
 # NETWORK GENERATION TARGETS
 # =============================================================================
-
-# Create network directory
-$(.network.DIR)/: ## Create network output directory
-	mkdir -p $(.network.DIR)
 
 define .network.SUBNETS_YQ_EXPR =
 {
@@ -230,10 +225,10 @@ show@network: ## Debug network configuration display
 # =============================================================================
 
 # Profile name for Incus
-.network.NODE_PROFILE_NAME = rke2-cluster
+.network.node_profile_name = rke2-cluster
 
 # Master node IP for peer connections (derived from node 0) using macro
-.network.MASTER_NODE_IP = $(call cidr-to-host-ip,$(NODE_SUBNETS_NETWORK_0),3)
+.network.master_node_ip = $(call cidr-to-host-ip,$(NODE_SUBNETS_NETWORK_0),3)
 
 # =============================================================================
 # PUBLIC NETWORK API
@@ -252,14 +247,40 @@ network.NODE_NETWORK_CIDR = $(NODE_SUBNETS_NETWORK_0)
 network.NODE_GATEWAY_IP = $(call cidr-to-gateway,$(NODE_SUBNETS_NETWORK_0))
 network.NODE_HOST_IP = $(call cidr-to-host-ip,$(NODE_SUBNETS_NETWORK_0),$(call plus,10,$(node.ID)))
 network.NODE_VIP_IP = $(call cidr-to-host-ip,$(VIP_SUBNETS_NETWORK_7),10)
-network.NODE_LAN_INTERFACE_NAME = $(.network.NODE_LAN_INTERFACE_NAME)
-network.NODE_WAN_INTERFACE_NAME = $(.network.NODE_WAN_INTERFACE_NAME)
-network.CLUSTER_VIP_INTERFACE_NAME = $(.network.CLUSTER_VIP_INTERFACE_NAME)
-network.VIP_VLAN_ID = $(.network.VIP_VLAN_ID)
-network.VIP_VLAN_NAME = $(.network.VIP_VLAN_NAME)
+network.NODE_LAN_INTERFACE_NAME = $(.network.node_lan_interface_name)
+network.NODE_WAN_INTERFACE_NAME = $(.network.node_wan_interface_name)
+network.CLUSTER_VIP_INTERFACE_NAME = $(.network.cluster_vip_interface_name)
+network.VIP_VLAN_ID = $(.network.vip_vlan_id)
+network.VIP_VLAN_NAME = $(.network.vip_vlan_name)
 
-network.NODE_PROFILE_NAME = $(.network.NODE_PROFILE_NAME)
-network.MASTER_NODE_IP = $(.network.MASTER_NODE_IP)
+# Cluster WAN network (Incus bridge with Lima VM as gateway)
+# Lima VM has .1 IP on the bridge and provides routing/NAT to uplink
+# Cluster allocation: 10.80.(CLUSTER_ID * 8).0/21
+network.CLUSTER_GATEWAY_IP = $(call cidr-to-gateway,$(network.CLUSTER_NETWORK_CIDR))
+
+# DHCP range for WAN network - split range excludes static lease block (.10-.30)
+# Dynamic pool: .2-.9 (8 IPs) + .31-.254 (up to end of /21)
+# Static block: .10-.30 (21 IPs reserved for nodes with static DHCP leases)
+.network.cluster_third_octet = $(call multiply,$(.cluster.ID),8)
+network.WAN_DHCP_RANGE = 10.80.$(.network.cluster_third_octet).2-10.80.$(.network.cluster_third_octet).9,10.80.$(.network.cluster_third_octet).31-10.80.$(call plus,$(.network.cluster_third_octet),7).254
+
+# =============================================================================
+# MAC ADDRESS GENERATION FOR STATIC DHCP LEASES
+# =============================================================================
+
+# Generate deterministic MAC address for node's WAN interface
+# Format: 52:54:00:CC:TT:NN where:
+#   52:54:00 = QEMU/KVM reserved prefix (locally administered)
+#   CC = cluster ID in hex (00-07, zero-padded)
+#   TT = node type: 00=server, 01=agent
+#   NN = node ID in hex (00-ff, zero-padded)
+# Example: master (cluster 2, server, ID 0) = 52:54:00:02:00:00
+# Note: Use shell printf for zero-padding since GMSL dec2hex doesn't pad
+.network.node_type_hex = $(if $(filter server,$(node.TYPE)),00,01)
+network.NODE_WAN_MAC = $(shell printf "52:54:00:%02x:%s:%02x" $(cluster.ID) $(.network.node_type_hex) $(node.ID))
+
+network.NODE_PROFILE_NAME = $(.network.node_profile_name)
+network.MASTER_NODE_IP = $(.network.master_node_ip)
 
 # =============================================================================
 # EXPORTS FOR TEMPLATE USAGE
@@ -268,6 +289,8 @@ network.MASTER_NODE_IP = $(.network.MASTER_NODE_IP)
 # Export network variables for use in YAML templates via yq envsubst
 export HOST_SUPERNET_CIDR = $(network.HOST_SUPERNET_CIDR)
 export CLUSTER_NETWORK_CIDR = $(network.CLUSTER_NETWORK_CIDR)
+export CLUSTER_GATEWAY_IP = $(network.CLUSTER_GATEWAY_IP)
+export WAN_DHCP_RANGE = $(network.WAN_DHCP_RANGE)
 export CLUSTER_VIP_NETWORK_CIDR = $(network.CLUSTER_VIP_NETWORK_CIDR)
 export CLUSTER_VIP_GATEWAY_IP = $(network.CLUSTER_VIP_GATEWAY_IP)
 export CLUSTER_LOADBALANCER_NETWORK_CIDR = $(network.CLUSTER_LOADBALANCER_NETWORK_CIDR)
@@ -283,6 +306,7 @@ export VIP_VLAN_ID = $(network.VIP_VLAN_ID)
 export VIP_VLAN_NAME = $(network.VIP_VLAN_NAME)
 export NODE_PROFILE_NAME = $(network.NODE_PROFILE_NAME)
 export MASTER_NODE_IP = $(network.MASTER_NODE_IP)
+export NODE_WAN_MAC = $(network.NODE_WAN_MAC)
 export NODE_PROFILE_NAME
 export MASTER_NODE_IP
 

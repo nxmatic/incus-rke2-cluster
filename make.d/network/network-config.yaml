@@ -12,7 +12,7 @@ network:
   renderer: networkd
   ethernets:
     # ===== LAN INTERFACE (DHCP) =====
-    # Local network access without routing conflicts  
+    # Local network access for dedicated load balancers
     lan0:
       # DHCP Configuration with strict overrides
       dhcp4: true
@@ -29,51 +29,16 @@ network:
       # Interface Options
       optional: false
 
-    # ===== WAN INTERFACE (STATIC) =====
-    # Internet gateway via macvlan with static IP from network layer
+    # ===== WAN INTERFACE (DHCP from Incus bridge) =====
+    # Cluster network + internet access via Lima VM gateway
+    # Lima VM acts as gateway at .1 of each cluster's /21 network
     wan0:
-      # DHCP disabled for static IP configuration
-      dhcp4: false
-
-      # Static IP Configuration from network layer
-      addresses:
-        - ${NODE_HOST_IP}/24
-      routes:
-        - to: 0.0.0.0/0
-          via: ${NODE_GATEWAY_IP}
-          metric: 100
-
-      # DNS Configuration
-      nameservers:
-        addresses:
-          - ${NODE_GATEWAY_IP}     # Primary: node gateway
-          - 1.1.1.1                    # Fallback: Cloudflare DNS
-
-      # Interface Options
-      optional: false
-
-    # ===== VIP INTERFACE (SHARED) =====
-    # Shared interface for VIP announcements across all control-plane nodes
-    vip0:
-      # DHCP disabled - VIPs managed by Cilium/kube-vip
-      dhcp4: false
-      dhcp6: false
-
-      # Static IP from dedicated VIP network (each node gets a unique IP)
-      addresses:
-        - ${NODE_VIP_IP}/24
-
-      # VIP needs gateway for external API server access (kubectl, CI/CD, etc.)
-      routes:
-        - to: 0.0.0.0/0
-          via: ${NODE_GATEWAY_IP}
-          metric: 200  # Higher metric than wan0 (100) for proper routing precedence
-
-      # DNS Configuration (same as wan0 for consistency)
-      nameservers:
-        addresses:
-          - ${NODE_GATEWAY_IP}     # Primary: node gateway
-          - 1.1.1.1                    # Fallback: Cloudflare DNS
+      # DHCP from Incus wan bridge network
+      dhcp4: true
+      dhcp4-overrides:
+        route-metric: 100        # Default route for internet access via Lima VM
+        use-dns: true            # Use DNS from bridge network
+        use-routes: true         # Accept default route from DHCP
 
       # Interface Options
       optional: false
