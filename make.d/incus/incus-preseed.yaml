@@ -43,13 +43,14 @@ networks:
       # Static DHCP leases for RKE2 nodes - ensures predictable IP allocation
       # Format: dhcp-host=MAC,IP,hostname
       # MACs use QEMU prefix 52:54:00 + cluster_id:node_type:node_id (in hex, zero-padded)
+      # IPs use cluster network base + node offset (10 for master, 11-13 for peers, 20+ for workers)
       raw.dnsmasq: |
-        dhcp-host=52:54:00:02:00:00,10.80.16.10,master
-        dhcp-host=52:54:00:02:00:01,10.80.16.11,peer1
-        dhcp-host=52:54:00:02:00:02,10.80.16.12,peer2
-        dhcp-host=52:54:00:02:00:03,10.80.16.13,peer3
-        dhcp-host=52:54:00:02:01:0a,10.80.16.20,worker1
-        dhcp-host=52:54:00:02:01:0b,10.80.16.21,worker2
+        dhcp-host=${NODE_WAN_MAC_MASTER},${CLUSTER_NODE_IP_BASE}.10,master
+        dhcp-host=${NODE_WAN_MAC_PEER1},${CLUSTER_NODE_IP_BASE}.11,peer1
+        dhcp-host=${NODE_WAN_MAC_PEER2},${CLUSTER_NODE_IP_BASE}.12,peer2
+        dhcp-host=${NODE_WAN_MAC_PEER3},${CLUSTER_NODE_IP_BASE}.13,peer3
+        dhcp-host=${NODE_WAN_MAC_WORKER1},${CLUSTER_NODE_IP_BASE}.20,worker1
+        dhcp-host=${NODE_WAN_MAC_WORKER2},${CLUSTER_NODE_IP_BASE}.21,worker2
 profiles:
   - name: ${NODE_PROFILE_NAME}
     description: RKE2 profile (LAN macvlan + WAN bridge)
@@ -67,4 +68,3 @@ profiles:
         name: wan0
         network: wan
         type: nic
-        hwaddr: ${NODE_WAN_MAC}

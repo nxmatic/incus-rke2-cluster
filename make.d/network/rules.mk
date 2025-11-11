@@ -23,6 +23,10 @@ cidr-to-gateway = $(call network-to-ip,$(subst .0/,.1/,$(1)))
 # Usage: $(call cidr-to-host-ip,CIDR,OCTET) - e.g., $(call cidr-to-host-ip,10.80.16.0/23,3) -> 10.80.16.3
 cidr-to-host-ip = $(call network-to-ip,$(subst .0/,.$(2)/,$(1)))
 
+# Extract base IP from CIDR (first 3 octets) for DHCP reservations
+# Usage: $(call cidr-to-base-ip,CIDR) - e.g., $(call cidr-to-base-ip,10.80.16.0/21) -> 10.80.16
+cidr-to-base-ip = $(shell echo "$(1)" | cut -d/ -f1 | sed 's/\.[0-9]*$$//')
+
 # Special case for LoadBalancer gateway (increment .64 to .65)
 lb-cidr-to-gateway = $(call network-to-ip,$(subst .64/,.65/,$(1)))
 
@@ -282,6 +286,17 @@ network.NODE_WAN_MAC = $(shell printf "52:54:00:%02x:%s:%02x" $(cluster.ID) $(.n
 network.NODE_PROFILE_NAME = $(.network.node_profile_name)
 network.MASTER_NODE_IP = $(.network.master_node_ip)
 
+# Cluster-wide node IP base for DHCP reservations (e.g., "10.80.8" for cluster 1)
+network.CLUSTER_NODE_IP_BASE = $(call cidr-to-base-ip,$(network.CLUSTER_NETWORK_CIDR))
+
+# MAC addresses for all nodes (for DHCP static reservations)
+network.NODE_WAN_MAC_MASTER = $(shell printf "52:54:00:%02x:00:00" $(cluster.ID))
+network.NODE_WAN_MAC_PEER1 = $(shell printf "52:54:00:%02x:00:01" $(cluster.ID))
+network.NODE_WAN_MAC_PEER2 = $(shell printf "52:54:00:%02x:00:02" $(cluster.ID))
+network.NODE_WAN_MAC_PEER3 = $(shell printf "52:54:00:%02x:00:03" $(cluster.ID))
+network.NODE_WAN_MAC_WORKER1 = $(shell printf "52:54:00:%02x:01:0a" $(cluster.ID))
+network.NODE_WAN_MAC_WORKER2 = $(shell printf "52:54:00:%02x:01:0b" $(cluster.ID))
+
 # =============================================================================
 # EXPORTS FOR TEMPLATE USAGE
 # =============================================================================
@@ -307,6 +322,15 @@ export VIP_VLAN_NAME = $(network.VIP_VLAN_NAME)
 export NODE_PROFILE_NAME = $(network.NODE_PROFILE_NAME)
 export MASTER_NODE_IP = $(network.MASTER_NODE_IP)
 export NODE_WAN_MAC = $(network.NODE_WAN_MAC)
+
+# Cluster-wide variables for DHCP static reservations
+export CLUSTER_NODE_IP_BASE = $(network.CLUSTER_NODE_IP_BASE)
+export NODE_WAN_MAC_MASTER = $(network.NODE_WAN_MAC_MASTER)
+export NODE_WAN_MAC_PEER1 = $(network.NODE_WAN_MAC_PEER1)
+export NODE_WAN_MAC_PEER2 = $(network.NODE_WAN_MAC_PEER2)
+export NODE_WAN_MAC_PEER3 = $(network.NODE_WAN_MAC_PEER3)
+export NODE_WAN_MAC_WORKER1 = $(network.NODE_WAN_MAC_WORKER1)
+export NODE_WAN_MAC_WORKER2 = $(network.NODE_WAN_MAC_WORKER2)
 export NODE_PROFILE_NAME
 export MASTER_NODE_IP
 
