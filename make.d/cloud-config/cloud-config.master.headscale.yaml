@@ -225,6 +225,36 @@ write_files:
   # Helper Job to create initial admin user and preauth key
   - path: /var/lib/rancher/rke2/server/manifests/02-headscale-bootstrap.yaml
     content: |
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: headscale-bootstrap
+        namespace: headscale
+      ---
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: Role
+      metadata:
+        name: headscale-bootstrap
+        namespace: headscale
+      rules:
+      - apiGroups: [""]
+        resources: ["secrets"]
+        verbs: ["get", "create", "update", "patch"]
+      ---
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: RoleBinding
+      metadata:
+        name: headscale-bootstrap
+        namespace: headscale
+      subjects:
+      - kind: ServiceAccount
+        name: headscale-bootstrap
+        namespace: headscale
+      roleRef:
+        kind: Role
+        name: headscale-bootstrap
+        apiGroup: rbac.authorization.k8s.io
+      ---
       apiVersion: batch/v1
       kind: Job
       metadata:
@@ -234,6 +264,7 @@ write_files:
         ttlSecondsAfterFinished: 300
         template:
           spec:
+            serviceAccountName: headscale-bootstrap
             restartPolicy: OnFailure
             containers:
             - name: bootstrap
@@ -263,9 +294,13 @@ write_files:
                 echo "Creating admin user..."
                 headscale users create admin || echo "User admin already exists"
                 
+                echo "Getting admin user ID..."
+                USER_ID=$(headscale users list -o json | grep -o '"id":[0-9]*' | head -1 | cut -d: -f2)
+                echo "Admin user ID: $USER_ID"
+                
                 echo "Creating reusable preauth key..."
-                headscale preauthkeys create --user admin --reusable --expiration 720h | \
-                  tee /tmp/preauth-key.txt
+                headscale preauthkeys create --user "$USER_ID" --reusable --expiration 720h -o json | \
+                  grep -o '"key":"[^"]*"' | cut -d'"' -f4 > /tmp/preauth-key.txt
                 
                 echo "Storing preauth key in Secret..."
                 kubectl create secret generic headscale-client-auth \
