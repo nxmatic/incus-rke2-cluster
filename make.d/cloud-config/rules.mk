@@ -19,6 +19,7 @@ ifndef make.d/cloud-config/rules.mk
 .cloud-config.master_base = $(.cloud-config.source_dir)/cloud-config.master.base.yaml
 .cloud-config.master_cilium = $(.cloud-config.source_dir)/cloud-config.master.cilium.yaml
 .cloud-config.master_kube_vip = $(.cloud-config.source_dir)/cloud-config.master.kube-vip.yaml
+.cloud-config.master_headscale = $(.cloud-config.source_dir)/cloud-config.master.headscale.yaml
 .cloud-config.peer = $(.cloud-config.source_dir)/cloud-config.peer.yaml
 
 # Output files (nocloud format) - node-specific paths matching incus structure (@codebase)
@@ -78,6 +79,9 @@ ifeq ($(node.ROLE),master)
 $(.cloud-config.userdata_file): $(.cloud-config.master_base) ## master base fragment (@codebase)
 $(.cloud-config.userdata_file): $(.cloud-config.master_cilium) ## master cilium fragment (@codebase)
 $(.cloud-config.userdata_file): $(.cloud-config.master_kube_vip) ## master kube-vip fragment (@codebase)
+ifeq ($(cluster.NAME),bioskop)
+$(.cloud-config.userdata_file): $(.cloud-config.master_headscale) ## master headscale fragment (bioskop only) (@codebase)
+endif
 else ifeq ($(node.ROLE),peer)
 $(.cloud-config.userdata_file): $(.cloud-config.peer) ## peer fragment (@codebase)
 endif
@@ -110,15 +114,31 @@ select(fileIndex == 4) as $$e | \
 $$preamble + "\n" + (. | to_yaml | sub("^---\n"; ""))
 endef
 
+define YQ_CLOUD_CONFIG_MERGE_6_FILES
+"#cloud-config" as $$preamble | \
+select(fileIndex == 0) as $$a | \
+select(fileIndex == 1) as $$b | \
+select(fileIndex == 2) as $$c | \
+select(fileIndex == 3) as $$d | \
+select(fileIndex == 4) as $$e | \
+select(fileIndex == 5) as $$f | \
+($$a * $$b * $$c * $$d * $$e * $$f) | \
+.write_files = ($$a.write_files // []) + ($$b.write_files // []) + ($$c.write_files // []) + ($$d.write_files // []) + ($$e.write_files // []) + ($$f.write_files // []) | \
+.runcmd = ($$a.runcmd // []) + ($$b.runcmd // []) + ($$c.runcmd // []) + ($$d.runcmd // []) + ($$e.runcmd // []) + ($$f.runcmd // []) | \
+( .. | select( tag == "!!str" ) ) |= envsubst(ne,nu) | \
+$$preamble + "\n" + (. | to_yaml | sub("^---\n"; ""))
+endef
+
 # YQ cloud-config expression lookup by file count
 YQ_CLOUD_CONFIG_EXPR_3 = $(YQ_CLOUD_CONFIG_MERGE_3_FILES)
 YQ_CLOUD_CONFIG_EXPR_5 = $(YQ_CLOUD_CONFIG_MERGE_5_FILES)
+YQ_CLOUD_CONFIG_EXPR_6 = $(YQ_CLOUD_CONFIG_MERGE_6_FILES)
 
 # Macro for executing the appropriate yq cloud-config merge based on file count
 define EXECUTE_YQ_CLOUD_CONFIG_MERGE
 $(if $(YQ_CLOUD_CONFIG_EXPR_$(1)),
 echo '$(YQ_CLOUD_CONFIG_EXPR_$(1))' > $(3).yq && yq eval-all --unwrapScalar --from-file=$(3).yq $(2) > $(3) && rm $(3).yq,
-$(error Unsupported file count: $(1) (expected 3 or 5)))
+$(error Unsupported file count: $(1) (expected 3, 5, or 6)))
 endef
 
 # Note: Dependencies already defined above for different node roles

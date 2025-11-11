@@ -323,6 +323,15 @@ export NODE_PROFILE_NAME = $(network.NODE_PROFILE_NAME)
 export MASTER_NODE_IP = $(network.MASTER_NODE_IP)
 export NODE_WAN_MAC = $(network.NODE_WAN_MAC)
 
+# Home LAN LoadBalancer IP pool (cluster-specific)
+ifeq ($(cluster.NAME),bioskop)
+export HOME_LAN_LOADBALANCER_POOL = 192.168.1.192/27
+else ifeq ($(cluster.NAME),alcide)
+export HOME_LAN_LOADBALANCER_POOL = 192.168.1.64/27
+else
+export HOME_LAN_LOADBALANCER_POOL =
+endif
+
 # Cluster-wide variables for DHCP static reservations
 export CLUSTER_NODE_IP_BASE = $(network.CLUSTER_NODE_IP_BASE)
 export NODE_WAN_MAC_MASTER = $(network.NODE_WAN_MAC_MASTER)
