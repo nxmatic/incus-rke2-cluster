@@ -22,6 +22,10 @@ ifndef make.d/cloud-config/rules.mk
 .cloud-config.master_headscale = $(.cloud-config.source_dir)/cloud-config.master.headscale.yaml
 .cloud-config.peer = $(.cloud-config.source_dir)/cloud-config.peer.yaml
 
+# Headscale version - fetch latest from GitHub
+HEADSCALE_VERSION ?= $(shell curl -s https://api.github.com/repos/juanfont/headscale/releases/latest | yq -p json -oy '.tag_name // "v0.27.0" | sub("^v", "")')
+export HEADSCALE_VERSION
+
 # Output files (nocloud format) - node-specific paths matching incus structure (@codebase)
 .cloud-config.nocloud_dir = $(run-dir)/incus/$(node.NAME)/nocloud
 .cloud-config.metadata_file = $(.cloud-config.nocloud_dir)/metadata
