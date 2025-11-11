@@ -276,14 +276,7 @@ write_files:
                 set -e
                 
                 # Install dependencies
-                apk add --no-cache curl kubectl
-                
-                # Download headscale CLI
-                HEADSCALE_VERSION="${HEADSCALE_VERSION:-0.27.0}"
-                ARCH=$(uname -m | sed 's/aarch64/arm64/;s/x86_64/amd64/')
-                curl -fsSL "https://github.com/juanfont/headscale/releases/download/v$HEADSCALE_VERSION/headscale_${HEADSCALE_VERSION}_linux_$ARCH" \
-                  -o /usr/local/bin/headscale
-                chmod +x /usr/local/bin/headscale
+                apk add --no-cache curl kubectl jq
                 
                 echo "Waiting for Headscale server to be ready..."
                 until curl -sf http://headscale:8080/health; do
@@ -291,16 +284,29 @@ write_files:
                   sleep 5
                 done
                 
-                echo "Creating admin user..."
-                headscale users create admin || echo "User admin already exists"
+                # Use HTTP API directly since CLI requires API key
+                BASE_URL="http://headscale:8080/api/v1"
+                
+                echo "Creating admin user via API..."
+                curl -sf -X POST "$BASE_URL/user" \
+                  -H "Content-Type: application/json" \
+                  -d '{"name":"admin"}' || echo "User admin already exists"
                 
                 echo "Getting admin user ID..."
-                USER_ID=$(headscale users list -o json | grep -o '"id":[0-9]*' | head -1 | cut -d: -f2)
+                USER_ID=$(curl -sf "$BASE_URL/user" | jq -r '.users[0].id // empty')
+                
+                if [ -z "$USER_ID" ]; then
+                  echo "ERROR: Failed to get user ID"
+                  exit 1
+                fi
+                
                 echo "Admin user ID: $USER_ID"
                 
-                echo "Creating reusable preauth key..."
-                PREAUTH_KEY=$(headscale preauthkeys create --user "$USER_ID" --reusable --expiration 720h -o json | \
-                  grep -o '"key":"[^"]*"' | cut -d'"' -f4)
+                echo "Creating reusable preauth key via API..."
+                PREAUTH_KEY=$(curl -sf -X POST "$BASE_URL/preauthkey" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"user\":$USER_ID,\"reusable\":true,\"expiration\":\"$(date -u -d '+720 hours' +%Y-%m-%dT%H:%M:%SZ)\"}" | \
+                  jq -r '.preAuthKey.key // empty')
                 
                 if [ -z "$PREAUTH_KEY" ]; then
                   echo "ERROR: Failed to extract preauth key"
