@@ -1,7 +1,7 @@
-# incus preseed for rke2 cluster (LAN macvlan + cluster bridge) (@codebase)
+# incus preseed for rke2 cluster (LAN bridge + cluster bridge) (@codebase)
 #
 # Architecture:
-# - lan0: macvlan device on vmlan0 for PRIMARY internet access via home router
+# - lan0: Bridged to vmlan0 for PRIMARY internet access via home router DHCP
 # - vmnet0: Incus-managed bridge network for inter-node cluster communication ONLY
 #
 # Current routing strategy (November 2025):
@@ -9,8 +9,7 @@
 # - Cluster: via vmnet0 (metric 9999) → Lima VM bridge → node-to-node communication
 # - Lima VM NAT disabled due to TCP reliability issues (ICMP works, TCP timeouts)
 #
-# Previous approach used dual macvlan for both interfaces, which prevented Lima VM from being
-# reachable as a gateway due to macvlan isolation (parent cannot communicate with children).
+# LAN bridge allows containers to get DHCP from home router without macvlan/ipvlan issues
 config: {}
 storage_pools:
   - name: default
@@ -22,7 +21,19 @@ storage_pools:
 # Internet access is exclusively via lan0/home router
 # Cluster allocation: 10.80.(CLUSTER_ID * 8).0/21
 networks:
-  - name: vmnet
+  - name: lan-br
+    type: bridge
+    config:
+      ipv4.address: none
+      ipv6.address: none
+      ipv4.dhcp: "false"
+      ipv6.dhcp: "false"
+      ipv4.nat: "false"
+      ipv6.nat: "false"
+      dns.mode: none
+      bridge.driver: native
+      parent: vmlan0
+  - name: vmnet-br
     type: bridge
     config:
       ipv4.address: ${CLUSTER_GATEWAY_IP}/21
@@ -45,7 +56,7 @@ networks:
         dhcp-host=${NODE_WAN_MAC_WORKER2},${CLUSTER_NODE_IP_BASE}.21,worker2
 profiles:
   - name: ${NODE_PROFILE_NAME}
-    description: RKE2 profile (LAN macvlan + cluster bridge)
+    description: RKE2 profile (LAN bridge + cluster bridge)
     devices:
       root:
         path: /
@@ -53,10 +64,9 @@ profiles:
         type: disk
       lan0:
         name: lan0
-        nictype: ipvlan
-        parent: vmlan0
+        network: lan-br
         type: nic
       vmnet0:
         name: vmnet0
-        network: vmnet
+        network: vmnet-br
         type: nic
