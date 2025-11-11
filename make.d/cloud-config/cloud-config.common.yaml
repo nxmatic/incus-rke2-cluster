@@ -20,7 +20,9 @@ bootcmd:
   # This must run in bootcmd because write_files happens too late (after network config)
   - [ test, -f, /var/lib/cloud/seed/nocloud/network-config ]
   - [ cp, /var/lib/cloud/seed/nocloud/network-config, /etc/netplan/01-nocloud.yaml ]
-  - [ chmod, '600', /etc/netplan/01-nocloud.yaml ]  
+  - [ chmod, '600', /etc/netplan/01-nocloud.yaml ]
+  # Disable dhcpcd for wan0 - systemd-networkd will handle it
+  - [ sh, -c, "echo 'denyinterfaces wan0' >> /etc/dhcpcd.conf" ]  
 
 write_files:
   # =============================================================================
@@ -40,6 +42,11 @@ write_files:
       : "Load flox environment for yq and other tools"
       source <( flox activate --dir /var/lib/cloud/seed/nocloud )
       
+      : "=== Stopping dhcpcd for wan0 (systemd-networkd will manage it) ==="
+      # Kill dhcpcd processes for wan0 to prevent route conflicts
+      pkill -f 'dhcpcd.*wan0' || true
+      sleep 1
+      
       : "=== Process List Before Network Config ==="
       ps -ef
       
@@ -49,8 +56,21 @@ write_files:
       
       netplan apply
       
+      : "=== Restarting systemd-networkd to ensure UseRoutes settings take effect ==="
+      systemctl restart systemd-networkd
+      sleep 3
+      
+      : "=== Verifying dhcpcd is not managing wan0 ==="
+      if ps aux | grep -v grep | grep 'dhcpcd.*wan0'; then
+        echo "[!] Warning: dhcpcd still managing wan0, killing again..."
+        pkill -f 'dhcpcd.*wan0' || true
+      else
+        echo "[i] dhcpcd not managing wan0 (correct)"
+      fi
+      
       : "=== Final Network Status ==="
       ip addr show
+      ip route show
       systemctl status systemd-networkd --no-pager
 
       : "=== Process List After Network Config ==="
@@ -408,7 +428,7 @@ write_files:
   # UTILITY SCRIPTS
   # =============================================================================
 
-  # Route cleanup script to remove DHCP default routes
+  # Route cleanup script to remove DHCP default routes from wan0
   - path: /usr/local/sbin/rke2-route-cleanup
     permissions: "0755"
     content: |
@@ -422,22 +442,22 @@ write_files:
       echo "=== Routes Before Cleanup ==="
       ip route show || true
 
-      # Remove default route from lan0 (DHCP interface) if it exists
-      # This prevents conflicts with the static WAN route
-      if ip route show default dev lan0 >/dev/null 2>&1; then
-        echo "[+] Removing DHCP default route from lan0"
-        ip route del default dev lan0 || true
+      # Remove default route from wan0 if it exists
+      # wan0 should NEVER have a default route - it's cluster-internal only
+      if ip route show default dev wan0 >/dev/null 2>&1; then
+        echo "[+] Removing unwanted default route from wan0 (cluster-internal interface)"
+        ip route del default dev wan0 || true
       else
-        echo "[i] No DHCP default route found on lan0"
+        echo "[i] No default route on wan0 (correct)"
       fi
 
-      # Ensure our static default route via wan0 is present
-      if ! ip route show default dev wan0 >/dev/null 2>&1; then
-        echo "[!] Warning: No default route via wan0 found"
+      # Verify lan0 has the default route
+      if ! ip route show default dev lan0 >/dev/null 2>&1; then
+        echo "[!] Warning: No default route via lan0 found (should be primary internet gateway)"
         echo "[+] Current routes:"
         ip route show
       else
-        echo "[i] Default route via wan0 is properly configured"
+        echo "[i] Default route via lan0 is properly configured (primary internet)"
       fi
 
       echo "=== Routes After Cleanup ==="
