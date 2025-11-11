@@ -237,14 +237,25 @@ write_files:
             restartPolicy: OnFailure
             containers:
             - name: bootstrap
-              image: headscale/headscale:${HEADSCALE_VERSION}
+              image: alpine:3.19
               command:
               - sh
               - -c
               - |
                 set -e
+                
+                # Install dependencies
+                apk add --no-cache curl kubectl
+                
+                # Download headscale CLI
+                HEADSCALE_VERSION="${HEADSCALE_VERSION:-0.27.0}"
+                ARCH=$(uname -m | sed 's/aarch64/arm64/;s/x86_64/amd64/')
+                curl -fsSL "https://github.com/juanfont/headscale/releases/download/v$HEADSCALE_VERSION/headscale_${HEADSCALE_VERSION}_linux_$ARCH" \
+                  -o /usr/local/bin/headscale
+                chmod +x /usr/local/bin/headscale
+                
                 echo "Waiting for Headscale server to be ready..."
-                until wget -q -O- http://headscale:8080/health; do
+                until curl -sf http://headscale:8080/health; do
                   echo "Headscale not ready, retrying in 5s..."
                   sleep 5
                 done
@@ -265,6 +276,8 @@ write_files:
               env:
               - name: HEADSCALE_CLI_ADDRESS
                 value: "headscale:8080"
+              - name: HEADSCALE_VERSION
+                value: "${HEADSCALE_VERSION}"
 
   # Headscale client DaemonSet - runs on all control-plane nodes
   - path: /var/lib/rancher/rke2/server/manifests/03-headscale-client-daemonset.yaml
