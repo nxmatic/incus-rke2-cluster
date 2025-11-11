@@ -299,8 +299,16 @@ write_files:
                 echo "Admin user ID: $USER_ID"
                 
                 echo "Creating reusable preauth key..."
-                headscale preauthkeys create --user "$USER_ID" --reusable --expiration 720h -o json | \
-                  grep -o '"key":"[^"]*"' | cut -d'"' -f4 > /tmp/preauth-key.txt
+                PREAUTH_KEY=$(headscale preauthkeys create --user "$USER_ID" --reusable --expiration 720h -o json | \
+                  grep -o '"key":"[^"]*"' | cut -d'"' -f4)
+                
+                if [ -z "$PREAUTH_KEY" ]; then
+                  echo "ERROR: Failed to extract preauth key"
+                  exit 1
+                fi
+                
+                echo "Preauth key created: ${PREAUTH_KEY:0:16}..."
+                echo -n "$PREAUTH_KEY" > /tmp/preauth-key.txt
                 
                 echo "Storing preauth key in Secret..."
                 kubectl create secret generic headscale-client-auth \
