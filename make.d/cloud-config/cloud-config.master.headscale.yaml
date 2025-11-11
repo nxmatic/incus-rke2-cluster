@@ -56,6 +56,13 @@ write_files:
           grpc_listen_addr: 0.0.0.0:50443
           grpc_allow_insecure: true
           
+          tls:
+            letsencrypt_hostname: ""
+            letsencrypt_cache_dir: ""
+            letsencrypt_challenge_type: ""
+            cert_path: ""
+            key_path: ""
+          
           private_key_path: /var/lib/headscale/private.key
           noise:
             private_key_path: /var/lib/headscale/noise_private.key
