@@ -54,7 +54,6 @@ profiles:
       lan0:
         name: lan0
         nictype: ipvlan
-        ipvlan.mode: l2
         parent: vmlan0
         type: nic
       vmnet0:
