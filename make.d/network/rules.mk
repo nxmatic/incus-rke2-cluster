@@ -90,10 +90,6 @@ lb-cidr-to-gateway = $(call network-to-ip,$(subst .64/,.65/,$(1)))
 .network.node_wan_interface_name = $(node.NAME)-wan0
 .network.cluster_vip_interface_name = rke2-vip0
 
-# VIP VLAN configuration (shared across control-plane nodes)
-.network.vip_vlan_id = 100
-.network.vip_vlan_name = rke2-vip
-
 # =============================================================================
 # NETWORK GENERATION TARGETS
 # =============================================================================
