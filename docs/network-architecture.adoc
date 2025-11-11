@@ -51,18 +51,17 @@ Usage:   Cilium LoadBalancer IP Pool
 ```
 Network:  10.80.15.0/24
 Gateway:  10.80.15.1
-Usage:    Control plane VIP and inter-node communication
+Usage:    Control plane VIP (managed by kube-vip on vmnet0)
 Addresses:
 ├── 10.80.15.1   - VIP Gateway
-├── 10.80.15.10  - master VIP interface
-├── 10.80.15.11  - peer1 VIP interface  
-├── 10.80.15.12  - peer2 VIP interface
-└── 10.80.15.250 - Kubernetes API VIP (managed by kube-vip)
+├── 10.80.15.250 - Kubernetes API VIP (kube-vip)
 ```
+
+NOTE: The VIP is announced by kube-vip directly on the `vmnet0` interface. No separate VLAN or vip0 interface is created.
 
 == Node Network Configuration
 
-Each node uses three network interfaces:
+Each node uses two network interfaces:
 
 === Interface Layout
 [cols="1,2,3,2"]
@@ -74,30 +73,27 @@ Each node uses three network interfaces:
 |**Primary internet access** + local network
 |192.168.1.254 (home router)
 
-|`wan0` 
-|10.80.16.0/21 (cluster network)
+|`vmnet0` 
+|10.80.x.0/21 (cluster network)
 |**Cluster node communication only**
 |None (cluster-internal, no gateway)
-
-|`vip0`
-|10.80.15.0/24 (VIP network)
-|Control plane VIP management
-|CLUSTER_VIP_GATEWAY
 |===
+
+NOTE: VIP (10.80.15.250) is managed by kube-vip directly on the `vmnet0` interface. No separate vip0 interface exists.
 
 == Current Network Architecture (November 2025)
 
 === Network Types and Provisioning
 
-The cluster uses three distinct network types with different provisioning methods:
+The cluster uses two distinct network types:
 
-==== 1. Incus Bridge Network (`wan`)
+==== 1. Incus Bridge Network (`vmnet`)
 [cols="1,3"]
 |===
 |**Type** |Managed Incus bridge
 |**Provider** |Incus network subsystem
 |**DHCP Server** |dnsmasq (managed by Incus)
-|**Network** |10.80.16.0/21 (cluster 2 - alcide)
+|**Network** |10.80.x.0/21 (cluster-specific)
 |**Gateway** |None (cluster-internal only, no routing)
 |**Static Leases** |MAC-based (52:54:00:02:00:xx → 10.80.16.1x)
 |**NAT** |Disabled (cluster-internal traffic only)
@@ -110,30 +106,30 @@ The cluster uses three distinct network types with different provisioning method
 Configuration in Incus:
 ```yaml
 networks:
-  - name: wan
+  - name: vmnet
     type: bridge
     config:
-      ipv4.address: 10.80.16.1/21
+      ipv4.address: 10.80.x.1/21  # x = CLUSTER_ID * 8
       ipv4.dhcp: "true"
-      ipv4.dhcp.ranges: 10.80.16.2-10.80.16.9,10.80.16.31-10.80.23.254
+      ipv4.dhcp.ranges: 10.80.x.2-10.80.x.9,10.80.x.31-10.80.(x+7).254
       ipv4.nat: "false"
       ipv4.routing: "false"
-      ipv6.address: fd42:21ea:8a29:f3c9::1/64
+      ipv6.address: fd42:xxxx:xxxx:xxxx::1/64
       ipv6.nat: "true"
       dns.mode: none
       bridge.driver: native
       raw.dnsmasq: |
-        dhcp-host=52:54:00:02:00:00,10.80.16.10,master
-        dhcp-host=52:54:00:02:00:01,10.80.16.11,peer1
-        # ... etc
+        dhcp-host=52:54:00:0C:00:00,10.80.x.10,master
+        dhcp-host=52:54:00:0C:00:01,10.80.x.11,peer1
+        # ... etc (C = CLUSTER_ID)
 ```
 
 Interface attachment (in Incus profile):
 ```yaml
 devices:
-  wan0:
-    name: wan0
-    network: wan
+  vmnet0:
+    name: vmnet0
+    network: vmnet
     type: nic
 ```
 
@@ -170,8 +166,8 @@ devices:
 |===
 |**Type** |Overlay network (VXLAN)
 |**Provider** |Cilium CNI
-|**Network** |10.44.0.0/16 (alcide cluster)
-|**Per-Node CIDR** |10.44.x.0/24 (x = node index)
+|**Network** |10.42.0.0/16 (bioskop) or 10.44.0.0/16 (alcide)
+|**Per-Node CIDR** |10.4x.y.0/24 (y = node index)
 |**Routing** |Cilium managed (BGP optional)
 |**Purpose** |Pod-to-pod communication
 |===
@@ -190,11 +186,11 @@ The cluster uses a dual-interface setup optimized for reliability:
 |Metric |100 (preferred route)
 |===
 
-==== Cluster Network Interface (`wan0`) 
+==== Cluster Network Interface (`vmnet0`) 
 [cols="1,3"]
 |===
 |Type |Incus bridge network
-|Network |10.80.16.0/21 (cluster 2 - alcide)
+|Network |10.80.x.0/21 (x = CLUSTER_ID * 8)
 |DHCP |Provided by Incus (static leases)
 |Purpose |**Inter-node communication only**
 |Gateway |None (cluster-internal, no routing)
@@ -209,41 +205,9 @@ The cluster uses a dual-interface setup optimized for reliability:
 
 **Solution**: Use home router (via `lan0`) as **exclusive** internet gateway:
 - Home router provides stable, tested NAT
-- Lima VM bridge (`wan0`) provides **only** cluster-internal connectivity
-- wan0 interface: `use-routes: false` (no default route, no gateway)
+- Lima VM bridge (`vmnet0`) provides **only** cluster-internal connectivity
+- vmnet0 interface: `use-routes: false` (no default route, no gateway)
 - Simplified routing: only one internet path (lan0)
-
-=== Network Rename Plan
-
-The `wan` network name is now misleading since it no longer provides internet access. Future migration plan:
-
-**Current State**:
-```
-- Network name: wan (Incus bridge)
-- Interface name: wan0 (in containers)
-- Purpose: Inter-node communication (NOT internet)
-```
-
-**Target State**:
-```
-- Network name: vmnet (VM network - cluster nodes)
-- Interface name: vmnet0 (in containers)  
-- Purpose: Explicit cluster-internal networking
-```
-
-**Migration Plan:
-- Full cluster recreation (network rename not supported live)
-- Update all references in:
-  * `make.d/incus/incus-preseed.yaml` - network definition
-  * `make.d/network/network-config.yaml` - netplan configuration
-  * `make.d/cloud-config/*.yaml` - cloud-init files
-  * Makefiles and documentation
-- Coordinate with any external integrations
-
-**Benefits of Rename**:
-- Clear semantic naming (vmnet = VM network for nodes)
-- Matches existing pattern (`vmlan0`, `vmwan0` on Lima host)
-- Eliminates confusion about "WAN" not providing internet
 
 === Netplan Configuration
 
@@ -271,9 +235,9 @@ lan0:
   optional: false
 ```
 
-**wan0 (bridge - CLUSTER)**:
+**vmnet0 (bridge - CLUSTER)**:
 ```yaml
-wan0:
+vmnet0:
   dhcp4: true
   dhcp4-overrides:
     use-dns: false         # Don't override LAN DNS
@@ -285,12 +249,12 @@ wan0:
 
 [cols="2,1,1,3"]
 |===
-|Parameter |lan0 |wan0 |Effect
+|Parameter |lan0 |vmnet0 |Effect
 
 |`use-routes`
 |true
 |false
-|Only lan0 accepts routes. wan0 has no gateway (cluster-internal only)
+|Only lan0 accepts routes. vmnet0 has no gateway (cluster-internal only)
 
 |`use-dns`
 |true
@@ -315,7 +279,7 @@ Check actual routes on a running node:
 ip route show default
 # Expected output:
 # default via 192.168.1.254 dev lan0 proto dhcp src 192.168.1.x metric 100
-# (wan0 should NOT appear - no default route)
+# (vmnet0 should NOT appear - no default route)
 ```
 
 Check DNS configuration:
@@ -324,22 +288,22 @@ resolvectl status
 # Should show DNS servers from lan0 (home router)
 ```
 
-WARNING: If wan0 shows a default route, internet traffic may fail. Ensure `use-routes: false` is set for wan0 in netplan config.
+WARNING: If vmnet0 shows a default route, internet traffic may fail. Ensure `use-routes: false` is set for vmnet0 in netplan config.
 
 ==== Troubleshooting Network Configuration
 
-**Problem: wan0 Has Default Route**
+**Problem: vmnet0 Has Default Route**
 
-Old netplan configuration may allow wan0 to have a default route:
+Old netplan configuration may allow vmnet0 to have a default route:
 ```bash
 # INCORRECT (old config with use-routes: true):
 default via 192.168.1.254 dev lan0 proto dhcp src 192.168.1.x metric 100
-default via 10.80.16.1 dev wan0 proto dhcp src 10.80.16.x metric 9999   # Should NOT exist
+default via 10.80.x.1 dev vmnet0 proto dhcp src 10.80.x.y metric 9999   # Should NOT exist
 ```
 
-Having ANY route via wan0 can cause issues:
-- wan0 bridge is cluster-internal only (no internet access)
-- Routing conflicts between lan0 and wan0
+Having ANY route via vmnet0 can cause issues:
+- vmnet0 bridge is cluster-internal only (no internet access)
+- Routing conflicts between lan0 and vmnet0
 - Unnecessary fallback path that doesn't work
 
 **Fix: Apply Updated Netplan Configuration**
@@ -359,7 +323,7 @@ ssh lima-nerd-nixos "incus exec peer1 -- netplan apply"
 ssh lima-nerd-nixos "incus exec peer1 -- ip route show default"
 # Should show ONLY:
 # default via 192.168.1.254 dev lan0 proto dhcp src 192.168.1.x metric 100
-# (wan0 should NOT appear)
+# (vmnet0 should NOT appear)
 ```
 
 4. Test internet connectivity via lan0:
@@ -389,14 +353,14 @@ resolvectl status
 # Should show DNS servers (e.g., 192.168.1.254) from lan0
 ```
 
-2. If wan0 is providing DNS instead, check netplan config:
+2. If vmnet0 is providing DNS instead, check netplan config:
 ```bash
 # lan0 should have:
 use-dns: true
 
-# wan0 should have:
+# vmnet0 should have:
 use-dns: false
-use-routes: false  # Critical: no routes from wan0
+use-routes: false  # Critical: no routes from vmnet0
 ```
 
 3. Re-apply netplan if needed:
@@ -408,13 +372,13 @@ netplan apply
 
 === Primary Routing
 - **Internet access**: via `lan0` interface **only** using home router gateway (192.168.1.254)
-- **Cluster communication**: via `wan0` interface within cluster network (10.80.16.0/21) - **no gateway**
-- **VIP management**: via `vip0` interface in dedicated VIP network (10.80.15.0/24)
+- **Cluster communication**: via `vmnet0` interface within cluster network (10.80.x.0/21) - **no gateway**
 
 === Network Isolation
-- Each node has its own `/23` subnet for isolation
-- VIP network is separate `/24` for control plane communication
-- LoadBalancer pool is carved from master node network
+- Single Incus bridge `vmnet` provides cluster-internal communication
+- VIP (10.80.15.250) is managed by kube-vip directly on `vmnet0` interface
+- Each node has its own static IP in the cluster network
+- LoadBalancer services share the cluster network
 
 == Pod and Service Networks
 
@@ -501,85 +465,66 @@ rectangle "Darwin Host (alcide)\nmacOS (pf NAT)" as HOST {
 		frame "Host Interfaces" as HOST_IFACES {
 			component "enp0s1 (en0)\nUpstream WAN\n192.168.5.15" as ENP
 			component "vmlan0\nParent LAN\n192.168.1.3/24" as VMLAN0
-			component "vmwan0\nParent WAN\n172.16.105.3/24" as VMWAN0
+			component "vmnet0\nIncus Bridge\n10.80.x.1" as VMNET0
 		}
 
 		frame "Incus Cluster (alcide)" as CLUSTER {
 			node "master container" as MASTER {
 				interface "lan0\n192.168.1.x/24" as LAN0
-				interface "wan0\n10.80.24.x (/21 slice)" as WAN0
-				interface "vip0\n10.80.31.x (/24 VIP)" as VIP0
+				interface "vmnet0\n10.80.x.y/21" as CONTAINER_VMNET0
 			}
 		}
 	}
 }
 
-' L2 macvlan relationships (container interfaces bound to host parent NICs)
-LAN0 --> VMLAN0 : macvlan (LAN access)
-WAN0 --> VMWAN0 : macvlan (cluster node subnet)
-VIP0 --> VMWAN0 : macvlan (VIP subnet)
+' L2 relationships
+LAN0 --> VMLAN0 : macvlan (LAN/internet access)
+CONTAINER_VMNET0 --> VMNET0 : Incus managed (cluster-internal)
 
 """
-NOTE: Previous documentation referenced nftables-based NAT inside the Lima VM.
-In the current design private Incus macvlan interfaces bypass the VM kernel
-firewall. NAT is performed by macOS pf on the outer host (interface en0/enp0s1).
+NOTE: vmnet0 is an Incus-managed bridge providing cluster-internal communication.
+No NAT is configured for this network - it is purely for node-to-node communication.
+Internet access is via lan0 through the home router (192.168.1.254).
 """
 
-' NAT / routing path (pf NAT on Darwin host)
-VMWAN0 --> ENP : pf NAT (10.80.16.0/21, 10.80.31.0/24)
-ENP --> Internet : upstream
+' Internet path via home router
+VMLAN0 --> ENP : Lima VM routing
+ENP --> Internet : via home router
 
 ' Notes
-note right of WAN0
-	Internal Node Subnet
-	10.80.24.0/21
+note right of CONTAINER_VMNET0
+	Cluster Internal Network
+	10.80.x.0/21
+	No gateway, no internet
+	VIP managed by kube-vip
 end note
 
-note right of VIP0
-	Control Plane VIP Subnet
-	10.80.31.0/24
+note right of LAN0
+	Home LAN / Internet Access
+	192.168.1.0/24
+	Gateway: 192.168.1.254
 end note
 
 note bottom of ENP
-	Outbound IPv4 NAT (pf) on Darwin host
-	Subnets translated:
-	10.80.16.0/21
-	10.80.31.0/24
+	No NAT configuration needed
+	Internet via home router on lan0
+	vmnet0 is cluster-internal only
 end note
 
 @enduml
 ----
 
 === Diagram Legend
-* macvlan: Container interface directly on parent host NIC (L2 bypass of VM firewall)
-* Internal subnets (10.80.16.0/21, 10.80.31.0/24): Require host-level NAT (pf) for outbound IPv4
-* NAT boundary: macOS pf on en0/enp0s1 (not inside Lima VM)
-* VIP subnet: Control plane virtual IP allocations (e.g. kube-vip)
-* Lima VM firewall note: nftables rules inside VM do not see macvlan-origin traffic
+* macvlan: Container interface directly on parent host NIC (lan0 for internet access)
+* Incus bridge (vmnet): Managed by Incus for cluster-internal communication only
+* vmnet0 has no gateway and no internet access - purely for node-to-node communication
+* VIP (10.80.15.250) is managed by kube-vip directly on vmnet0 interface
+* Internet access is exclusively via lan0 through home router (192.168.1.254)
 
-=== Next Steps
-If retaining internal subnets (Strategy B), ensure Darwin host pf NAT rules (in `/etc/pf.conf` via anchor):
-```bash
-# /etc/pf.conf excerpt
-anchor "rke2.rancher"
-load anchor "rke2.rancher" from "/etc/pf.anchors/rke2.rancher"
-
-# /etc/pf.anchors/rke2.rancher
-nat on en0 from 10.80.16.0/21 to any -> (en0)
-nat on en0 from 10.80.31.0/24 to any -> (en0)
-```
-Verification:
-```bash
-sudo pfctl -f /etc/pf.conf
-sudo pfctl -a rke2.rancher -sn
-sudo pfctl -vs nat | grep 10.80.16
-incus exec master -- ping -c1 8.8.8.8
-incus exec master -- curl -4 -s https://ifconfig.me
-```
-Rollback:
-```bash
-sudo sed -i '' '/rke2.rancher/d' /etc/pf.conf
-sudo rm /etc/pf.anchors/rke2.rancher
-sudo pfctl -f /etc/pf.conf -F states
-```
-Note: nftables NAT inside the Lima VM is ineffective for macvlan-attached Incus interfaces due to L2 bypass.
+=== Network Summary
+Current architecture uses:
+* Single Incus bridge `vmnet` for all cluster nodes
+* Static DHCP leases via dnsmasq in Incus
+* No VLANs, no separate VIP interface
+* Internet via lan0/home router only
+* VIP managed by kube-vip on vmnet0 interface directly
