@@ -75,7 +75,8 @@ write_files:
             server:
               enabled: false
             urls: []
-            paths: []
+            paths:
+              - /etc/headscale/derp.yaml
             auto_update_enabled: false
             update_frequency: 24h
           
@@ -134,6 +135,20 @@ write_files:
             ]
           }
       ---
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: headscale-derp
+        namespace: headscale
+      data:
+        derp.yaml: |
+          regions:
+            900:
+              regionid: 900
+              regioncode: local
+              regionname: Local LAN
+              nodes: []
+      ---
       apiVersion: apps/v1
       kind: Deployment
       metadata:
@@ -168,6 +183,9 @@ write_files:
               - name: acl
                 mountPath: /etc/headscale/acl.json
                 subPath: acl.json
+              - name: derp
+                mountPath: /etc/headscale/derp.yaml
+                subPath: derp.yaml
               - name: data
                 mountPath: /var/lib/headscale
               - name: run
@@ -201,6 +219,9 @@ write_files:
             - name: acl
               configMap:
                 name: headscale-acl
+            - name: derp
+              configMap:
+                name: headscale-derp
             - name: data
               emptyDir: {}
             - name: run
