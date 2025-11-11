@@ -122,7 +122,7 @@ write_files:
                 "action": "accept",
                 "src": ["group:admin", "tag:darwin", "tag:nixos"],
                 "dst": ["*"],
-                "users": ["autogroup:user", "root"]
+                "users": ["autogroup:nonroot", "root"]
               }
             ]
           }
