@@ -33,7 +33,7 @@ config:
   environment.CLUSTER_VIP_INTERFACE_NAME: "${CLUSTER_VIP_INTERFACE_NAME}"
   environment.CLUSTER_VIP_NETWORK_CIDR: "${CLUSTER_VIP_NETWORK_CIDR}"
   environment.NODE_LAN_INTERFACE_NAME: "${NODE_LAN_INTERFACE_NAME}"
-  environment.NODE_WAN_INTERFACE_NAME: "${NODE_WAN_INTERFACE_NAME}"
+  environment.NODE_VMNET_INTERFACE_NAME: "${NODE_VMNET_INTERFACE_NAME}"
   # Cluster Gateway (Lima VM on WAN bridge)
   environment.CLUSTER_GATEWAY_IP: "${CLUSTER_GATEWAY_IP}"
   # Container Runtime Configuration
