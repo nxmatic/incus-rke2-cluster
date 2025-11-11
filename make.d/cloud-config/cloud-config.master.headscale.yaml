@@ -74,9 +74,9 @@ write_files:
           derp:
             server:
               enabled: false
-            urls:
-              - https://controlplane.tailscale.com/derpmap/default
-            auto_update_enabled: true
+            urls: []
+            paths: []
+            auto_update_enabled: false
             update_frequency: 24h
           
           disable_check_updates: true
@@ -476,7 +476,7 @@ write_files:
                 
                 echo "Connecting to Headscale..."
                 tailscale up \
-                  --login-server=https://headscale-bioskop \
+                  --login-server=http://192.168.1.193:8080 \
                   --authkey=file:/var/secrets/authkey \
                   --hostname=$${CLUSTER_NAME}-$$NODE_NAME \
                   --advertise-tags=tag:rke2,tag:${CLUSTER_NAME} \
