@@ -29,13 +29,13 @@ ifeq ($(.cluster.NAME),bioskop)
   .cluster.POD_NETWORK_CIDR := 10.42.0.0/16
   .cluster.SERVICE_NETWORK_CIDR := 10.43.0.0/16
   .cluster.LIMA_LAN_INTERFACE := vmlan0
-  .cluster.LIMA_WAN_INTERFACE := vmwan0
+  .cluster.LIMA_VMNET_INTERFACE := vmwan0
 else ifeq ($(.cluster.NAME),alcide)
   .cluster.ID := 2
   .cluster.POD_NETWORK_CIDR := 10.44.0.0/16
   .cluster.SERVICE_NETWORK_CIDR := 10.45.0.0/16
   .cluster.LIMA_LAN_INTERFACE := vmlan0
-  .cluster.LIMA_WAN_INTERFACE := vmwan0
+  .cluster.LIMA_VMNET_INTERFACE := vmwan0
 else
   $(error [node] Unknown cluster: $(.cluster.NAME). Supported clusters: bioskop alcide)
 endif
@@ -48,7 +48,7 @@ cluster.ID := $(.cluster.ID)
 cluster.POD_NETWORK_CIDR := $(.cluster.POD_NETWORK_CIDR)
 cluster.SERVICE_NETWORK_CIDR := $(.cluster.SERVICE_NETWORK_CIDR)
 cluster.LIMA_LAN_INTERFACE := $(.cluster.LIMA_LAN_INTERFACE)
-cluster.LIMA_WAN_INTERFACE := $(.cluster.LIMA_WAN_INTERFACE)
+cluster.LIMA_VMNET_INTERFACE := $(.cluster.LIMA_VMNET_INTERFACE)
 
 # Export cluster variables for environment/templates
 export CLUSTER_NAME := $(cluster.NAME)
@@ -58,7 +58,7 @@ export CLUSTER_ID := $(cluster.ID)
 export POD_NETWORK_CIDR := $(cluster.POD_NETWORK_CIDR)
 export SERVICE_NETWORK_CIDR := $(cluster.SERVICE_NETWORK_CIDR)
 export LIMA_LAN_INTERFACE := $(cluster.LIMA_LAN_INTERFACE)
-export LIMA_WAN_INTERFACE := $(cluster.LIMA_WAN_INTERFACE)
+export LIMA_VMNET_INTERFACE := $(cluster.LIMA_VMNET_INTERFACE)
 
 # =============================================================================
 # NODE CONFIGURATION APPLICATION

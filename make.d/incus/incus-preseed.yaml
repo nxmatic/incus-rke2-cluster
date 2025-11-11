@@ -2,35 +2,27 @@
 #
 # Architecture:
 # - lan0: macvlan device on vmlan0 for PRIMARY internet access via home router
-# - wan0: Incus-managed bridge network for inter-node cluster communication ONLY
-#
-# NOTE: Network naming is historical - "wan" no longer provides internet (see migration plan in docs)
+# - vmnet0: Incus-managed bridge network for inter-node cluster communication ONLY
 #
 # Current routing strategy (November 2025):
 # - Internet: via lan0 (metric 100) → home router → reliable NAT
-# - Cluster: via wan0 (metric 9999) → Lima VM bridge → node-to-node communication
+# - Cluster: via vmnet0 (metric 9999) → Lima VM bridge → node-to-node communication
 # - Lima VM NAT disabled due to TCP reliability issues (ICMP works, TCP timeouts)
 #
 # Previous approach used dual macvlan for both interfaces, which prevented Lima VM from being
 # reachable as a gateway due to macvlan isolation (parent cannot communicate with children).
-#
-# Migration Plan:
-# - Rename "wan" network to "vmnet" (VM network for cluster nodes)
-# - Rename "wan0" interface to "vmnet0" (requires cluster recreation)
-# - See docs/network-architecture.adoc for details
 config: {}
 storage_pools:
   - name: default
     driver: zfs
     config:
       source: tank/nerd/incus
-# Incus-managed bridge network for cluster node communication ONLY
-# Historical name "wan" is misleading - provides inter-node connectivity, NOT internet
+# Incus-managed bridge network for cluster node communication
+# Provides inter-node connectivity within the VM cluster
 # Internet access is exclusively via lan0/home router
-# Future: Rename to "vmnet" to reflect actual purpose (requires cluster recreation)
 # Cluster allocation: 10.80.(CLUSTER_ID * 8).0/21
 networks:
-  - name: wan
+  - name: vmnet
     type: bridge
     config:
       ipv4.address: ${CLUSTER_GATEWAY_IP}/21
@@ -53,7 +45,7 @@ networks:
         dhcp-host=${NODE_WAN_MAC_WORKER2},${CLUSTER_NODE_IP_BASE}.21,worker2
 profiles:
   - name: ${NODE_PROFILE_NAME}
-    description: RKE2 profile (LAN macvlan + WAN bridge)
+    description: RKE2 profile (LAN macvlan + cluster bridge)
     devices:
       root:
         path: /
@@ -64,7 +56,7 @@ profiles:
         nictype: macvlan
         parent: vmlan0
         type: nic
-      wan0:
-        name: wan0
-        network: wan
+      vmnet0:
+        name: vmnet0
+        network: vmnet
         type: nic

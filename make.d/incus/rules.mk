@@ -54,9 +54,9 @@ ifndef make.d/incus/rules.mk
 
 # Primary/secondary host interfaces (macvlan parents)
 .incus.lima_lan_interface ?= vmlan0
-.incus.lima_wan_interface ?= vmwan0
+.incus.lima_vmnet_interface ?= vmwan0
 .incus.lima_primary_interface ?= $(.incus.lima_lan_interface)
-.incus.lima_secondary_interface ?= $(.incus.lima_wan_interface)
+.incus.lima_secondary_interface ?= $(.incus.lima_vmnet_interface)
 .incus.egress_interface ?= $(.incus.lima_primary_interface)
 
 # Tailscale secrets (canonical naming only, no legacy fallback) – used for image build & cleanup (@codebase)
@@ -71,7 +71,7 @@ ifndef make.d/incus/rules.mk
 .incus.image_name ?= control-node
 
 # Cluster inet address discovery helpers (IP extraction via yq)
-.incus.inet_yq_expr ?= .[].state.network.wan0.addresses[] | select(.family == "inet") | .address
+.incus.inet_yq_expr ?= .[].state.network.vmnet0.addresses[] | select(.family == "inet") | .address
 
 # =============================================================================
 # PUBLIC INCUS API  
@@ -332,20 +332,17 @@ show-network@incus:
 	: "[i] Network Configuration Summary"
 	: "================================="
 	echo "Host LAN parent: $(LIMA_LAN_INTERFACE) -> container lan0 (macvlan)"
-	echo "Host WAN parent: $(LIMA_WAN_INTERFACE) -> container wan0 (macvlan)"
-	echo "Host VIP parent: $(LIMA_WAN_INTERFACE) -> container vip0 (macvlan, shared with wan0)"
+	echo "Incus bridge: vmnet -> container vmnet0"
 	echo "VIP Gateway: $(CLUSTER_VIP_GATEWAY_IP) ($(CLUSTER_VIP_NETWORK_CIDR))"
-	: "Mode: Triple macvlan (lan0/wan0/vip0) - consistent interface approach"
+	: "Mode: LAN macvlan + Incus bridge for cluster communication"
 	: ""
 	: "[i] Host interface state:"
 	: "  $(LIMA_LAN_INTERFACE): $$(ip link show $(LIMA_LAN_INTERFACE) | grep -o 'state [A-Z]*' || echo 'unknown state')"
-	: "  $(LIMA_WAN_INTERFACE): $$(ip link show $(LIMA_WAN_INTERFACE) | grep -o 'state [A-Z]*' || echo 'unknown state')"
 	: ""
 	: "[i] IP assignments:"
 	: "  $(LIMA_LAN_INTERFACE) IPv4: $$(ip -o -4 addr show $(LIMA_LAN_INTERFACE) | awk '{print $$4}' || echo '<none>')"
-	: "  $(LIMA_WAN_INTERFACE) IPv4: $$(ip -o -4 addr show $(LIMA_WAN_INTERFACE) | awk '{print $$4}' || echo '<none>')"
 	: ""
-	: "(Container macvlan interfaces visible after instance start)"
+	: "(Container interfaces visible after instance start)"
 
 diagnostics@incus: ## Run complete network diagnostics from host
 diagnostics@incus:
@@ -367,8 +364,7 @@ network-status@incus: ## Show container network status
 	if $(.incus.command) info $(NODE_NAME) --project=rke2 >/dev/null 2>&1; then
 		: "Container network interfaces:";
 		$(.incus.command) exec $(NODE_NAME) --project=rke2 -- ip -o addr show lan0 2>/dev/null || echo "  lan0: not available";
-		$(.incus.command) exec $(NODE_NAME) --project=rke2 -- ip -o addr show wan0 2>/dev/null || echo "  wan0: not available";
-		$(.incus.command) exec $(NODE_NAME) --project=rke2 -- ip -o addr show vip0 2>/dev/null || echo "  vip0: not available";
+		$(.incus.command) exec $(NODE_NAME) --project=rke2 -- ip -o addr show vmnet0 2>/dev/null || echo "  vmnet0: not available";
 		: "";
 		: "Connectivity test:";
 		$(.incus.command) exec $(NODE_NAME) --project=rke2 -- ping -c1 -W2 8.8.8.8 >/dev/null 2>&1 && echo "  Internet: OK" || echo "  Internet: FAILED";
@@ -517,7 +513,7 @@ $(.incus.config_instance_marker_file).init: | $(.incus.logs_dir)/
 $(.incus.config_instance_marker_file).init:
 	: "[+] Initializing instance $(NODE_NAME) in project rke2..."
 	$(.incus.command) init $(IMAGE_NAME) $(NODE_NAME) --project=rke2 < $(.incus.instance_config_file)
-	: "[i] All interfaces (lan0/wan0/vip0) use consistent macvlan approach via profile"
+	: "[i] Interfaces: lan0 (macvlan) + vmnet0 (Incus bridge)"
 
 $(.incus.config_instance_marker_file): $(.incus.config_instance_marker_file).init
 $(.incus.config_instance_marker_file): | $(.incus.dir)/ ## Ensure incus dir exists before cloud-init cleanup (@codebase)

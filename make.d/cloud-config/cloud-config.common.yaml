@@ -21,8 +21,8 @@ bootcmd:
   - [ test, -f, /var/lib/cloud/seed/nocloud/network-config ]
   - [ cp, /var/lib/cloud/seed/nocloud/network-config, /etc/netplan/01-nocloud.yaml ]
   - [ chmod, '600', /etc/netplan/01-nocloud.yaml ]
-  # Disable dhcpcd for wan0 - systemd-networkd will handle it
-  - [ sh, -c, "echo 'denyinterfaces wan0' >> /etc/dhcpcd.conf" ]  
+  # Disable dhcpcd for vmnet0 - systemd-networkd will handle it
+  - [ sh, -c, "echo 'denyinterfaces vmnet0' >> /etc/dhcpcd.conf" ]  
 
 write_files:
   # =============================================================================
@@ -53,9 +53,9 @@ write_files:
       : "Load flox environment for yq and other tools"
       source <( flox activate --dir /var/lib/cloud/seed/nocloud )
       
-      : "=== Stopping dhcpcd for wan0 (systemd-networkd will manage it) ==="
-      # Kill dhcpcd processes for wan0 to prevent route conflicts
-      pkill -f 'dhcpcd.*wan0' || true
+      : "=== Stopping dhcpcd for vmnet0 (systemd-networkd will manage it) ==="
+      # Kill dhcpcd processes for vmnet0 to prevent route conflicts
+      pkill -f 'dhcpcd.*vmnet0' || true
       sleep 1
       
       : "=== Process List Before Network Config ==="
@@ -63,7 +63,7 @@ write_files:
       
       : "=== Applying netplan configuration ==="
       ip link set dev lan0 down || true
-      ip link set dev wan0 down || true
+      ip link set dev vmnet0 down || true
       
       netplan apply
       
@@ -71,12 +71,12 @@ write_files:
       systemctl restart systemd-networkd
       sleep 3
       
-      : "=== Verifying dhcpcd is not managing wan0 ==="
-      if ps aux | grep -v grep | grep 'dhcpcd.*wan0'; then
-        echo "[!] Warning: dhcpcd still managing wan0, killing again..."
-        pkill -f 'dhcpcd.*wan0' || true
+      : "=== Verifying dhcpcd is not managing vmnet0 ==="
+      if ps aux | grep -v grep | grep 'dhcpcd.*vmnet0'; then
+        echo "[!] Warning: dhcpcd still managing vmnet0, killing again..."
+        pkill -f 'dhcpcd.*vmnet0' || true
       else
-        echo "[i] dhcpcd not managing wan0 (correct)"
+        echo "[i] dhcpcd not managing vmnet0 (correct)"
       fi
       
       : "=== Final Network Status ==="
@@ -439,7 +439,7 @@ write_files:
   # UTILITY SCRIPTS
   # =============================================================================
 
-  # Route cleanup script to remove DHCP default routes from wan0
+  # Route cleanup script to remove DHCP default routes from vmnet0
   - path: /usr/local/sbin/rke2-route-cleanup
     permissions: "0755"
     content: |
@@ -453,13 +453,13 @@ write_files:
       echo "=== Routes Before Cleanup ==="
       ip route show || true
 
-      # Remove default route from wan0 if it exists
-      # wan0 should NEVER have a default route - it's cluster-internal only
-      if ip route show default dev wan0 >/dev/null 2>&1; then
-        echo "[+] Removing unwanted default route from wan0 (cluster-internal interface)"
-        ip route del default dev wan0 || true
+      # Remove default route from vmnet0 if it exists
+      # vmnet0 should NEVER have a default route - it's cluster-internal only
+      if ip route show default dev vmnet0 >/dev/null 2>&1; then
+        echo "[+] Removing unwanted default route from vmnet0 (cluster-internal interface)"
+        ip route del default dev vmnet0 || true
       else
-        echo "[i] No default route on wan0 (correct)"
+        echo "[i] No default route on vmnet0 (correct)"
       fi
 
       # Verify lan0 has the default route
@@ -494,7 +494,7 @@ write_files:
       done
 
       # Wait for interfaces to be configured
-      for iface in wan0 lan0; do
+      for iface in vmnet0 lan0; do
         : "[+] Waiting for interface $$iface..."
         timeout=30
         while [ $$timeout -gt 0 ]; do
@@ -543,7 +543,7 @@ write_files:
 
       echo "=== NetworkD Configuration ==="
       networkctl list || true
-      networkctl status wan0 || true
+      networkctl status vmnet0 || true
 
       echo "=== Wait-Online Status ==="
       systemctl status systemd-networkd-wait-online --no-pager || true

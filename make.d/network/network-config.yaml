@@ -30,10 +30,10 @@ network:
       # Interface Options
       optional: false
 
-    # ===== WAN INTERFACE (DHCP from Incus bridge) =====
+    # ===== VMNET INTERFACE (DHCP from Incus bridge) =====
     # Cluster node-to-node communication ONLY
     # NO internet gateway - lan0 is the exclusive internet path
-    wan0:
+    vmnet0:
       # DHCP from Incus wan bridge network
       dhcp4: true
       dhcp4-overrides:

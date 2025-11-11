@@ -93,7 +93,7 @@ write_files:
           matchLabels: {}
         loadBalancerIPs: true
         interfaces:
-          - wan0
+          - vmnet0
           - lan0
         nodeSelector:
           matchExpressions:

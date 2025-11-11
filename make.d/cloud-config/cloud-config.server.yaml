@@ -78,7 +78,7 @@ write_files:
       source <( flox activate --dir /var/lib/rancher/rke2 )
 
       db::check() {
-        local -A inet=( [current]="$(nmcli -g IP4.ADDRESS device show wan0)" )
+        local -A inet=( [current]="$(nmcli -g IP4.ADDRESS device show vmnet0)" )
         local file="/var/lib/rancher/rke2/server/last-ip"
         if [[ -r "$$file" ]]; then
           inet+=( [last]="$(cat "$$file")" )

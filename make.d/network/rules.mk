@@ -87,7 +87,7 @@ lb-cidr-to-gateway = $(call network-to-ip,$(subst .64/,.65/,$(1)))
 # Per-node bridge names (isolated bridges for each node)
 # Interface names (macvlan, not bridges)
 .network.node_lan_interface_name = $(node.NAME)-lan0
-.network.node_wan_interface_name = $(node.NAME)-wan0
+.network.node_vmnet_interface_name = $(node.NAME)-vmnet0
 .network.cluster_vip_interface_name = rke2-vip0
 
 # =============================================================================
@@ -216,8 +216,8 @@ show@network: ## Debug network configuration display
 	echo ""
 	echo "=== Bridge Configuration ==="
 	echo "Node LAN interface: $(network.NODE_LAN_INTERFACE_NAME) (macvlan on vmlan0)"
-	echo "Node WAN interface: $(network.NODE_WAN_INTERFACE_NAME) (macvlan on vmwan0)"
-	echo "Cluster VIP interface: $(network.CLUSTER_VIP_INTERFACE_NAME) (macvlan on vmwan0)"
+	echo "Node VMNET interface: $(network.NODE_VMNET_INTERFACE_NAME) (bridge on vmnet)"
+	echo "Cluster VIP interface: $(network.CLUSTER_VIP_INTERFACE_NAME) (on vmnet0)"
 	echo "Cluster VIP VLAN: $(network.VIP_VLAN_ID) ($(network.VIP_VLAN_NAME)) -> $(network.CLUSTER_VIP_NETWORK_CIDR)"
 
 # =============================================================================
