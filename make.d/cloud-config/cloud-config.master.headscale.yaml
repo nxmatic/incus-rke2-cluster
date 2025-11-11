@@ -214,6 +214,9 @@ write_files:
         labels:
           app: headscale
           io.cilium/lb-ipam: home-lan
+        annotations:
+          tailscale.com/expose: "true"
+          tailscale.com/hostname: "headscale-bioskop"
       spec:
         type: LoadBalancer
         loadBalancerIP: 192.168.1.193
@@ -473,9 +476,9 @@ write_files:
                 
                 echo "Connecting to Headscale..."
                 tailscale up \
-                  --login-server=http://192.168.1.193:8080 \
+                  --login-server=https://headscale-bioskop \
                   --authkey=file:/var/secrets/authkey \
-                  --hostname=${CLUSTER_NAME}-$$NODE_NAME \
+                  --hostname=$${CLUSTER_NAME}-$$NODE_NAME \
                   --advertise-tags=tag:rke2,tag:${CLUSTER_NAME} \
                   --accept-routes \
                   --ssh \
