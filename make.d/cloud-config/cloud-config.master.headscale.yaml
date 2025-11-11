@@ -307,36 +307,36 @@ write_files:
                   headscale users create admin 2>/dev/null || echo "User admin already exists"
                 
                 echo "Getting admin user ID..."
-                USER_JSON=$(kubectl exec -n headscale deployment/headscale -- \
+                USER_JSON=$$(kubectl exec -n headscale deployment/headscale -- \
                   headscale users list -o json)
-                USER_ID=$(echo "$USER_JSON" | jq -r '.[] | select(.name=="admin") | .id // empty')
+                USER_ID=$$(echo "$$USER_JSON" | jq -r '.[] | select(.name=="admin") | .id // empty')
                 
-                if [ -z "$USER_ID" ]; then
+                if [ -z "$$USER_ID" ]; then
                   echo "ERROR: Failed to get admin user ID"
-                  echo "User list output: $USER_JSON"
+                  echo "User list output: $$USER_JSON"
                   exit 1
                 fi
                 
-                echo "Admin user ID: $USER_ID"
+                echo "Admin user ID: $$USER_ID"
                 
                 echo "Creating reusable preauth key..."
-                PREAUTH_JSON=$(kubectl exec -n headscale deployment/headscale -- \
-                  headscale preauthkeys --user "$USER_ID" create \
+                PREAUTH_JSON=$$(kubectl exec -n headscale deployment/headscale -- \
+                  headscale preauthkeys --user "$$USER_ID" create \
                   --reusable --expiration 720h -o json)
                 
-                PREAUTH_KEY=$(echo "$PREAUTH_JSON" | jq -r '.key // empty')
+                PREAUTH_KEY=$$(echo "$$PREAUTH_JSON" | jq -r '.key // empty')
                 
-                if [ -z "$PREAUTH_KEY" ]; then
+                if [ -z "$$PREAUTH_KEY" ]; then
                   echo "ERROR: Failed to extract preauth key"
-                  echo "Preauth key output: $PREAUTH_JSON"
+                  echo "Preauth key output: $$PREAUTH_JSON"
                   exit 1
                 fi
                 
-                echo "Preauth key created: ${PREAUTH_KEY:0:16}..."
+                echo "Preauth key created: $${PREAUTH_KEY:0:16}..."
                 
                 echo "Storing preauth key in Secret..."
                 kubectl create secret generic headscale-client-auth \
-                  --from-literal=authkey="$PREAUTH_KEY" \
+                  --from-literal=authkey="$$PREAUTH_KEY" \
                   --dry-run=client -o yaml | kubectl apply -f -
                 
                 echo "Bootstrap complete!"
