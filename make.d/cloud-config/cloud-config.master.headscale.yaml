@@ -466,6 +466,8 @@ write_files:
             - name: tailscale
               image: tailscale/tailscale:v1.76.6
               env:
+              - name: CLUSTER_NAME
+                value: "${CLUSTER_NAME}"
               - name: NODE_NAME
                 valueFrom:
                   fieldRef:
