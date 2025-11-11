@@ -26,6 +26,9 @@ network:
         route-metric: 100      # Primary route for internet access
       dhcp6: false             # Disable IPv6 DHCP
       dhcp-identifier: mac
+      accept-ra: false         # Disable IPv6 Router Advertisements
+      ipv6-privacy: false      # Disable IPv6 privacy extensions
+      link-local: []           # Disable link-local addressing
 
       # Interface Options
       optional: false
