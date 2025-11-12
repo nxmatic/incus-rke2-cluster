@@ -24,4 +24,3 @@ pipeline:
         headscale-version: "0.27.0"
         cluster-name: "alcide"
         home-lan-pool: "192.168.1.192/27"
-        headscale-lb-ip: "192.168.1.193"

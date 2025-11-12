@@ -89,7 +89,6 @@ metadata:
     tailscale.com/hostname: "headscale-alcide" # kpt-set: headscale-${cluster-name}
 spec:
   type: LoadBalancer
-  loadBalancerIP: 192.168.1.193 # kpt-set: ${headscale-lb-ip}
   ports:
   - name: http
     port: 8080
