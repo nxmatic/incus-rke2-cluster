@@ -17,10 +17,6 @@ info:
     This package provides Tailscale-compatible mesh networking for the cluster
     using the open-source Headscale coordination server.
     
-inventory:
-  namespace: headscale
-  name: inventory-54597832
-  inventoryID: headscale
 pipeline:
   mutators:
     - image: gcr.io/kpt-fn/apply-setters:v0.2

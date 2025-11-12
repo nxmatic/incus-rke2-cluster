@@ -97,7 +97,7 @@ devices:
   repo.dir:
     type: disk
     source: /Volumes/GitHub/nxmatic/nix-darwin-home/modules/nixos/incus-rke2-cluster
-    path: /run/incus-rke2-cluster
+    path: /mnt/incus-rke2-cluster
   user.metadata:
     type: disk
     source: ${PWD}/${RUN_NOCLOUD_METADATA_FILE}
