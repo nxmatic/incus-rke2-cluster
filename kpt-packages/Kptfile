@@ -1,0 +1,20 @@
+apiVersion: kpt.dev/v1
+kind: Kptfile
+metadata:
+  name: rke2-cluster-manifests
+  annotations:
+    config.kubernetes.io/local-config: "true"
+info:
+  description: |
+    Root kpt package for RKE2 cluster Kubernetes manifests.
+    
+    This package manages cluster components organized by category:
+    - base: Core services (Tailscale operator)
+    - networking: Cilium CNI, BGP configuration
+    - storage: OpenEBS, persistent storage
+    - loadbalancer: Kube-VIP for control plane HA
+    - mesh: Headscale for Tailscale mesh networking
+    - gateway: Envoy Gateway for ingress
+    - observability: Monitoring and logging
+    
+  site: https://github.com/nxmatic/nix-darwin-home

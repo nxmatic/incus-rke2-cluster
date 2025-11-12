@@ -269,7 +269,7 @@ write_files:
       flox install \
         --dir=/var/lib/rancher/rke2 \
         ceph-client cilium-cli etcdctl helmfile \
-        kubernetes-helm kubectl yq-go # override
+        kubernetes-helm kpt kubectl yq-go # override
 
       : "Include cloud environment in RKE2 flox environment and configure groups"
       dasel -r toml -w yaml \
