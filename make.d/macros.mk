@@ -1,7 +1,6 @@
 ifndef make.d/macros.mk
 
-include $(make-dir)/make.mk
-include $(top-dir)/.gmsl/gmsl
+# NOTE: make.mk and gmsl are included by the main Makefile, not here
 
 define \n :=
 

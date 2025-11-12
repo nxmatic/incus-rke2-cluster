@@ -406,6 +406,9 @@ help: ## Show grouped help for all targets (use FILTER=regex to filter)
 	group "Cloud-Config" "cloud-config"
 	group "Metaprogramming" "meta"
 	
+	# Application deployment groups
+	group "Headscale" "" "^(deploy@headscale|status@headscale|clean@headscale|headscale@authkey|headscale)$$"
+	
 	# Special pattern-based groups for cross-cutting concerns
 	group "Utility" "" "^(help|lint-yaml|zfs\\.allow|remove-hosts@tailscale|noop)$$"
 	echo ""
