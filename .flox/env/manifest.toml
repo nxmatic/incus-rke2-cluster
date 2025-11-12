@@ -50,6 +50,7 @@ unzip.pkg-path = "unzip"
 cilium-cli.pkg-path = "cilium-cli"
 conntrack-tools.pkg-path = "conntrack-tools"
 conntrack-tools.systems = ["aarch64-linux", "x86_64-linux"]
+kpt.pkg-path = "kpt"
 # gum.pkg-path = "gum"
 # gum.version = "^0.14.5"
 

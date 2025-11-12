@@ -84,6 +84,9 @@
       "k9s": {
         "pkg-path": "k9s"
       },
+      "kpt": {
+        "pkg-path": "kpt"
+      },
       "kubectl": {
         "pkg-path": "kubectl"
       },
@@ -2138,6 +2141,130 @@
       ],
       "outputs": {
         "out": "/nix/store/x82xk6bffffm9ps891xri9h7p6jsw96j-k9s-0.25.18"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "kpt",
+      "broken": false,
+      "derivation": "/nix/store/dzwc54hs3k99grmcz9i50in7pzb61hg5-kpt-0.39.2.drv",
+      "description": "A toolkit to help you manage, manipulate, customize, and apply Kubernetes Resource configuration data files",
+      "install_id": "kpt",
+      "license": "Apache-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
+      "name": "kpt-0.39.2",
+      "pname": "kpt",
+      "rev": "c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
+      "rev_count": 348581,
+      "rev_date": "2022-01-25T03:21:06Z",
+      "scrape_date": "2024-08-15T20:52:42Z",
+      "stabilities": [
+        "stable",
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.39.2",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/vvq823yv7217hvzjl2y7lgwm06wqs7ry-kpt-0.39.2"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "kpt",
+      "broken": false,
+      "derivation": "/nix/store/ynjkgkfv2r1v04wc9vnh1appnxffz9i9-kpt-0.39.2.drv",
+      "description": "A toolkit to help you manage, manipulate, customize, and apply Kubernetes Resource configuration data files",
+      "install_id": "kpt",
+      "license": "Apache-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
+      "name": "kpt-0.39.2",
+      "pname": "kpt",
+      "rev": "c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
+      "rev_count": 348581,
+      "rev_date": "2022-01-25T03:21:06Z",
+      "scrape_date": "2024-08-15T20:52:42Z",
+      "stabilities": [
+        "stable",
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.39.2",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/h6jcbmb1mxlbm3i5wffxqcrlpw2l9sw4-kpt-0.39.2"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "kpt",
+      "broken": false,
+      "derivation": "/nix/store/mhy9yvgaagkixm110dh8n1navapag46d-kpt-0.39.2.drv",
+      "description": "A toolkit to help you manage, manipulate, customize, and apply Kubernetes Resource configuration data files",
+      "install_id": "kpt",
+      "license": "Apache-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
+      "name": "kpt-0.39.2",
+      "pname": "kpt",
+      "rev": "c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
+      "rev_count": 348581,
+      "rev_date": "2022-01-25T03:21:06Z",
+      "scrape_date": "2024-08-15T20:52:42Z",
+      "stabilities": [
+        "stable",
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.39.2",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/brl8ckywx60ah1j60w5wb7apldvv26gy-kpt-0.39.2"
+      },
+      "system": "x86_64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "kpt",
+      "broken": false,
+      "derivation": "/nix/store/3fb117ir4vm75bgmsfyc389bwrb3prcq-kpt-0.39.2.drv",
+      "description": "A toolkit to help you manage, manipulate, customize, and apply Kubernetes Resource configuration data files",
+      "install_id": "kpt",
+      "license": "Apache-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
+      "name": "kpt-0.39.2",
+      "pname": "kpt",
+      "rev": "c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
+      "rev_count": 348581,
+      "rev_date": "2022-01-25T03:21:06Z",
+      "scrape_date": "2024-08-15T20:52:42Z",
+      "stabilities": [
+        "stable",
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.39.2",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/ip57x8p6hy0g5yka6a7fc4xa8k6w7yd0-kpt-0.39.2"
       },
       "system": "x86_64-linux",
       "group": "toplevel",
