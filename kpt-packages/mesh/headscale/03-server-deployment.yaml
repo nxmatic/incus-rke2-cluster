@@ -86,7 +86,7 @@ metadata:
     io.cilium/lb-ipam: home-lan
   annotations:
     tailscale.com/expose: "true"
-    tailscale.com/hostname: "headscale-alcide" # kpt-set: headscale-${cluster-name}
+    tailscale.com/hostname: "alcide-headscale" # kpt-set: ${darwin-host}-headscale
 spec:
   type: LoadBalancer
   ports:

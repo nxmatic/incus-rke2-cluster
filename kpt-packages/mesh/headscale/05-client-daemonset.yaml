@@ -119,7 +119,7 @@ spec:
           until [ -S /var/run/tailscale/tailscaled.sock ]; do sleep 1; done
           
           # Use internal cluster service (HTTP) - client is inside the cluster
-          # External clients use https://headscale-alcide via Tailscale operator
+          # External clients use https://alcide-headscale via Tailscale operator
           HEADSCALE_URL="http://headscale.headscale.svc.cluster.local:8080"
           
           echo "Connecting to Headscale at $$HEADSCALE_URL..."

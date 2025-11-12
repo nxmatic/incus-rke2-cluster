@@ -47,10 +47,12 @@ data:
       path: /etc/headscale/acl.json
 
     dns:
-      base_domain: home.local
+      base_domain: lan
       nameservers:
         global:
+          - 192.168.1.254
           - 1.1.1.1
+          - 8.8.8.8
       magic_dns: true
 
     log:
