@@ -85,6 +85,8 @@ spec:
       - name: tailscale
         image: tailscale/tailscale:v1.76.6
         env:
+        - name: DARWIN_HOST
+          value: "alcide" # kpt-set: ${darwin-host}
         - name: CLUSTER_NAME
           value: "alcide" # kpt-set: ${cluster-name}
         - name: NODE_NAME
@@ -116,14 +118,15 @@ spec:
           echo "Waiting for tailscaled socket..."
           until [ -S /var/run/tailscale/tailscaled.sock ]; do sleep 1; done
           
-          # Get LoadBalancer IP for Headscale
+          # Use internal cluster service (HTTP) - client is inside the cluster
+          # External clients use https://headscale-alcide via Tailscale operator
           HEADSCALE_URL="http://headscale.headscale.svc.cluster.local:8080"
           
           echo "Connecting to Headscale at $$HEADSCALE_URL..."
           tailscale up \
             --login-server=$$HEADSCALE_URL \
             --authkey=file:/var/secrets/authkey \
-            --hostname=$${CLUSTER_NAME}-$$NODE_NAME \
+            --hostname=$${DARWIN_HOST}-$$NODE_NAME \
             --advertise-tags=tag:rke2,tag:alcide \
             --accept-routes \
             --ssh \
