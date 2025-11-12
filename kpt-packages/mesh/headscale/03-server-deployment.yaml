@@ -86,7 +86,7 @@ metadata:
     io.cilium/lb-ipam: home-lan
   annotations:
     tailscale.com/expose: "true"
-    tailscale.com/hostname: "headscale-bioskop" # kpt-set: headscale-${cluster-name}
+    tailscale.com/hostname: "headscale-alcide" # kpt-set: headscale-${cluster-name}
 spec:
   type: LoadBalancer
   loadBalancerIP: 192.168.1.193 # kpt-set: ${headscale-lb-ip}
