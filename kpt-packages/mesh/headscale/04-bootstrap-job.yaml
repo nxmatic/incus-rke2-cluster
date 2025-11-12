@@ -1,0 +1,116 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: headscale-bootstrap
+  namespace: headscale
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: headscale-bootstrap
+  namespace: headscale
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "create", "update", "patch"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["pods/exec"]
+  verbs: ["create"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: headscale-bootstrap
+  namespace: headscale
+subjects:
+- kind: ServiceAccount
+  name: headscale-bootstrap
+  namespace: headscale
+roleRef:
+  kind: Role
+  name: headscale-bootstrap
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: headscale-bootstrap
+  namespace: headscale
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      serviceAccountName: headscale-bootstrap
+      restartPolicy: OnFailure
+      containers:
+      - name: bootstrap
+        image: alpine:3.19
+        command:
+        - sh
+        - -c
+        - |
+          set -e
+          
+          # Install dependencies
+          apk add --no-cache curl kubectl jq
+          
+          echo "Waiting for Headscale server to be ready..."
+          until curl -sf http://headscale:8080/health; do
+            echo "Headscale not ready, retrying in 5s..."
+            sleep 5
+          done
+          
+          echo "Waiting for headscale pod to be running..."
+          until kubectl get pod -n headscale -l app=headscale -o jsonpath='{.items[0].status.phase}' 2>/dev/null | grep -q Running; do
+            echo "Headscale pod not ready, retrying in 2s..."
+            sleep 2
+          done
+          
+          # Use kubectl exec to run headscale CLI inside the pod
+          # The CLI has direct access to headscale without API key requirements
+          
+          echo "Creating admin user..."
+          kubectl exec -n headscale deployment/headscale -- \
+            headscale users create admin 2>/dev/null || echo "User admin already exists"
+          
+          echo "Getting admin user ID..."
+          USER_JSON=$$(kubectl exec -n headscale deployment/headscale -- \
+            headscale users list -o json)
+          USER_ID=$$(echo "$$USER_JSON" | jq -r '.[] | select(.name=="admin") | .id // empty')
+          
+          if [ -z "$$USER_ID" ]; then
+            echo "ERROR: Failed to get admin user ID"
+            echo "User list output: $$USER_JSON"
+            exit 1
+          fi
+          
+          echo "Admin user ID: $$USER_ID"
+          
+          echo "Creating reusable preauth key..."
+          PREAUTH_JSON=$$(kubectl exec -n headscale deployment/headscale -- \
+            headscale preauthkeys --user "$$USER_ID" create \
+            --reusable --expiration 720h -o json)
+          
+          PREAUTH_KEY=$$(echo "$$PREAUTH_JSON" | jq -r '.key // empty')
+          
+          if [ -z "$$PREAUTH_KEY" ]; then
+            echo "ERROR: Failed to extract preauth key"
+            echo "Preauth key output: $$PREAUTH_JSON"
+            exit 1
+          fi
+          
+          echo "Preauth key created: $${PREAUTH_KEY:0:16}..."
+          
+          echo "Storing preauth key in Secret..."
+          kubectl create secret generic headscale-client-auth \
+            --from-literal=authkey="$$PREAUTH_KEY" \
+            --dry-run=client -o yaml | kubectl apply -f -
+          
+          echo "Bootstrap complete!"
