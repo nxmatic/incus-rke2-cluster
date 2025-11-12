@@ -94,6 +94,11 @@ devices:
     type: disk
     source: ${PWD}/${RUN_INSTANCE_DIR}/kube
     path: /.kubeconfig.d
+  repo.dir:
+    type: disk
+    source: /Volumes/GitHub/nxmatic/nix-darwin-home
+    path: /var/lib/nix-darwin-home
+    readonly: "true"
   user.metadata:
     type: disk
     source: ${PWD}/${RUN_NOCLOUD_METADATA_FILE}
