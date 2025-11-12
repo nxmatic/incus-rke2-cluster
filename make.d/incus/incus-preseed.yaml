@@ -1,11 +1,11 @@
 # incus preseed for rke2 cluster (LAN bridge + cluster bridge) (@codebase)
 #
 # Architecture:
-# - lan0: Bridged to vmwan0 (Lima interface) for PRIMARY internet access via home router DHCP
+# - lan0: Bridged to vmlan1 (Lima interface) for PRIMARY internet access via home router DHCP
 # - vmnet0: Incus-managed bridge network for inter-node cluster communication ONLY
 #
-# vmlan0: VM's own interface with IP (used for cluster management)
-# vmwan0: Dedicated unconfigured interface for Incus lan-br bridge (formerly vmlan1)
+# vmlan0: Lima VM's own interface with IP for host management
+# vmlan1: Dedicated unconfigured interface for Incus lan-br bridge
 #
 # Current routing strategy (November 2025):
 # - Internet: via lan0 (metric 100) → home router → reliable NAT
@@ -35,7 +35,7 @@ networks:
       ipv6.nat: "false"
       dns.mode: none
       bridge.driver: native
-      bridge.external_interfaces: vmwan0
+      bridge.external_interfaces: vmlan1
   - name: vmnet-br
     type: bridge
     config:
