@@ -1,0 +1,475 @@
+= kpt Migration Plan: Reducing RKE2 Manifest Dependencies
+:toc: left
+:toclevels: 3
+:sectlinks:
+:sectanchors:
+:source-highlighter: rouge
+:version: 1.0
+:date: 2025-11-12
+
+== Overview
+
+This document outlines the migration strategy for introducing kpt (Kubernetes Package Tool) into the incus-rke2-cluster deployment system. The goal is to reduce reliance on RKE2 manifests embedded in cloud-config files, maintaining only minimal bootstrap manifests in RKE2 while managing most cluster components through kpt packages.
+
+=== Current State
+
+The current setup deploys cluster components through RKE2 auto-apply manifests embedded in cloud-config YAML files:
+
+* **Bootstrap Components**: Embedded in `cloud-config.master.base.yaml` (Traefik, OpenEBS, Tailscale)
+* **Networking**: Embedded in `cloud-config.master.cilium.yaml` (Cilium full config, BGP, L2 announcements, IP pools)
+* **VPN/Mesh**: Embedded in `cloud-config.master.headscale.yaml` (Headscale server, client DaemonSet)
+* **Load Balancer**: Embedded in `cloud-config.master.kube-vip.yaml` (Kube-VIP for control plane HA)
+
+==== Problems with Current Approach
+
+* **Immutability**: Cloud-config files are applied once at boot; updates require container recreation
+* **Limited Composition**: YAML merging with `yq` is fragile for complex configurations
+* **No Versioning**: Manifest versions are hardcoded in cloud-config, no upgrade path
+* **Testing Difficulty**: Cannot validate manifests without deploying full cluster
+* **GitOps Gap**: No declarative state management for post-bootstrap components
+
+=== Target State
+
+**Minimal RKE2 Bootstrap Manifests**:
+
+* Cluster initialization (`cluster-init: true`)
+* Basic Traefik configuration (for initial ingress)
+* Tailscale operator (for cluster connectivity)
+* kpt-deployer Job (applies kpt packages after cluster ready)
+
+**kpt-Managed Components**:
+
+* Cilium networking (full configuration, BGP, L2, IP pools)
+* OpenEBS ZFS storage provisioner
+* Kube-VIP load balancer
+* Headscale server and client
+* Envoy Gateway
+* Hubble observability
+* Additional operational tools
+
+=== Benefits
+
+* **Declarative Updates**: kpt packages can be updated independently of cloud-config
+* **Version Control**: Package versions tracked in Git with proper change history
+* **Composition**: kpt functions enable sophisticated configuration transformations
+* **Validation**: Pre-deployment validation with kpt function pipelines
+* **GitOps Ready**: Natural integration with Flux/ArgoCD for continuous deployment
+* **Testing**: Packages can be rendered and validated locally before deployment
+
+== Migration Strategy
+
+=== Phase 1: Foundation (Non-Critical Components)
+
+Migrate components that don't affect cluster bootstrapping:
+
+1. **Headscale Server & Client** (from `cloud-config.master.headscale.yaml`)
+   - Low risk, bioskop-specific only
+   - Good learning opportunity for kpt workflows
+   - No dependency on core cluster functionality
+
+2. **Envoy Gateway** (from `cloud-config.master.cilium.yaml`)
+   - Optional component, can be deployed post-bootstrap
+   - Complex Job-based installation suits kpt approach
+   - Independent of Cilium core functionality
+
+**Success Criteria**: Components deploy successfully via kpt, cluster remains stable
+
+=== Phase 2: Load Balancer (Medium Risk)
+
+Migrate Kube-VIP after proving kpt workflow:
+
+3. **Kube-VIP DaemonSet** (from `cloud-config.master.kube-vip.yaml`)
+   - Critical for HA control plane VIP management
+   - Must ensure no VIP interruption during migration
+   - Careful testing on alcide cluster before bioskop
+
+**Success Criteria**: VIP failover works, control plane remains accessible
+
+=== Phase 3: Networking & Storage (High Risk)
+
+Migrate core infrastructure components:
+
+4. **Cilium Configuration** (from `cloud-config.master.cilium.yaml`)
+   - Keep minimal CNI bootstrap in RKE2
+   - Migrate advanced features (BGP, L2, Gateway API) to kpt
+   - Staged migration: first move IP pools, then BGP config
+
+5. **OpenEBS ZFS** (from `cloud-config.master.base.yaml`)
+   - Storage provisioner migration requires careful PV handling
+   - Consider keeping in RKE2 if migration risk too high
+
+**Success Criteria**: Network connectivity maintained, BGP announcements work, storage provisioning functional
+
+=== Rollback Strategy
+
+Each phase requires clear rollback procedures:
+
+* **Phase 1-2**: Delete kpt-deployed resources, redeploy from cloud-config if needed
+* **Phase 3**: Keep backup cloud-config with full manifests, test migration on non-production cluster first
+* **General**: Document current working state before each phase, ensure ability to recreate containers from previous cloud-config
+
+== Implementation Details
+
+=== Step 1: Install kpt in Flox Environment
+
+Add kpt to the RKE2 flox environment where kubectl and helm are installed.
+
+**File**: `make.d/cloud-config/cloud-config.common.yaml`
+
+**Location**: In the `rke2-install-pre` script, around line 280-300
+
+[source,bash]
+----
+flox install \
+  --dir=/var/lib/rancher/rke2 \
+  ceph-client cilium-cli etcdctl helmfile \
+  kubernetes-helm kubectl kpt yq-go
+----
+
+**Validation**:
+
+[source,bash]
+----
+# After cluster starts, verify kpt is available
+flox activate --dir=/var/lib/rancher/rke2
+kpt version
+----
+
+=== Step 2: Create kpt Package Directory Structure
+
+Create a structured directory for kpt packages in the repository.
+
+**Directory Structure**:
+
+[source,text]
+----
+modules/nixos/incus-rke2-cluster/
+└── kpt-packages/
+    ├── base/
+    │   ├── Kptfile
+    │   └── tailscale-operator/
+    │       ├── Kptfile
+    │       ├── namespace.yaml
+    │       ├── helmchart.yaml
+    │       └── connector.yaml
+    ├── networking/
+    │   ├── Kptfile
+    │   ├── cilium/
+    │   │   ├── Kptfile
+    │   │   ├── helmchartconfig.yaml
+    │   │   └── cluster-resources.yaml
+    │   └── bgp/
+    │       ├── Kptfile
+    │       ├── bgp-cluster-config.yaml
+    │       └── bgp-advertisement.yaml
+    ├── storage/
+    │   ├── Kptfile
+    │   └── openebs-zfs/
+    │       ├── Kptfile
+    │       ├── namespace.yaml
+    │       ├── helmchart.yaml
+    │       └── storageclass.yaml
+    ├── loadbalancer/
+    │   ├── Kptfile
+    │   └── kube-vip/
+    │       ├── Kptfile
+    │       ├── namespace.yaml
+    │       ├── rbac.yaml
+    │       └── daemonset.yaml
+    ├── mesh/
+    │   ├── Kptfile
+    │   └── headscale/
+    │       ├── Kptfile
+    │       ├── namespace.yaml
+    │       ├── configmaps.yaml
+    │       ├── deployment.yaml
+    │       ├── service.yaml
+    │       ├── bootstrap-job.yaml
+    │       └── client-daemonset.yaml
+    ├── gateway/
+    │   ├── Kptfile
+    │   ├── envoy-gateway/
+    │   │   ├── Kptfile
+    │   │   ├── namespace.yaml
+    │   │   ├── installer-job.yaml
+    │   │   └── gatewayclass.yaml
+    │   └── traefik/
+    │       ├── Kptfile
+    │       └── helmchartconfig.yaml
+    └── observability/
+        ├── Kptfile
+        └── hubble/
+            ├── Kptfile
+            └── (managed via Cilium values)
+----
+
+**Root Kptfile Template**:
+
+[source,yaml]
+----
+apiVersion: kpt.dev/v1
+kind: Kptfile
+metadata:
+  name: incus-rke2-cluster
+info:
+  description: Kubernetes cluster components for Incus RKE2 deployment
+  keywords:
+    - rke2
+    - incus
+    - cilium
+pipeline:
+  validators:
+    - image: gcr.io/kpt-fn/kubeval:v0.3
+    - image: gcr.io/kpt-fn/validate-rolebinding:v0.1
+----
+
+**Package Kptfile Example** (Headscale):
+
+[source,yaml]
+----
+apiVersion: kpt.dev/v1
+kind: Kptfile
+metadata:
+  name: headscale
+  annotations:
+    config.kubernetes.io/local-config: "true"
+info:
+  description: Headscale VPN server and client
+  keywords:
+    - headscale
+    - vpn
+    - tailscale
+upstream:
+  type: git
+  git:
+    repo: https://github.com/nxmatic/nix-darwin-home
+    directory: modules/nixos/incus-rke2-cluster/kpt-packages/mesh/headscale
+    ref: develop
+pipeline:
+  mutators:
+    - image: gcr.io/kpt-fn/apply-setters:v0.2
+      configMap:
+        cluster-name: alcide
+        headscale-version: v0.27.0
+        home-lan-lb-pool: 192.168.1.192/27
+        home-lan-lb-ip: 192.168.1.193
+  validators:
+    - image: gcr.io/kpt-fn/kubeval:v0.3
+----
+
+=== Step 3: Extract Manifests to kpt Packages
+
+Migrate existing manifests from cloud-config files into structured kpt packages with proper metadata.
+
+==== Example: Headscale Package Migration
+
+**From**: `cloud-config.master.headscale.yaml` (lines 31-555)
+
+**To**: Multiple files in `kpt-packages/mesh/headscale/`
+
+**File 1**: `kpt-packages/mesh/headscale/namespace.yaml`
+
+[source,yaml]
+----
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: headscale
+----
+
+**File 2**: `kpt-packages/mesh/headscale/configmaps.yaml`
+
+[source,yaml]
+----
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: headscale-config
+  namespace: headscale
+data:
+  config.yaml: |
+    server_url: http://192.168.1.193:8080 # kpt-set: http://${home-lan-lb-ip}:8080
+    listen_addr: 0.0.0.0:8080
+    metrics_listen_addr: 0.0.0.0:9090
+    # ... (rest of config)
+----
+
+**kpt Setters**: Use `# kpt-set:` comments for variable substitution:
+
+[source,bash]
+----
+kpt fn eval kpt-packages/mesh/headscale \
+  --image gcr.io/kpt-fn/apply-setters:v0.2 \
+  -- \
+  home-lan-lb-ip=192.168.1.193 \
+  headscale-version=v0.27.0 \
+  cluster-name=bioskop
+----
+
+=== Step 4: Minimal Bootstrap Manifests in RKE2
+
+Keep only essential bootstrap components in cloud-config RKE2 manifests.
+
+**File**: `cloud-config.master.base.yaml`
+
+**Minimal Manifests**: Traefik, Tailscale operator, kpt-deployer Job
+
+=== Step 5: kpt Deployment Automation
+
+Add Make targets for kpt package management.
+
+**File**: `make.d/kpt/rules.mk` (new file)
+
+[source,makefile]
+----
+# kpt Package Management Rules
+.PHONY: kpt-init kpt-render kpt-apply kpt-update kpt-clean
+
+## Initialize kpt packages with cluster-specific values
+kpt-init: ## Configure kpt packages for current cluster
+	@echo "[kpt] Initializing packages for cluster $(CLUSTER_NAME)..."
+----
+
+=== Step 6: Update Bootstrap Script
+
+Modify the master bootstrap to support kpt deployment in `/usr/local/sbin/rke2-activate`.
+
+== Configuration Management
+
+=== Variable Substitution Strategy
+
+Three approaches available:
+
+==== 1. kpt Setters (Recommended)
+
+Native kpt feature, type-safe, schema validation
+
+==== 2. envsubst (Current Pattern)
+
+Matches existing cloud-config pattern, simple
+
+==== 3. Kustomize Overlays
+
+Rich composition, widely adopted, declarative
+
+**Recommended Approach**: Use **kpt setters** for simple value substitution and **Kustomize overlays** for complex per-cluster configurations.
+
+== Validation & Testing
+
+=== Pre-Deployment Validation
+
+[source,makefile]
+----
+## Comprehensive validation pipeline
+kpt-validate: kpt-render
+	@kpt fn eval $(KPT_OUTPUT_DIR) --image gcr.io/kpt-fn/kubeval:v0.3
+	@find $(KPT_OUTPUT_DIR) -name "*.yaml" -exec yamllint -c .yamllint.yaml {} +
+----
+
+=== Testing Strategy
+
+**Local Testing**:
+[source,bash]
+----
+make kpt-render NAME=master CLUSTER_NAME=alcide
+make kpt-validate
+kubectl apply --dry-run=server -f .local.d/kpt/rendered/
+----
+
+**Cluster Testing**: Test on alcide cluster first (non-production)
+
+== Migration Checklist
+
+=== Pre-Migration
+
+- [ ] Document current working cluster state
+- [ ] Backup current cloud-config files
+- [ ] Create rollback plan for each phase
+- [ ] Test kpt installation in flox environment
+- [ ] Validate kpt package structure locally
+
+=== Phase 1: Foundation
+
+- [ ] Create kpt package directory structure
+- [ ] Extract Headscale manifests to kpt package
+- [ ] Configure kpt setters for Headscale
+- [ ] Test Headscale package rendering locally
+- [ ] Deploy Headscale via kpt on alcide cluster
+- [ ] Verify Headscale functionality
+- [ ] Extract Envoy Gateway manifests to kpt package
+- [ ] Deploy Envoy Gateway via kpt
+- [ ] Remove Headscale/Envoy from cloud-config
+
+=== Phase 2: Load Balancer
+
+- [ ] Extract Kube-VIP manifests to kpt package
+- [ ] Test Kube-VIP package on alcide cluster
+- [ ] Monitor VIP failover during migration
+- [ ] Deploy Kube-VIP via kpt on bioskop cluster
+- [ ] Verify control plane HA after migration
+- [ ] Remove Kube-VIP from cloud-config
+
+=== Phase 3: Networking & Storage
+
+- [ ] Split Cilium configuration into packages
+- [ ] Create Cilium base + overlay structure
+- [ ] Test Cilium migration on alcide cluster
+- [ ] Verify BGP announcements work
+- [ ] Deploy Cilium advanced config via kpt
+- [ ] Consider keeping OpenEBS in RKE2 (risk assessment)
+- [ ] Update documentation
+
+=== Post-Migration
+
+- [ ] Remove obsolete cloud-config manifests
+- [ ] Update cluster documentation
+- [ ] Create GitOps workflow (optional)
+- [ ] Archive old cloud-config for reference
+- [ ] Update README with kpt usage
+
+== Future Enhancements
+
+=== GitOps Integration
+
+Consider Flux CD or ArgoCD for continuous deployment once kpt packages are stable.
+
+=== Advanced kpt Functions
+
+Leverage kpt's function pipeline for sophisticated transformations.
+
+=== Package Catalog
+
+Build a reusable catalog of kpt packages for common Kubernetes components.
+
+== References
+
+=== kpt Documentation
+
+* **Official Docs**: https://kpt.dev/
+* **Function Catalog**: https://catalog.kpt.dev/
+* **GitHub**: https://github.com/GoogleContainerTools/kpt
+
+=== Related Documentation
+
+* link:cloud-config-organization.adoc[Cloud Configuration Organization]
+* link:layered-architecture.adoc[Layered Architecture]
+* link:network-architecture.adoc[Network Architecture]
+
+== Conclusion
+
+This migration plan provides a structured approach to introducing kpt into the incus-rke2-cluster deployment system. The phased migration strategy reduces risk by starting with non-critical components and gradually moving to core infrastructure.
+
+**Next Steps**:
+
+1. Review and approve this migration plan
+2. Create initial kpt package structure (Phase 1)
+3. Test Headscale migration on alcide cluster
+4. Document learnings and adjust plan as needed
+5. Proceed with subsequent phases based on success criteria
+
+**Questions to Address**:
+
+1. Should we pursue full GitOps with Flux/ArgoCD after kpt migration?
+2. Where should the kpt packages canonical source live?
+3. What's the acceptable downtime/risk for bioskop cluster during migration?
+4. Should we create a third test cluster for kpt migration testing?
