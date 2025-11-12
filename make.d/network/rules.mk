@@ -282,16 +282,8 @@ network.NODE_WAN_MAC = $(shell printf "52:54:00:%02x:%s:%02x" $(cluster.ID) $(.n
 network.NODE_PROFILE_NAME = $(.network.node_profile_name)
 network.MASTER_NODE_IP = $(.network.master_node_ip)
 
-# Cluster-wide node IP base for DHCP reservations (e.g., "10.80.8" for cluster 1)
-network.CLUSTER_NODE_IP_BASE = $(call cidr-to-base-ip,$(network.CLUSTER_NETWORK_CIDR))
-
-# MAC addresses for all nodes (for DHCP static reservations)
-network.NODE_WAN_MAC_MASTER = $(shell printf "52:54:00:%02x:00:00" $(cluster.ID))
-network.NODE_WAN_MAC_PEER1 = $(shell printf "52:54:00:%02x:00:01" $(cluster.ID))
-network.NODE_WAN_MAC_PEER2 = $(shell printf "52:54:00:%02x:00:02" $(cluster.ID))
-network.NODE_WAN_MAC_PEER3 = $(shell printf "52:54:00:%02x:00:03" $(cluster.ID))
-network.NODE_WAN_MAC_WORKER1 = $(shell printf "52:54:00:%02x:01:0a" $(cluster.ID))
-network.NODE_WAN_MAC_WORKER2 = $(shell printf "52:54:00:%02x:01:0b" $(cluster.ID))
+# Note: MAC addresses and computed values are loaded from _assign.mk via load@network target
+# They are available as plain variables: NODE_WAN_MAC_MASTER, CLUSTER_NODE_IP_BASE, HEADSCALE_VERSION, etc.
 
 # =============================================================================
 # EXPORTS FOR TEMPLATE USAGE
@@ -318,6 +310,15 @@ export VIP_VLAN_NAME = $(network.VIP_VLAN_NAME)
 export NODE_PROFILE_NAME = $(network.NODE_PROFILE_NAME)
 export MASTER_NODE_IP = $(network.MASTER_NODE_IP)
 export NODE_WAN_MAC = $(network.NODE_WAN_MAC)
+
+# Export computed MAC addresses (loaded from _assign.mk)
+export NODE_WAN_MAC_MASTER
+export NODE_WAN_MAC_PEER1
+export NODE_WAN_MAC_PEER2
+export NODE_WAN_MAC_PEER3
+export NODE_WAN_MAC_WORKER1
+export NODE_WAN_MAC_WORKER2
+export CLUSTER_NODE_IP_BASE
 
 # Home LAN LoadBalancer IP pool (cluster-specific)
 ifeq ($(cluster.NAME),bioskop)
@@ -414,12 +415,32 @@ summary@network.print: load@network ## Print detailed network configuration summ
 # Second expansion loader: import generated env exports into make variables
 .PHONY: load@network
 _NETWORK_ASSIGN_FILE := $(.network.dir)/_assign.mk
+_COMPUTED_VALUES_FILE := $(.network.dir)/_computed.mk
 
-$(.network.dir)/_assign.mk: $(.network.subnets_mk_files)
+# Generate computed values that would otherwise require shell forks in every recipe
+$(.network.dir)/_computed.mk: | $(.network.dir)/
+$(.network.dir)/_computed.mk: ## Generate computed values (MAC addresses, versions, etc)
+	: "[network] Computing values that would otherwise fork shells repeatedly" # @codebase
+	echo "# Generated computed values - do not edit manually" > $@
+	echo "# MAC addresses for cluster $(cluster.ID)" >> $@
+	printf "NODE_WAN_MAC_MASTER=%s\n" "$$(printf '52:54:00:%02x:00:00' $(cluster.ID))" >> $@
+	printf "NODE_WAN_MAC_PEER1=%s\n" "$$(printf '52:54:00:%02x:00:01' $(cluster.ID))" >> $@
+	printf "NODE_WAN_MAC_PEER2=%s\n" "$$(printf '52:54:00:%02x:00:02' $(cluster.ID))" >> $@
+	printf "NODE_WAN_MAC_PEER3=%s\n" "$$(printf '52:54:00:%02x:00:03' $(cluster.ID))" >> $@
+	printf "NODE_WAN_MAC_WORKER1=%s\n" "$$(printf '52:54:00:%02x:01:0a' $(cluster.ID))" >> $@
+	printf "NODE_WAN_MAC_WORKER2=%s\n" "$$(printf '52:54:00:%02x:01:0b' $(cluster.ID))" >> $@
+	echo "# Computed cluster values" >> $@
+	printf "CLUSTER_NODE_IP_BASE=%s\n" "$$(echo $(network.CLUSTER_NETWORK_CIDR) | cut -d/ -f1 | sed 's/\.[0-9]*$$//')" >> $@
+	echo "# External versions" >> $@
+	printf "HEADSCALE_VERSION=%s\n" "$$(curl -s https://api.github.com/repos/juanfont/headscale/releases/latest | yq -p json -oy '.tag_name // "v0.27.0" | sub("^v", "")')" >> $@
+	: "[network] Generated $$(grep -c '=' $@) computed values" # @codebase
+
+$(.network.dir)/_assign.mk: $(.network.subnets_mk_files) $(.network.dir)/_computed.mk
 $(.network.dir)/_assign.mk: | $(.network.dir)/
-$(.network.dir)/_assign.mk: ## Build assignment file from all subnet makefiles
+$(.network.dir)/_assign.mk: ## Build assignment file from all subnet makefiles and computed values
 	: "[network] Building assignment file $@" # @codebase
 	cat $^ | sed -n 's/^export \([A-Z0-9_]*\) := \(.*\)/\1=\2/p' > $@
+	cat $(.network.dir)/_computed.mk >> $@
 	grep -c '=' $@ | xargs -I{} echo "[network] Collected {} variable assignments" # @codebase
 
 load@network: $(.network.dir)/_assign.mk
