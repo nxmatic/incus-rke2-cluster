@@ -95,6 +95,8 @@ export TSKEY_CLIENT_TOKEN := $(.incus.tskey_client_token)
 export NODE_PROFILE_NAME := $(network.NODE_PROFILE_NAME)
 export IMAGE_NAME := $(.incus.image_name)
 export CLUSTER_INET_MASTER := $(call cidr-to-host-ip,$(NODE_SUBNETS_NETWORK_0),$(call plus,10,0))
+# Instance config always uses VM logical paths since Incus runs on the VM
+export RUN_WORKSPACE_DIR := /var/lib/nixos/config/modules/nixos/incus-rke2-cluster
 define INCUS_INET_CMD
 $(shell incus list $(1) --format=yaml | yq eval '$(.incus.inet_yq_expr)' -)
 endef
@@ -136,20 +138,84 @@ $(.incus.cluster_env_file):
 # Distrobuilder build context resolution (@codebase)
 .incus.build.mode = $(.incus.exec.mode)
 .incus.distrobuilder_workdir = $(if $(filter remote,$(.incus.build.mode)),$(.incus.remote_repo_root)/modules/nixos/incus-rke2-cluster,$(abspath $(top-dir)))
+# Local build directory in VM (not virtiofs) for better filesystem compatibility
+.incus.local_build_dir := $(shell mktemp -u -d --suffix=rke2)
 # Absolute path used in build command; local mode uses repository-relative path directly
 # Remote mode: prepend full subdirectory path from repo root to reach cluster workspace
-.incus.distrobuilder_file_abs = $(if $(filter remote,$(.incus.build.mode)),$(.incus.remote_repo_root)/modules/nixos/incus-rke2-cluster/$(.incus.distrobuilder_file),$(.incus.distrobuilder_file))
+# Configuration files (local paths only)
+.incus.distrobuilder_file_abs = $(.incus.distrobuilder_file)
+
+# =============================================================================
+# CLEANUP FUNCTIONS FOR ROBUST BUILD
+# =============================================================================
+
+# Shell commands to clean up conflicting temporary directories before distrobuilder runs
+# This prevents "file already exists" errors from base-files package during debootstrap
+define .incus.cleanup_pre_cmd
+	: "[+] Cleaning up debootstrap conflicts before build..."
+	shopt -s nullglob
+	# Clean up any existing rke2 temp directories
+	for dir in /tmp/tmp.*; do
+		if [[ "$$dir" == *rke2 ]] && [[ -d "$$dir" ]]; then
+			echo "Removing conflicting directory: $$dir"
+			sudo rm -rf "$$dir"
+		fi
+	done
+	# Clean up the specific directory we're about to create
+	BUILD_DIR="$(.incus.local_build_dir)"
+	if [[ -n "$$BUILD_DIR" ]] && [[ -d "$$BUILD_DIR" ]]; then
+		echo "Removing existing build directory: $$BUILD_DIR"
+		sudo rm -rf "$$BUILD_DIR"
+	fi
+	# Clean up any debootstrap artifacts and caches
+	sudo find /tmp -name debootstrap -type d -exec rm -rf {} + 2>/dev/null || true
+	sudo rm -rf /tmp/*distrobuilder* /tmp/debian-* 2>/dev/null || true
+	# Clean up any remaining base-files conflicts in /tmp
+	sudo find /tmp -name "bin" -type l -delete 2>/dev/null || true
+	sudo find /tmp -name "lib" -type l -delete 2>/dev/null || true  
+	sudo find /tmp -name "sbin" -type l -delete 2>/dev/null || true
+	: "[+] Debootstrap conflict cleanup complete"
+endef
+
+# Shell commands to clean up after distrobuilder (success or failure)  
+define .incus.cleanup_post_cmd
+	: "[+] Post-build cleanup..."
+	BUILD_DIR="$(.incus.local_build_dir)"
+	if [[ -n "$$BUILD_DIR" ]] && [[ -d "$$BUILD_DIR" ]]; then
+		echo "Removing build directory: $$BUILD_DIR"
+		sudo rm -rf "$$BUILD_DIR"
+	fi
+	shopt -s nullglob
+	for dir in /tmp/tmp.*; do
+		if [[ "$$dir" == *rke2 ]] && [[ -d "$$dir" ]]; then
+			echo "Removing remaining temp directory: $$dir"
+			sudo rm -rf "$$dir"
+		fi
+	done
+endef
+
+# Function to clean up after distrobuilder (success or failure)  
+define cleanup-debootstrap-post
+	: "[+] Post-build cleanup..."
+	# Clean up the specific build directory we created
+	if [[ -n "$(.incus.local_build_dir)" ]] && [[ -d "$(.incus.local_build_dir)" ]]; then \
+		echo "Removing build directory: $(.incus.local_build_dir)"; \
+		sudo rm -rf "$(.incus.local_build_dir)"; \
+	fi
+	# Clean up any remaining temp directories with rke2 suffix
+	for dir in /tmp/tmp.*; do \
+		if [[ "$$dir" == *rke2 ]] && [[ -d "$$dir" ]]; then \
+			echo "Removing remaining temp directory: $$dir"; \
+			sudo rm -rf "$$dir"; \
+		fi; \
+	done
+endef
 
 # Preflight verification: ensure remote repo root and distrobuilder file exist (@codebase)
 .PHONY: verify-context@incus
 verify-context@incus:
-	: "[+] Verifying distrobuilder context (mode: $(.incus.build.mode))"
-	if [ "$(.incus.build.mode)" = "remote" ]; then \
-		if $(REMOTE_EXEC) sudo test -d $(.incus.remote_repo_root); then echo "  ✓ remote repo root: $(.incus.remote_repo_root)"; else echo "  ✗ missing remote repo root: $(.incus.remote_repo_root)"; fi; \
-		if $(REMOTE_EXEC) sudo test -f $(.incus.distrobuilder_file_abs); then echo "  ✓ remote distrobuilder file: $(.incus.distrobuilder_file_abs)"; else echo "  ✗ missing remote distrobuilder file: $(.incus.distrobuilder_file_abs)"; fi; \
-	else \
-		if test -f $(.incus.distrobuilder_file_abs); then echo "  ✓ local distrobuilder file: $(.incus.distrobuilder_file_abs)"; else echo "  ✗ missing local distrobuilder file: $(.incus.distrobuilder_file_abs)"; fi; \
-	fi
+	: "[+] Verifying distrobuilder context (local mode)"
+	if sudo test -f $(.incus.distrobuilder_file_abs); then echo "  ✓ local distrobuilder file: $(.incus.distrobuilder_file_abs)"; else echo "  ✗ missing local distrobuilder file: $(.incus.distrobuilder_file_abs)"; fi
 
 
 
@@ -158,11 +224,11 @@ verify-context@incus:
 #-----------------------------
 
 .PHONY: deps@incus
-deps@incus: ## Check availability of remote incus and required tools (@codebase)
-	: "[+] Checking remote Incus dependencies via $(REMOTE_EXEC) ...";
+deps@incus: ## Check availability of local incus and required tools (@codebase)
+	: "[+] Checking local Incus dependencies ...";
 	ERR=0;
 	for cmd in incus yq timeout distrobuilder; do
-		if $(REMOTE_EXEC) command -v $$cmd >/dev/null 2>&1; then
+		if command -v $$cmd >/dev/null 2>&1; then
 			echo "  ✓ $$cmd";
 		else
 			echo "  ✗ $$cmd (missing)"; ERR=1;
@@ -393,27 +459,51 @@ $(.incus.image_import_marker_file):
 	touch $@
 
 $(call register-distrobuilder-targets,$(.incus.image_build_files))
-$(.incus.image_build_files): $(.incus.distrobuilder_file)
-$(.incus.image_build_files): | $(.incus.dir)/
-$(.incus.image_build_files): verify-context@incus
-$(.incus.image_build_files): switch-project@incus
-$(.incus.image_build_files): export TSID := $(TSID)
 # ($(IMAGE_NAME)) TSKEY export removed; image build uses TSKEY_CLIENT directly (@codebase)
-$(.incus.image_build_files)&:
-	if $(.incus.command) image show $(IMAGE_NAME) --project=rke2 >/dev/null 2>&1; then
-		: "[✓] Image $(IMAGE_NAME) already imported; creating placeholder build artifacts"
-		touch $(.incus.dir)/incus.tar.xz $(.incus.dir)/rootfs.squashfs
-	else
-		: "[+] Image $(IMAGE_NAME) not found; building via distrobuilder (mode=$(.incus.build.mode))"
-		if [ "$(.incus.build.mode)" = "remote" ]; then
-			$(REMOTE_EXEC) sudo bash -lc 'cd $(.incus.distrobuilder_workdir) && distrobuilder --debug --disable-overlay build-dir $(.incus.distrobuilder_file_abs) $(.incus.dir)'
-		else
-			sudo distrobuilder --debug --disable-overlay build-dir $(.incus.distrobuilder_file_abs) $(.incus.dir)/
+# Local build target that always uses local filesystem (never virtiofs)
+# This is an internal target that creates the actual image files with robust cleanup
+$(.incus.image_build_files)&: $(.incus.distrobuilder_file) | $(.incus.dir)/ verify-context@incus switch-project@incus
+	: "[+] Building image files (local mode)"
+	set -e
+		$(.incus.cleanup_pre_cmd)
+		echo "[+] Building image locally using native filesystem (not virtiofs)"
+		# Ensure clean build directory immediately before distrobuilder
+		BUILD_DIR="$(.incus.local_build_dir)"
+		echo "[+] Ensuring clean build directory: $$BUILD_DIR"
+		sudo rm -rf "$$BUILD_DIR" 2>/dev/null || true
+		sudo mkdir -p "$$BUILD_DIR" $(.incus.dir)
+		echo "[+] Building filesystem first, then packing into Incus image"
+		if ! sudo env -i PATH="$$PATH" HOME="$$HOME" USER="$$USER" DEBIAN_FRONTEND=noninteractive \
+			distrobuilder --debug --disable-overlay --cleanup build-dir $(.incus.distrobuilder_file_abs) "$$BUILD_DIR"; then
+			$(.incus.cleanup_post_cmd)
+			echo "[!] Distrobuilder build-dir failed"
+			exit 1
 		fi
-		if [ "$(.incus.build.mode)" = "remote" ]; then \
-			$(REMOTE_EXEC) sudo mv $(.incus.dir)/incus.tar.xz $(.incus.dir)/rootfs.squashfs .; \
+		echo "[+] Packing filesystem into Incus image format"
+		if ! sudo env -i PATH="$$PATH" HOME="$$HOME" USER="$$USER" DEBIAN_FRONTEND=noninteractive \
+			distrobuilder --debug pack-incus $(.incus.distrobuilder_file_abs) "$$BUILD_DIR" $(.incus.dir)/; then
+			$(.incus.cleanup_post_cmd)
+			echo "[!] Distrobuilder pack-incus failed"
+			exit 1
 		fi
-	fi
+		$(.incus.cleanup_post_cmd)
+
+# Helper phony target for remote build delegation
+.PHONY: build-image-local@incus
+build-image-local@incus: $(.incus.image_build_files)
+	: "[✓] Image build completed (files: $(.incus.image_build_files))"
+
+# Manual cleanup targets for troubleshooting
+.PHONY: cleanup-debootstrap@incus force-cleanup-debootstrap@incus
+cleanup-debootstrap@incus: ## Clean up debootstrap temp directories manually
+	$(.incus.cleanup_pre_cmd)
+
+force-cleanup-debootstrap@incus: ## Force cleanup all temp directories and build artifacts
+	: "[+] Force cleanup of all build-related temporary directories..."
+	sudo rm -rf /tmp/tmp.*rke2* /tmp/*distrobuilder* /tmp/debian-* 2>/dev/null || true
+	sudo find /tmp -name debootstrap -type d -exec rm -rf {} + 2>/dev/null || true
+	sudo find /tmp -name "*.deb" -mtime -1 -exec rm -f {} + 2>/dev/null || true
+	: "[+] Force cleanup complete"
 
 # Explicit user-invocable phony targets for image build lifecycle (@codebase)
 .PHONY: build-image@incus force-build-image@incus

@@ -393,10 +393,13 @@ summary@network: ## Show network configuration summary (second expansion) (@code
 
 # Convenience rebuild target to avoid ordering issues when chaining with clean (@codebase)
 .PHONY: rebuild@network
-rebuild@network: clean@network
-rebuild@network: generate@network
-rebuild@network: load@network
 rebuild@network: ## Clean, regenerate and load networks (@codebase)
+	: "[rebuild@network] Cleaning network files"
+	$(MAKE) clean@network
+	: "[rebuild@network] Generating network files"
+	$(MAKE) generate@network
+	: "[rebuild@network] Loading network configuration"
+	$(MAKE) load@network
 	: "[rebuild@network] Completed network rebuild" # @codebase
 
 summary@network.print: load@network ## Print detailed network configuration summary
@@ -418,6 +421,8 @@ _NETWORK_ASSIGN_FILE := $(.network.dir)/_assign.mk
 _COMPUTED_VALUES_FILE := $(.network.dir)/_computed.mk
 
 # Generate computed values that would otherwise require shell forks in every recipe
+# Depends on host subnets being available to resolve CLUSTER_NETWORK_CIDR
+$(.network.dir)/_computed.mk: $(.network.host_subnets_env)
 $(.network.dir)/_computed.mk: | $(.network.dir)/
 $(.network.dir)/_computed.mk: ## Generate computed values (MAC addresses, versions, etc)
 	: "[network] Computing values that would otherwise fork shells repeatedly" # @codebase
@@ -430,7 +435,9 @@ $(.network.dir)/_computed.mk: ## Generate computed values (MAC addresses, versio
 	printf "NODE_WAN_MAC_WORKER1=%s\n" "$$(printf '52:54:00:%02x:01:0a' $(cluster.ID))" >> $@
 	printf "NODE_WAN_MAC_WORKER2=%s\n" "$$(printf '52:54:00:%02x:01:0b' $(cluster.ID))" >> $@
 	echo "# Computed cluster values" >> $@
-	printf "CLUSTER_NODE_IP_BASE=%s\n" "$$(echo $(network.CLUSTER_NETWORK_CIDR) | cut -d/ -f1 | sed 's/\.[0-9]*$$//')" >> $@
+	source $(.network.host_subnets_env) && \
+		cluster_network=$$(eval echo \$$HOST_SUBNETS_NETWORK_$(cluster.ID)) && \
+		printf "CLUSTER_NODE_IP_BASE=%s\n" "$$(echo $$cluster_network | cut -d/ -f1 | sed 's/\.[0-9]*$$//')" >> $@
 	echo "# External versions" >> $@
 	printf "HEADSCALE_VERSION=%s\n" "$$(curl -s https://api.github.com/repos/juanfont/headscale/releases/latest | yq -p json -oy '.tag_name // "v0.27.0" | sub("^v", "")')" >> $@
 	: "[network] Generated $$(grep -c '=' $@) computed values" # @codebase

@@ -1,0 +1,106 @@
+# Working distrobuilder configuration for RKE2 cluster nodes
+# Uses rootfs-http with proper package management fixes
+
+image:
+  distribution: debian
+  release: trixie
+  architecture: arm64
+  description: >-
+    K8s Master Control Node (Debian trixie) with RKE2 requirements
+  expiry: 30d
+
+source:
+  downloader: rootfs-http
+  url: https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-arm64.tar.xz
+
+packages:
+  manager: apt  
+  update: false
+  cleanup: false
+  repositories:
+    - name: debian-trixie-main
+      url: >-
+        deb http://deb.debian.org/debian trixie main contrib non-free
+        non-free-firmware
+    - name: debian-trixie-security
+      url: >-
+        deb http://security.debian.org/debian-security trixie-security
+        main contrib non-free non-free-firmware
+    - name: debian-trixie-updates
+      url: >-
+        deb http://deb.debian.org/debian trixie-updates main contrib
+        non-free non-free-firmware
+  sets:
+    - packages:
+        # Core system packages
+        - apt-transport-https
+        - apt-utils
+        - ca-certificates
+        - curl
+        - wget
+        - gnupg
+        - lsb-release
+        # Container runtime and tools
+        - systemd
+        - systemd-sysv
+        - dbus
+        - iptables
+        - sudo
+        # SSH and network tools
+        - openssh-client
+        - openssh-server
+        - net-tools
+        - dnsutils
+        - netcat-openbsd
+        # Development and admin tools
+        - git
+        - jq
+        - htop
+        - tree
+        - less
+        - nano
+        - vim-tiny
+        - rsync
+        - unzip
+        - tar
+        - gzip
+        - xz-utils
+        - psmisc
+        - lsof
+        - tcpdump
+        # Localization
+        - locales
+        - bash-completion
+        # Cloud-init for container initialization
+        - cloud-init
+      action: install
+
+actions:
+
+  # Configure system after packages are installed
+  - trigger: post-packages
+    proot: false
+    action: |-
+      locale-gen
+      systemctl enable ssh
+
+  # Final system setup
+  - trigger: post-files
+    proot: false
+    action: |-
+      systemctl daemon-reload
+      chmod 600 /etc/ssh/sshd_config.d/99-custom.conf
+
+files:
+  - path: /etc/ssh/sshd_config.d/99-custom.conf
+    generator: dump
+    content: |
+      # Custom SSH configuration for container
+      PermitRootLogin yes
+      PasswordAuthentication yes
+      PubkeyAuthentication yes
+      
+  - path: /etc/locale.gen
+    generator: dump
+    content: |
+      en_US.UTF-8 UTF-8

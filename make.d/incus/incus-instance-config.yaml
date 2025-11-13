@@ -96,7 +96,7 @@ devices:
     path: /.kubeconfig.d
   repo.dir:
     type: disk
-    source: /Volumes/GitHub/nxmatic/nix-darwin-home/modules/nixos/incus-rke2-cluster
+    source: ${RUN_WORKSPACE_DIR}
     path: /var/lib/incus-rke2-cluster
   user.metadata:
     type: disk

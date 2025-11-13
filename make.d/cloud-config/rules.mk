@@ -19,12 +19,9 @@ ifndef make.d/cloud-config/rules.mk
 .cloud-config.master_base = $(.cloud-config.source_dir)/cloud-config.master.base.yaml
 .cloud-config.master_cilium = $(.cloud-config.source_dir)/cloud-config.master.cilium.yaml
 .cloud-config.master_kube_vip = $(.cloud-config.source_dir)/cloud-config.master.kube-vip.yaml
-.cloud-config.master_headscale = $(.cloud-config.source_dir)/cloud-config.master.headscale.yaml
 .cloud-config.peer = $(.cloud-config.source_dir)/cloud-config.peer.yaml
 
-# Headscale version - loaded from network computed values (see network/rules.mk _computed.mk)
-# The value is fetched once during _computed.mk generation and loaded via load@network
-export HEADSCALE_VERSION
+
 
 # Output files (nocloud format) - node-specific paths matching incus structure (@codebase)
 .cloud-config.nocloud_dir = $(run-dir)/incus/$(node.NAME)/nocloud
@@ -60,7 +57,7 @@ export NOCLOUD_NETCFG_FILE := $(cloud-config.NETWORK_CONFIG_FILE)
 ## Decision: Use stable instance-id format to avoid unnecessary cloud-init reinitialization.
 ## Format: <name>-cluster<clusterID>-node<nodeID>
 cloud-config.INSTANCE_ID = $(node.NAME)-cluster$(cluster.ID)-node$(node.ID)
-define .cloud-config.metadata_template :=
+define .cloud-config.metadata_template
 instance-id: $(cloud-config.INSTANCE_ID)
 local-hostname: $(node.NAME).$(cluster.DOMAIN)
 endef
@@ -83,9 +80,6 @@ ifeq ($(node.ROLE),master)
 $(.cloud-config.userdata_file): $(.cloud-config.master_base) ## master base fragment (@codebase)
 $(.cloud-config.userdata_file): $(.cloud-config.master_cilium) ## master cilium fragment (@codebase)
 $(.cloud-config.userdata_file): $(.cloud-config.master_kube_vip) ## master kube-vip fragment (@codebase)
-ifeq ($(cluster.NAME),bioskop)
-$(.cloud-config.userdata_file): $(.cloud-config.master_headscale) ## master headscale fragment (bioskop only) (@codebase)
-endif
 else ifeq ($(node.ROLE),peer)
 $(.cloud-config.userdata_file): $(.cloud-config.peer) ## peer fragment (@codebase)
 endif

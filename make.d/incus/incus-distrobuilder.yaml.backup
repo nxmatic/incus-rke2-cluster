@@ -23,13 +23,8 @@ image:
   expiry: 30d
 
 source:
-  downloader: debootstrap
-  url: https://deb.debian.org/debian
-  components:
-    - main
-    - contrib
-    - non-free
-    - non-free-firmware
+  downloader: rootfs-http
+  url: https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-arm64.tar.xz
 
 packages:
   manager: apt
@@ -117,8 +112,9 @@ packages:
 actions:
   # Debian archive key handling (no remote fetch; rely on
   # debian-archive-keyring). Triggered early after unpack.
-  - trigger: post-unpack
-    action: |
+  # Commented out for rootfs-http source - keys should be in the base image
+  # - trigger: post-unpack
+  #   action: |
       #!/usr/bin/env bash
       set -euo pipefail
       : "==> Debian archive key handling (post-unpack)"

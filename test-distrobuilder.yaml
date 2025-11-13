@@ -1,0 +1,43 @@
+image:
+  distribution: debian
+  release: trixie
+  architecture: arm64
+  description: >-
+    K8s Master Control Node base (Debian trixie) with systemd and packages
+  expiry: 30d
+
+source:
+  downloader: rootfs-http
+  url: https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-arm64.tar.xz
+
+packages:
+  manager: apt
+  update: true
+  cleanup: true
+  repositories:
+    - name: debian-trixie-main
+      url: >-
+        deb http://deb.debian.org/debian trixie main contrib non-free
+        non-free-firmware
+  sets:
+    - packages:
+        - curl
+        - wget
+        - apt-transport-https
+        - ca-certificates
+        - gnupg
+        - lsb-release
+        - systemd
+        - systemd-sysv
+        - dbus
+        - openssh-server
+        - openssh-client
+      action: install
+
+actions:
+  - trigger: post-packages
+    action: |
+      #!/bin/sh
+      echo "==> Basic post-packages setup"
+      systemctl enable ssh
+      echo "Setup complete"

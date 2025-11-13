@@ -185,11 +185,14 @@ host.IS_DARWIN := $(if $(filter Darwin,$(host.UNAME)),$(true),$(false))
 host.IS_LINUX := $(if $(filter Linux,$(host.UNAME)),$(true),$(false))
 host.IS_NIXOS := $(if $(and $(host.IS_LINUX),$(wildcard /etc/NIXOS)),$(true),$(false))
 
-# Build mode predicates
-host.IS_LOCAL_INCUS_BUILD := $(if $(filter $(true),$(host.IS_NIXOS)),$(true),$(false))
-host.IS_REMOTE_INCUS_BUILD := $(if $(filter $(true),$(host.IS_DARWIN)),$(true),$(false))
+# Build mode: Always local (NixOS VM only)
 
-$(call make.trace,host-detection,(host.UNAME host.IS_DARWIN host.IS_NIXOS host.IS_REMOTE_INCUS_BUILD host.IS_LOCAL_INCUS_BUILD))
+$(call make.trace,host-detection,(host.UNAME host.IS_DARWIN host.IS_NIXOS))
+
+# Early environment validation: Incus operations require NixOS
+ifneq ($(host.IS_NIXOS),T)
+$(error [make.mk] Incus cluster operations must run on NixOS VM, not $(host.UNAME). Please SSH into lima-nerd-nixos and run from /var/lib/nixos/config/modules/nixos/incus-rke2-cluster)
+endif
 
 # Layer-specific trace macros
 define trace
@@ -236,6 +239,7 @@ MAKEFLAGS += --no-print-directory
 .DELETE_ON_ERROR:
 .EXTRA_PREREQS: .make
 .SUFFIXES:
+.SECONDARY:
 .SECONDEXPANSION:
 .ONESHELL:
 .SILENT:
@@ -397,19 +401,14 @@ help: ## Show grouped help for all targets (use FILTER=regex to filter)
 			echo "$$lines" | awk -v c="$$cyan" -v r="$$reset" 'BEGIN{FS=":.*?## "} NF>=2 {printf "  %s%-30s%s %s\n", c, $$1, r, $$2}' || true; \
 		fi; \
 	}
-	
-	# Layer-based groups (auto-discovered by @suffix)
+	: "Layer-based groups (auto-discovered by @suffix)"
 	group "Node" "node"
 	group "Incus" "incus" 
 	group "Cluster" "cluster"
 	group "Network" "network"
 	group "Cloud-Config" "cloud-config"
 	group "Metaprogramming" "meta"
-	
-	# Application deployment groups
-	group "Headscale" "" "^(deploy@headscale|status@headscale|clean@headscale|headscale@authkey|headscale)$$"
-	
-	# Special pattern-based groups for cross-cutting concerns
+	: "Special pattern-based groups for cross-cutting concerns"
 	group "Utility" "" "^(help|lint-yaml|zfs\\.allow|remove-hosts@tailscale|noop)$$"
 	echo ""
 	echo "Total targets: $$(echo "$$ALL_HELP_LINES" | grep -c . || true)"

@@ -1,0 +1,154 @@
+# build-packages.yaml
+# Base image: system update and package installation only
+#
+# BUILD VARIABLES (can be overridden via environment):
+# - FLOX_VERSION: flox package version (default: 1.5.0)
+# - FLOX_BASE_URL: flox download base URL
+#   (default: https://downloads.flox.dev/by-env/stable/deb)
+# - FLOX_DEB_SHA256: optional SHA256 checksum for verification
+#   Known checksums for flox 1.5.0:
+#   - aarch64: [add checksum when available]
+#   - x86_64:  [add checksum when available]
+#
+# This configuration installs flox in the base image because cloud-config
+# scripts (rke2-install-pre, environment activation) depend on it being
+# pre-installed. Without flox, RKE2 cluster bootstrap will fail.
+
+image:
+  distribution: debian
+  release: trixie
+  architecture: arm64
+  description: >-
+    K8s Master Control Node base (Debian trixie) with systemd and packages
+  expiry: 30d
+
+source:
+  downloader: rootfs-http
+  url: https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-arm64.tar.xz
+
+packages:
+  manager: apt
+  update: true
+  cleanup: true
+  repositories:
+    - name: debian-trixie-main
+      url: >-
+        deb http://deb.debian.org/debian trixie main contrib non-free
+        non-free-firmware
+    - name: debian-trixie-security
+      url: >-
+        deb http://security.debian.org/debian-security trixie-security
+        main contrib non-free non-free-firmware
+    - name: debian-trixie-updates
+      url: >-
+        deb http://deb.debian.org/debian trixie-updates main contrib
+        non-free non-free-firmware
+    - name: debian-unstable
+      url: "deb http://deb.debian.org/debian unstable main"
+  sets:
+    - packages:
+        - acl
+        - apt-file
+        - apt-transport-https
+        - apt-utils
+        - bash-completion
+        - bc
+        - binutils
+        - bzip2
+        - ca-certificates
+        - cloud-init
+        - curl
+        - direnv
+        - dstat
+        - dnsutils
+        - emacs-nox
+        - file
+        - git
+        - gh
+        - gnupg
+        - gzip
+        - htop
+        - iptables
+        - jq
+        - less
+        - locales
+        - logrotate
+        - lsb-release
+        - lsof
+        - man-db
+        - manpages
+        - nano
+        - netcat-openbsd
+        - net-tools
+        - openssh-client
+        - openssh-server
+        - psmisc
+        - rsync
+        - sudo
+        - systemd
+        - systemd-sysv
+        - tar
+        - tcpdump
+        - telnet
+        - tree
+        - unzip
+        - vim-tiny
+        - wget
+        - xz-utils
+        - zip
+      action: install
+
+actions:
+  # Fix paths for package management (cloud images have binaries in /usr/bin)
+  - trigger: post-unpack
+    action: |
+      #!/bin/sh
+      echo "==> Creating compatibility symlinks for package management"
+      # Create /bin symlinks for package management tools if they don't exist
+      if [ ! -e /bin/apt-get ] && [ -f /usr/bin/apt-get ]; then
+        ln -sf /usr/bin/apt-get /bin/apt-get
+      fi
+      if [ ! -e /bin/apt ] && [ -f /usr/bin/apt ]; then
+        ln -sf /usr/bin/apt /bin/apt
+      fi
+      if [ ! -e /bin/dpkg ] && [ -f /usr/bin/dpkg ]; then
+        ln -sf /usr/bin/dpkg /bin/dpkg
+      fi
+      if [ ! -e /bin/apt-cache ] && [ -f /usr/bin/apt-cache ]; then
+        ln -sf /usr/bin/apt-cache /bin/apt-cache
+      fi
+      echo "Package management compatibility symlinks created"
+
+  # Generate locales early (before post-files) now that 'locales' package is installed
+  - trigger: post-packages
+    action: |
+      #!/bin/sh
+      echo "==> Generating locales"
+      echo 'en_US.UTF-8 UTF-8' > /etc/locale.gen
+      locale-gen
+      update-locale LANG=en_US.UTF-8
+
+  # Enable SSH service
+  - trigger: post-packages
+    action: |
+      #!/bin/sh
+      echo "==> Configuring SSH service"
+      systemctl enable ssh
+      
+  # Basic system configuration  
+  - trigger: post-files
+    action: |
+      #!/bin/sh
+      echo "==> Basic system setup"
+      # Ensure systemd is properly configured
+      systemctl daemon-reload
+      echo "System setup complete"
+
+files:
+  - path: /etc/ssh/sshd_config.d/99-custom.conf
+    generator: dump
+    content: |
+      # Custom SSH configuration for container
+      PermitRootLogin yes
+      PasswordAuthentication yes
+      PubkeyAuthentication yes
