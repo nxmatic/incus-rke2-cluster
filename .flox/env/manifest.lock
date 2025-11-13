@@ -27,6 +27,13 @@
           "x86_64-linux"
         ]
       },
+      "debootstrap": {
+        "pkg-path": "debootstrap",
+        "systems": [
+          "aarch64-linux",
+          "x86_64-linux"
+        ]
+      },
       "dig": {
         "pkg-path": "dig"
       },
@@ -98,6 +105,13 @@
       },
       "ncdu": {
         "pkg-path": "ncdu"
+      },
+      "netplan": {
+        "pkg-path": "netplan",
+        "systems": [
+          "aarch64-linux",
+          "x86_64-linux"
+        ]
       },
       "nmap": {
         "pkg-path": "nmap"
@@ -427,6 +441,68 @@
       ],
       "outputs": {
         "out": "/nix/store/p6a5yh78fxc9w0jhwi2kp5mfpcvsnizp-conntrack-tools-1.4.6"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "debootstrap",
+      "broken": false,
+      "derivation": "/nix/store/knkkwk62myhfxbf6v8sl2z02p0jair8h-debootstrap-1.0.126.drv",
+      "description": "Tool to create a Debian system in a chroot",
+      "install_id": "debootstrap",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
+      "name": "debootstrap-1.0.126",
+      "pname": "debootstrap",
+      "rev": "c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
+      "rev_count": 348581,
+      "rev_date": "2022-01-25T03:21:06Z",
+      "scrape_date": "2024-08-15T20:52:42Z",
+      "stabilities": [
+        "stable",
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.0.126",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/bzbj4win3iqzhdgmk3yk9c9lksbqaysm-debootstrap-1.0.126"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "debootstrap",
+      "broken": false,
+      "derivation": "/nix/store/6y5v6jgzs4cmqd8pjxlmi0q29czppwgh-debootstrap-1.0.126.drv",
+      "description": "Tool to create a Debian system in a chroot",
+      "install_id": "debootstrap",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
+      "name": "debootstrap-1.0.126",
+      "pname": "debootstrap",
+      "rev": "c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
+      "rev_count": 348581,
+      "rev_date": "2022-01-25T03:21:06Z",
+      "scrape_date": "2024-08-15T20:52:42Z",
+      "stabilities": [
+        "stable",
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.0.126",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/v4mk86ykng2gsnv5v03adkj2pbzswxwl-debootstrap-1.0.126"
       },
       "system": "x86_64-linux",
       "group": "toplevel",
@@ -2769,6 +2845,68 @@
       ],
       "outputs": {
         "out": "/nix/store/ffcz3xf77r9s6qkhr3j59aisg17s0fsn-ncdu-1.16"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "netplan",
+      "broken": false,
+      "derivation": "/nix/store/hbgp2l9j2xbfsgy75phblws67f1qvya0-netplan-0.103.drv",
+      "description": "Backend-agnostic network configuration in YAML",
+      "install_id": "netplan",
+      "license": "GPL-3.0-only",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
+      "name": "netplan-0.103",
+      "pname": "netplan",
+      "rev": "c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
+      "rev_count": 348581,
+      "rev_date": "2022-01-25T03:21:06Z",
+      "scrape_date": "2024-08-15T20:52:42Z",
+      "stabilities": [
+        "stable",
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.103",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/yndkv7clli7hw31lq10fzs1da1qh7jiw-netplan-0.103"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "netplan",
+      "broken": false,
+      "derivation": "/nix/store/5wd5jygqpy4z1k7h2lcffhhlr71nz05c-netplan-0.103.drv",
+      "description": "Backend-agnostic network configuration in YAML",
+      "install_id": "netplan",
+      "license": "GPL-3.0-only",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
+      "name": "netplan-0.103",
+      "pname": "netplan",
+      "rev": "c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
+      "rev_count": 348581,
+      "rev_date": "2022-01-25T03:21:06Z",
+      "scrape_date": "2024-08-15T20:52:42Z",
+      "stabilities": [
+        "stable",
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.103",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/dzz73k061yjlaj1qdgrkf3sjsbkch9b2-netplan-0.103"
       },
       "system": "x86_64-linux",
       "group": "toplevel",

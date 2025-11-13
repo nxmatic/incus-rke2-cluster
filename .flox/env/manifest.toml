@@ -51,6 +51,10 @@ cilium-cli.pkg-path = "cilium-cli"
 conntrack-tools.pkg-path = "conntrack-tools"
 conntrack-tools.systems = ["aarch64-linux", "x86_64-linux"]
 kpt.pkg-path = "kpt"
+debootstrap.pkg-path = "debootstrap"
+debootstrap.systems = ["aarch64-linux", "x86_64-linux"]
+netplan.pkg-path = "netplan"
+netplan.systems = ["aarch64-linux", "x86_64-linux"]
 # gum.pkg-path = "gum"
 # gum.version = "^0.14.5"
 
