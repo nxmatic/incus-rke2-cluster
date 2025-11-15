@@ -15,8 +15,6 @@ version = 1
 ##  $ flox show gum     <- show all versions of a package
 ## -------------------------------------------------------------------
 [install]
-distrobuilder.pkg-path = "distrobuilder"
-distrobuilder.systems = ["aarch64-linux", "x86_64-linux"]
 # lazygit.pkg-path = "lazygit"  # Disabled - using nix-darwin overlay version
 gh.pkg-path = "gh"
 gnupg.pkg-path = "gnupg"

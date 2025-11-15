@@ -40,13 +40,6 @@
       "direnv": {
         "pkg-path": "direnv"
       },
-      "distrobuilder": {
-        "pkg-path": "distrobuilder",
-        "systems": [
-          "aarch64-linux",
-          "x86_64-linux"
-        ]
-      },
       "dnsmasq": {
         "pkg-path": "dnsmasq"
       },
@@ -779,68 +772,6 @@
       ],
       "outputs": {
         "out": "/nix/store/71wm6fbffhj30gjqp079p0m6vbcys7wg-direnv-2.30.3"
-      },
-      "system": "x86_64-linux",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "distrobuilder",
-      "broken": false,
-      "derivation": "/nix/store/7gbf5h2nmqpix019223jpfp6d7z0llgg-distrobuilder-2.0.drv",
-      "description": "System container image builder for LXC and LXD",
-      "install_id": "distrobuilder",
-      "license": "Apache-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
-      "name": "distrobuilder-2.0",
-      "pname": "distrobuilder",
-      "rev": "c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
-      "rev_count": 348581,
-      "rev_date": "2022-01-25T03:21:06Z",
-      "scrape_date": "2024-08-15T20:52:42Z",
-      "stabilities": [
-        "stable",
-        "staging",
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "2.0",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/k3w6imffsf4q7w3icgarzx1hs3xhp6kf-distrobuilder-2.0"
-      },
-      "system": "aarch64-linux",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "distrobuilder",
-      "broken": false,
-      "derivation": "/nix/store/sgchag4zh4jiww44k7dfg6xl99h95z0i-distrobuilder-2.0.drv",
-      "description": "System container image builder for LXC and LXD",
-      "install_id": "distrobuilder",
-      "license": "Apache-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
-      "name": "distrobuilder-2.0",
-      "pname": "distrobuilder",
-      "rev": "c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
-      "rev_count": 348581,
-      "rev_date": "2022-01-25T03:21:06Z",
-      "scrape_date": "2024-08-15T20:52:42Z",
-      "stabilities": [
-        "stable",
-        "staging",
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "2.0",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/5cc845p1hlx1gam6yc5kdh2wmkhdk81z-distrobuilder-2.0"
       },
       "system": "x86_64-linux",
       "group": "toplevel",
