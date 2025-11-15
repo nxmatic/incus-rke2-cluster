@@ -22,5 +22,7 @@ pipeline:
     - image: gcr.io/kpt-fn/apply-setters:v0.2
       configMap:
         headscale-version: "0.27.0"
-        cluster-name: "alcide"
+        cluster-name: "bioskop"
+        darwin-host: "bioskop"
         home-lan-pool: "192.168.1.192/27"
+        headscale-lb-ip: "192.168.1.193"
