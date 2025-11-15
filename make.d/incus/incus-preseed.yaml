@@ -35,7 +35,7 @@ networks:
       ipv6.nat: "false"
       dns.mode: none
       bridge.driver: native
-      bridge.external_interfaces: vmlan1
+      bridge.external_interfaces: vmlan0
   - name: vmnet-br
     type: bridge
     config:
