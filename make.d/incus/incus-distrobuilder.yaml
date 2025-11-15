@@ -30,6 +30,11 @@ source:
     - contrib
     - non-free
     - non-free-firmware
+  options:
+    no-merged-usr: ""
+    force-check-gpg: ""
+    resolve-deps: ""
+    variant: "minbase"
 
 packages:
   manager: apt

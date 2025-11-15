@@ -330,7 +330,7 @@ export HOME_LAN_LOADBALANCER_POOL =
 endif
 
 # Cluster-wide variables for DHCP static reservations
-export CLUSTER_NODE_IP_BASE = $(network.CLUSTER_NODE_IP_BASE)
+export CLUSTER_NODE_IP_BASE
 export NODE_WAN_MAC_MASTER = $(network.NODE_WAN_MAC_MASTER)
 export NODE_WAN_MAC_PEER1 = $(network.NODE_WAN_MAC_PEER1)
 export NODE_WAN_MAC_PEER2 = $(network.NODE_WAN_MAC_PEER2)
