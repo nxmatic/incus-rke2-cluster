@@ -30,11 +30,6 @@ source:
     - contrib
     - non-free
     - non-free-firmware
-  options:
-    no-merged-usr: ""
-    force-check-gpg: ""
-    resolve-deps: ""
-    variant: "minbase"
 
 packages:
   manager: apt
@@ -136,7 +131,7 @@ actions:
         mkdir -p "$workdir"
         cd "$workdir"
         declare -A key_urls key_sha
-        # bookworm
+        # trixie
         key_urls[archive-key-12.asc]="https://ftp-master.debian.org/keys/archive-key-12.asc"
         # trixie
         key_urls[archive-key-13.asc]="https://ftp-master.debian.org/keys/archive-key-13.asc"

@@ -405,11 +405,13 @@ $(.incus.image_build_files)&: $(.incus.distrobuilder_file) | $(.incus.dir)/ veri
 	echo "[+] Building image locally using native filesystem (not virtiofs)"
 	sudo mkdir -p $(.incus.dir)
 	echo "[+] Building filesystem first, then packing into Incus image"
-	sudo env -i PATH="$$PATH" HOME="$$HOME" USER="$$USER" DEBIAN_FRONTEND=noninteractive \
-		distrobuilder --debug --disable-overlay --cleanup build-dir $(.incus.distrobuilder_file_abs) "$(.incus.local_build_dir)"
+	sudo env -i PATH="$$PATH" DEBIAN_FRONTEND=noninteractive  \
+		distrobuilder build-dir $(.incus.distrobuilder_file_abs) "$(.incus.local_build_dir)" --debug --disable-overlay --cleanup
+	echo "[+] Creating temporary config for packing (without debootstrap options)"
+	sed '/options:/,/variant: "buildd"/d' $(.incus.distrobuilder_file_abs) > "$(.incus.local_build_dir)-pack.yaml"
 	echo "[+] Packing filesystem into Incus image format"
 	sudo env -i PATH="$$PATH" HOME="$$HOME" USER="$$USER" DEBIAN_FRONTEND=noninteractive \
-		distrobuilder --debug pack-incus $(.incus.distrobuilder_file_abs) "$(.incus.local_build_dir)" $(.incus.dir)/
+		distrobuilder pack-incus "$(.incus.local_build_dir)-pack.yaml" "$(.incus.local_build_dir)" $(.incus.dir) --debug
 
 # Helper phony target for remote build delegation
 .PHONY: build-image-local@incus
