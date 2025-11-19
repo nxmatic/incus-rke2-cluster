@@ -1,0 +1,4 @@
+# Ignore non-Kubernetes configuration files
+.sops.yaml
+README.md
+.kptignore

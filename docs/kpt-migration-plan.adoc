@@ -130,9 +130,13 @@ flox install \
 
 [source,bash]
 ----
-# After cluster starts, verify kpt is available
-flox activate --dir=/var/lib/rancher/rke2
+# After cluster starts, verify kpt v1 is available
+source <( flox activate --dir=/var/lib/rancher/rke2 )
 kpt version
+# Should show: unknown (kpt v1.0.0-beta.55)
+
+# Verify kpt live commands are available
+kpt live --help
 ----
 
 === Step 2: Create kpt Package Directory Structure

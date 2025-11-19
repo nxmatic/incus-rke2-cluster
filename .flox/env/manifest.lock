@@ -85,7 +85,9 @@
         "pkg-path": "k9s"
       },
       "kpt": {
-        "pkg-path": "kpt"
+        "pkg-path": "kpt",
+        "pkg-group": "kpt-tools",
+        "version": "1.0.0-beta.55"
       },
       "kubectl": {
         "pkg-path": "kubectl"
@@ -115,6 +117,13 @@
       "remake": {
         "pkg-path": "remake"
       },
+      "sops": {
+        "pkg-path": "sops",
+        "systems": [
+          "aarch64-linux",
+          "x86_64-linux"
+        ]
+      },
       "tshark": {
         "pkg-path": "tshark"
       },
@@ -129,6 +138,122 @@
     "options": {}
   },
   "packages": [
+    {
+      "attr_path": "kpt",
+      "broken": false,
+      "derivation": "/nix/store/sfsax9w372y22nilcph8ngf4i385ij01-kpt-1.0.0-beta.55.drv",
+      "description": "Automate Kubernetes Configuration Editing",
+      "install_id": "kpt",
+      "license": "Apache-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=b3d51a0365f6695e7dd5cdf3e180604530ed33b4",
+      "name": "kpt-1.0.0-beta.55",
+      "pname": "kpt",
+      "rev": "b3d51a0365f6695e7dd5cdf3e180604530ed33b4",
+      "rev_count": 888552,
+      "rev_date": "2025-11-02T19:18:41Z",
+      "scrape_date": "2025-11-04T00:35:33.806580Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.0.0-beta.55",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/ka5sw0kvlmbjrfd379js877fbqv39lxq-kpt-1.0.0-beta.55"
+      },
+      "system": "aarch64-darwin",
+      "group": "kpt-tools",
+      "priority": 5
+    },
+    {
+      "attr_path": "kpt",
+      "broken": false,
+      "derivation": "/nix/store/7q0hf7azl5g4j9jh46qr9gxniirqkk6v-kpt-1.0.0-beta.55.drv",
+      "description": "Automate Kubernetes Configuration Editing",
+      "install_id": "kpt",
+      "license": "Apache-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=b3d51a0365f6695e7dd5cdf3e180604530ed33b4",
+      "name": "kpt-1.0.0-beta.55",
+      "pname": "kpt",
+      "rev": "b3d51a0365f6695e7dd5cdf3e180604530ed33b4",
+      "rev_count": 888552,
+      "rev_date": "2025-11-02T19:18:41Z",
+      "scrape_date": "2025-11-05T16:29:20.310073Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.0.0-beta.55",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/z9dbycw7ldwlz50dvxig75dhhy86c43a-kpt-1.0.0-beta.55"
+      },
+      "system": "aarch64-linux",
+      "group": "kpt-tools",
+      "priority": 5
+    },
+    {
+      "attr_path": "kpt",
+      "broken": false,
+      "derivation": "/nix/store/ks7prml0vh1fay2i0ar7gj4a5dzsg8yc-kpt-1.0.0-beta.55.drv",
+      "description": "Automate Kubernetes Configuration Editing",
+      "install_id": "kpt",
+      "license": "Apache-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=b3d51a0365f6695e7dd5cdf3e180604530ed33b4",
+      "name": "kpt-1.0.0-beta.55",
+      "pname": "kpt",
+      "rev": "b3d51a0365f6695e7dd5cdf3e180604530ed33b4",
+      "rev_count": 888552,
+      "rev_date": "2025-11-02T19:18:41Z",
+      "scrape_date": "2025-11-05T16:55:13.661599Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.0.0-beta.55",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/w8zlgydn95lxzx1bzww2lwi0bh497gsj-kpt-1.0.0-beta.55"
+      },
+      "system": "x86_64-darwin",
+      "group": "kpt-tools",
+      "priority": 5
+    },
+    {
+      "attr_path": "kpt",
+      "broken": false,
+      "derivation": "/nix/store/jmwmihi4y1md9fpxkjgd1lw03mz7pxfq-kpt-1.0.0-beta.55.drv",
+      "description": "Automate Kubernetes Configuration Editing",
+      "install_id": "kpt",
+      "license": "Apache-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=b3d51a0365f6695e7dd5cdf3e180604530ed33b4",
+      "name": "kpt-1.0.0-beta.55",
+      "pname": "kpt",
+      "rev": "b3d51a0365f6695e7dd5cdf3e180604530ed33b4",
+      "rev_count": 888552,
+      "rev_date": "2025-11-02T19:18:41Z",
+      "scrape_date": "2025-11-05T17:21:10.989013Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.0.0-beta.55",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/nc593ibxlamzdhgbr7svcjm96qyc4q7a-kpt-1.0.0-beta.55"
+      },
+      "system": "x86_64-linux",
+      "group": "kpt-tools",
+      "priority": 5
+    },
     {
       "attr_path": "bpftool",
       "broken": false,
@@ -2154,130 +2279,6 @@
       "priority": 5
     },
     {
-      "attr_path": "kpt",
-      "broken": false,
-      "derivation": "/nix/store/dzwc54hs3k99grmcz9i50in7pzb61hg5-kpt-0.39.2.drv",
-      "description": "A toolkit to help you manage, manipulate, customize, and apply Kubernetes Resource configuration data files",
-      "install_id": "kpt",
-      "license": "Apache-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
-      "name": "kpt-0.39.2",
-      "pname": "kpt",
-      "rev": "c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
-      "rev_count": 348581,
-      "rev_date": "2022-01-25T03:21:06Z",
-      "scrape_date": "2024-08-15T20:52:42Z",
-      "stabilities": [
-        "stable",
-        "staging",
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "0.39.2",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/vvq823yv7217hvzjl2y7lgwm06wqs7ry-kpt-0.39.2"
-      },
-      "system": "aarch64-darwin",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "kpt",
-      "broken": false,
-      "derivation": "/nix/store/ynjkgkfv2r1v04wc9vnh1appnxffz9i9-kpt-0.39.2.drv",
-      "description": "A toolkit to help you manage, manipulate, customize, and apply Kubernetes Resource configuration data files",
-      "install_id": "kpt",
-      "license": "Apache-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
-      "name": "kpt-0.39.2",
-      "pname": "kpt",
-      "rev": "c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
-      "rev_count": 348581,
-      "rev_date": "2022-01-25T03:21:06Z",
-      "scrape_date": "2024-08-15T20:52:42Z",
-      "stabilities": [
-        "stable",
-        "staging",
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "0.39.2",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/h6jcbmb1mxlbm3i5wffxqcrlpw2l9sw4-kpt-0.39.2"
-      },
-      "system": "aarch64-linux",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "kpt",
-      "broken": false,
-      "derivation": "/nix/store/mhy9yvgaagkixm110dh8n1navapag46d-kpt-0.39.2.drv",
-      "description": "A toolkit to help you manage, manipulate, customize, and apply Kubernetes Resource configuration data files",
-      "install_id": "kpt",
-      "license": "Apache-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
-      "name": "kpt-0.39.2",
-      "pname": "kpt",
-      "rev": "c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
-      "rev_count": 348581,
-      "rev_date": "2022-01-25T03:21:06Z",
-      "scrape_date": "2024-08-15T20:52:42Z",
-      "stabilities": [
-        "stable",
-        "staging",
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "0.39.2",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/brl8ckywx60ah1j60w5wb7apldvv26gy-kpt-0.39.2"
-      },
-      "system": "x86_64-darwin",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "kpt",
-      "broken": false,
-      "derivation": "/nix/store/3fb117ir4vm75bgmsfyc389bwrb3prcq-kpt-0.39.2.drv",
-      "description": "A toolkit to help you manage, manipulate, customize, and apply Kubernetes Resource configuration data files",
-      "install_id": "kpt",
-      "license": "Apache-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
-      "name": "kpt-0.39.2",
-      "pname": "kpt",
-      "rev": "c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
-      "rev_count": 348581,
-      "rev_date": "2022-01-25T03:21:06Z",
-      "scrape_date": "2024-08-15T20:52:42Z",
-      "stabilities": [
-        "stable",
-        "staging",
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "0.39.2",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/ip57x8p6hy0g5yka6a7fc4xa8k6w7yd0-kpt-0.39.2"
-      },
-      "system": "x86_64-linux",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
       "attr_path": "kubectl",
       "broken": false,
       "derivation": "/nix/store/12y62ms7vq2wwr6vhzyxmn0l3mb1vja7-kubectl-1.22.6.drv",
@@ -3232,6 +3233,68 @@
       ],
       "outputs": {
         "out": "/nix/store/n07f9ra90mpnly6pf6whd04xc57ar4v4-remake-4.3+dbg-1.6"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "sops",
+      "broken": false,
+      "derivation": "/nix/store/gpl540c21slf2lzgh9f8d2692z48gwxh-sops-3.7.1.drv",
+      "description": "Mozilla sops (Secrets OPerationS) is an editor of encrypted files",
+      "install_id": "sops",
+      "license": "MPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
+      "name": "sops-3.7.1",
+      "pname": "sops",
+      "rev": "c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
+      "rev_count": 348581,
+      "rev_date": "2022-01-25T03:21:06Z",
+      "scrape_date": "2024-08-15T20:52:42Z",
+      "stabilities": [
+        "stable",
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "3.7.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/0s40xf40srbv1cpp7kjl9asqv5g91zcs-sops-3.7.1"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "sops",
+      "broken": false,
+      "derivation": "/nix/store/7rw4mmrw7k9spjmj0xzb58qbx5j5mkxi-sops-3.7.1.drv",
+      "description": "Mozilla sops (Secrets OPerationS) is an editor of encrypted files",
+      "install_id": "sops",
+      "license": "MPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
+      "name": "sops-3.7.1",
+      "pname": "sops",
+      "rev": "c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
+      "rev_count": 348581,
+      "rev_date": "2022-01-25T03:21:06Z",
+      "scrape_date": "2024-08-15T20:52:42Z",
+      "stabilities": [
+        "stable",
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "3.7.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/l59ln2zypkn7nyp7cdg5ipa5f283h14i-sops-3.7.1"
       },
       "system": "x86_64-linux",
       "group": "toplevel",

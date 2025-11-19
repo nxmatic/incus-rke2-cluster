@@ -269,7 +269,12 @@ write_files:
       flox install \
         --dir=/var/lib/rancher/rke2 \
         ceph-client cilium-cli etcdctl helmfile \
-        kubernetes-helm kpt kubectl yq-go # override
+        kubernetes-helm kubectl yq-go # override
+      
+      : "Install kpt v1 in isolated group to avoid dependency conflicts"
+      flox install \
+        --dir=/var/lib/rancher/rke2 \
+        kpt
 
       : "Include cloud environment in RKE2 flox environment and configure groups"
       dasel -r toml -w yaml \
@@ -287,6 +292,7 @@ write_files:
         yq eval '.install += {"kubectl-view-secret": {"pkg-path": "kubectl-view-secret", "pkg-group": "kubectl-plugins"}}' - |
         yq eval '.install += {"tubekit": {"pkg-path": "tubekit", "pkg-group": "kubectl-tools"}}' - |
         yq eval '.install += {"yq-go": {"pkg-path": "yq-go", "pkg-group": "yaml-tools"}}' - |
+        yq eval '.install += {"kpt": {"pkg-path": "kpt", "version": "1.0.0-beta.55", "pkg-group": "kpt-tools"}}' - |
         yq eval '.profile = {"common": "source /var/lib/rancher/rke2/.flox/env/profile-common.sh"}' - |
         dasel --pretty -r yaml -w toml | tee /tmp/manifest.toml.$$ &&
         mv /tmp/manifest.toml.$$ \
