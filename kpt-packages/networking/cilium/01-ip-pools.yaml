@@ -6,8 +6,6 @@ spec:
   blocks:
     - cidr: 10.80.8.128/26 # kpt-set: ${lb-pool-cidr}
       # LoadBalancer pool inside /26 (128/26): usable hosts 129-190
-      min: 129 # kpt-set: ${lb-pool-min}
-      max: 190 # kpt-set: ${lb-pool-max}
 ---
 apiVersion: cilium.io/v2alpha1
 kind: CiliumLoadBalancerIPPool
@@ -16,5 +14,3 @@ metadata:
 spec:
   blocks:
     - cidr: 10.80.15.0/24 # kpt-set: ${vip-pool-cidr}
-      min: 1 # kpt-set: ${vip-pool-min}
-      max: 254 # kpt-set: ${vip-pool-max}

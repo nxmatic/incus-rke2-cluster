@@ -20,11 +20,7 @@ pipeline:
         cluster-name: bioskop-cluster
         cluster-id: "15"
         lb-pool-cidr: 10.80.8.128/26
-        lb-pool-min: "129"
-        lb-pool-max: "190"
         vip-pool-cidr: 10.80.15.0/24
-        vip-pool-min: "1"
-        vip-pool-max: "254"
         l2-interface-1: vmnet0
         l2-interface-2: lan0
         bgp-local-asn: "65001"
