@@ -60,81 +60,10 @@ write_files:
             replicas: 1
           socketLB:
             hostNamespaceOnly: false
-  - path: /var/lib/rancher/rke2/server/manifests/cilium-cluster-resources.yaml
-    content: |
-      # Cilium cluster resources (BGP + IP pools) - full profile only
-      apiVersion: cilium.io/v2alpha1
-      kind: CiliumLoadBalancerIPPool
-      metadata:
-        name: load-balancers
-      spec:
-        blocks:
-          - cidr: ${CLUSTER_LOADBALANCER_NETWORK_CIDR}
-            # LoadBalancer pool inside /26 (128/26): usable hosts 129-190 (@codebase)
-            min: 129
-            max: 190
-      ---
-      apiVersion: cilium.io/v2alpha1
-      kind: CiliumLoadBalancerIPPool
-      metadata:
-        name: virtual-addresses
-      spec:
-        blocks:
-          - cidr: ${CLUSTER_VIP_NETWORK_CIDR}
-            min: 1
-            max: 254
-      ---
-      apiVersion: cilium.io/v2alpha1
-      kind: CiliumL2AnnouncementPolicy
-      metadata:
-        name: host
-      spec:
-        serviceSelector:
-          matchLabels: {}
-        loadBalancerIPs: true
-        interfaces:
-          - vmnet0
-          - lan0
-        nodeSelector:
-          matchExpressions:
-            - key: node-role.kubernetes.io/control-plane
-              operator: Exists
-      ---
-      # BGP Configuration for control plane
-      apiVersion: cilium.io/v2alpha1
-      kind: CiliumBGPClusterConfig
-      metadata:
-        name: bgp-cluster-config
-      spec:
-        nodeSelector:
-          matchLabels:
-            node-role.kubernetes.io/control-plane: ""
-        bgpInstances:
-        - name: "control-plane-bgp"
-          localASN: 65001
-          peers:
-          - name: "gateway-peer"
-            peerASN: 65000
-            peerAddress: "${NODE_GATEWAY_IP}"
-            peerConfigRef:
-              name: "cilium-peer"
-      ---
-      # BGP Advertisement Configuration
-      apiVersion: cilium.io/v2alpha1
-      kind: CiliumBGPAdvertisement
-      metadata:
-        name: control-plane-advertisement
-      spec:
-        advertisements:
-        - advertisementType: "Service"
-          service:
-            addresses:
-            - ExternalIP
-            - LoadBalancerIP
-          selector:
-            matchLabels:
-              io.cilium/lb-ipam: "load-balancers"
-        - advertisementType: "PodCIDR"
 
-  # Envoy Gateway removed - now managed via kpt package
-  # See: kpt-packages/networking/envoy-gateway/
+# Cilium advanced features (BGP, L2, IP pools) migrated to kpt package
+# See: kpt-packages/networking/cilium/
+# Deploy with: kpt live apply /var/lib/incus-rke2-cluster/kpt-packages/networking/cilium
+
+# Envoy Gateway removed - now managed via kpt package
+# See: kpt-packages/networking/envoy-gateway/
