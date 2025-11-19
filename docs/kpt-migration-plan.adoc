@@ -58,21 +58,28 @@ The current setup deploys cluster components through RKE2 auto-apply manifests e
 
 == Migration Strategy
 
-=== Phase 1: Foundation (Non-Critical Components)
+=== Phase 1: Foundation (Non-Critical Components) ✅ COMPLETE
 
 Migrate components that don't affect cluster bootstrapping:
 
-1. **Headscale Server & Client** (from `cloud-config.master.headscale.yaml`)
-   - Low risk, bioskop-specific only
-   - Good learning opportunity for kpt workflows
-   - No dependency on core cluster functionality
+1. **Headscale Server & Client** ✅ (from `cloud-config.master.headscale.yaml`)
+   - Deployed via kpt package: `kpt-packages/mesh/headscale/`
+   - 16 resources tracked with ResourceGroup inventory
+   - LoadBalancer IP functional (10.80.8.66)
+   - Bootstrap job completed, client DaemonSet running
 
-2. **Envoy Gateway** (from `cloud-config.master.cilium.yaml`)
-   - Optional component, can be deployed post-bootstrap
-   - Complex Job-based installation suits kpt approach
-   - Independent of Cilium core functionality
+2. **Envoy Gateway** ✅ (from `cloud-config.master.cilium.yaml`)
+   - Deployed via kpt package: `kpt-packages/networking/envoy-gateway/`
+   - Job-based installer with alpine/k8s:1.29.8 image
+   - GatewayClass "envoy" accepted successfully
+   - 5 resources tracked with ResourceGroup inventory
 
-**Success Criteria**: Components deploy successfully via kpt, cluster remains stable
+**Success Criteria**: ✅ Achieved
+- Components deploy successfully via kpt packages
+- Cluster remains stable (verified on bioskop)
+- No conflicts with RKE2 manifests (clean deployment)
+- Proper inventory tracking with ResourceGroup
+- Fresh master deployment validates removal from cloud-config
 
 === Phase 2: Load Balancer (Medium Risk)
 
