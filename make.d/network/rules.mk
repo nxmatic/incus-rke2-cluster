@@ -252,6 +252,7 @@ network.NODE_VMNET_INTERFACE_NAME = $(.network.node_vmnet_interface_name)
 network.CLUSTER_VIP_INTERFACE_NAME = $(.network.cluster_vip_interface_name)
 network.VIP_VLAN_ID = $(.network.vip_vlan_id)
 network.VIP_VLAN_NAME = $(.network.vip_vlan_name)
+network.LAN_BR_HWADDR = $(LAN_BR_HWADDR)
 
 # Cluster WAN network (Incus bridge with Lima VM as gateway)
 # Lima VM has .1 IP on the bridge and provides routing/NAT to uplink
@@ -310,6 +311,7 @@ export VIP_VLAN_NAME = $(network.VIP_VLAN_NAME)
 export NODE_PROFILE_NAME = $(network.NODE_PROFILE_NAME)
 export MASTER_NODE_IP = $(network.MASTER_NODE_IP)
 export NODE_WAN_MAC = $(network.NODE_WAN_MAC)
+export LAN_BR_HWADDR
 
 # Export computed MAC addresses (loaded from _assign.mk)
 export NODE_WAN_MAC_MASTER
@@ -414,6 +416,7 @@ summary@network.print: load@network ## Print detailed network configuration summ
 	source $(.network.dir)/_assign.mk && echo "Gateway: $$(echo $$NODE_SUBNETS_NETWORK_0 | sed 's|/.*||' | sed 's|\.0$$|\.1|')"
 	source $(.network.dir)/_assign.mk && echo "VIP Network: $$VIP_SUBNETS_NETWORK_7"
 	source $(.network.dir)/_assign.mk && echo "LoadBalancer Network: $$LB_SUBNETS_NETWORK_1"
+	source $(.network.dir)/_assign.mk && echo "LAN Bridge MAC: $$LAN_BR_HWADDR"
 
 # Second expansion loader: import generated env exports into make variables
 .PHONY: load@network
@@ -434,6 +437,9 @@ $(.network.dir)/_computed.mk: ## Generate computed values (MAC addresses, versio
 	printf "NODE_WAN_MAC_PEER3=%s\n" "$$(printf '52:54:00:%02x:00:03' $(cluster.ID))" >> $@
 	printf "NODE_WAN_MAC_WORKER1=%s\n" "$$(printf '52:54:00:%02x:01:0a' $(cluster.ID))" >> $@
 	printf "NODE_WAN_MAC_WORKER2=%s\n" "$$(printf '52:54:00:%02x:01:0b' $(cluster.ID))" >> $@
+	echo "# Bridge MAC addressing (@codebase)" >> $@
+	host_byte=$$(printf '%s' $(cluster.NAME) | sha256sum | cut -c1-2 | tr '[:upper:]' '[:lower:]')
+	printf "LAN_BR_HWADDR=%s\n" "$$(printf '10:66:6a:4c:%s:fe' $$host_byte)" >> $@
 	echo "# Computed cluster values" >> $@
 	source $(.network.host_subnets_env) && \
 		cluster_network=$$(eval echo \$$HOST_SUBNETS_NETWORK_$(cluster.ID)) && \
