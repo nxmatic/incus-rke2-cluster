@@ -2,6 +2,22 @@
 
 This package deploys Headscale server for Tailscale-compatible mesh networking in RKE2 clusters.
 
+## Prerequisites
+
+**Deployment Order**: This package requires **Tailscale operator** to be deployed first.
+
+```bash
+# Deploy Tailscale operator first
+cd /var/lib/incus-rke2-cluster/kpt-packages/mesh/tailscale
+kpt live apply . --reconcile-timeout=3m
+
+# Then deploy Headscale
+cd /var/lib/incus-rke2-cluster/kpt-packages/mesh/headscale
+kpt live apply . --reconcile-timeout=3m
+```
+
+See: `kpt-packages/DEPLOYMENT-ORDER.md` for complete deployment sequence.
+
 ## Components
 
 - **Namespace**: `headscale` namespace for all components
