@@ -78,48 +78,130 @@ write_files:
       volumeBindingMode: WaitForFirstConsumer
       allowVolumeExpansion: true
 
-  # Tailscale operator
-  - path: /var/lib/rancher/rke2/server/manifests/00-tailscale-namespace.yaml
+  # Tailscale operator - MIGRATED to kpt package
+  # See: kpt-packages/mesh/tailscale/
+  # Deployed by: kpt-deploy-tailscale-operator.service, kpt-deploy-tailscale-connector.service
+  # Provides: mesh networking, subnet routing for VIP + LoadBalancer pool
+
+  # Cluster information for service conditions
+  - path: /etc/rke2/cluster-info
+    permissions: "0644"
     content: |
-      apiVersion: v1
-      kind: Namespace
-      metadata:
-        name: tailscale-system
-  - path: /var/lib/rancher/rke2/server/manifests/01-tailscale-operator.yaml
+      CLUSTER_NAME=${CLUSTER_NAME}
+      NODE_NAME=${NODE_NAME}
+      NODE_TYPE=${NODE_TYPE}
+
+  # kpt deployment services - deploy packages in correct order
+  - path: /etc/systemd/system/kpt-deploy-kube-vip.service
     content: |
-      apiVersion: helm.cattle.io/v1
-      kind: HelmChart
-      metadata:
-        namespace: kube-system
-        name: tailscale-operator
-      spec:
-        repo: https://pkgs.tailscale.com/helmcharts
-        chart: tailscale-operator
-        version: 1.82.0
-        targetNamespace: tailscale-system
-        createNamespace: true
-        valuesContent: |-
-          oauth:
-            clientId: "${TSKEY_CLIENT_ID}"
-            clientSecret: "${TSKEY_CLIENT_TOKEN}"
-          operatorConfig:
-            hostname: "${CLUSTER_NAME}-tailscale-operator"
-            debug: true
-  - path: /var/lib/rancher/rke2/server/manifests/02-tailscale-controlplane.yaml
+      [Unit]
+      Description=Deploy Kube-VIP kpt package
+      After=rke2-server.service
+      Wants=rke2-server.service
+      ConditionPathExists=/var/lib/incus-rke2-cluster/kpt-packages/ha/kube-vip
+      
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/ha/kube-vip
+      ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && kpt live apply . --reconcile-timeout=2m'
+      Restart=on-failure
+      RestartSec=10s
+      
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/systemd/system/kpt-deploy-cilium-resources.service
     content: |
-      apiVersion: tailscale.com/v1alpha1
-      kind: Connector
-      metadata:
-        name: controlplane
-      spec:
-        # Single host route for the Kubernetes API virtual IP + wider LB pool for service IP reachability.
-        # Using /32 avoids advertising unused VIP addresses.
-        hostname: "${CLUSTER_NAME}-controlplane"
-        subnetRouter:
-          advertiseRoutes:
-            # Control-plane virtual IP (host route)
-            - ${CLUSTER_VIP_GATEWAY_IP}/32
-            # LoadBalancer allocation pool (so in-cluster LB IPs are reachable directly)
-            - ${CLUSTER_LOADBALANCER_NETWORK_CIDR}
-        # NOTE: Additional service-specific Tailscale exposure can still be done
-        # via Service annotations (tailscale.com/expose, hostname, tags, etc.). (@codebase)
+      [Unit]
+      Description=Deploy Cilium networking resources kpt package
+      After=kpt-deploy-kube-vip.service
+      Wants=kpt-deploy-kube-vip.service
+      ConditionPathExists=/var/lib/incus-rke2-cluster/kpt-packages/networking/cilium
+      
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/networking/cilium
+      ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && kpt live apply . --reconcile-timeout=2m'
+      Restart=on-failure
+      RestartSec=10s
+      
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/systemd/system/kpt-deploy-tailscale-operator.service
+    content: |
+      [Unit]
+      Description=Deploy Tailscale operator kpt package
+      After=kpt-deploy-cilium-resources.service
+      Wants=kpt-deploy-cilium-resources.service
+      ConditionPathExists=/var/lib/incus-rke2-cluster/kpt-packages/mesh/tailscale/operator
+      
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/mesh/tailscale/operator
+      ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && kpt live apply . --reconcile-timeout=3m'
+      Restart=on-failure
+      RestartSec=10s
+      
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/systemd/system/kpt-deploy-tailscale-connector.service
+    content: |
+      [Unit]
+      Description=Deploy Tailscale Connector (cluster-scoped)
+      After=kpt-deploy-tailscale-operator.service
+      Wants=kpt-deploy-tailscale-operator.service
+      ConditionPathExists=/var/lib/incus-rke2-cluster/kpt-packages/mesh/tailscale/03-connector.yaml
+      
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/mesh/tailscale
+      # Wait for Connector CRD to be available
+      ExecStartPre=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && for i in {1..60}; do kubectl wait --for condition=established crd/connectors.tailscale.com --timeout=5s && break || sleep 5; done'
+      ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && kubectl apply -f 03-connector.yaml'
+      Restart=on-failure
+      RestartSec=10s
+      
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/systemd/system/kpt-deploy-headscale.service
+    content: |
+      [Unit]
+      Description=Deploy Headscale coordination server kpt package (bioskop only)
+      After=kpt-deploy-tailscale-connector.service
+      Wants=kpt-deploy-tailscale-connector.service
+      ConditionPathExists=/var/lib/incus-rke2-cluster/kpt-packages/mesh/headscale
+      
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      EnvironmentFile=/etc/rke2/cluster-info
+      WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/mesh/headscale
+      # Only deploy on bioskop cluster
+      ExecCondition=/bin/bash -c 'test "$${CLUSTER_NAME}" = "bioskop"'
+      ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && kpt live apply . --reconcile-timeout=3m'
+      Restart=on-failure
+      RestartSec=10s
+      
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  # Enable and start kpt deployment services in order
+  - systemctl daemon-reload
+  - systemctl enable kpt-deploy-kube-vip.service
+  - systemctl enable kpt-deploy-cilium-resources.service
+  - systemctl enable kpt-deploy-tailscale-operator.service
+  - systemctl enable kpt-deploy-tailscale-connector.service
+  - systemctl enable kpt-deploy-headscale.service
+  - systemctl start kpt-deploy-kube-vip.service
+  - systemctl start kpt-deploy-cilium-resources.service
+  - systemctl start kpt-deploy-tailscale-operator.service
+  - systemctl start kpt-deploy-tailscale-connector.service
+  - systemctl start kpt-deploy-headscale.service
