@@ -247,7 +247,7 @@ validate@cluster:
 # Project Management Targets
 #-----------------------------
 
-.PHONY: switch-project@incus remove-project@incus
+.PHONY: switch-project@incus remove-project@incus cleanup-orphaned-networks@incus
 .PHONY: cleanup-instances@incus cleanup-images@incus cleanup-networks@incus cleanup-profiles@incus cleanup-volumes@incus remove-project-rke2@incus
 
 switch-project@incus: preseed@incus ## Switch to RKE2 project and ensure images are available (@codebase)
@@ -264,6 +264,20 @@ remove-project@incus: cleanup-project-volumes@incus
 remove-project@incus:
 	: "[+] Deleting project $(CLUSTER_NAME)"
 	$(.incus.command) project delete rke2 || true
+	: "[+] Cleaning up local runtime directory..."
+	rm -rf $(.incus.dir) 2>/dev/null || true
+
+cleanup-orphaned-networks@incus: ## Clean up orphaned RKE2 networks in default project
+	: "[+] Cleaning up orphaned RKE2-related networks in default project..."
+	$(.incus.command) network list --project=default --format=csv -c n,u | \
+		grep ',0$$' | cut -d, -f1 | \
+		grep -E '(rke2|vmnet-br|lan-br)' | \
+		xargs -r -n1 $(.incus.command) network delete --project=default 2>/dev/null || true
+	: "[+] Cleaning up orphaned RKE2 profiles in default project..."
+	$(.incus.command) profile list --project=default --format=csv -c n | \
+		grep -E '(rke2|cluster)' | \
+		xargs -r -n1 $(.incus.command) profile delete --project=default 2>/dev/null || true
+	: "[+] Orphaned resource cleanup complete"
 
 # =============================================================================
 # METAPROGRAMMING: CLEANUP TARGET GENERATION  
@@ -274,7 +288,7 @@ remove-project@incus:
 define define-cleanup-target
 cleanup-project-$(1)@incus: ## destructive: delete all $(1) in project rke2
 	$(.incus.command) $(2) --project=rke2 --format=yaml | $(3) |
-	  xargs -r -n1 $(4)
+	  xargs -r -n1 $(4) || true
 endef
 
 # Generate cleanup targets for each resource type
@@ -297,7 +311,7 @@ cleanup-project-volumes@incus:
 	: "destructive: delete all snapshots then volumes in each storage pool (project rke2)"
 	$(.incus.command) storage volume list --project=rke2 --format=yaml default |
 		yq -r --from-file=<(echo "$$YQ_EXPR") |
-	    xargs -r -n1 $(.incus.command) storage volume delete --project=rke2 default
+	    xargs -r -n1 $(.incus.command) storage volume delete --project=rke2 default || true
 
 define INCUS_SNAPSHOT_YQ
 .[] |
@@ -311,7 +325,7 @@ cleanup-project-volumes-snapshots@incus:
 	: "destructive: delete all snapshots in each storage pool (project rke2)"
 	$(.incus.command) storage volume list --project=rke2 --format=yaml default |
 		yq -r --from-file=<(echo "$$YQ_EXPR") |
-	    xargs -r -n1 $(.incus.command) storage volume snapshot delete --project=rke2 default
+	    xargs -r -n1 $(.incus.command) storage volume snapshot delete --project=rke2 default || true
 
 $(.incus.project_marker_file): $(.incus.preseed_file)
 $(.incus.project_marker_file): | $(.incus.dir)/
@@ -621,7 +635,10 @@ clean-all@incus: ## Clean all cluster nodes and shared resources (destructive)
 	: "[+] Removing entire local run directory..."; \
 	rm -rf $(.incus.dir) 2>/dev/null || true; \
 	: "[+] Cleaning shared cluster resources..."; \
-	: "[i] No Incus-managed networks to clean - all interfaces use macvlan"; \
+	: "[+] Cleaning up Incus-managed networks..."; \
+	$(.incus.command) network list --project=rke2 --format=csv -c n,t | grep ',bridge$$' | cut -d, -f1 | xargs -r -n1 $(.incus.command) network delete --project=rke2 2>/dev/null || true; \
+	: "[+] Cleaning up shared profiles..."; \
+	$(.incus.command) profile list --project=rke2 --format=csv -c n | grep -v '^default$$' | xargs -r -n1 $(.incus.command) profile delete --project=rke2 2>/dev/null || true; \
 	: "[+] All cluster resources cleaned up"
 
 #-----------------------------
