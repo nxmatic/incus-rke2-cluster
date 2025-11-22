@@ -280,6 +280,14 @@ network.WAN_DHCP_RANGE = 10.80.$(.network.cluster_third_octet).2-10.80.$(.networ
 .network.node_type_hex = $(if $(filter server,$(node.TYPE)),00,01)
 network.NODE_WAN_MAC = $(shell printf "52:54:00:%02x:%s:%02x" $(cluster.ID) $(.network.node_type_hex) $(node.ID))
 
+# Generate deterministic MAC address for node's LAN interface (macvlan)
+# Format: 10:66:6a:4c:CC:NN where:
+#   10:66:6a:4c = Custom prefix for LAN interfaces
+#   CC = cluster ID in hex (00-07, zero-padded)
+#   NN = node ID in hex (00-ff, zero-padded)
+# Example: master (cluster 2, ID 0) = 10:66:6a:4c:02:00
+network.NODE_LAN_MAC = $(shell printf "10:66:6a:4c:%02x:%02x" $(cluster.ID) $(node.ID))
+
 network.NODE_PROFILE_NAME = $(.network.node_profile_name)
 network.MASTER_NODE_IP = $(.network.master_node_ip)
 
@@ -311,6 +319,7 @@ export VIP_VLAN_NAME = $(network.VIP_VLAN_NAME)
 export NODE_PROFILE_NAME = $(network.NODE_PROFILE_NAME)
 export MASTER_NODE_IP = $(network.MASTER_NODE_IP)
 export NODE_WAN_MAC = $(network.NODE_WAN_MAC)
+export NODE_LAN_MAC = $(network.NODE_LAN_MAC)
 export LAN_BR_HWADDR
 
 # Export computed MAC addresses (loaded from _assign.mk)
