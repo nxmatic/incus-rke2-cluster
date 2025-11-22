@@ -130,9 +130,8 @@ $(.incus.cluster_env_file):
 .incus.exec.mode = $(if $(filter $(true),$(host.IS_REMOTE_INCUS_BUILD)),remote,local)
 
 # Incus command invocation with conditional remote wrapper (@codebase)
-.incus.timeout ?= 30
 .incus.remote_prefix = $(if $(filter remote,$(.incus.exec.mode)),$(REMOTE_EXEC),)
-.incus.command = $(.incus.remote_prefix) timeout $(.incus.timeout) incus
+.incus.command = $(.incus.remote_prefix) incus
 .incus.distrobuilder_command = $(.incus.remote_prefix) sudo distrobuilder
 
 # Distrobuilder build context resolution (@codebase)
