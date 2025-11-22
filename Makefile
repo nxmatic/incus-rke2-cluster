@@ -147,12 +147,17 @@ instance: pre-launch instance@incus ## Create RKE2 instance without starting
 # Ensure dependencies for lifecycle targets explicitly (avoid undefined MAIN_TARGETS variable) (@codebase)
 start stop delete shell instance: preseed@incus image@incus switch-project@incus
 
-.PHONY: start stop delete clean shell instance pre-launch
+.PHONY: start stop delete clean shell instance pre-launch clean-project clean-orphaned
 
 # High-level cluster management  
-clean-all: clean-all@incus
+.PHONY: clean-all clean-project clean-orphaned
+
+clean-all: clean-project ## Clean everything - removes entire RKE2 project, all resources, and local files (destructive)
 clean-all: clean@network
-clean-all: ## Clean everything - network + all nodes (destructive)
+clean-all: cleanup-orphaned-networks@incus
+
+clean-project: remove-project@incus ## Remove entire RKE2 project including all resources
+clean-orphaned: cleanup-orphaned-networks@incus ## Clean up orphaned networks and profiles in default project
 
 ## Instance config rendering & cluster validation relocated to incus/rules.mk (@codebase)
 
