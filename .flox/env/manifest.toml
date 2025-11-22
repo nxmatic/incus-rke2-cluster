@@ -57,6 +57,8 @@ debootstrap.pkg-path = "debootstrap"
 debootstrap.systems = ["aarch64-linux", "x86_64-linux"]
 netplan.pkg-path = "netplan"
 netplan.systems = ["aarch64-linux", "x86_64-linux"]
+dhcp.pkg-path = "dhcp"
+dhcp.systems = ["aarch64-linux", "x86_64-linux"]
 # gum.pkg-path = "gum"
 # gum.version = "^0.14.5"
 

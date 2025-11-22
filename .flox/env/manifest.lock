@@ -34,6 +34,13 @@
           "x86_64-linux"
         ]
       },
+      "dhcp": {
+        "pkg-path": "dhcp",
+        "systems": [
+          "aarch64-linux",
+          "x86_64-linux"
+        ]
+      },
       "dig": {
         "pkg-path": "dig"
       },
@@ -621,6 +628,68 @@
       ],
       "outputs": {
         "out": "/nix/store/v4mk86ykng2gsnv5v03adkj2pbzswxwl-debootstrap-1.0.126"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "dhcp",
+      "broken": false,
+      "derivation": "/nix/store/9wkzyh5b984jya8nfmkcycj42rlqic9c-dhcp-4.4.2-P1.drv",
+      "description": "Dynamic Host Configuration Protocol (DHCP) tools",
+      "install_id": "dhcp",
+      "license": "MPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
+      "name": "dhcp-4.4.2-P1",
+      "pname": "dhcp",
+      "rev": "c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
+      "rev_count": 348581,
+      "rev_date": "2022-01-25T03:21:06Z",
+      "scrape_date": "2024-08-15T20:52:42Z",
+      "stabilities": [
+        "stable",
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "4.4.2-P1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/zyz99bc23fd7hrhpw58xf30bbb5by5ky-dhcp-4.4.2-P1"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "dhcp",
+      "broken": false,
+      "derivation": "/nix/store/9wx0v4d8m23iyn1j902vmj1p1x5m6b8v-dhcp-4.4.2-P1.drv",
+      "description": "Dynamic Host Configuration Protocol (DHCP) tools",
+      "install_id": "dhcp",
+      "license": "MPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
+      "name": "dhcp-4.4.2-P1",
+      "pname": "dhcp",
+      "rev": "c07b471b52be8fbc49a7dc194e9b37a6e19ee04d",
+      "rev_count": 348581,
+      "rev_date": "2022-01-25T03:21:06Z",
+      "scrape_date": "2024-08-15T20:52:42Z",
+      "stabilities": [
+        "stable",
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "4.4.2-P1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/qnfsfazs8h474vhjkhqi719vc1iv9xkr-dhcp-4.4.2-P1"
       },
       "system": "x86_64-linux",
       "group": "toplevel",
