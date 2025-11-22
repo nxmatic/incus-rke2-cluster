@@ -29,6 +29,14 @@ write_files:
   # SYSTEM CONFIGURATION FILES
   # =============================================================================
 
+  # Disable cloud-init network configuration to prevent conflicts with netplan/systemd-networkd
+  # This prevents cloud-init from generating /etc/network/interfaces.d/50-cloud-init
+  # which would start dhcpcd and conflict with systemd-networkd DHCP
+  - path: /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+    permissions: "0644"
+    content: |
+      network: {config: disabled}
+
   # systemd-networkd drop-in to set cluster-prefixed hostname for LAN DHCP
   # This ensures LAN DHCP registrations are unique per cluster (bioskop vs alcide)
   # while keeping the actual system hostname unchanged
