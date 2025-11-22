@@ -1,0 +1,19 @@
+apiVersion: tailscale.com/v1alpha1
+kind: Connector
+metadata:
+  name: controlplane
+  # Connector is cluster-scoped, no namespace needed
+  annotations:
+    config.kubernetes.io/depends-on: helm.cattle.io/namespaces/kube-system/HelmChart/tailscale-operator
+spec:
+  # Single host route for the Kubernetes API virtual IP + wider LB pool for service IP reachability.
+  # Using /32 avoids advertising unused VIP addresses.
+  hostname: bioskop-cluster-controlplane # kpt-set: ${cluster-name}-controlplane
+  subnetRouter:
+    advertiseRoutes:
+      # Control-plane virtual IP (host route)
+      - 10.80.15.1/32 # kpt-set: ${vip-address}/32
+      # LoadBalancer allocation pool (so in-cluster LB IPs are reachable directly)
+      - 10.80.8.128/26 # kpt-set: ${lb-pool-cidr}
+  # NOTE: Additional service-specific Tailscale exposure can still be done
+  # via Service annotations (tailscale.com/expose, hostname, tags, etc.).

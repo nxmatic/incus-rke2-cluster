@@ -1,0 +1,7 @@
+apiVersion: kpt.dev/v1alpha1
+kind: ResourceGroup
+metadata:
+  name: tailscale-operator-inventory
+  namespace: tailscale-system
+  labels:
+    cli-utils.sigs.k8s.io/inventory-id: tailscale-operator

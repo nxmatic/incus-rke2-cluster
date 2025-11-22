@@ -1,0 +1,23 @@
+apiVersion: kpt.dev/v1
+kind: Kptfile
+metadata:
+  name: tailscale
+  annotations:
+    config.kubernetes.io/local-config: "true"
+info:
+  description: Tailscale operator for Kubernetes mesh networking
+  keywords:
+    - tailscale
+    - mesh-networking
+    - vpn
+    - subnet-router
+  site: https://tailscale.com/kb/1236/kubernetes-operator
+pipeline:
+  mutators:
+    - image: gcr.io/kpt-fn/apply-setters:v0.2
+      configMap:
+        tailscale-version: 1.82.0
+        cluster-name: bioskop-cluster
+        vip-address: 10.80.15.1
+        lb-pool-cidr: 10.80.8.128/26
+        tailscale-namespace: tailscale-system

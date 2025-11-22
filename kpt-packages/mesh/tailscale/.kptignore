@@ -1,0 +1,7 @@
+# Ignore non-Kubernetes configuration files
+README.md
+.kptignore
+
+# Ignore subpackages (deployed separately)
+operator/
+connector/

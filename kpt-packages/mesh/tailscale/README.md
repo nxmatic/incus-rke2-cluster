@@ -1,0 +1,274 @@
+# Tailscale Operator kpt Package
+
+This package deploys the Tailscale Kubernetes operator for mesh networking and subnet routing of the cluster's control plane VIP and LoadBalancer IP pool.
+
+## Components
+
+- **Namespace**: `tailscale-system` for Tailscale operator components
+- **Operator**: Tailscale Kubernetes operator (Helm chart v1.82.0)
+- **Connector**: Subnet router for control plane VIP and LoadBalancer pool
+  - Control Plane VIP: 10.80.15.1/32 (host route)
+  - LoadBalancer Pool: 10.80.8.128/26 (service IPs)
+
+## Architecture
+
+The Tailscale operator provides:
+
+- **Mesh Networking**: Connect to Kubernetes cluster via Tailscale mesh
+- **Subnet Routing**: Advertise cluster networks to Tailscale network
+- **Service Exposure**: Optional per-service Tailscale hostnames
+- **Secure Access**: OAuth-based authentication with Tailscale
+
+## Prerequisites
+
+1. **Tailscale Account**: Active Tailscale account
+2. **OAuth Client**: Created in Tailscale admin console
+   - Scopes: `devices:write`, `routes:write`
+   - Update `00-secrets.yaml` with client ID and secret
+   - Git filter will automatically encrypt secrets on commit
+
+## Usage
+
+### Deploy (Hybrid: kpt + kubectl)
+
+**Structure**: Operator in subfolder, Connector at root:
+- `operator/` - Namespace and Helm chart (provides Connector CRD) - deployed with `kpt live apply`
+- Root - Connector resource (cluster-scoped) - deployed with `kubectl apply`
+
+```bash
+# From inside master container
+ssh lima-nerd-nixos
+incus exec master -- bash
+source <( flox activate --dir /var/lib/rancher/rke2 )
+export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
+
+cd /var/lib/incus-rke2-cluster/kpt-packages/mesh/tailscale
+
+# Stage 1: Deploy operator with kpt live
+kpt live apply operator/ --reconcile-timeout=3m
+
+# Wait for operator to install Connector CRD
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=tailscale-operator -n tailscale-system --timeout=180s
+kubectl wait --for condition=established crd/connectors.tailscale.com --timeout=60s
+
+# Stage 2: Deploy Connector (cluster-scoped) with kubectl
+kubectl apply -f 03-connector.yaml
+
+# Check status
+kpt live status operator/
+kubectl get connector
+kubectl get connector controlplane -o yaml
+```
+
+**Note**: Connector uses `kubectl apply` because it's cluster-scoped and kpt has limitations with mixed-scope resources in subdirectories.
+
+### Verification
+
+After deployment, verify Tailscale connectivity:
+
+```bash
+# Check operator pod
+kubectl get pods -n tailscale-system
+
+# Check connector status
+kubectl get connector -n tailscale-system controlplane
+
+# Check Tailscale device in admin console
+# Look for: bioskop-cluster-tailscale-operator
+# And: bioskop-cluster-controlplane (subnet router)
+
+# Verify subnet routes are advertised
+# In Tailscale admin console, check subnet routes:
+# - 10.80.15.1/32 (control plane VIP)
+# - 10.80.8.128/26 (LoadBalancer pool)
+
+# Test connectivity from another Tailscale device
+# curl -k https://10.80.15.1:6443/healthz
+# (should return "ok")
+```
+
+### Service Exposure
+
+Individual services can be exposed via Tailscale annotations:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+  annotations:
+    tailscale.com/expose: "true"
+    tailscale.com/hostname: "my-service"
+    tailscale.com/tags: "tag:k8s-service"
+spec:
+  type: LoadBalancer
+  loadBalancerClass: tailscale
+  ports:
+    - port: 80
+      targetPort: 8080
+```
+
+## Configuration
+
+Customize using kpt setters in Kptfile:
+
+- `tailscale-version`: Operator Helm chart version (default: 1.82.0)
+- `cluster-name`: Cluster name for Tailscale hostnames (default: bioskop-cluster)
+- `vip-address`: Control plane VIP address (default: 10.80.15.1)
+- `lb-pool-cidr`: LoadBalancer IP pool CIDR (default: 10.80.8.128/26)
+- `tailscale-namespace`: Namespace for operator (default: tailscale-system)
+
+Example:
+
+```bash
+kpt fn eval . --image gcr.io/kpt-fn/apply-setters:v0.2 -- \
+  cluster-name=alcide-cluster \
+  vip-address=10.80.15.10
+```
+
+## Secret Management
+
+**OAuth Credentials** are stored in SOPS-encrypted YAML:
+
+1. **File**: `00-secrets.yaml` contains encrypted OAuth credentials
+   ```yaml
+   apiVersion: v1
+   kind: Secret
+   metadata:
+     name: operator-oauth
+     namespace: tailscale-system
+   type: Opaque
+   stringData:
+     # sops:encrypted
+     client_id: <your-client-id>
+     # sops:encrypted
+     client_secret: <your-client-secret>
+   ```
+
+2. **Encryption**: Git filter automatically encrypts on commit
+   - Uses age encryption with key in `.sops.yaml`
+   - Secret values encrypted before reaching Git
+
+3. **Reference**: HelmChart references Secret
+   ```yaml
+   oauth:
+     clientId:
+       fromSecret: operator-oauth
+       key: client_id
+     clientSecret:
+       fromSecret: operator-oauth
+       key: client_secret
+   ```
+
+**Security**: Secrets encrypted at rest in Git, decrypted during deployment.
+
+## Rollback Strategy
+
+If migration causes issues:
+
+1. **Quick Rollback**: Delete kpt-managed resources
+   ```bash
+   kpt live destroy /var/lib/incus-rke2-cluster/kpt-packages/mesh/tailscale
+   ```
+
+2. **Restore from cloud-config**: Redeploy master with Tailscale in cloud-config
+   ```bash
+   git checkout modules/nixos/incus-rke2-cluster/make.d/cloud-config/cloud-config.master.base.yaml
+   # Redeploy master container
+   ssh lima-nerd-nixos "cd /var/lib/nixos/config/modules/nixos/incus-rke2-cluster && source <(flox activate) && incus stop master --force && incus delete master && make NAME=master start"
+   ```
+
+3. **Tailscale Mesh Still Works**: Cluster connectivity via Tailscale routes maintained even during rollback (routes don't disappear immediately)
+
+## Deployment Status
+
+### Ready for Testing
+
+- Created from cloud-config extraction (Phase 4 migration)
+- Operational component (cluster functional without Tailscale)
+- **LOW-MEDIUM RISK**: Only affects mesh networking connectivity
+
+## Integration
+
+- **RKE2**: Cluster functions independently of Tailscale
+- **Subnet Router**: Advertises control plane VIP and LoadBalancer pool
+- **Service Exposure**: Services can opt-in to Tailscale exposure via annotations
+- **Mesh Access**: Access cluster services from any Tailscale device
+
+## Network Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Tailscale Mesh Network                                      │
+├─────────────────────────────────────────────────────────────┤
+│ Advertised Routes:                                          │
+│ • 10.80.15.1/32 → Control Plane VIP (Kube-VIP)            │
+│ • 10.80.8.128/26 → LoadBalancer IP Pool (Cilium IPAM)     │
+└─────────────────────────────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Tailscale Connector (Subnet Router)                        │
+│ • Hostname: bioskop-cluster-controlplane                    │
+│ • Runs in: tailscale-system namespace                       │
+│ • Routes traffic from Tailscale mesh to cluster IPs        │
+└─────────────────────────────────────────────────────────────┘
+                           │
+         ┌─────────────────┴─────────────────┐
+         ▼                                    ▼
+┌──────────────────────┐         ┌──────────────────────┐
+│ Control Plane VIP    │         │ LoadBalancer Pool    │
+│ 10.80.15.1           │         │ 10.80.8.129-190      │
+│ (Kube-VIP managed)   │         │ (Cilium IPAM)        │
+└──────────────────────┘         └──────────────────────┘
+```
+
+## Troubleshooting
+
+### Operator Not Starting
+
+```bash
+# Check operator logs
+kubectl logs -n tailscale-system -l app.kubernetes.io/name=tailscale-operator
+
+# Verify OAuth credentials
+kubectl get secret -n tailscale-system operator-oauth -o yaml
+```
+
+### Subnet Routes Not Advertised
+
+```bash
+# Check connector status
+kubectl describe connector -n tailscale-system controlplane
+
+# Check connector pod logs
+kubectl logs -n tailscale-system -l app=connector
+
+# Verify in Tailscale admin console:
+# Machines → bioskop-cluster-controlplane → Subnet routes
+# Should show: 10.80.15.1/32, 10.80.8.128/26
+# Status: "Approved" or "Pending approval"
+```
+
+### Cannot Connect to Cluster via Tailscale
+
+```bash
+# From Tailscale device, check route
+tailscale status
+# Should show bioskop-cluster-controlplane as subnet router
+
+# Enable route in Tailscale admin console if pending
+# Machines → bioskop-cluster-controlplane → Edit route settings
+# Approve routes: 10.80.15.1/32, 10.80.8.128/26
+
+# Test connectivity
+ping 10.80.15.1
+curl -k https://10.80.15.1:6443/healthz
+```
+
+## See Also
+
+- Original cloud-config: `make.d/cloud-config/cloud-config.master.base.yaml`
+- Tailscale Kubernetes operator: <https://tailscale.com/kb/1236/kubernetes-operator>
+- Subnet routers: <https://tailscale.com/kb/1019/subnets>
+- Migration plan: `docs/kpt-migration-plan.adoc`
