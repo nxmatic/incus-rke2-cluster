@@ -223,18 +223,18 @@ write_files:
         # Retry curl with timeout and retries for network readiness
         local max_attempts=5
         local attempt=1
-        while [ $attempt -le $max_attempts ]; do
+        while [ $$attempt -le $$max_attempts ]; do
           if curl --connect-timeout 10 --max-time 30 --retry 3 --retry-delay 5 -o \
             "/root/.config/direnv/lib/flox.sh" \
             "https://raw.githubusercontent.com/flox/flox-direnv/v1.1.0/direnv.rc"; then
             break
           fi
-          echo "Attempt $attempt/$max_attempts failed, waiting for network..."
+          echo "Attempt $$attempt/$$max_attempts failed, waiting for network..."
           sleep 10
-          attempt=$((attempt + 1))
+          attempt=$$((attempt + 1))
         done
-        if [ $attempt -gt $max_attempts ]; then
-          echo "ERROR: Failed to download flox direnv after $max_attempts attempts"
+        if [ $$attempt -gt $$max_attempts ]; then
+          echo "ERROR: Failed to download flox direnv after $$max_attempts attempts"
           return 1
         fi
         cat <<EoConfig | cut -c 3- > "/root/.config/direnv/direnv.toml"
