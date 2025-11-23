@@ -83,31 +83,13 @@ write_files:
   # Deployed by: kpt-deploy-tailscale-operator.service, kpt-deploy-tailscale-connector.service
   # Provides: mesh networking, subnet routing for VIP + LoadBalancer pool
 
-  # Wait for Kubernetes API to be ready before deploying kpt packages
-  - path: /etc/systemd/system/rke2-api-ready.service
-    content: |
-      [Unit]
-      Description=Wait for Kubernetes API to be ready
-      After=rke2-server.service
-      Wants=rke2-server.service
-      
-      [Service]
-      Type=oneshot
-      RemainAfterExit=yes
-      EnvironmentFile=/etc/rke2/environment
-      ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && until kubectl get --raw /readyz &>/dev/null; do echo "Waiting for API server..."; sleep 5; done && echo "API server is ready"'
-      TimeoutStartSec=300
-      
-      [Install]
-      WantedBy=multi-user.target
-
   # kpt deployment services - deploy packages in correct order
   - path: /etc/systemd/system/kpt-deploy-kube-vip.service
     content: |
       [Unit]
       Description=Deploy Kube-VIP kpt package
-      After=rke2-api-ready.service
-      Wants=rke2-api-ready.service
+      After=rke2-server.service
+      Wants=rke2-server.service
       ConditionPathExists=/var/lib/incus-rke2-cluster/kpt-packages/ha/kube-vip
       
       [Service]
@@ -206,9 +188,8 @@ write_files:
       WantedBy=multi-user.target
 
 runcmd:
-  # Enable and start API readiness check and kpt deployment services in order
+  # Enable and start kpt deployment services in order
   - systemctl daemon-reload
-  - systemctl enable rke2-api-ready.service
   - systemctl enable kpt-deploy-kube-vip.service
   - systemctl enable kpt-deploy-cilium-resources.service
   - systemctl enable kpt-deploy-tailscale-operator.service
