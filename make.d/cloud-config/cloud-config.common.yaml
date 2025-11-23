@@ -309,6 +309,9 @@ write_files:
         [[ -r /etc/rancher/rke2/rke2.yaml ]] &&
           KUBECONFIG="/etc/rancher/rke2/rke2.yaml"
 
+        : "Set KREW_ROOT if not already set"
+        KREW_ROOT="$${KREW_ROOT:-/var/lib/rancher/rke2/krew}"
+
         : "Update PATH with RKE2 tools"
         PATH="/var/lib/rancher/rke2/bin:$$PATH:$${KREW_ROOT}/bin"
 
