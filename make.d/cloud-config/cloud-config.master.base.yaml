@@ -102,7 +102,7 @@ write_files:
       [Service]
       Type=oneshot
       RemainAfterExit=yes
-      ExecStart=/bin/bash -c 'mkdir -p /etc/rke2 && cat /proc/1/environ | tr "\0" "\n" | grep -E "^(CLUSTER_|NODE_|POD_|SERVICE_|HOME_LAN_|ETCDCTL_|KUBECTL_|CONTAINERD_|CRI_|CILIUM_|HUBBLE_|HELM_|KREW_|DEBUG)" > /etc/rke2/environment'
+      ExecStart=/bin/bash -c 'mkdir -p /etc/rke2 && cat /proc/1/environ | tr "\0" "\n" > /etc/rke2/environment'
       
       [Install]
       WantedBy=multi-user.target
