@@ -97,6 +97,7 @@ write_files:
       RemainAfterExit=yes
       WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/ha/kube-vip
       EnvironmentFile=/etc/rke2/environment
+      ExecStartPre=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && until kubectl get --raw /readyz &>/dev/null; do echo "Waiting for API server..."; sleep 5; done'
       ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && kpt fn eval --image gcr.io/kpt-fn/apply-setters:v0.2 -- cluster-vip-address=${CLUSTER_VIP_GATEWAY_IP} && kpt live apply . --reconcile-timeout=2m'
       Restart=on-failure
       RestartSec=10s
@@ -117,6 +118,7 @@ write_files:
       RemainAfterExit=yes
       WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/networking/cilium
       EnvironmentFile=/etc/rke2/environment
+      ExecStartPre=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && until kubectl get --raw /readyz &>/dev/null; do echo "Waiting for API server..."; sleep 5; done'
       ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && kpt fn eval --image gcr.io/kpt-fn/apply-setters:v0.2 -- cluster-name=${CLUSTER_NAME} cluster-id=${CLUSTER_ID} lb-pool-cidr=${CLUSTER_LOADBALANCER_NETWORK_CIDR} vip-pool-cidr=${CLUSTER_VIP_NETWORK_CIDR} node-gateway-ip=${NODE_GATEWAY_IP} && kpt live apply . --reconcile-timeout=2m'
       Restart=on-failure
       RestartSec=10s
@@ -136,6 +138,7 @@ write_files:
       Type=oneshot
       RemainAfterExit=yes
       WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/mesh/tailscale/operator
+      ExecStartPre=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && until kubectl get --raw /readyz &>/dev/null; do echo "Waiting for API server..."; sleep 5; done'
       ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && kpt live apply . --reconcile-timeout=3m'
       Restart=on-failure
       RestartSec=10s
