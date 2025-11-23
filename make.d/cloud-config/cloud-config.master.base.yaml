@@ -83,14 +83,6 @@ write_files:
   # Deployed by: kpt-deploy-tailscale-operator.service, kpt-deploy-tailscale-connector.service
   # Provides: mesh networking, subnet routing for VIP + LoadBalancer pool
 
-  # Cluster information for service conditions
-  - path: /etc/rke2/cluster-info
-    permissions: "0644"
-    content: |
-      CLUSTER_NAME=${CLUSTER_NAME}
-      NODE_NAME=${NODE_NAME}
-      NODE_TYPE=${NODE_TYPE}
-
   # kpt deployment services - deploy packages in correct order
   - path: /etc/systemd/system/kpt-deploy-kube-vip.service
     content: |
