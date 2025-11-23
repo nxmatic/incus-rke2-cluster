@@ -68,8 +68,8 @@ write_files:
       Type=oneshot
       RemainAfterExit=yes
       WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/storage/openebs-zfs
-      EnvironmentFile=/etc/rke2/environment
-      ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && kpt fn eval --image gcr.io/kpt-fn/apply-setters:v0.2 -- poolname=tank kubelet-dir=/var/lib/rancher/rke2/agent && kpt live apply . --reconcile-timeout=3m'
+      EnvironmentFile=/etc/rancher/rke2/environment
+      ExecStart=/bin/bash -c '/usr/local/sbin/rke2-kpt-deploy /var/lib/incus-rke2-cluster/kpt-packages/storage/openebs-zfs --timeout=3m -- poolname=tank kubelet-dir=/var/lib/rancher/rke2/server/tank'
       # Wait for OpenEBS components to be ready
       ExecStartPost=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && echo "Waiting for OpenEBS components..." && kubectl wait --for=condition=Available deployment/openebs-zfs-controller -n openebs --timeout=300s && kubectl wait --for=condition=Ready pods -l app=openebs-zfs-node -n openebs --timeout=300s && kubectl wait --for condition=established crd/zfsvolumes.zfs.openebs.io crd/zfssnapshots.zfs.openebs.io crd/zfsnodes.zfs.openebs.io --timeout=300s && kubectl get storageclass openebs-zfs && echo "OpenEBS ZFS is ready"'
       Restart=on-failure
@@ -90,8 +90,8 @@ write_files:
       Type=oneshot
       RemainAfterExit=yes
       WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/ha/kube-vip
-      EnvironmentFile=/etc/rke2/environment
-      ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && kpt fn eval --image gcr.io/kpt-fn/apply-setters:v0.2 -- cluster-vip-address=${CLUSTER_VIP_GATEWAY_IP} && kpt live apply . --reconcile-timeout=2m'
+      EnvironmentFile=/etc/rancher/rke2/environment
+      ExecStart=/bin/bash -c '/usr/local/sbin/rke2-kpt-deploy /var/lib/incus-rke2-cluster/kpt-packages/ha/kube-vip --timeout=2m -- cluster-vip-address=${CLUSTER_VIP_GATEWAY_IP}'
       Restart=on-failure
       RestartSec=10s
       
@@ -110,8 +110,8 @@ write_files:
       Type=oneshot
       RemainAfterExit=yes
       WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/networking/cilium
-      EnvironmentFile=/etc/rke2/environment
-      ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && kpt fn eval --image gcr.io/kpt-fn/apply-setters:v0.2 -- cluster-name=${CLUSTER_NAME} cluster-id=${CLUSTER_ID} lb-pool-cidr=${CLUSTER_LOADBALANCER_NETWORK_CIDR} vip-pool-cidr=${CLUSTER_VIP_NETWORK_CIDR} node-gateway-ip=${NODE_GATEWAY_IP} && kpt live apply . --reconcile-timeout=2m'
+      EnvironmentFile=/etc/rancher/rke2/environment
+      ExecStart=/bin/bash -c '/usr/local/sbin/rke2-kpt-deploy /var/lib/incus-rke2-cluster/kpt-packages/networking/cilium --timeout=2m -- cluster-name=${CLUSTER_NAME} cluster-id=${CLUSTER_ID} lb-pool-cidr=${CLUSTER_LOADBALANCER_NETWORK_CIDR} vip-pool-cidr=${CLUSTER_VIP_NETWORK_CIDR} node-gateway-ip=${NODE_GATEWAY_IP}'
       Restart=on-failure
       RestartSec=10s
       
@@ -130,7 +130,7 @@ write_files:
       Type=oneshot
       RemainAfterExit=yes
       WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/mesh/tailscale/operator
-      ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && kpt live apply . --reconcile-timeout=3m'
+      ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && kpt live apply /var/lib/incus-rke2-cluster/kpt-packages/mesh/tailscale/operator --reconcile-timeout=3m'
       Restart=on-failure
       RestartSec=10s
       
@@ -149,10 +149,10 @@ write_files:
       Type=oneshot
       RemainAfterExit=yes
       WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/mesh/tailscale
-      EnvironmentFile=/etc/rke2/environment
+      EnvironmentFile=/etc/rancher/rke2/environment
       # Wait for Connector CRD to be available
       ExecStartPre=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && for i in {1..60}; do kubectl wait --for condition=established crd/connectors.tailscale.com --timeout=5s && break || sleep 5; done'
-      ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && kpt fn eval --image gcr.io/kpt-fn/apply-setters:v0.2 --match-kind Connector -- cluster-name=${CLUSTER_NAME} vip-address=${CLUSTER_VIP_GATEWAY_IP} lb-pool-cidr=${CLUSTER_LOADBALANCER_NETWORK_CIDR} && kubectl apply -f 03-connector.yaml'
+      ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && kpt fn eval /var/lib/incus-rke2-cluster/kpt-packages/mesh/tailscale --image ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2 --match-kind Connector -- cluster-name=${CLUSTER_NAME} vip-address=${CLUSTER_VIP_GATEWAY_IP} lb-pool-cidr=${CLUSTER_LOADBALANCER_NETWORK_CIDR} && kubectl apply -f /var/lib/incus-rke2-cluster/kpt-packages/mesh/tailscale/03-connector.yaml'
       Restart=on-failure
       RestartSec=10s
       
@@ -170,11 +170,11 @@ write_files:
       [Service]
       Type=oneshot
       RemainAfterExit=yes
-      EnvironmentFile=/etc/rke2/environment
+      EnvironmentFile=/etc/rancher/rke2/environment
       WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/mesh/headscale
       # Only deploy on bioskop cluster
       ExecCondition=/bin/bash -c 'test "${CLUSTER_NAME}" = "bioskop"'
-      ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && kpt fn eval --image gcr.io/kpt-fn/apply-setters:v0.2 -- cluster-name=${CLUSTER_NAME} home-lan-pool=${HOME_LAN_LOADBALANCER_POOL} && kpt live apply . --reconcile-timeout=3m'
+      ExecStart=/bin/bash -c '/usr/local/sbin/rke2-kpt-deploy /var/lib/incus-rke2-cluster/kpt-packages/mesh/headscale --timeout=3m -- cluster-name=${CLUSTER_NAME} home-lan-pool=${HOME_LAN_LOADBALANCER_POOL}'
       Restart=on-failure
       RestartSec=10s
       

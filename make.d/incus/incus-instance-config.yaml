@@ -74,6 +74,8 @@ config:
   environment.HELM_PLUGINS: "/var/lib/rancher/rke2/helm/plugins"
   # Krew Configuration
   environment.KREW_ROOT: "/var/lib/rancher/rke2/krew"
+  # Kpt Configuration
+  environment.KRM_FN_RUNTIME: "nerdctl"
 devices:
   kmsg.dev:
     type: unix-char

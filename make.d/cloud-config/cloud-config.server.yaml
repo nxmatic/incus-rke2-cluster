@@ -63,7 +63,7 @@ write_files:
     content: |
       [Service]
       # Wait for Kubernetes API to be ready before considering service started
-      EnvironmentFile=/etc/rke2/environment
+      EnvironmentFile=/etc/rancher/rke2/environment
       ExecStartPost=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && until kubectl get --raw /readyz &>/dev/null; do echo "Waiting for API server..."; sleep 5; done && echo "API server is ready"'
       # Note: Cilium check is only run on master node via post-start-master.conf
 

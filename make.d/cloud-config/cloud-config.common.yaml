@@ -115,6 +115,97 @@ write_files:
       [Install]
       WantedBy=multi-user.target
 
+  # Docker CLI shim to route invocations to nerdctl for kpt functions
+  - path: /usr/local/bin/docker
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -euo pipefail
+
+      if [[ "$${1:-}" == "version" ]]; then
+        echo "20.10.0"
+        exit 0
+      fi
+
+      exec nerdctl "$@"
+
+  # Shared helper to run kpt fn eval + live apply with consistent defaults
+  - path: /usr/local/sbin/rke2-kpt-deploy
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -euo pipefail
+
+      FLOX_ENV_DIR="$${FLOX_ENV_DIR:-/var/lib/rancher/rke2}"
+
+      if [[ -z "$${RKE2_KPT_SKIP_FLOX:-}" ]]; then
+        if command -v flox >/dev/null 2>&1; then
+          # shellcheck disable=SC1090
+          source <(flox activate --dir "$$FLOX_ENV_DIR")
+        else
+          echo "[rke2-kpt-deploy] flox command not found, continuing without flox environment" >&2
+        fi
+      fi
+
+      usage() {
+        echo "Usage: rke2-kpt-deploy <package-path> [options] -- [setter args]" >&2
+        echo >&2
+        echo "Options:" >&2
+        echo "  --timeout[=DURATION]   Override reconcile timeout (default: 3m or \$$KPT_LIVE_TIMEOUT)" >&2
+        echo "  --skip-fn              Skip kpt fn eval (run live apply only)" >&2
+        echo "  --<flag>               Additional kpt fn flags before \"--\" pass through to kpt fn eval" >&2
+      }
+
+      package_path="$${1:-}"
+      if [[ -z "$$package_path" ]]; then
+        usage >&2
+        exit 64
+      fi
+      shift
+
+      timeout="$${KPT_LIVE_TIMEOUT:-3m}"
+      run_fn=1
+      fn_flags=()
+      while [[ $$# -gt 0 ]]; do
+        case "$$1" in
+          --timeout=*)
+            timeout="$${1#*=}"
+            shift
+            ;;
+          --timeout)
+            if [[ $$# -lt 2 ]]; then
+              echo "[rke2-kpt-deploy] --timeout requires a value" >&2
+              exit 64
+            fi
+            timeout="$$2"
+            shift 2
+            ;;
+          --skip-fn)
+            run_fn=0
+            shift
+            ;;
+          --)
+            shift
+            break
+            ;;
+          *)
+            fn_flags+=("$$1")
+            shift
+            ;;
+        esac
+      done
+
+      setter_args=("$@")
+      image="$${KPT_FN_IMAGE:-ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2}"
+
+      if [[ $$run_fn -eq 1 ]]; then
+        if (( $${#setter_args[@]} )); then
+          kpt fn eval "$$package_path" --image "$$image" "$${fn_flags[@]}" -- "$${setter_args[@]}"
+        else
+          kpt fn eval "$$package_path" --image "$$image" "$${fn_flags[@]}"
+        fi
+      fi
+
+      kpt live apply "$$package_path" --reconcile-timeout="$$timeout"
+
   # ZFS early umount service moved to systemd section
 
   # Network configuration service moved to systemd section
@@ -212,9 +303,11 @@ write_files:
     content: |
       #!/usr/bin/env -S bash -exu -o pipefail
 
-      : "Generate /etc/rke2/environment from init process early"
-      mkdir -p /etc/rke2
-      cat /proc/1/environ | tr '\0' '\n' > /etc/rke2/environment
+      : "Generate /etc/rancher/rke2/environment from init process early"
+      mkdir -p /etc/rancher/rke2
+      cat <<EoE> /etc/rancher/rke2/environment
+      $( cat /proc/1/environ | tr '\0' '\n' )
+      EoE
 
       LIBRARY_DIR="/var/lib/rancher/rke2"
       : "Configure direnv to use flox"
@@ -252,11 +345,11 @@ write_files:
         mv /tmp/manifest.toml.$$ \
           /var/lib/cloud/seed/nocloud/.flox/env/manifest.toml
       cat <<'EoFloxCommonProfile' | cut -c 3- | tee /var/lib/cloud/seed/nocloud/.flox/env/profile-common.sh
-        : "Load environment variables from /etc/rke2/environment"
+        : "Load environment variables from /etc/rancher/rke2/environment"
         set -a
 
         : "Source RKE2 environment file if available"
-        [[ -f /etc/rke2/environment ]] && source /etc/rke2/environment
+        [[ -f /etc/rancher/rke2/environment ]] && source /etc/rancher/rke2/environment
 
         if command -v ip >/dev/null; then
           CLUSTER_GATEWAY=$$(ip route show default 2>/dev/null | awk '/default via/ { print $$3; exit }' || true)
@@ -284,6 +377,7 @@ write_files:
       dasel -r toml -w yaml \
         < /var/lib/rancher/rke2/.flox/env/manifest.toml |
         yq eval '.include = {"environments": [{"dir": "/var/lib/cloud/seed/nocloud"}]}' - |
+        yq eval '.install += {"nerdctl": {"pkg-path": "nerdctl", "version": "1.7.5", "pkg-group": "containerd-tools", "systems": ["aarch64-linux"]}}' - |
         yq eval '.install += {"krew": {"pkg-path": "krew", "pkg-group": "kubectl-tools"}}' - |
         yq eval '.install += {"kubectl-ai": {"pkg-path": "kubectl-ai", "pkg-group": "kubectl-plugins"}}' - |
         yq eval '.install += {"kubectl-ktop": {"pkg-path": "kubectl-ktop", "pkg-group": "kubectl-plugins"}}' - |
@@ -302,11 +396,11 @@ write_files:
         mv /tmp/manifest.toml.$$ \
           /var/lib/rancher/rke2/.flox/env/manifest.toml
         cat <<'EoFloxCommonProfile' | cut -c 3- | tee /var/lib/rancher/rke2/.flox/env/profile-common.sh
-        : "Load environment variables from /etc/rke2/environment"
+        : "Load environment variables from /etc/rancher/rke2/environment"
         set -a
         
         : "Source RKE2 environment file (generated from Incus instance config)"
-        [[ -f /etc/rke2/environment ]] && source /etc/rke2/environment
+        [[ -f /etc/rancher/rke2/environment ]] && source /etc/rancher/rke2/environment
 
         : "Load RKE2-specific dynamic environment variables"
         ARCH="$$(dpkg --print-architecture)"
