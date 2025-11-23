@@ -104,7 +104,8 @@ write_files:
       Type=oneshot
       RemainAfterExit=yes
       WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/ha/kube-vip
-      ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && kpt live apply . --reconcile-timeout=2m'
+      EnvironmentFile=/etc/incus-rke2-cluster/environment
+      ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && kpt fn eval --image gcr.io/kpt-fn/apply-setters:v0.2 -- cluster-vip-address=${CLUSTER_VIP_GATEWAY_IP} && kpt live apply . --reconcile-timeout=2m'
       Restart=on-failure
       RestartSec=10s
       
