@@ -191,9 +191,6 @@ write_files:
       WantedBy=multi-user.target
 
 runcmd:
-  # Generate /etc/rke2/environment from init process environment
-  - mkdir -p /etc/rke2
-  - cat /proc/1/environ | tr '\0' '\n' > /etc/rke2/environment
   # Enable and start kpt deployment services in order
   - systemctl daemon-reload
   - systemctl enable kpt-deploy-kube-vip.service

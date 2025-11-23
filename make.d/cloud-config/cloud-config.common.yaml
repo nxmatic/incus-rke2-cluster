@@ -212,6 +212,10 @@ write_files:
     content: |
       #!/usr/bin/env -S bash -exu -o pipefail
 
+      : "Generate /etc/rke2/environment from init process early"
+      mkdir -p /etc/rke2
+      cat /proc/1/environ | tr '\0' '\n' > /etc/rke2/environment
+
       LIBRARY_DIR="/var/lib/rancher/rke2"
       : "Configure direnv to use flox"
       direnv:config:generate() {
