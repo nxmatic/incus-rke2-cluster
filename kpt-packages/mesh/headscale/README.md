@@ -44,7 +44,7 @@ See: `kpt-packages/DEPLOYMENT-ORDER.md` for complete deployment sequence.
 kpt pkg get /path/to/kpt-packages/mesh/headscale ./headscale-local
 
 # Customize settings (optional)
-kpt fn eval headscale-local --image gcr.io/kpt-fn/apply-setters:v0.2 -- \
+kpt fn eval headscale-local --image ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2 -- \
   headscale-version=0.27.0 \
   cluster-name=bioskop \
   headscale-lb-ip=192.168.1.193

@@ -88,7 +88,7 @@ Customize using kpt setters in Kptfile:
 Example:
 
 ```bash
-kpt fn eval . --image gcr.io/kpt-fn/apply-setters:v0.2 -- \
+kpt fn eval . --image ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2 -- \
   cluster-vip-address=10.80.15.10
 ```
 

@@ -14,7 +14,7 @@ info:
   site: https://tailscale.com/kb/1236/kubernetes-operator
 pipeline:
   mutators:
-    - image: gcr.io/kpt-fn/apply-setters:v0.2
+    - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
       configMap:
         tailscale-version: 1.82.0
         cluster-name: bioskop-cluster

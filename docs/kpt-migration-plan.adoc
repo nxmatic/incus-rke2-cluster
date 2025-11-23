@@ -269,8 +269,8 @@ info:
     - cilium
 pipeline:
   validators:
-    - image: gcr.io/kpt-fn/kubeval:v0.3
-    - image: gcr.io/kpt-fn/validate-rolebinding:v0.1
+    - image: ghcr.io/kptdev/krm-functions-catalog/kubeval:v0.3
+    - image: ghcr.io/kptdev/krm-functions-catalog/validate-rolebinding:v0.1
 ----
 
 **Package Kptfile Example** (Headscale):
@@ -297,14 +297,14 @@ upstream:
     ref: develop
 pipeline:
   mutators:
-    - image: gcr.io/kpt-fn/apply-setters:v0.2
+    - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
       configMap:
         cluster-name: alcide
         headscale-version: v0.27.0
         home-lan-lb-pool: 192.168.1.192/27
         home-lan-lb-ip: 192.168.1.193
   validators:
-    - image: gcr.io/kpt-fn/kubeval:v0.3
+    - image: ghcr.io/kptdev/krm-functions-catalog/kubeval:v0.3
 ----
 
 === Step 3: Extract Manifests to kpt Packages
@@ -349,7 +349,7 @@ data:
 [source,bash]
 ----
 kpt fn eval kpt-packages/mesh/headscale \
-  --image gcr.io/kpt-fn/apply-setters:v0.2 \
+  --image ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2 \
   -- \
   home-lan-lb-ip=192.168.1.193 \
   headscale-version=v0.27.0 \
@@ -412,7 +412,7 @@ Rich composition, widely adopted, declarative
 ----
 ## Comprehensive validation pipeline
 kpt-validate: kpt-render
-	@kpt fn eval $(KPT_OUTPUT_DIR) --image gcr.io/kpt-fn/kubeval:v0.3
+	@kpt fn eval $(KPT_OUTPUT_DIR) --image ghcr.io/kptdev/krm-functions-catalog/kubeval:v0.3
 	@find $(KPT_OUTPUT_DIR) -name "*.yaml" -exec yamllint -c .yamllint.yaml {} +
 ----
 

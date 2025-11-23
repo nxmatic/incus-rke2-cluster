@@ -14,7 +14,7 @@ info:
   site: https://kube-vip.io/
 pipeline:
   mutators:
-    - image: gcr.io/kpt-fn/apply-setters:v0.2
+    - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
       configMap:
         kube-vip-version: v0.8.7
         cluster-vip-address: 10.80.23.1

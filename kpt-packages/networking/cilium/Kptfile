@@ -15,7 +15,7 @@ info:
   site: https://cilium.io/
 pipeline:
   mutators:
-    - image: gcr.io/kpt-fn/apply-setters:v0.2
+    - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
       configMap:
         cluster-name: bioskop-cluster
         cluster-id: "15"

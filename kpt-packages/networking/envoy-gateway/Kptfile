@@ -14,7 +14,7 @@ info:
   site: https://gateway.envoyproxy.io/
 pipeline:
   mutators:
-    - image: gcr.io/kpt-fn/apply-setters:v0.2
+    - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
       configMap:
         envoy-gateway-version: v1.4.2
         envoy-gateway-namespace: envoy-gateway-system
