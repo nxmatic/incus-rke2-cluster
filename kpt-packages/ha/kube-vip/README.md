@@ -8,6 +8,7 @@ This package deploys Kube-VIP for high-availability Kubernetes API server VIP ma
 - **DaemonSet**: Runs on control-plane nodes for VIP management
 - **VIP Configuration**: Manages Kubernetes API server virtual IP
   - bioskop: `10.80.15.1` (CLUSTER_VIP_GATEWAY_IP)
+  - alcide: `10.80.23.1` (CLUSTER_VIP_GATEWAY_IP)
   - Interface: `vmnet0` (cluster network)
   - ARP-based failover with leader election
 - **Backup NodePort**: `30443` for emergency access if VIP fails

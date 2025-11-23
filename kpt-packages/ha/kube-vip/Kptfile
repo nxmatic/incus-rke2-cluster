@@ -17,6 +17,6 @@ pipeline:
     - image: gcr.io/kpt-fn/apply-setters:v0.2
       configMap:
         kube-vip-version: v0.8.7
-        cluster-vip-address: 10.80.15.1
+        cluster-vip-address: 10.80.23.1
         cluster-vip-interface: vmnet0
         kube-vip-namespace: kube-vip

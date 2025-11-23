@@ -124,7 +124,8 @@ write_files:
       Type=oneshot
       RemainAfterExit=yes
       WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/networking/cilium
-      ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && kpt live apply . --reconcile-timeout=2m'
+      EnvironmentFile=/etc/incus-rke2-cluster/environment
+      ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && kpt fn eval --image gcr.io/kpt-fn/apply-setters:v0.2 -- cluster-name=${CLUSTER_NAME} cluster-id=${CLUSTER_ID} lb-pool-cidr=${CLUSTER_LOADBALANCER_NETWORK_CIDR} vip-pool-cidr=${CLUSTER_VIP_NETWORK_CIDR} node-gateway-ip=${NODE_GATEWAY_IP} && kpt live apply . --reconcile-timeout=2m'
       Restart=on-failure
       RestartSec=10s
       
@@ -162,9 +163,10 @@ write_files:
       Type=oneshot
       RemainAfterExit=yes
       WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/mesh/tailscale
+      EnvironmentFile=/etc/incus-rke2-cluster/environment
       # Wait for Connector CRD to be available
       ExecStartPre=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && for i in {1..60}; do kubectl wait --for condition=established crd/connectors.tailscale.com --timeout=5s && break || sleep 5; done'
-      ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && kubectl apply -f 03-connector.yaml'
+      ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && kpt fn eval --image gcr.io/kpt-fn/apply-setters:v0.2 --match-kind Connector -- cluster-name=${CLUSTER_NAME} vip-address=${CLUSTER_VIP_GATEWAY_IP} lb-pool-cidr=${CLUSTER_LOADBALANCER_NETWORK_CIDR} && kubectl apply -f 03-connector.yaml'
       Restart=on-failure
       RestartSec=10s
       
@@ -182,11 +184,11 @@ write_files:
       [Service]
       Type=oneshot
       RemainAfterExit=yes
-      EnvironmentFile=/etc/rke2/cluster-info
+      EnvironmentFile=/etc/incus-rke2-cluster/environment
       WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/mesh/headscale
       # Only deploy on bioskop cluster
-      ExecCondition=/bin/bash -c 'test "$${CLUSTER_NAME}" = "bioskop"'
-      ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && kpt live apply . --reconcile-timeout=3m'
+      ExecCondition=/bin/bash -c 'test "${CLUSTER_NAME}" = "bioskop"'
+      ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && kpt fn eval --image gcr.io/kpt-fn/apply-setters:v0.2 -- cluster-name=${CLUSTER_NAME} home-lan-pool=${HOME_LAN_LOADBALANCER_POOL} && kpt live apply . --reconcile-timeout=3m'
       Restart=on-failure
       RestartSec=10s
       
