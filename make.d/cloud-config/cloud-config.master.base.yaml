@@ -91,29 +91,13 @@ write_files:
       NODE_NAME=${NODE_NAME}
       NODE_TYPE=${NODE_TYPE}
 
-  # Service to generate environment file from /proc/1/environ
-  - path: /etc/systemd/system/rke2-environment.service
-    content: |
-      [Unit]
-      Description=Generate RKE2 environment file from init process
-      DefaultDependencies=no
-      Before=rke2-server.service rke2-agent.service
-      
-      [Service]
-      Type=oneshot
-      RemainAfterExit=yes
-      ExecStart=/bin/bash -c 'mkdir -p /etc/rke2 && cat /proc/1/environ | tr "\0" "\n" > /etc/rke2/environment'
-      
-      [Install]
-      WantedBy=multi-user.target
-
   # kpt deployment services - deploy packages in correct order
   - path: /etc/systemd/system/kpt-deploy-kube-vip.service
     content: |
       [Unit]
       Description=Deploy Kube-VIP kpt package
-      After=rke2-server.service rke2-environment.service
-      Wants=rke2-server.service rke2-environment.service
+      After=rke2-server.service
+      Wants=rke2-server.service
       ConditionPathExists=/var/lib/incus-rke2-cluster/kpt-packages/ha/kube-vip
       
       [Service]
@@ -212,10 +196,11 @@ write_files:
       WantedBy=multi-user.target
 
 runcmd:
-  # Enable and start environment and kpt deployment services in order
+  # Generate /etc/rke2/environment from init process environment
+  - mkdir -p /etc/rke2
+  - cat /proc/1/environ | tr '\0' '\n' > /etc/rke2/environment
+  # Enable and start kpt deployment services in order
   - systemctl daemon-reload
-  - systemctl enable rke2-environment.service
-  - systemctl start rke2-environment.service
   - systemctl enable kpt-deploy-kube-vip.service
   - systemctl enable kpt-deploy-cilium-resources.service
   - systemctl enable kpt-deploy-tailscale-operator.service

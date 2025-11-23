@@ -248,19 +248,11 @@ write_files:
         mv /tmp/manifest.toml.$$ \
           /var/lib/cloud/seed/nocloud/.flox/env/manifest.toml
       cat <<'EoFloxCommonProfile' | cut -c 3- | tee /var/lib/cloud/seed/nocloud/.flox/env/profile-common.sh
-        : "Load nocloud environment variables directly in flox profile"
+        : "Load environment variables from /etc/rke2/environment"
         set -a
 
-        : "Extract environment variables from init process"
-        while IFS='=' read -r key value; do
-          case "$$key" in
-            CLUSTER_*|NODE_*|POD_*|SERVICE_*) ;&
-            CILIUM_*) ;&
-            DEBUG)
-              eval "$$key=$$value"
-              ;;
-          esac
-        done < <(cat /proc/1/environ | tr '\0' '\n')
+        : "Source RKE2 environment file if available"
+        [[ -f /etc/rke2/environment ]] && source /etc/rke2/environment
 
         if command -v ip >/dev/null; then
           CLUSTER_GATEWAY=$$(ip route show default 2>/dev/null | awk '/default via/ { print $$3; exit }' || true)
@@ -306,24 +298,11 @@ write_files:
         mv /tmp/manifest.toml.$$ \
           /var/lib/rancher/rke2/.flox/env/manifest.toml
         cat <<'EoFloxCommonProfile' | cut -c 3- | tee /var/lib/rancher/rke2/.flox/env/profile-common.sh
-        : "Load environment variables from init process (set by Incus instance config)"
+        : "Load environment variables from /etc/rke2/environment"
         set -a
         
-        : "Extract environment variables from init process"
-        while IFS='=' read -r key value; do
-          case "$$key" in
-            ETCDCTL_*) ;&
-            KUBECTL_*) ;&
-            CONTAINERD_*) ;&
-            CRI_*) ;&
-            CILIUM_*) ;&
-            HUBBLE_*) ;&
-            HELM_*) ;&
-            KREW_*)
-              eval "$$key=$$value"
-              ;;
-          esac
-        done < <(cat /proc/1/environ | tr '\0' '\n')
+        : "Source RKE2 environment file (generated from Incus instance config)"
+        [[ -f /etc/rke2/environment ]] && source /etc/rke2/environment
 
         : "Load RKE2-specific dynamic environment variables"
         ARCH="$$(dpkg --print-architecture)"
