@@ -91,20 +91,36 @@ write_files:
       NODE_NAME=${NODE_NAME}
       NODE_TYPE=${NODE_TYPE}
 
+  # Service to generate environment file from /proc/1/environ
+  - path: /etc/systemd/system/rke2-environment.service
+    content: |
+      [Unit]
+      Description=Generate RKE2 environment file from init process
+      DefaultDependencies=no
+      Before=rke2-server.service rke2-agent.service
+      
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/bin/bash -c 'mkdir -p /etc/rke2 && cat /proc/1/environ | tr "\0" "\n" | grep -E "^(CLUSTER_|NODE_|POD_|SERVICE_|HOME_LAN_|ETCDCTL_|KUBECTL_|CONTAINERD_|CRI_|CILIUM_|HUBBLE_|HELM_|KREW_|DEBUG)" > /etc/rke2/environment'
+      
+      [Install]
+      WantedBy=multi-user.target
+
   # kpt deployment services - deploy packages in correct order
   - path: /etc/systemd/system/kpt-deploy-kube-vip.service
     content: |
       [Unit]
       Description=Deploy Kube-VIP kpt package
-      After=rke2-server.service
-      Wants=rke2-server.service
+      After=rke2-server.service rke2-environment.service
+      Wants=rke2-server.service rke2-environment.service
       ConditionPathExists=/var/lib/incus-rke2-cluster/kpt-packages/ha/kube-vip
       
       [Service]
       Type=oneshot
       RemainAfterExit=yes
       WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/ha/kube-vip
-      EnvironmentFile=/etc/incus-rke2-cluster/environment
+      EnvironmentFile=/etc/rke2/environment
       ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && kpt fn eval --image gcr.io/kpt-fn/apply-setters:v0.2 -- cluster-vip-address=${CLUSTER_VIP_GATEWAY_IP} && kpt live apply . --reconcile-timeout=2m'
       Restart=on-failure
       RestartSec=10s
@@ -124,7 +140,7 @@ write_files:
       Type=oneshot
       RemainAfterExit=yes
       WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/networking/cilium
-      EnvironmentFile=/etc/incus-rke2-cluster/environment
+      EnvironmentFile=/etc/rke2/environment
       ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && kpt fn eval --image gcr.io/kpt-fn/apply-setters:v0.2 -- cluster-name=${CLUSTER_NAME} cluster-id=${CLUSTER_ID} lb-pool-cidr=${CLUSTER_LOADBALANCER_NETWORK_CIDR} vip-pool-cidr=${CLUSTER_VIP_NETWORK_CIDR} node-gateway-ip=${NODE_GATEWAY_IP} && kpt live apply . --reconcile-timeout=2m'
       Restart=on-failure
       RestartSec=10s
@@ -163,7 +179,7 @@ write_files:
       Type=oneshot
       RemainAfterExit=yes
       WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/mesh/tailscale
-      EnvironmentFile=/etc/incus-rke2-cluster/environment
+      EnvironmentFile=/etc/rke2/environment
       # Wait for Connector CRD to be available
       ExecStartPre=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && for i in {1..60}; do kubectl wait --for condition=established crd/connectors.tailscale.com --timeout=5s && break || sleep 5; done'
       ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && kpt fn eval --image gcr.io/kpt-fn/apply-setters:v0.2 --match-kind Connector -- cluster-name=${CLUSTER_NAME} vip-address=${CLUSTER_VIP_GATEWAY_IP} lb-pool-cidr=${CLUSTER_LOADBALANCER_NETWORK_CIDR} && kubectl apply -f 03-connector.yaml'
@@ -184,7 +200,7 @@ write_files:
       [Service]
       Type=oneshot
       RemainAfterExit=yes
-      EnvironmentFile=/etc/incus-rke2-cluster/environment
+      EnvironmentFile=/etc/rke2/environment
       WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/mesh/headscale
       # Only deploy on bioskop cluster
       ExecCondition=/bin/bash -c 'test "${CLUSTER_NAME}" = "bioskop"'
@@ -196,8 +212,10 @@ write_files:
       WantedBy=multi-user.target
 
 runcmd:
-  # Enable and start kpt deployment services in order
+  # Enable and start environment and kpt deployment services in order
   - systemctl daemon-reload
+  - systemctl enable rke2-environment.service
+  - systemctl start rke2-environment.service
   - systemctl enable kpt-deploy-kube-vip.service
   - systemctl enable kpt-deploy-cilium-resources.service
   - systemctl enable kpt-deploy-tailscale-operator.service
