@@ -43,40 +43,10 @@ write_files:
 
   # (Envoy Gateway manifest moved to full overlay)
 
-  # OpenEBS ZFS
-  - path: /var/lib/rancher/rke2/server/manifests/openebs-zfs.yaml
-    content: |
-      apiVersion: v1
-      kind: Namespace
-      metadata:
-        name: openebs
-      ---
-      apiVersion: helm.cattle.io/v1
-      kind: HelmChart
-      metadata:
-        name: openebs-zfs
-        namespace: openebs
-      spec:
-        chart: zfs-localpv
-        repo: https://openebs.github.io/zfs-localpv
-        version: 2.8.0
-        targetNamespace: openebs
-        createNamespace: true
-        valuesContent: |-
-          zfsNode:
-            kubeletDir: /var/lib/rancher/rke2/agent
-      ---
-      apiVersion: storage.k8s.io/v1
-      kind: StorageClass
-      metadata:
-        name: openebs-zfs
-      provisioner: zfs.csi.openebs.io
-      parameters:
-        poolname: tank
-        fstype: zfs
-      reclaimPolicy: Delete
-      volumeBindingMode: WaitForFirstConsumer
-      allowVolumeExpansion: true
+  # OpenEBS ZFS - MIGRATED to kpt package
+  # See: kpt-packages/storage/openebs-zfs/
+  # Deployed by: kpt-deploy-openebs-zfs.service
+  # Provides: persistent storage backed by ZFS
 
   # Tailscale operator - MIGRATED to kpt package
   # See: kpt-packages/mesh/tailscale/
@@ -84,12 +54,36 @@ write_files:
   # Provides: mesh networking, subnet routing for VIP + LoadBalancer pool
 
   # kpt deployment services - deploy packages in correct order
+  # Order: OpenEBS (storage) -> kube-vip (HA) -> Cilium (networking) -> Tailscale (mesh) -> Headscale (coordination)
+  
+  - path: /etc/systemd/system/kpt-deploy-openebs-zfs.service
+    content: |
+      [Unit]
+      Description=Deploy OpenEBS ZFS CSI driver kpt package
+      After=rke2-server.service
+      Wants=rke2-server.service
+      ConditionPathExists=/var/lib/incus-rke2-cluster/kpt-packages/storage/openebs-zfs
+      
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/storage/openebs-zfs
+      EnvironmentFile=/etc/rke2/environment
+      ExecStart=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && kpt fn eval --image gcr.io/kpt-fn/apply-setters:v0.2 -- poolname=tank kubelet-dir=/var/lib/rancher/rke2/agent && kpt live apply . --reconcile-timeout=3m'
+      # Wait for OpenEBS components to be ready
+      ExecStartPost=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && echo "Waiting for OpenEBS components..." && kubectl wait --for=condition=Available deployment/openebs-zfs-controller -n openebs --timeout=300s && kubectl wait --for=condition=Ready pods -l app=openebs-zfs-node -n openebs --timeout=300s && kubectl wait --for condition=established crd/zfsvolumes.zfs.openebs.io crd/zfssnapshots.zfs.openebs.io crd/zfsnodes.zfs.openebs.io --timeout=300s && kubectl get storageclass openebs-zfs && echo "OpenEBS ZFS is ready"'
+      Restart=on-failure
+      RestartSec=10s
+      
+      [Install]
+      WantedBy=multi-user.target
+
   - path: /etc/systemd/system/kpt-deploy-kube-vip.service
     content: |
       [Unit]
       Description=Deploy Kube-VIP kpt package
-      After=rke2-server.service
-      Wants=rke2-server.service
+      After=kpt-deploy-openebs-zfs.service
+      Wants=kpt-deploy-openebs-zfs.service
       ConditionPathExists=/var/lib/incus-rke2-cluster/kpt-packages/ha/kube-vip
       
       [Service]
