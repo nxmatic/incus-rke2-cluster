@@ -11,15 +11,15 @@ This kpt package deploys the OpenEBS ZFS CSI driver for persistent storage backe
 ## Setters
 
 - `poolname`: ZFS pool name (default: `tank`)
-- `kubelet-dir`: Kubelet directory for RKE2 (default: `/var/lib/rancher/rke2/agent`)
+- `kubelet-dir`: Kubelet directory for RKE2 (default: `/var/lib/rancher/rke2/server/tank`)
 
 ## Usage
 
 ```bash
 # Apply setters if needed
-kpt fn eval --image gcr.io/kpt-fn/apply-setters:v0.2 -- \
+kpt fn eval --image ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2 -- \
   poolname=tank \
-  kubelet-dir=/var/lib/rancher/rke2/agent
+  kubelet-dir=/var/lib/rancher/rke2/server/tank
 
 # Deploy
 kpt live init .

@@ -8,7 +8,7 @@ info:
   description: OpenEBS ZFS CSI driver for persistent storage
 pipeline:
   mutators:
-    - image: gcr.io/kpt-fn/apply-setters:v0.2
+    - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
       configMap:
         poolname: tank
-        kubelet-dir: /var/lib/rancher/rke2/agent
+        kubelet-dir: /var/lib/rancher/rke2/server/tank
