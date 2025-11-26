@@ -48,6 +48,39 @@ write_files:
       SendHostname=yes
       Hostname=${CLUSTER_NAME}-${NODE_NAME}-control-node
 
+  # systemd-networkd drop-in to prevent vmnet0 DHCP from installing routes/DNS
+  - path: /etc/systemd/network/10-netplan-lan0.network.d/90-no-default.conf
+    permissions: "0644"
+    content: |
+      [Network]
+      DHCP=ipv4
+      IPv6AcceptRA=no
+      LinkLocalAddressing=ipv4
+      LLMNR=yes
+
+      [DHCP]
+      UseDNS=yes
+
+  # systemd-networkd drop-in to prevent vmnet0 DHCP from installing routes/DNS
+  - path: /etc/systemd/network/10-netplan-vmnet0.network.d/90-no-default.conf
+    permissions: "0644"
+    content: |
+      [Network]
+      IPv6AcceptRA=no
+      LinkLocalAddressing=ipv4
+
+      [DHCP]
+      UseRoutes=no
+      UseDNS=no
+
+  # systemd-resolved drop-in to disable LLMNR/mDNS advertising on LAN interfaces
+  - path: /etc/systemd/resolved.conf.d/10-disable-llmnr-mdns.conf
+    permissions: "0644"
+    content: |
+      [Resolve]
+      LLMNR=no
+      MulticastDNS=no
+
   # Network configuration script using flox environment and yq
   - path: /usr/local/sbin/rke2-network-config
     permissions: "0755"
@@ -193,18 +226,128 @@ write_files:
         esac
       done
 
-      setter_args=("$@")
+      setter_args=("$$@")
+      fn_config_file=""
+      fn_config_flag=()
+      cleanup() {
+        [[ -n "$$fn_config_file" && -f "$$fn_config_file" ]] && rm -f "$$fn_config_file"
+      }
+      trap cleanup EXIT
+
+      if (( $${#setter_args[@]} )); then
+        if ! command -v yq >/dev/null 2>&1; then
+          echo "[rke2-kpt-deploy] yq command is required for setter arguments" >&2
+          exit 1
+        fi
+
+        fn_config_file="$(mktemp)"
+        yq -n '
+          .apiVersion = "v1" |
+          .kind = "ConfigMap" |
+          .metadata.name = "apply-setters-input" |
+          .data = {}
+        ' > "$$fn_config_file"
+  
+        for kv in "$${setter_args[@]}"; do
+          if [[ "$$kv" != *=* ]]; then
+            echo "[rke2-kpt-deploy] setter argument '$$kv' must be key=value" >&2
+            exit 64
+          fi
+          key="$${kv%%=*}"
+          value="$${kv#*=}"
+          yq eval --inplace ".data.\"$${key}\" = \"$${value}\"" "$$fn_config_file"
+        done
+        fn_config_flag=(--fn-config "$$fn_config_file")
+      fi
       image="$${KPT_FN_IMAGE:-ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2}"
 
       if [[ $$run_fn -eq 1 ]]; then
-        if (( $${#setter_args[@]} )); then
-          kpt fn eval "$$package_path" --image "$$image" "$${fn_flags[@]}" -- "$${setter_args[@]}"
-        else
-          kpt fn eval "$$package_path" --image "$$image" "$${fn_flags[@]}"
-        fi
+        kpt fn eval "$$package_path" --image "$$image" "$${fn_flags[@]}" "$${fn_config_flag[@]}"
       fi
 
       kpt live apply "$$package_path" --reconcile-timeout="$$timeout"
+
+  # Wait for OpenEBS controller/CRDs to finish reconciling
+  - path: /usr/local/sbin/rke2-openebs-ready-check
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -euo pipefail
+
+      source <(flox activate --dir /var/lib/rancher/rke2)
+
+      log() {
+        echo "[rke2-openebs-ready] $$*"
+      }
+
+      log "Waiting for OpenEBS components..."
+      until kubectl get deployment/openebs-zfs-controller -n openebs >/dev/null 2>&1; do
+        log "deployment/openebs-zfs-controller not ready yet, retrying..."
+        sleep 5
+      done
+
+      kubectl wait --for=condition=Available deployment/openebs-zfs-controller -n openebs --timeout=300s
+      kubectl wait --for=condition=Ready pods -l app=openebs-zfs-node -n openebs --timeout=300s
+      kubectl wait --for condition=established crd/zfsvolumes.zfs.openebs.io crd/zfssnapshots.zfs.openebs.io crd/zfsnodes.zfs.openebs.io --timeout=300s
+      kubectl get storageclass openebs-zfs
+      log "OpenEBS ZFS is ready"
+
+  # Helper to run tailscale operator apply via kpt
+  - path: /usr/local/sbin/rke2-tailscale-operator-apply
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -euo pipefail
+
+      if [[ $$# -lt 1 ]]; then
+        echo "Usage: rke2-tailscale-operator-apply <package-dir> [timeout]" >&2
+        exit 64
+      fi
+
+      package_dir="$$1"
+      timeout="${2:-3m}"
+
+      source <(flox activate --dir /var/lib/rancher/rke2)
+
+      kpt live apply "$$package_dir" --reconcile-timeout="$$timeout"
+
+  # Helper to configure and apply tailscale connector manifests
+  - path: /usr/local/sbin/rke2-tailscale-connector-deploy
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -euo pipefail
+
+      if [[ $$# -lt 3 ]]; then
+        echo "Usage: rke2-tailscale-connector-deploy <cluster-name> <vip-address> <lb-pool-cidr>" >&2
+        exit 64
+      fi
+
+      cluster_name="$$1"
+      vip_address="$$2"
+      lb_pool_cidr="$$3"
+      package_dir="/var/lib/incus-rke2-cluster/kpt-packages/mesh/tailscale"
+      connector_manifest="$$package_dir/03-connector.yaml"
+
+      source <(flox activate --dir /var/lib/rancher/rke2)
+
+      success=0
+      for i in $(seq 1 60); do
+        if kubectl wait --for condition=established crd/connectors.tailscale.com --timeout=5s; then
+          success=1
+          break
+        fi
+        sleep 5
+      done
+
+      if [[ $$success -ne 1 ]]; then
+        echo "[rke2-tailscale-connector] CRD connectors.tailscale.com not ready after 5m" >&2
+        exit 1
+      fi
+
+      kpt fn eval "$$package_dir" --image ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2 --match-kind Connector -- \
+        cluster-name="$$cluster_name" \
+        vip-address="$$vip_address" \
+        lb-pool-cidr="$$lb_pool_cidr"
+
+      kubectl apply -f "$$connector_manifest"
 
   # ZFS early umount service moved to systemd section
 

@@ -15,7 +15,7 @@ config:
   volatile.lan0.hwaddr: ${NODE_LAN_MAC}
   volatile.vmnet0.hwaddr: ${NODE_WAN_MAC}
   # RKE2 Core Configuration
-  environment.DEBUG: true
+  environment.DEBUG: false
   environment.NODE_TYPE: "${NODE_TYPE}"
   environment.CLUSTER_NAME: "${CLUSTER_NAME}"
   environment.CLUSTER_TOKEN: "${CLUSTER_TOKEN}"

@@ -113,17 +113,28 @@ $$preamble + "\n" + (. | to_yaml | sub("^---\n"; ""))
 endef
 
 define YQ_CLOUD_CONFIG_MERGE_6_FILES
-"#cloud-config" as $$preamble | \
-select(fileIndex == 0) as $$a | \
-select(fileIndex == 1) as $$b | \
-select(fileIndex == 2) as $$c | \
-select(fileIndex == 3) as $$d | \
-select(fileIndex == 4) as $$e | \
-select(fileIndex == 5) as $$f | \
-($$a * $$b * $$c * $$d * $$e * $$f) | \
-.write_files = ($$a.write_files // []) + ($$b.write_files // []) + ($$c.write_files // []) + ($$d.write_files // []) + ($$e.write_files // []) + ($$f.write_files // []) | \
-.runcmd = ($$a.runcmd // []) + ($$b.runcmd // []) + ($$c.runcmd // []) + ($$d.runcmd // []) + ($$e.runcmd // []) + ($$f.runcmd // []) | \
-( .. | select( tag == "!!str" ) ) |= envsubst(ne,nu) | \
+"#cloud-config" as $$preamble |
+select(fileIndex == 0) as $$a |
+select(fileIndex == 1) as $$b |
+select(fileIndex == 2) as $$c |
+select(fileIndex == 3) as $$d |
+select(fileIndex == 4) as $$e |
+select(fileIndex == 5) as $$f |
+($$a * $$b * $$c * $$d * $$e * $$f) |
+.write_files = ($$a.write_files // []) 
+  + ($$b.write_files // [])
+  + ($$c.write_files // [])
+  + ($$d.write_files // [])
+  + ($$e.write_files // [])
+  + ($$f.write_files // []) |
+.runcmd = ( 
+  $$a.runcmd // [])
+  + ($$b.runcmd // [])
+  + ($$c.runcmd // [])
+  + ($$d.runcmd // [])
+  + ($$e.runcmd // [])
+  + ($$f.runcmd // []) |
+( .. | select( tag == "!!str" ) ) |= envsubst(ne,nu) |
 $$preamble + "\n" + (. | to_yaml | sub("^---\n"; ""))
 endef
 
@@ -135,7 +146,7 @@ YQ_CLOUD_CONFIG_EXPR_6 = $(YQ_CLOUD_CONFIG_MERGE_6_FILES)
 # Macro for executing the appropriate yq cloud-config merge based on file count
 define EXECUTE_YQ_CLOUD_CONFIG_MERGE
 $(if $(YQ_CLOUD_CONFIG_EXPR_$(1)),
-echo '$(YQ_CLOUD_CONFIG_EXPR_$(1))' > $(3).yq && yq eval-all --unwrapScalar --from-file=$(3).yq $(2) > $(3) && rm $(3).yq,
+echo '$(YQ_CLOUD_CONFIG_EXPR_$(1))' > $(3).yq && yq eval-all --unwrapScalar --from-file=$(3).yq $(2) > $(3) && : "rm $(3).yq",
 $(error Unsupported file count: $(1) (expected 3, 5, or 6)))
 endef
 

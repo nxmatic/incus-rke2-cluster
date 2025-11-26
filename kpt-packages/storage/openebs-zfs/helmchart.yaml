@@ -11,4 +11,4 @@ spec:
   createNamespace: true
   valuesContent: |-
     zfsNode:
-      kubeletDir: tank # kpt-set: ${kubelet-dir}
+      kubeletDir: /var/lib/rancher/rke2/server/tank # kpt-set: ${kubelet-dir}
