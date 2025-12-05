@@ -64,7 +64,7 @@ spec:
         - name: vip_retryperiod
           value: "1"
         - name: address
-          value: 10.80.23.1 # kpt-set: ${cluster-vip-address}
+          value: 10.80.15.1 # kpt-set: ${cluster-vip-address}
         securityContext:
           capabilities:
             add:
