@@ -334,10 +334,13 @@ export CLUSTER_NODE_IP_BASE
 # Home LAN LoadBalancer IP pool (cluster-specific)
 ifeq ($(cluster.NAME),bioskop)
 export HOME_LAN_LOADBALANCER_POOL = 192.168.1.192/27
+export HOME_LAN_LOADBALANCER_HEADSCALE = 192.168.1.193
 else ifeq ($(cluster.NAME),alcide)
 export HOME_LAN_LOADBALANCER_POOL = 192.168.1.64/27
+export HOME_LAN_LOADBALANCER_HEADSCALE = 192.168.1.65
 else
 export HOME_LAN_LOADBALANCER_POOL =
+export HOME_LAN_LOADBALANCER_HEADSCALE =
 endif
 
 # Cluster-wide variables for DHCP static reservations
