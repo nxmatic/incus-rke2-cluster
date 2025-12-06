@@ -172,7 +172,7 @@ write_files:
       WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/mesh/headscale
       # Only deploy on bioskop cluster
       ExecCondition=/bin/bash -c 'test "${CLUSTER_NAME}" = "bioskop"'
-      ExecStart=/usr/local/sbin/rke2-kpt-deploy /var/lib/incus-rke2-cluster/kpt-packages/mesh/headscale --timeout=3m -- cluster-name=${CLUSTER_NAME} home-lan-pool=${HOME_LAN_LOADBALANCER_POOL} headscale-lb-ip=${HOME_LAN_LOADBALANCER_HEADSCALE}
+      ExecStart=/usr/local/sbin/rke2-kpt-deploy /var/lib/incus-rke2-cluster/kpt-packages/mesh/headscale --timeout=3m -- cluster-name=${CLUSTER_NAME} home-lan-pool=${HOME_LAN_LOADBALANCER_POOL} headscale-lb-ip=${HOME_LAN_LOADBALANCER_HEADSCALE} vip-network-cidr=${CLUSTER_VIP_NETWORK_CIDR}
       Restart=on-failure
       RestartSec=10s
       
