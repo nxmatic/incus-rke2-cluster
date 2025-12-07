@@ -20,7 +20,7 @@ pipeline:
   mutators:
     - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
       configMap:
-        flox-namespace: flox-runtime
+        flox-namespace: flox
         node-label-key: flox.dev/enabled
         node-label-value: "true"
         runtime-class-name: flox

@@ -54,7 +54,7 @@ spec:
       - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
         configMap:
           kube-vip-version: v0.8.7
-          cluster-vip-address: 10.80.23.1
+          cluster-vip-address: 10.80.15.1 # kpt-set: ${node-vip-ip}
           cluster-vip-interface: vmnet0
           kube-vip-namespace: kube-vip
 ---
@@ -85,14 +85,14 @@ spec:
       - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
         configMap:
           cluster-name: bioskop-cluster # kpt-set: ${cluster-name}-cluster
-          cluster-id: "15"
-          lb-pool-cidr: 10.80.8.128/26
-          vip-pool-cidr: 10.80.15.0/24
+          cluster-id: "1" # kpt-set: ${cluster-id}
+          lb-pool-cidr: 10.80.8.128/26 # kpt-set: ${cluster-lb-pool-cidr}
+          vip-pool-cidr: 10.80.15.0/24 # kpt-set: ${cluster-vip-network-cidr}
           l2-interface-1: vmnet0
           l2-interface-2: lan0
           bgp-local-asn: "65001"
           bgp-peer-asn: "65000"
-          node-gateway-ip: 10.80.0.1
+          node-gateway-ip: 10.80.0.1 # kpt-set: ${node-gateway-ip}
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
@@ -122,8 +122,8 @@ spec:
         configMap:
           tailscale-version: 1.82.0
           cluster-name: bioskop-cluster # kpt-set: ${cluster-name}-cluster
-          vip-address: 10.80.15.1
-          lb-pool-cidr: 10.80.8.128/26
+          vip-address: 10.80.15.1 # kpt-set: ${node-vip-ip}
+          lb-pool-cidr: 10.80.8.128/26 # kpt-set: ${cluster-lb-pool-cidr}
           tailscale-namespace: tailscale-system
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
@@ -152,12 +152,11 @@ spec:
     mutators:
       - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
         configMap:
-          headscale-version: "0.27.0"
           cluster-name: "bioskop" # kpt-set: ${cluster-name}
           darwin-host: "bioskop" # kpt-set: ${cluster-name}
-          home-lan-pool: "192.168.1.192/27"
-          headscale-lb-ip: "192.168.1.193"
-          vip-network-cidr: "10.80.15.0/24"
+          home-lan-pool: "192.168.1.192/27" # kpt-set: ${home-lan-pool}
+          headscale-lb-ip: "192.168.1.193" # kpt-set: ${headscale-lb-ip}
+          vip-network-cidr: "10.80.15.0/24" # kpt-set: ${cluster-vip-network-cidr}
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant

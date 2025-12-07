@@ -43,7 +43,7 @@ source <( flox activate --dir /var/lib/rancher/rke2 )
 export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
 
 # Deploy with kpt live (adopts existing resources)
-cd /var/lib/incus-rke2-cluster/kpt-packages/ha/kube-vip
+cd /var/lib/incus-rke2-cluster/kpt/cluster/ha/kube-vip
 kpt live apply . --inventory-policy=adopt --reconcile-timeout=2m
 
 # Check status
@@ -98,7 +98,7 @@ If migration causes issues:
 
 1. **Quick Rollback**: Delete kpt-managed resources, RKE2 will recreate from manifests
    ```bash
-   kpt live destroy /var/lib/incus-rke2-cluster/kpt-packages/ha/kube-vip
+   kpt live destroy /var/lib/incus-rke2-cluster/kpt/cluster/ha/kube-vip
    kubectl delete -f /var/lib/rancher/rke2/server/manifests/kube-vip.yaml
    kubectl apply -f /var/lib/rancher/rke2/server/manifests/kube-vip.yaml
    ```

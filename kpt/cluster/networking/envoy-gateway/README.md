@@ -31,14 +31,14 @@ source <( flox activate --dir /var/lib/rancher/rke2 )
 export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
 
 # Deploy with kpt live (adopts existing resources if present)
-cd /var/lib/incus-rke2-cluster/kpt-packages/networking/envoy-gateway
+cd /var/lib/incus-rke2-cluster/kpt/cluster/networking/envoy-gateway
 kpt live apply . --inventory-policy=adopt --reconcile-timeout=5m
 
 # Check status
 kpt live status .
 
 # Or from outside the container (one-liner)
-ssh lima-nerd-nixos "incus exec master -- bash -c 'source <( flox activate --dir /var/lib/rancher/rke2 ); export KUBECONFIG=/etc/rancher/rke2/rke2.yaml && kpt live apply /var/lib/incus-rke2-cluster/kpt-packages/networking/envoy-gateway --inventory-policy=adopt --reconcile-timeout=5m'"
+ssh lima-nerd-nixos "incus exec master -- bash -c 'source <( flox activate --dir /var/lib/rancher/rke2 ); export KUBECONFIG=/etc/rancher/rke2/rke2.yaml && kpt live apply /var/lib/incus-rke2-cluster/kpt/cluster/networking/envoy-gateway --inventory-policy=adopt --reconcile-timeout=5m'"
 ```
 
 **Note**: The package uses a `resourcegroup.yaml` file for inventory tracking (kpt v1 best practice). The `--inventory-policy=adopt` flag is needed on first apply to take ownership of existing resources deployed via kubectl.
@@ -48,7 +48,7 @@ ssh lima-nerd-nixos "incus exec master -- bash -c 'source <( flox activate --dir
 ```bash
 # Direct kubectl apply (for testing or troubleshooting)
 ssh lima-nerd-nixos
-incus exec master -- flox activate --dir /var/lib/rancher/rke2 -- kubectl apply -f /var/lib/incus-rke2-cluster/kpt-packages/networking/envoy-gateway/
+incus exec master -- flox activate --dir /var/lib/rancher/rke2 -- kubectl apply -f /var/lib/incus-rke2-cluster/kpt/cluster/networking/envoy-gateway/
 
 # Verify installation
 kubectl get pods -n envoy-gateway-system

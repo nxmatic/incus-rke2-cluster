@@ -42,7 +42,7 @@ incus exec master -- bash
 source <( flox activate --dir /var/lib/rancher/rke2 )
 export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
 
-cd /var/lib/incus-rke2-cluster/kpt-packages/mesh/tailscale
+cd /var/lib/incus-rke2-cluster/kpt/cluster/mesh/tailscale
 
 # Stage 1: Deploy operator with kpt live
 kpt live apply operator/ --reconcile-timeout=3m
@@ -168,7 +168,7 @@ If migration causes issues:
 
 1. **Quick Rollback**: Delete kpt-managed resources
    ```bash
-   kpt live destroy /var/lib/incus-rke2-cluster/kpt-packages/mesh/tailscale
+   kpt live destroy /var/lib/incus-rke2-cluster/kpt/cluster/mesh/tailscale
    ```
 
 2. **Restore from cloud-config**: Redeploy master with Tailscale in cloud-config

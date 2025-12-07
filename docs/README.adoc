@@ -29,7 +29,7 @@ This directory contains comprehensive documentation for the Incus RKE2 cluster d
 === Deployment & Operations
 
 * link:../../docs/sessions/2025-11-12-bioskop-headscale-deployment.adoc[bioskop Headscale Deployment] - Step-by-step guide for deploying Headscale on bioskop cluster
-* link:../kpt-packages/mesh/headscale/README.md[Headscale kpt Package] - Declarative Headscale deployment using kpt
+* link:../kpt/cluster/mesh/headscale/README.md[Headscale kpt Package] - Declarative Headscale deployment using kpt
 
 === Project Documentation
 

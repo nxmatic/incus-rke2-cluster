@@ -29,7 +29,7 @@ This package bootstraps Flox Imageless Kubernetes support on self-managed nodes 
 ## Usage
 
 ```bash
-cd /var/lib/incus-rke2-cluster/kpt-packages/runtime/flox-containerd-shim
+cd /var/lib/incus-rke2-cluster/kpt/cluster/runtime/flox-containerd-shim
 kpt live apply . --reconcile-timeout=3m
 kpt live status .
 ```

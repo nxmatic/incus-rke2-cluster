@@ -292,7 +292,7 @@ network.NODE_PROFILE_NAME = $(.network.node_profile_name)
 network.MASTER_NODE_IP = $(.network.master_node_ip)
 
 # Note: MAC addresses and computed values are loaded from _assign.mk via load@network target
-# They are available as plain variables: NODE_WAN_MAC_MASTER, CLUSTER_NODE_IP_BASE, HEADSCALE_VERSION, etc.
+# They are available as plain variables: NODE_WAN_MAC_MASTER, CLUSTER_NODE_IP_BASE, etc.
 
 # =============================================================================
 # EXPORTS FOR TEMPLATE USAGE
@@ -456,8 +456,6 @@ $(.network.dir)/_computed.mk: ## Generate computed values (MAC addresses, versio
 	source $(.network.host_subnets_env) && \
 		cluster_network=$$(eval echo \$$HOST_SUBNETS_NETWORK_$(cluster.ID)) && \
 		printf "CLUSTER_NODE_IP_BASE=%s\n" "$$(echo $$cluster_network | cut -d/ -f1 | sed 's/\.[0-9]*$$//')" >> $@
-	echo "# External versions" >> $@
-	printf "HEADSCALE_VERSION=%s\n" "$$(curl -s https://api.github.com/repos/juanfont/headscale/releases/latest | yq -p json -oy '.tag_name // "v0.27.0" | sub("^v", "")')" >> $@
 	: "[network] Generated $$(grep -c '=' $@) computed values" # @codebase
 
 $(.network.dir)/_assign.mk: $(.network.subnets_mk_files) $(.network.dir)/_computed.mk

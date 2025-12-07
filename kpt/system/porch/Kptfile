@@ -47,3 +47,59 @@ openAPI:
           type: string
           isSet: true
           value: home
+    io.k8s.cli.setters.cluster-id:
+      x-k8s-cli:
+        setter:
+          name: cluster-id
+          description: Numeric identifier for the cluster (matches Make CLUSTER_ID)
+          type: string
+          isSet: true
+          value: "1"
+    io.k8s.cli.setters.node-vip-ip:
+      x-k8s-cli:
+        setter:
+          name: node-vip-ip
+          description: Virtual IP assigned to control-plane services
+          type: string
+          isSet: true
+          value: 10.80.15.1
+    io.k8s.cli.setters.cluster-lb-pool-cidr:
+      x-k8s-cli:
+        setter:
+          name: cluster-lb-pool-cidr
+          description: Load balancer pool CIDR for the cluster
+          type: string
+          isSet: true
+          value: 10.80.8.128/26
+    io.k8s.cli.setters.cluster-vip-network-cidr:
+      x-k8s-cli:
+        setter:
+          name: cluster-vip-network-cidr
+          description: VIP network CIDR allocated by the Make network layer
+          type: string
+          isSet: true
+          value: 10.80.15.0/24
+    io.k8s.cli.setters.node-gateway-ip:
+      x-k8s-cli:
+        setter:
+          name: node-gateway-ip
+          description: Node gateway IP exported from the Make network layer
+          type: string
+          isSet: true
+          value: 10.80.0.1
+    io.k8s.cli.setters.home-lan-pool:
+      x-k8s-cli:
+        setter:
+          name: home-lan-pool
+          description: Home LAN load balancer pool used by headscale ingress
+          type: string
+          isSet: true
+          value: 192.168.1.192/27
+    io.k8s.cli.setters.headscale-lb-ip:
+      x-k8s-cli:
+        setter:
+          name: headscale-lb-ip
+          description: Headscale load balancer IP on the home LAN
+          type: string
+          isSet: true
+          value: 192.168.1.193

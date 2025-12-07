@@ -49,7 +49,7 @@
   - ✅ Better secret management with kpt + sops
   - ✅ Can update routes/config without container restart
 - **Migration Strategy**:
-  1. Create `kpt-packages/mesh/tailscale/` package
+  1. Create `kpt/cluster/mesh/tailscale/` package
   2. Extract namespace, HelmChart, and Connector resources
   3. Use kpt setters for: cluster-name, oauth-client-id, oauth-client-secret, vip-cidr, lb-cidr
   4. Deploy on fresh master, verify Tailscale connectivity
@@ -79,10 +79,10 @@
 
 ### Previously Migrated (Now in kpt)
 
-✅ **Headscale** - Migrated to `kpt-packages/mesh/headscale/`
-✅ **Envoy Gateway** - Migrated to `kpt-packages/networking/envoy-gateway/`
-✅ **Kube-VIP** - Migrated to `kpt-packages/ha/kube-vip/`
-✅ **Cilium Advanced Features** - Migrated to `kpt-packages/networking/cilium/`
+✅ **Headscale** - Migrated to `kpt/cluster/mesh/headscale/`
+✅ **Envoy Gateway** - Migrated to `kpt/cluster/networking/envoy-gateway/`
+✅ **Kube-VIP** - Migrated to `kpt/cluster/ha/kube-vip/`
+✅ **Cilium Advanced Features** - Migrated to `kpt/cluster/networking/cilium/`
 
 ## Migration Recommendation Summary
 
@@ -111,7 +111,7 @@
 
 **Package Structure**:
 ```
-kpt-packages/mesh/tailscale/
+kpt/cluster/mesh/tailscale/
 ├── Kptfile (setters: version, cluster-name, vip, lb-cidr)
 ├── 00-namespace.yaml
 ├── 01-operator-helmchart.yaml

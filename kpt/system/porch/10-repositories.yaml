@@ -9,7 +9,7 @@ spec:
   git:
     repo: git@github.com:nxmatic/nix-darwin-home.git
     branch: develop
-    directory: modules/nixos/incus-rke2-cluster/kpt-packages
+    directory: modules/nixos/incus-rke2-cluster/kpt/cluster
     secretRef:
       name: porch-git-ssh
   deployment: true

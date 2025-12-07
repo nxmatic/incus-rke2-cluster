@@ -53,7 +53,7 @@ export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
 kubectl get pods -n kube-system -l k8s-app=cilium
 
 # Deploy advanced features
-cd /var/lib/incus-rke2-cluster/kpt-packages/networking/cilium
+cd /var/lib/incus-rke2-cluster/kpt/cluster/networking/cilium
 kpt live apply . --reconcile-timeout=2m
 
 # Check status
@@ -138,7 +138,7 @@ If migration causes networking issues:
 
 1. **Quick Rollback**: Delete kpt-managed resources, redeploy from cloud-config
    ```bash
-   kpt live destroy /var/lib/incus-rke2-cluster/kpt-packages/networking/cilium
+   kpt live destroy /var/lib/incus-rke2-cluster/kpt/cluster/networking/cilium
    # RKE2 will recreate resources from cloud-config on next restart
    ```
 

@@ -63,13 +63,13 @@ The current setup deploys cluster components through RKE2 auto-apply manifests e
 Migrate components that don't affect cluster bootstrapping:
 
 1. **Headscale Server & Client** ✅ (from `cloud-config.master.headscale.yaml`)
-   - Deployed via kpt package: `kpt-packages/mesh/headscale/`
+   - Deployed via kpt package: `kpt/cluster/mesh/headscale/`
    - 16 resources tracked with ResourceGroup inventory
    - LoadBalancer IP functional (10.80.8.66)
    - Bootstrap job completed, client DaemonSet running
 
 2. **Envoy Gateway** ✅ (from `cloud-config.master.cilium.yaml`)
-   - Deployed via kpt package: `kpt-packages/networking/envoy-gateway/`
+   - Deployed via kpt package: `kpt/cluster/networking/envoy-gateway/`
    - Job-based installer with alpine/k8s:1.29.8 image
    - GatewayClass "envoy" accepted successfully
    - 5 resources tracked with ResourceGroup inventory
@@ -86,7 +86,7 @@ Migrate components that don't affect cluster bootstrapping:
 Migrate Kube-VIP after proving kpt workflow:
 
 3. **Kube-VIP DaemonSet** ✅ (from `cloud-config.master.kube-vip.yaml`)
-   - Deployed via kpt package: `kpt-packages/ha/kube-vip/`
+   - Deployed via kpt package: `kpt/cluster/ha/kube-vip/`
    - VIP 10.80.15.1 on vmnet0 interface stable
    - 6 resources tracked with ResourceGroup inventory
    - NodePort 30443 backup for emergency access
@@ -100,7 +100,7 @@ Migrate core infrastructure components:
 
 4. **Cilium Advanced Features** ✅ COMPLETE (from `cloud-config.master.cilium.yaml`)
    - ✅ Core CNI HelmChartConfig kept safely in RKE2 bootstrap
-   - ✅ Deployed via kpt package: `kpt-packages/networking/cilium/`
+   - ✅ Deployed via kpt package: `kpt/cluster/networking/cilium/`
    - ✅ IP Pools: LoadBalancer (10.80.8.128/26, 64 IPs), VIP (10.80.15.0/24, 256 IPs)
    - ✅ L2 Announcements: ARP on vmnet0/lan0 interfaces
    - ✅ BGP: Peering ASN 65001 ↔ 65000 @ 10.80.0.1
@@ -194,7 +194,7 @@ Create a structured directory for kpt packages in the repository.
 [source,text]
 ----
 modules/nixos/incus-rke2-cluster/
-└── kpt-packages/
+└── kpt/cluster/
     ├── base/
     │   ├── Kptfile
     │   └── tailscale-operator/
@@ -293,7 +293,7 @@ upstream:
   type: git
   git:
     repo: https://github.com/nxmatic/nix-darwin-home
-    directory: modules/nixos/incus-rke2-cluster/kpt-packages/mesh/headscale
+    directory: modules/nixos/incus-rke2-cluster/kpt/cluster/mesh/headscale
     ref: develop
 pipeline:
   mutators:
@@ -315,9 +315,9 @@ Migrate existing manifests from cloud-config files into structured kpt packages 
 
 **From**: `cloud-config.master.headscale.yaml` (lines 31-555)
 
-**To**: Multiple files in `kpt-packages/mesh/headscale/`
+**To**: Multiple files in `kpt/cluster/mesh/headscale/`
 
-**File 1**: `kpt-packages/mesh/headscale/namespace.yaml`
+**File 1**: `kpt/cluster/mesh/headscale/namespace.yaml`
 
 [source,yaml]
 ----
@@ -327,7 +327,7 @@ metadata:
   name: headscale
 ----
 
-**File 2**: `kpt-packages/mesh/headscale/configmaps.yaml`
+**File 2**: `kpt/cluster/mesh/headscale/configmaps.yaml`
 
 [source,yaml]
 ----
@@ -348,7 +348,7 @@ data:
 
 [source,bash]
 ----
-kpt fn eval kpt-packages/mesh/headscale \
+kpt fn eval kpt/cluster/mesh/headscale \
   --image ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2 \
   -- \
   home-lan-lb-ip=192.168.1.193 \

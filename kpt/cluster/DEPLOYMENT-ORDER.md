@@ -8,7 +8,7 @@ Deploy packages in this order to satisfy dependencies:
 
 ### 1. High Availability (HA)
 ```bash
-cd /var/lib/incus-rke2-cluster/kpt-packages/ha/kube-vip
+cd /var/lib/incus-rke2-cluster/kpt/cluster/ha/kube-vip
 kpt live apply . --reconcile-timeout=2m
 ```
 
@@ -24,7 +24,7 @@ kpt live apply . --reconcile-timeout=2m
 
 ### 2. Networking - Cilium Advanced Features
 ```bash
-cd /var/lib/incus-rke2-cluster/kpt-packages/networking/cilium
+cd /var/lib/incus-rke2-cluster/kpt/cluster/networking/cilium
 kpt live apply . --reconcile-timeout=2m
 ```
 
@@ -47,7 +47,7 @@ kpt live apply . --reconcile-timeout=2m
 **Hybrid Deployment** (operator with kpt, Connector with kubectl):
 
 ```bash
-cd /var/lib/incus-rke2-cluster/kpt-packages/mesh/tailscale
+cd /var/lib/incus-rke2-cluster/kpt/cluster/mesh/tailscale
 
 # Stage 1: Deploy operator with kpt live
 kpt live apply operator/ --reconcile-timeout=3m
@@ -77,7 +77,7 @@ kubectl apply -f 03-connector.yaml
 
 ### 4. Mesh - Headscale
 ```bash
-cd /var/lib/incus-rke2-cluster/kpt-packages/mesh/headscale
+cd /var/lib/incus-rke2-cluster/kpt/cluster/mesh/headscale
 kpt live apply . --reconcile-timeout=3m
 ```
 
@@ -96,7 +96,7 @@ kpt live apply . --reconcile-timeout=3m
 
 ### 5. Networking - Envoy Gateway
 ```bash
-cd /var/lib/incus-rke2-cluster/kpt-packages/networking/envoy-gateway
+cd /var/lib/incus-rke2-cluster/kpt/cluster/networking/envoy-gateway
 kpt live apply . --reconcile-timeout=3m
 ```
 
@@ -181,7 +181,7 @@ PACKAGES=(
 
 for pkg in "${PACKAGES[@]}"; do
   echo "==> Deploying $pkg..."
-  cd "/var/lib/incus-rke2-cluster/kpt-packages/$pkg"
+  cd "/var/lib/incus-rke2-cluster/kpt/cluster/$pkg"
   kpt live apply . --reconcile-timeout=3m
   
   echo "==> Checking status..."

@@ -44,151 +44,38 @@ write_files:
   # (Envoy Gateway manifest moved to full overlay)
 
   # OpenEBS ZFS - MIGRATED to kpt package
-  # See: kpt-packages/storage/openebs-zfs/
+  # See: kpt/cluster/storage/openebs-zfs/
   # Deployed by: kpt-deploy-openebs-zfs.service
   # Provides: persistent storage backed by ZFS
 
   # Tailscale operator - MIGRATED to kpt package
-  # See: kpt-packages/mesh/tailscale/
+  # See: kpt/cluster/mesh/tailscale/
   # Deployed by: kpt-deploy-tailscale-operator.service, kpt-deploy-tailscale-connector.service
   # Provides: mesh networking, subnet routing for VIP + LoadBalancer pool
 
-  # kpt deployment services - deploy packages in correct order
-  # Order: OpenEBS (storage) -> kube-vip (HA) -> Cilium (networking) -> Tailscale (mesh) -> Headscale (coordination)
-  
-  - path: /etc/systemd/system/kpt-deploy-openebs-zfs.service
+  # Porch bootstrap service - deploys namespace, repositories, and PackageVariants
+  - path: /etc/systemd/system/rke2-porch-bootstrap.service
     content: |
       [Unit]
-      Description=Deploy OpenEBS ZFS CSI driver kpt package
+      Description=Bootstrap Porch controllers and Git repositories
       After=rke2-server.service
       Wants=rke2-server.service
-      ConditionPathExists=/var/lib/incus-rke2-cluster/kpt-packages/storage/openebs-zfs
-      
-      [Service]
-      Type=oneshot
-      RemainAfterExit=yes
-      WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/storage/openebs-zfs
-      EnvironmentFile=/etc/rancher/rke2/environment
-      ExecStart=/usr/local/sbin/rke2-kpt-deploy /var/lib/incus-rke2-cluster/kpt-packages/storage/openebs-zfs --timeout=3m -- poolname=tank kubelet-dir=/var/lib/rancher/rke2/server/tank
-      # Wait for OpenEBS components to be ready
-      ExecStartPost=/usr/local/sbin/rke2-openebs-ready-check
-      Restart=on-failure
-      RestartSec=10s
-      
-      [Install]
-      WantedBy=multi-user.target
+      ConditionPathExists=/var/lib/incus-rke2-cluster/porch
 
-  - path: /etc/systemd/system/kpt-deploy-kube-vip.service
-    content: |
-      [Unit]
-      Description=Deploy Kube-VIP kpt package
-      After=kpt-deploy-openebs-zfs.service
-      Wants=kpt-deploy-openebs-zfs.service
-      ConditionPathExists=/var/lib/incus-rke2-cluster/kpt-packages/ha/kube-vip
-      
       [Service]
       Type=oneshot
       RemainAfterExit=yes
-      WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/ha/kube-vip
+      WorkingDirectory=/var/lib/incus-rke2-cluster/porch
       EnvironmentFile=/etc/rancher/rke2/environment
-      ExecStart=/usr/local/sbin/rke2-kpt-deploy /var/lib/incus-rke2-cluster/kpt-packages/ha/kube-vip --timeout=2m -- cluster-vip-address=${CLUSTER_VIP_GATEWAY_IP}
+      ExecStart=/usr/local/sbin/rke2-kpt-deploy /var/lib/incus-rke2-cluster/porch --timeout=5m
       Restart=on-failure
       RestartSec=10s
-      
-      [Install]
-      WantedBy=multi-user.target
 
-  - path: /etc/systemd/system/kpt-deploy-cilium-resources.service
-    content: |
-      [Unit]
-      Description=Deploy Cilium networking resources kpt package
-      After=kpt-deploy-kube-vip.service
-      Wants=kpt-deploy-kube-vip.service
-      ConditionPathExists=/var/lib/incus-rke2-cluster/kpt-packages/networking/cilium
-      
-      [Service]
-      Type=oneshot
-      RemainAfterExit=yes
-      WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/networking/cilium
-      EnvironmentFile=/etc/rancher/rke2/environment
-      ExecStart=/usr/local/sbin/rke2-kpt-deploy /var/lib/incus-rke2-cluster/kpt-packages/networking/cilium --timeout=2m -- cluster-name=${CLUSTER_NAME} cluster-id=${CLUSTER_ID} lb-pool-cidr=${CLUSTER_LOADBALANCER_NETWORK_CIDR} vip-pool-cidr=${CLUSTER_VIP_NETWORK_CIDR} node-gateway-ip=${NODE_GATEWAY_IP}
-      Restart=on-failure
-      RestartSec=10s
-      
-      [Install]
-      WantedBy=multi-user.target
-
-  - path: /etc/systemd/system/kpt-deploy-tailscale-operator.service
-    content: |
-      [Unit]
-      Description=Deploy Tailscale operator kpt package
-      After=kpt-deploy-cilium-resources.service
-      Wants=kpt-deploy-cilium-resources.service
-      ConditionPathExists=/var/lib/incus-rke2-cluster/kpt-packages/mesh/tailscale/operator
-      
-      [Service]
-      Type=oneshot
-      RemainAfterExit=yes
-      WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/mesh/tailscale/operator
-      ExecStart=/usr/local/sbin/rke2-tailscale-operator-apply /var/lib/incus-rke2-cluster/kpt-packages/mesh/tailscale/operator 3m
-      Restart=on-failure
-      RestartSec=10s
-      
-      [Install]
-      WantedBy=multi-user.target
-
-  - path: /etc/systemd/system/kpt-deploy-tailscale-connector.service
-    content: |
-      [Unit]
-      Description=Deploy Tailscale Connector (cluster-scoped)
-      After=kpt-deploy-tailscale-operator.service
-      Wants=kpt-deploy-tailscale-operator.service
-      ConditionPathExists=/var/lib/incus-rke2-cluster/kpt-packages/mesh/tailscale/03-connector.yaml
-      
-      [Service]
-      Type=oneshot
-      RemainAfterExit=yes
-      WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/mesh/tailscale
-      EnvironmentFile=/etc/rancher/rke2/environment
-      ExecStart=/usr/local/sbin/rke2-tailscale-connector-deploy ${CLUSTER_NAME} ${CLUSTER_VIP_GATEWAY_IP} ${CLUSTER_LOADBALANCER_NETWORK_CIDR}
-      Restart=on-failure
-      RestartSec=10s
-      
-      [Install]
-      WantedBy=multi-user.target
-
-  - path: /etc/systemd/system/kpt-deploy-headscale.service
-    content: |
-      [Unit]
-      Description=Deploy Headscale coordination server kpt package (bioskop only)
-      After=kpt-deploy-tailscale-connector.service
-      Wants=kpt-deploy-tailscale-connector.service
-      ConditionPathExists=/var/lib/incus-rke2-cluster/kpt-packages/mesh/headscale
-      
-      [Service]
-      Type=oneshot
-      RemainAfterExit=yes
-      EnvironmentFile=/etc/rancher/rke2/environment
-      WorkingDirectory=/var/lib/incus-rke2-cluster/kpt-packages/mesh/headscale
-      # Only deploy on bioskop cluster
-      ExecCondition=/bin/bash -c 'test "${CLUSTER_NAME}" = "bioskop"'
-      ExecStart=/usr/local/sbin/rke2-kpt-deploy /var/lib/incus-rke2-cluster/kpt-packages/mesh/headscale --timeout=3m -- cluster-name=${CLUSTER_NAME} home-lan-pool=${HOME_LAN_LOADBALANCER_POOL} headscale-lb-ip=${HOME_LAN_LOADBALANCER_HEADSCALE} vip-network-cidr=${CLUSTER_VIP_NETWORK_CIDR}
-      Restart=on-failure
-      RestartSec=10s
-      
       [Install]
       WantedBy=multi-user.target
 
 runcmd:
-  # Enable and start kpt deployment services in order
+  # Enable and start Porch bootstrap service
   - systemctl daemon-reload
-  - systemctl enable kpt-deploy-kube-vip.service
-  - systemctl enable kpt-deploy-cilium-resources.service
-  - systemctl enable kpt-deploy-tailscale-operator.service
-  - systemctl enable kpt-deploy-tailscale-connector.service
-  - systemctl enable kpt-deploy-headscale.service
-  - systemctl start kpt-deploy-kube-vip.service
-  - systemctl start kpt-deploy-cilium-resources.service
-  - systemctl start kpt-deploy-tailscale-operator.service
-  - systemctl start kpt-deploy-tailscale-connector.service
-  - systemctl start kpt-deploy-headscale.service
+  - systemctl enable rke2-porch-bootstrap.service
+  - systemctl start rke2-porch-bootstrap.service

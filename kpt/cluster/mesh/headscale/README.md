@@ -8,15 +8,15 @@ This package deploys Headscale server for Tailscale-compatible mesh networking i
 
 ```bash
 # Deploy Tailscale operator first
-cd /var/lib/incus-rke2-cluster/kpt-packages/mesh/tailscale
+cd /var/lib/incus-rke2-cluster/kpt/cluster/mesh/tailscale
 kpt live apply . --reconcile-timeout=3m
 
 # Then deploy Headscale
-cd /var/lib/incus-rke2-cluster/kpt-packages/mesh/headscale
+cd /var/lib/incus-rke2-cluster/kpt/cluster/mesh/headscale
 kpt live apply . --reconcile-timeout=3m
 ```
 
-See: `kpt-packages/DEPLOYMENT-ORDER.md` for complete deployment sequence.
+See: `kpt/cluster/DEPLOYMENT-ORDER.md` for complete deployment sequence.
 
 ## Components
 
@@ -41,7 +41,7 @@ See: `kpt-packages/DEPLOYMENT-ORDER.md` for complete deployment sequence.
 
 ```bash
 # Fetch the package
-kpt pkg get /path/to/kpt-packages/mesh/headscale ./headscale-local
+kpt pkg get /path/to/kpt/cluster/mesh/headscale ./headscale-local
 
 # Customize settings (optional)
 kpt fn eval headscale-local --image ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2 -- \
@@ -72,14 +72,14 @@ source <( flox activate --dir /var/lib/rancher/rke2 )
 export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
 
 # Deploy with kpt live (adopts existing resources if present)
-cd /var/lib/incus-rke2-cluster/kpt-packages/mesh/headscale
+cd /var/lib/incus-rke2-cluster/kpt/cluster/mesh/headscale
 kpt live apply . --inventory-policy=adopt --reconcile-timeout=2m
 
 # Check status
 kpt live status .
 
 # Or from outside the container (one-liner)
-ssh lima-nerd-nixos "incus exec master -- bash -c 'source <( flox activate --dir /var/lib/rancher/rke2 ); export KUBECONFIG=/etc/rancher/rke2/rke2.yaml && kpt live apply /var/lib/incus-rke2-cluster/kpt-packages/mesh/headscale --inventory-policy=adopt --reconcile-timeout=2m'"
+ssh lima-nerd-nixos "incus exec master -- bash -c 'source <( flox activate --dir /var/lib/rancher/rke2 ); export KUBECONFIG=/etc/rancher/rke2/rke2.yaml && kpt live apply /var/lib/incus-rke2-cluster/kpt/cluster/mesh/headscale --inventory-policy=adopt --reconcile-timeout=2m'"
 ```
 
 **Note**: The package uses a `resourcegroup.yaml` file for inventory tracking (kpt v1 best practice). The `--inventory-policy=adopt` flag is needed on first apply to take ownership of existing resources deployed via kubectl.
@@ -89,7 +89,7 @@ ssh lima-nerd-nixos "incus exec master -- bash -c 'source <( flox activate --dir
 ```bash
 # Direct kubectl apply (for testing or troubleshooting)
 ssh lima-nerd-nixos
-incus exec master -- flox activate --dir /var/lib/rancher/rke2 -- kubectl apply -f /var/lib/incus-rke2-cluster/kpt-packages/mesh/headscale/
+incus exec master -- flox activate --dir /var/lib/rancher/rke2 -- kubectl apply -f /var/lib/incus-rke2-cluster/kpt/cluster/mesh/headscale/
 
 # Verify deployment
 kubectl get pods -n headscale
