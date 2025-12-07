@@ -12,7 +12,7 @@ spec:
     peers:
     - name: "gateway-peer"
       peerASN: 65000 # kpt-set: ${bgp-peer-asn}
-      peerAddress: 10.80.16.1 # kpt-set: ${node-gateway-ip}
+      peerAddress: 10.80.8.1 # kpt-set: ${node-gateway-ip}
       peerConfigRef:
         name: "cilium-peer"
 ---

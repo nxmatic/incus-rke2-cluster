@@ -87,7 +87,7 @@ spec:
         - name: DARWIN_HOST
           value: "alcide" # kpt-set: ${darwin-host}
         - name: CLUSTER_NAME
-          value: "alcide" # kpt-set: ${cluster-name}
+          value: "bioskop" # kpt-set: ${cluster-name}
         - name: NODE_NAME
           valueFrom:
             fieldRef:
