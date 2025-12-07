@@ -6,7 +6,7 @@ metadata:
     config.kubernetes.io/local-config: "true"
 info:
   description: Porch namespace, repositories, and PackageVariants for bioskop cluster
-openAPI:
+openAPIv3:
   definitions:
     io.k8s.cli.setters.cluster-ssh-private:
       x-k8s-cli:
