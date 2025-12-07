@@ -1,0 +1,195 @@
+= Porch Adoption Plan for Incus RKE2 Clusters
+:toc: left
+:toclevels: 3
+:sectlinks:
+:sectanchors:
+:source-highlighter: rouge
+
+== Context
+
+- kpt packages live under `modules/nixos/incus-rke2-cluster/kpt-packages` with a root `Kptfile` describing the stack.
+- Systemd services on the master node currently run `rke2-kpt-deploy`, mutate setters, and execute `kpt live apply` for each package.
+- Goal: host Porch (kpt-as-a-service) inside the existing RKE2 control plane, manage package revisions through Porch APIs, and let a GitOps agent deploy published revisions. This replaces ad-hoc systemd jobs and makes the package lifecycle observable and versioned.
+
+== Porch Prerequisites
+
+[cols="1,3",options="header"]
+|===
+|Requirement |Details
+|Control-plane capacity |Master node must run Porch aggregated API server, function runner, and cache; budget ~1 vCPU and 2 GiB RAM initially.
+|Kubernetes version |RKE2 1.29+ satisfies Porch CRD requirements and aggregated API server compatibility.
+|Namespace & service accounts |Reserve `porch-system` namespace with RBAC allowing access to registered repositories, CRDs, and Secrets.
+|Git connectivity |Control plane needs SSH/HTTPS access to the catalog repo (this repo) and to one deployment repo per cluster (for example `git@github.com:nxmatic/rke2-bioskop-deploy.git`). Configure Kubernetes Secrets for Porch git credentials per the Porch git-auth guide.
+|GitOps agent |Deploy Config Sync, Flux, or Argo CD on the same cluster. The agent watches the deployment repo and reconciles published `PackageRevision`s; Porch updates git, not the cluster directly.
+|Function images |Mirror or allow egress to `ghcr.io/kptdev/krm-functions-catalog/*` and any custom function registries referenced in Kptfiles.
+|CRDs for config injection |Define cluster-scoped CRDs (for example `ClusterNetworkConfig`, `StoragePoolConfig`) to hold structured inputs consumed via Porch injectors.
+|Observability |Enable Prometheus scraping or logging for Porch components to trace package reconciliation and function execution latency.
+|Security |Integrate Porch aggregated API with existing RBAC/PodSecurity policies. Limit creation of `PackageVariant`/`PackageVariantSet` resources to trusted roles.
+|===
+
+== Resource Model
+
+=== Repository Objects
+
+. **Catalog repository** – read-only blueprint source that maps to this workspace path.
+// @codebase
+[source,yaml]
+----
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: Repository
+metadata:
+  name: incus-kpt-catalog
+  namespace: porch-system
+spec:
+  content: Package
+  type: Git
+  git:
+    repo: git@github.com:nxmatic/nix-darwin-home.git
+    branch: develop
+    directory: modules/nixos/incus-rke2-cluster/kpt-packages
+  deployment: false
+----
+
+. **Deployment repository** – one per cluster (example: bioskop control plane).
+// @codebase
+[source,yaml]
+----
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: Repository
+metadata:
+  name: bioskop-cluster-deploy
+  namespace: porch-system
+spec:
+  content: Package
+  type: Git
+  git:
+    repo: git@github.com:nxmatic/bioskop-kube-deploy.git
+    branch: main
+  deployment: true
+----
+
+=== PackageVariant Definitions
+
+Each systemd-managed package becomes a `PackageVariant` targeting the catalog subpackage and publishing to the deployment repo. Example for OpenEBS (pilot package):
+
+// @codebase
+[source,yaml]
+----
+apiVersion: config.porch.kpt.dev/v1alpha2
+kind: PackageVariant
+metadata:
+  name: bioskop-openebs-zfs
+  namespace: porch-system
+spec:
+  upstream:
+    repo: incus-kpt-catalog
+    package: storage/openebs-zfs
+    revision: v1
+  downstream:
+    repo: bioskop-cluster-deploy
+    package: storage/openebs-zfs
+  packageContext:
+    data:
+      cluster-name: bioskop
+      cluster-env: home
+  pipeline:
+    mutators:
+      - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+        configMap:
+          poolname: tank
+          kubelet-dir: /var/lib/rancher/rke2/server/tank
+  injectors:
+    - name: bioskop-storage-pool
+      group: infra.nxmatic.dev
+      version: v1alpha1
+      kind: StoragePoolConfig
+----
+
+Repeat per package, adjusting setters and injectors as needed:
+
+[cols="1,2,2",options="header"]
+|===
+|Package |Key setters (`packageContext` / `configMap`) |Injected CRD
+|storage/openebs-zfs |`poolname`, `kubelet-dir` |`StoragePoolConfig` (per cluster)
+|ha/kube-vip |`cluster-vip-address`, `cluster-vip-interface`, `kube-vip-version` |`VipNetworkConfig`
+|networking/cilium |`cluster-name`, `cluster-id`, `lb-pool-cidr`, `vip-pool-cidr`, `bgp-local-asn`, `bgp-peer-asn`, `node-gateway-ip` |`ClusterNetworkConfig` supplying L2/BGP peers
+|mesh/tailscale |`cluster-name`, `vip-address`, `lb-pool-cidr` |`TailscaleConnectorConfig` for auth keys
+|mesh/headscale |`cluster-name`, `home-lan-pool`, `headscale-lb-ip`, `vip-network-cidr`, `darwin-host` |`HomeLanConfig`, `HeadscaleAuthConfig`
+|networking/envoy-gateway |`envoy-gateway-namespace`, `envoy-gateway-version` |Optional Envoy-specific config CR
+|runtime/flox-containerd-shim |`node-label-key`, `node-label-value`, `runtime-class-name` |None (pure setters)
+|===
+
+=== PackageVariantSet Fan-out
+
+When the same package must render across multiple clusters, use a `PackageVariantSet` with repository selectors and CEL expressions to derive per-target values (for example `cluster-id`, `lb-pool-cidr`).
+
+// @codebase
+[source,yaml]
+----
+apiVersion: config.porch.kpt.dev/v1alpha2
+kind: PackageVariantSet
+metadata:
+  name: kube-vip-all-clusters
+  namespace: porch-system
+spec:
+  upstream:
+    repo: incus-kpt-catalog
+    package: ha/kube-vip
+    revision: v1
+  targets:
+    - repositorySelector:
+        matchLabels:
+          role: control-plane
+      template:
+        downstream:
+          packageExpr: "'ha/kube-vip-' + repository.labels['cluster-name']"
+        pipeline:
+          mutators:
+            - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+              configMapExprs:
+                - key: cluster-vip-address
+                  valueExpr: "repository.annotations['vip-ip']"
+                - key: cluster-vip-interface
+                  valueExpr: "repository.annotations['vip-interface']"
+----
+
+=== GitOps Agent Subscription
+
+Config Sync (example) watches the deployment repo path containing published packages (for example `clusters/bioskop/**`). Each Porch-published `PackageRevision` becomes a directory commit that the agent applies.
+
+== Deployment Workflow
+
+. *Install Porch components*
+.. Apply upstream Porch manifests into the `porch-system` namespace.
+.. Configure RBAC, service accounts, and aggregated API server registration.
+. *Configure git credentials*
+.. Create Kubernetes Secrets (for example `porch-git-ssh`) with deploy keys for catalog and deployment repos.
+.. Reference Secrets in `Repository` CRs using `.spec.git.auth.sshSecretRef`.
+. *Register repositories*
+.. Apply the `incus-kpt-catalog` and `bioskop-cluster-deploy` `Repository` objects.
+.. Verify each `Repository` status transitions to `Ready`.
+. *Deploy GitOps agent*
+.. Install Config Sync (or Flux) on the same cluster.
+.. Configure the agent to watch the deployment repo branch and path where Porch publishes packages.
+. *Model cluster context CRDs*
+.. Define `StoragePoolConfig`, `ClusterNetworkConfig`, and similar CRDs in the management namespace.
+.. Populate one instance per cluster with values currently injected via systemd environment variables.
+. *Create PackageVariant for pilot package (OpenEBS)*
+.. Apply the `bioskop-openebs-zfs` `PackageVariant` with cluster-specific setters/injectors.
+.. Porch clones the upstream package, runs the pipeline, and proposes a draft `PackageRevision` in the deployment repo. Approve/publish via `porchctl` or standard Kubernetes workflows.
+. *Validate GitOps sync*
+.. Confirm Config Sync detects the published revision, applies manifests, and reports sync status.
+.. Disable `kpt-deploy-openebs-zfs.service` to avoid double applies.
+. *Iterate over remaining packages*
+.. For each package, create a `PackageVariant` or extend a `PackageVariantSet`.
+.. Remove the corresponding systemd service once Config Sync governs the workload.
+. *Cleanup*
+.. Remove the `rke2-kpt-deploy` helper once all packages are Porch-managed.
+.. Update documentation and CI to render/validate packages using `porchctl rpkg render` before publishing.
+
+== Next Steps
+
+1. Deploy Porch control-plane components and confirm connectivity to git.
+2. Apply the catalog and deployment `Repository` registrations.
+3. Author the OpenEBS pilot `PackageVariant` and validate end-to-end (Porch render, Config Sync apply, remove systemd service).
+4. Capture lessons learned, then roll out PackageVariants for Kube-VIP, Cilium, Tailscale, Headscale, Envoy, and the Flox runtime shim using the shared injector and `PackageVariantSet` patterns.

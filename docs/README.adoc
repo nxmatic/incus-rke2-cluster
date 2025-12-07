@@ -24,6 +24,7 @@ This directory contains comprehensive documentation for the Incus RKE2 cluster d
 * link:help-system.adoc[Auto-Documented Help System] - Self-documenting Makefile with comprehensive help targets
 * link:makefile-updates.adoc[Makefile Refactoring Updates] - Variable standardization and structural improvements
 * link:kpt-migration-plan.adoc[kpt Migration Plan] - Strategy for reducing RKE2 manifest dependencies using kpt
+* link:porch-adoption-plan.adoc[Porch Adoption Plan] - Replacing systemd kpt deployments with Porch + GitOps
 
 === Deployment & Operations
 
