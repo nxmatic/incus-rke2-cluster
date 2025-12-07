@@ -60,14 +60,14 @@ write_files:
       Description=Bootstrap Porch controllers and Git repositories
       After=rke2-server.service
       Wants=rke2-server.service
-      ConditionPathExists=/var/lib/incus-rke2-cluster/porch
+      ConditionPathExists=/var/lib/incus-rke2-cluster/kpt/system/porch
 
       [Service]
       Type=oneshot
       RemainAfterExit=yes
-      WorkingDirectory=/var/lib/incus-rke2-cluster/porch
+      WorkingDirectory=/var/lib/incus-rke2-cluster/kpt/system/porch
       EnvironmentFile=/etc/rancher/rke2/environment
-      ExecStart=/usr/local/sbin/rke2-kpt-deploy /var/lib/incus-rke2-cluster/porch --timeout=5m
+      ExecStart=/usr/local/sbin/rke2-kpt-deploy /var/lib/incus-rke2-cluster/kpt/system/porch --timeout=5m
       Restart=on-failure
       RestartSec=10s
 
