@@ -1,9 +1,11 @@
 # Remove all devices with names starting with 'bioskop-'
-curl -s -H "Authorization: Bearer $TSKEY_API_TOKEN" \
-  "https://api.tailscale.com/api/v2/tailnet/-/devices" | \
-  yq -p json -r ".devices[] | select(.hostname | test(\"^${LIMA_HOSTNAME}-\")) | .id" | \
-  while read id; do
-    : "Removing device $id"
+
+HOSTNAME=${1:-${LIMA_HOSTNAME}}
+
+curl -s -H "Authorization: Bearer $TSKEY_API_TOKEN" "https://api.tailscale.com/api/v2/tailnet/-/devices" |
+  env HOSTNAME=$HOSTNAME yq -p json -r '.devices[] | select(.hostname | test("^" + strenv(HOSTNAME)+ "-")) | .id' |
+  while read ID; do
+    : "Removing device $ID"
     curl -X DELETE -H "Authorization: Bearer $TSKEY_API_TOKEN" \
-      "https://api.tailscale.com/api/v2/device/$id"
+      "https://api.tailscale.com/api/v2/device/$ID"
   done
