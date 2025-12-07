@@ -15,6 +15,8 @@ spec:
       labels:
         app: headscale
     spec:
+      nodeSelector:
+        bioskop.cluster/node-role: master
       containers:
       - name: headscale
         image: headscale/headscale:0.27.0 # kpt-set: headscale/headscale:${headscale-version}
@@ -85,6 +87,7 @@ metadata:
     app: headscale
     io.cilium/lb-ipam: home-lan
   annotations:
+    io.cilium/lb-ipam-ips: 192.168.1.193 # kpt-set: ${headscale-lb-ip}
     tailscale.com/expose: "true"
     tailscale.com/hostname: "alcide-headscale" # kpt-set: ${darwin-host}-headscale
 spec:

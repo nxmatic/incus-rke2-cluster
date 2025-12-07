@@ -26,6 +26,13 @@ write_files:
     content: |
       advertise-address: ${NODE_HOST_IP}
 
+  # Deterministic node labels for scheduling / selectors
+  - path: /etc/rancher/rke2/config.yaml.d/node-labels.yaml
+    content: |
+      node-label:
+        - ${CLUSTER_NAME}.cluster/node-role=${NODE_ROLE}
+        - ${CLUSTER_NAME}.cluster/node-type=${NODE_TYPE}
+
   # Disable default controllers we don't want (consistent across cluster)
   - path: /etc/rancher/rke2/config.yaml.d/disable.yaml
     content: |
