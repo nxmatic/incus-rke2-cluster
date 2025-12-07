@@ -18,6 +18,8 @@ metadata: # kpt-merge: porch-system/porch-controllers
   namespace: porch-system
   annotations:
     internal.kpt.dev/upstream-identifier: '|ServiceAccount|porch-system|porch-controllers'
+imagePullSecrets:
+  - name: ghcr-porch-pull # kpt-set: ${porch-image-pull-secret}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -42,7 +44,7 @@ spec:
       containers:
       - name: porch-controllers
         # Update to the image of your porch-controllers build.
-        image: docker.io/nephio/porch-controllers:latest
+        image: ghcr.io/nxmatic/porch-controllers:nxmatic-37254b4 # kpt-set: ${porch-controllers-image}
         imagePullPolicy: IfNotPresent
         # Note: only the existence of the variable matters for enabling the reconciler
         # So, be sure to remove the var not just change the value to false

@@ -1,7 +1,9 @@
 apiVersion: kpt.dev/v1alpha1
 kind: ResourceGroup
-metadata:
-  name: porch
-  namespace: porch-system
+metadata: # kpt-merge: porch-system/porch
+  name: porch-platform # kpt-set: ${porch-inventory-name}
+  namespace: porch-system # kpt-set: ${porch-inventory-namespace}
   labels:
-    cli-utils.sigs.k8s.io/inventory-id: porch
+    cli-utils.sigs.k8s.io/inventory-id: 0aa5c5a990f5228bd4332a56b550eee1f8aa3b80-1765145964622341346
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'kpt.dev|ResourceGroup|porch-system|porch'

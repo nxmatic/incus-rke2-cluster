@@ -18,6 +18,8 @@ metadata: # kpt-merge: porch-system/porch-server
   namespace: porch-system
   annotations:
     internal.kpt.dev/upstream-identifier: '|ServiceAccount|porch-system|porch-server'
+imagePullSecrets:
+  - name: ghcr-porch-pull # kpt-set: ${porch-image-pull-secret}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -47,7 +49,7 @@ spec:
       containers:
         - name: porch-server
           # Update image to the image of your porch apiserver build.
-          image: docker.io/nephio/porch-server:latest
+          image: ghcr.io/nxmatic/porch-server:nxmatic-37254b4 # kpt-set: ${porch-server-image}
           imagePullPolicy: IfNotPresent
           securityContext:
             runAsNonRoot: true

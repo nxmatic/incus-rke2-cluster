@@ -18,6 +18,8 @@ metadata: # kpt-merge: porch-system/porch-fn-runner
   namespace: porch-system
   annotations:
     internal.kpt.dev/upstream-identifier: '|ServiceAccount|porch-system|porch-fn-runner'
+imagePullSecrets:
+  - name: ghcr-porch-pull # kpt-set: ${porch-image-pull-secret}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -39,7 +41,7 @@ spec:
       serviceAccountName: porch-fn-runner
       containers:
         - name: function-runner
-          image: docker.io/nephio/porch-function-runner:latest
+          image: ghcr.io/nxmatic/porch-function-runner:nxmatic-37254b4 # kpt-set: ${porch-function-runner-image}
           imagePullPolicy: IfNotPresent
           command:
             - /server
@@ -49,7 +51,7 @@ spec:
             - --max-request-body-size=6291456 # Keep this in sync with porch-server's corresponding argument
           env:
             - name: WRAPPER_SERVER_IMAGE
-              value: docker.io/nephio/porch-wrapper-server:latest
+              value: ghcr.io/nxmatic/porch-wrapper-server:nxmatic-37254b4 # kpt-set: ${porch-wrapper-server-image}
           ports:
             - containerPort: 9445
           # Add grpc readiness probe to ensure the cache is ready

@@ -1,0 +1,7 @@
+apiVersion: kpt.dev/v1alpha1
+kind: ResourceGroup
+metadata:
+  name: porch-platform
+  namespace: porch-system
+  labels:
+    cli-utils.sigs.k8s.io/inventory-id: 0aa5c5a990f5228bd4332a56b550eee1f8aa3b80-1765145964622341346
