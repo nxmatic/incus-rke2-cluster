@@ -1,30 +1,20 @@
 apiVersion: kpt.dev/v1
 kind: Kptfile
 metadata:
-  name: porch-bootstrap
-  annotations:
-    config.kubernetes.io/local-config: "true"
+  name: porch
+upstream:
+  type: git
+  git:
+    repo: https://github.com/nephio-project/catalog
+    directory: /nephio/core/porch
+    ref: origin/main
+  updateStrategy: resource-merge
+upstreamLock:
+  type: git
+  git:
+    repo: https://github.com/nephio-project/catalog
+    directory: /nephio/core/porch
+    ref: origin/main
+    commit: origin/main
 info:
-  description: Porch namespace, repositories, and PackageVariants for bioskop cluster
-pipeline:
-  mutators:
-    - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
-      configMap:
-        cluster-ssh-private: |-
-          -----BEGIN OPENSSH PRIVATE KEY-----
-          b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
-          QyNTUxOQAAACBJN5j0+Onj7W8XWYOAiwRlVuE7eYhU8TXS5taITaVdGwAAAKBMuiJbTLoi
-          WwAAAAtzc2gtZWQyNTUxOQAAACBJN5j0+Onj7W8XWYOAiwRlVuE7eYhU8TXS5taITaVdGw
-          AAAEDAUZgw7z0aKy2X5D8LkvGyMn32eA/WU4KNpNj6KB/L2kk3mPT46ePtbxdZg4CLBGVW
-          4Tt5iFTxNdLm1ohNpV0bAAAAFmdpdGh1Yi1jbHVzdGVyQG54bWF0aWMBAgMEBQYH
-          -----END OPENSSH PRIVATE KEY-----
-        cluster-ssh-public: AAAAC3NzaC1lZDI1NTE5AAAAIEk3mPT46ePtbxdZg4CLBGVW4Tt5iFTxNdLm1ohNpV0b
-        cluster-name: bioskop
-        cluster-env: home
-        cluster-id: "1"
-        node-vip-ip: 10.80.15.1
-        cluster-lb-pool-cidr: 10.80.8.128/26
-        cluster-vip-network-cidr: 10.80.15.0/24
-        node-gateway-ip: 10.80.0.1
-        home-lan-pool: 192.168.1.192/27
-        headscale-lb-ip: 192.168.1.193
+  description: porch

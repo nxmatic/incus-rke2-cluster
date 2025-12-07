@@ -1,7 +1,7 @@
 apiVersion: kpt.dev/v1alpha1
 kind: ResourceGroup
 metadata:
-  name: porch-bootstrap-inventory
+  name: porch
   namespace: porch-system
   labels:
-    cli-utils.sigs.k8s.io/inventory-id: porch-bootstrap
+    cli-utils.sigs.k8s.io/inventory-id: porch
