@@ -81,12 +81,23 @@ write_files:
       LLMNR=no
       MulticastDNS=no
 
+  # Disable IPv6 globally so nodes stay IPv4-only end-to-end (@codebase)
+  - path: /etc/sysctl.d/99-disable-ipv6.conf
+    permissions: "0644"
+    content: |
+      net.ipv6.conf.all.disable_ipv6 = 1
+      net.ipv6.conf.default.disable_ipv6 = 1
+      net.ipv6.conf.lo.disable_ipv6 = 1
+      net.ipv6.conf.lan0.disable_ipv6 = 1
+      net.ipv6.conf.vmnet0.disable_ipv6 = 1
+      net.ipv6.conf.all.accept_ra = 0
+      net.ipv6.conf.default.accept_ra = 0
+
   # Network configuration script using flox environment and yq
   - path: /usr/local/sbin/rke2-network-config
     permissions: "0755"
     content: |
-      #!/bin/bash
-      set -euo pipefail
+      #!/usr/bin/env -S bash -exuo pipefail
       
       # Log all operations
       exec > >(logger -t rke2-network-config) 2>&1
@@ -165,14 +176,14 @@ write_files:
   - path: /usr/local/sbin/rke2-kpt-deploy
     permissions: "0755"
     content: |
-      #!/usr/bin/env -S bash -euo pipefail
+      #!/usr/bin/env -S bash -exuo pipefail
 
       FLOX_ENV_DIR="$${FLOX_ENV_DIR:-/var/lib/rancher/rke2}"
 
       if [[ -z "$${RKE2_KPT_SKIP_FLOX:-}" ]]; then
         if command -v flox >/dev/null 2>&1; then
           # shellcheck disable=SC1090
-          source <(flox activate --dir "$$FLOX_ENV_DIR")
+          source <(flox activate --dir "$${FLOX_ENV_DIR}")
         else
           echo "[rke2-kpt-deploy] flox command not found, continuing without flox environment" >&2
         fi
@@ -182,13 +193,13 @@ write_files:
         echo "Usage: rke2-kpt-deploy <package-path> [options] -- [setter args]" >&2
         echo >&2
         echo "Options:" >&2
-        echo "  --timeout[=DURATION]   Override reconcile timeout (default: 3m or \$$KPT_LIVE_TIMEOUT)" >&2
+        echo "  --timeout[=DURATION]   Override reconcile timeout (default: 3m or \$${KPT_LIVE_TIMEOUT})" >&2
         echo "  --skip-fn              Skip kpt fn eval (run live apply only)" >&2
         echo "  --<flag>               Additional kpt fn flags before \"--\" pass through to kpt fn eval" >&2
       }
 
       package_path="$${1:-}"
-      if [[ -z "$$package_path" ]]; then
+      if [[ -z "$${package_path}" ]]; then
         usage >&2
         exit 64
       fi
@@ -197,18 +208,18 @@ write_files:
       timeout="$${KPT_LIVE_TIMEOUT:-3m}"
       run_fn=1
       fn_flags=()
-      while [[ $$# -gt 0 ]]; do
-        case "$$1" in
+      while [[ $${#} -gt 0 ]]; do
+        case "$${1}" in
           --timeout=*)
             timeout="$${1#*=}"
             shift
             ;;
           --timeout)
-            if [[ $$# -lt 2 ]]; then
+            if [[ $${#} -lt 2 ]]; then
               echo "[rke2-kpt-deploy] --timeout requires a value" >&2
               exit 64
             fi
-            timeout="$$2"
+            timeout="$${2}"
             shift 2
             ;;
           --skip-fn)
@@ -220,17 +231,17 @@ write_files:
             break
             ;;
           *)
-            fn_flags+=("$$1")
+            fn_flags+=("$${1}")
             shift
             ;;
         esac
       done
 
-      setter_args=("$$@")
+      setter_args=("$${@}")
       fn_config_file=""
       fn_config_flag=()
       cleanup() {
-        [[ -n "$$fn_config_file" && -f "$$fn_config_file" ]] && rm -f "$$fn_config_file"
+        [[ -n "$${fn_config_file}" && -f "$${fn_config_file}" ]] && rm -f "$${fn_config_file}"
       }
       trap cleanup EXIT
 
@@ -246,32 +257,30 @@ write_files:
           .kind = "ConfigMap" |
           .metadata.name = "apply-setters-input" |
           .data = {}
-        ' > "$$fn_config_file"
+        ' > "$${fn_config_file}"
   
         for kv in "$${setter_args[@]}"; do
-          if [[ "$$kv" != *=* ]]; then
-            echo "[rke2-kpt-deploy] setter argument '$$kv' must be key=value" >&2
+          if [[ "$${kv}" != *=* ]]; then
+            echo "[rke2-kpt-deploy] setter argument '$${kv}' must be key=value" >&2
             exit 64
           fi
           key="$${kv%%=*}"
           value="$${kv#*=}"
-          yq eval --inplace ".data.\"$${key}\" = \"$${value}\"" "$$fn_config_file"
+          yq eval --inplace ".data.\"$${key}\" = \"$${value}\"" "$${fn_config_file}"
         done
-        fn_config_flag=(--fn-config "$$fn_config_file")
+        fn_config_flag=(--fn-config "$${fn_config_file}")
       fi
-      image="$${KPT_FN_IMAGE:-ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2}"
-
-      if [[ $$run_fn -eq 1 ]]; then
-        kpt fn eval "$$package_path" --image "$$image" "$${fn_flags[@]}" "$${fn_config_flag[@]}"
+      if [[ $${run_fn} -eq 1 ]]; then
+        kpt fn render "$${package_path}" "$${fn_flags[@]}" "$${fn_config_flag[@]}"
       fi
 
-      kpt live apply "$$package_path" --reconcile-timeout="$$timeout"
+      kpt live apply "$${package_path}" --reconcile-timeout="$${timeout}" --cache-dir=$${KPT_CACHE_DIR:-/var/lib/rancher/rke2/kpt-live-cache}
 
   # Wait for OpenEBS controller/CRDs to finish reconciling
   - path: /usr/local/sbin/rke2-openebs-ready-check
     permissions: "0755"
     content: |
-      #!/usr/bin/env -S bash -euo pipefail
+      #!/usr/bin/env -S bash -exuo pipefail
 
       source <(flox activate --dir /var/lib/rancher/rke2)
 
@@ -279,41 +288,56 @@ write_files:
         echo "[rke2-openebs-ready] $$*"
       }
 
-      log "Waiting for OpenEBS components..."
-      until kubectl get deployment/openebs-zfs-controller -n openebs >/dev/null 2>&1; do
-        log "deployment/openebs-zfs-controller not ready yet, retrying..."
-        sleep 5
-      done
+      wait_for_storageclass() {
+        local sc="$${1:?storageclass name required}" timeout="$${2:-300}" interval="$${3:-5}"
+        local start end
+        start="$(date +%s)"
+        end=$((start + timeout))
+        while ! kubectl get storageclass "$${sc}" >/dev/null 2>&1; do
+          if (( $(date +%s) >= end )); then
+            log "StorageClass $${sc} not ready after $${timeout}s"
+            kubectl get storageclass || true
+            return 1
+          fi
+          log "Waiting for StorageClass $${sc}..."
+          sleep "$${interval}"
+        done
+        log "StorageClass $${sc} detected"
+        kubectl get storageclass "$${sc}"
+      }
 
-      kubectl wait --for=condition=Available deployment/openebs-zfs-controller -n openebs --timeout=300s
-      kubectl wait --for=condition=Ready pods -l app=openebs-zfs-node -n openebs --timeout=300s
-      kubectl wait --for condition=established crd/zfsvolumes.zfs.openebs.io crd/zfssnapshots.zfs.openebs.io crd/zfsnodes.zfs.openebs.io --timeout=300s
-      kubectl get storageclass openebs-zfs
+      log "Waiting for OpenEBS components..."
+
+      kubectl wait --for=condition=Available deployments --selector=app=openebs-zfs-controller --namespace=openebs --timeout=300s
+      kubectl wait --for=condition=Ready pods --selector=app=openebs-zfs-node --namespace=openebs --timeout=300s
+      kubectl wait --for=condition=established crd/zfsvolumes.zfs.openebs.io crd/zfssnapshots.zfs.openebs.io crd/zfsnodes.zfs.openebs.io --namespace=openebs --timeout=300s
+      wait_for_storageclass openebs-zfs 300 5
+      
       log "OpenEBS ZFS is ready"
 
   # Helper to run tailscale operator apply via kpt
   - path: /usr/local/sbin/rke2-tailscale-operator-apply
     permissions: "0755"
     content: |
-      #!/usr/bin/env -S bash -euo pipefail
+      #!/usr/bin/env -S bash -exuo pipefail
 
-      if [[ $$# -lt 1 ]]; then
+      if [[ $${#} -lt 1 ]]; then
         echo "Usage: rke2-tailscale-operator-apply <package-dir> [timeout]" >&2
         exit 64
       fi
 
-      package_dir="$$1"
-      timeout="${2:-3m}"
+      package_dir="$${1}"
+      timeout="$${2:-3m}"
 
       source <(flox activate --dir /var/lib/rancher/rke2)
 
-      kpt live apply "$$package_dir" --reconcile-timeout="$$timeout"
+      kpt live apply "$${package_dir}" --reconcile-timeout="$${timeout}"
 
   # Helper to configure and apply tailscale connector manifests
   - path: /usr/local/sbin/rke2-tailscale-connector-deploy
     permissions: "0755"
     content: |
-      #!/usr/bin/env -S bash -euo pipefail
+      #!/usr/bin/env -S bash -exuo pipefail
 
       if [[ $$# -lt 3 ]]; then
         echo "Usage: rke2-tailscale-connector-deploy <cluster-name> <vip-address> <lb-pool-cidr>" >&2
@@ -549,6 +573,10 @@ write_files:
         ARCH="$$(dpkg --print-architecture)"
         [[ -r /etc/rancher/rke2/rke2.yaml ]] &&
           KUBECONFIG="/etc/rancher/rke2/rke2.yaml"
+
+        : "Default cache for kubectl/kpt"
+        KUBECACHEDIR="$${KUBECACHEDIR:-$${FLOX_RUNTIME_DIR:-/run/user/0}/kube-cache}"
+        mkdir -p "$${KUBECACHEDIR}"
 
         : "Set KREW_ROOT if not already set"
         KREW_ROOT="$${KREW_ROOT:-/var/lib/rancher/rke2/krew}"
@@ -1081,6 +1109,7 @@ write_files:
       WantedBy=multi-user.target
 
 runcmd:
+  - [ sysctl, -p, /etc/sysctl.d/99-disable-ipv6.conf ]
   - [ systemctl, daemon-reload ]
   - [ systemctl, enable,
       rke2-network-config.service,
