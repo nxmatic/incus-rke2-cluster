@@ -12,6 +12,6 @@ data:
   porch-controllers-image: ghcr.io/nxmatic/porch-controllers:nxmatic-37254b4
   porch-function-runner-image: ghcr.io/nxmatic/porch-function-runner:nxmatic-37254b4
   porch-wrapper-server-image: ghcr.io/nxmatic/porch-wrapper-server:nxmatic-37254b4
-  porch-image-pull-secret: ghcr-porch-pull
+  porch-image-pull-secret: ghcr-pull
   porch-inventory-name: porch-platform
   porch-inventory-namespace: porch-system

@@ -19,7 +19,7 @@ metadata: # kpt-merge: porch-system/porch-fn-runner
   annotations:
     internal.kpt.dev/upstream-identifier: '|ServiceAccount|porch-system|porch-fn-runner'
 imagePullSecrets:
-  - name: ghcr-porch-pull # kpt-set: ${porch-image-pull-secret}
+  - name: ghcr-pull # kpt-set: ${porch-image-pull-secret}
 ---
 apiVersion: apps/v1
 kind: Deployment
