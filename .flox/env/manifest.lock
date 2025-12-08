@@ -148,17 +148,17 @@
     {
       "attr_path": "kpt",
       "broken": false,
-      "derivation": "/nix/store/sfsax9w372y22nilcph8ngf4i385ij01-kpt-1.0.0-beta.55.drv",
+      "derivation": "/nix/store/2dv0nkzci4vr3qmf9grmyvkwig2gdn0j-kpt-1.0.0-beta.55.drv",
       "description": "Automate Kubernetes Configuration Editing",
       "install_id": "kpt",
       "license": "Apache-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=b3d51a0365f6695e7dd5cdf3e180604530ed33b4",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=f61125a668a320878494449750330ca58b78c557",
       "name": "kpt-1.0.0-beta.55",
       "pname": "kpt",
-      "rev": "b3d51a0365f6695e7dd5cdf3e180604530ed33b4",
-      "rev_count": 888552,
-      "rev_date": "2025-11-02T19:18:41Z",
-      "scrape_date": "2025-11-04T00:35:33.806580Z",
+      "rev": "f61125a668a320878494449750330ca58b78c557",
+      "rev_count": 907002,
+      "rev_date": "2025-12-05T15:54:32Z",
+      "scrape_date": "2025-12-07T02:55:02.351732Z",
       "stabilities": [
         "unstable"
       ],
@@ -168,7 +168,7 @@
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/ka5sw0kvlmbjrfd379js877fbqv39lxq-kpt-1.0.0-beta.55"
+        "out": "/nix/store/0y0x7g3qn8gzb29rf44mn6448x508kbc-kpt-1.0.0-beta.55"
       },
       "system": "aarch64-darwin",
       "group": "kpt-tools",
@@ -177,17 +177,17 @@
     {
       "attr_path": "kpt",
       "broken": false,
-      "derivation": "/nix/store/7q0hf7azl5g4j9jh46qr9gxniirqkk6v-kpt-1.0.0-beta.55.drv",
+      "derivation": "/nix/store/3h446gx4f7f7yaikzca5j9y5742lrbk3-kpt-1.0.0-beta.55.drv",
       "description": "Automate Kubernetes Configuration Editing",
       "install_id": "kpt",
       "license": "Apache-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=b3d51a0365f6695e7dd5cdf3e180604530ed33b4",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=f61125a668a320878494449750330ca58b78c557",
       "name": "kpt-1.0.0-beta.55",
       "pname": "kpt",
-      "rev": "b3d51a0365f6695e7dd5cdf3e180604530ed33b4",
-      "rev_count": 888552,
-      "rev_date": "2025-11-02T19:18:41Z",
-      "scrape_date": "2025-11-05T16:29:20.310073Z",
+      "rev": "f61125a668a320878494449750330ca58b78c557",
+      "rev_count": 907002,
+      "rev_date": "2025-12-05T15:54:32Z",
+      "scrape_date": "2025-12-07T03:04:46.774185Z",
       "stabilities": [
         "unstable"
       ],
@@ -197,7 +197,7 @@
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/z9dbycw7ldwlz50dvxig75dhhy86c43a-kpt-1.0.0-beta.55"
+        "out": "/nix/store/6a8jqnm5ix9pbinzbbl9bvkg85qgdf00-kpt-1.0.0-beta.55"
       },
       "system": "aarch64-linux",
       "group": "kpt-tools",
@@ -206,17 +206,17 @@
     {
       "attr_path": "kpt",
       "broken": false,
-      "derivation": "/nix/store/ks7prml0vh1fay2i0ar7gj4a5dzsg8yc-kpt-1.0.0-beta.55.drv",
+      "derivation": "/nix/store/j5q5avv34awr2snq8pmg2bba4f3jw1hd-kpt-1.0.0-beta.55.drv",
       "description": "Automate Kubernetes Configuration Editing",
       "install_id": "kpt",
       "license": "Apache-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=b3d51a0365f6695e7dd5cdf3e180604530ed33b4",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=f61125a668a320878494449750330ca58b78c557",
       "name": "kpt-1.0.0-beta.55",
       "pname": "kpt",
-      "rev": "b3d51a0365f6695e7dd5cdf3e180604530ed33b4",
-      "rev_count": 888552,
-      "rev_date": "2025-11-02T19:18:41Z",
-      "scrape_date": "2025-11-05T16:55:13.661599Z",
+      "rev": "f61125a668a320878494449750330ca58b78c557",
+      "rev_count": 907002,
+      "rev_date": "2025-12-05T15:54:32Z",
+      "scrape_date": "2025-12-07T03:15:00.609094Z",
       "stabilities": [
         "unstable"
       ],
@@ -226,7 +226,7 @@
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/w8zlgydn95lxzx1bzww2lwi0bh497gsj-kpt-1.0.0-beta.55"
+        "out": "/nix/store/746kdya7dajpzxy43ikla87mfhv259df-kpt-1.0.0-beta.55"
       },
       "system": "x86_64-darwin",
       "group": "kpt-tools",
@@ -235,17 +235,17 @@
     {
       "attr_path": "kpt",
       "broken": false,
-      "derivation": "/nix/store/jmwmihi4y1md9fpxkjgd1lw03mz7pxfq-kpt-1.0.0-beta.55.drv",
+      "derivation": "/nix/store/al7l9bkirsn7cgyvj08p45xkmvisnk7w-kpt-1.0.0-beta.55.drv",
       "description": "Automate Kubernetes Configuration Editing",
       "install_id": "kpt",
       "license": "Apache-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=b3d51a0365f6695e7dd5cdf3e180604530ed33b4",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=f61125a668a320878494449750330ca58b78c557",
       "name": "kpt-1.0.0-beta.55",
       "pname": "kpt",
-      "rev": "b3d51a0365f6695e7dd5cdf3e180604530ed33b4",
-      "rev_count": 888552,
-      "rev_date": "2025-11-02T19:18:41Z",
-      "scrape_date": "2025-11-05T17:21:10.989013Z",
+      "rev": "f61125a668a320878494449750330ca58b78c557",
+      "rev_count": 907002,
+      "rev_date": "2025-12-05T15:54:32Z",
+      "scrape_date": "2025-12-07T03:24:22.271026Z",
       "stabilities": [
         "unstable"
       ],
@@ -255,7 +255,7 @@
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/nc593ibxlamzdhgbr7svcjm96qyc4q7a-kpt-1.0.0-beta.55"
+        "out": "/nix/store/1splzjnkgb2rpr5rpdr6czqm8bf0dajv-kpt-1.0.0-beta.55"
       },
       "system": "x86_64-linux",
       "group": "kpt-tools",
