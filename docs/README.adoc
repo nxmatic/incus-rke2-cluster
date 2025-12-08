@@ -145,6 +145,10 @@ This wraps SSH → Incus exec → flox activation so every remote diagnostic reu
 
 The replicator package follows the `render-helm-chart` guidance from https://github.com/krm-functions/catalog/blob/main/docs/render-helm-chart.md by embedding the Helm chart payload directly in the package. This keeps `kpt fn render` fully offline/air-gapped and avoids network/DNS quirks on control-plane nodes.
 
+==== Downstream Git Sync
+
+Control-plane nodes now clone the downstream cluster repo via `rke2-cluster-repo-sync.service`. The service checks out the cluster branch (for example `bioskop`) into `/var/lib/incus-rke2-cluster` and hard-resets it to the remote before any `kpt` deployments run. All systemd-managed packages (`rke2-system-replicator`, `rke2-porch-bootstrap`, `rke2-porch-resources`, etc.) depend on this service, guaranteeing that `kpt pkg update`/`kpt fn render` operate on the downstream copy instead of a bind-mounted upstream workspace.
+
 == Viewing Documentation
 
 === Rendering Options

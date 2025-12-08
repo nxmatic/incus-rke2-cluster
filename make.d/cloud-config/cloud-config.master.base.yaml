@@ -58,10 +58,9 @@ write_files:
     content: |
       [Unit]
       Description=Bootstrap Porch controllers
-      After=rke2-server.service
-      Wants=rke2-server.service
-      After=rke2-system-replicator.service
-      Requires=rke2-system-replicator.service
+      After=rke2-server.service rke2-system-replicator.service rke2-cluster-repo-sync.service
+      Wants=rke2-server.service rke2-cluster-repo-sync.service
+      Requires=rke2-system-replicator.service rke2-cluster-repo-sync.service
       ConditionPathExists=/var/lib/incus-rke2-cluster/kpt/system/porch
 
       [Service]
@@ -81,8 +80,8 @@ write_files:
     content: |
       [Unit]
       Description=Apply Porch repositories and PackageVariants
-      After=rke2-porch-bootstrap.service
-      Requires=rke2-porch-bootstrap.service
+      After=rke2-porch-bootstrap.service rke2-cluster-repo-sync.service
+      Requires=rke2-porch-bootstrap.service rke2-cluster-repo-sync.service
       ConditionPathExists=/var/lib/incus-rke2-cluster/kpt/system/porch-resources
 
       [Service]
@@ -102,8 +101,8 @@ write_files:
     content: |
       [Unit]
       Description=Deploy mittwald kubernetes-replicator controller
-      After=rke2-server.service
-      Requires=rke2-server.service
+      After=rke2-server.service rke2-cluster-repo-sync.service
+      Requires=rke2-server.service rke2-cluster-repo-sync.service
       ConditionPathExists=/var/lib/incus-rke2-cluster/kpt/system/replicator
 
       [Service]

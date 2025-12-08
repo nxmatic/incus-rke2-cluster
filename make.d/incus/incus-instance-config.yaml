@@ -20,6 +20,8 @@ config:
   environment.CLUSTER_NAME: "${CLUSTER_NAME}"
   environment.CLUSTER_TOKEN: "${CLUSTER_TOKEN}"
   environment.CLUSTER_DOMAIN: "${CLUSTER_DOMAIN}"
+  environment.CLUSTER_STATE_REPO_URL: "${CLUSTER_STATE_REPO_URL}"
+  environment.CLUSTER_STATE_BRANCH: "${CLUSTER_STATE_BRANCH}"
   environment.NODE_ROLE: "${NODE_ROLE}"
   environment.NODE_NAME: "${NODE_NAME}"
   environment.POD_NETWORK_CIDR: "${POD_NETWORK_CIDR}"
@@ -102,10 +104,6 @@ devices:
     type: disk
     source: ${PWD}/${RUN_INSTANCE_DIR}/kube
     path: /.kubeconfig.d
-  repo.dir:
-    type: disk
-    source: ${RUN_WORKSPACE_DIR}
-    path: /var/lib/incus-rke2-cluster
   user.metadata:
     type: disk
     source: ${PWD}/${RUN_NOCLOUD_METADATA_FILE}

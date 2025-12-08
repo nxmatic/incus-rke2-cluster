@@ -733,6 +733,39 @@ write_files:
   # UTILITY SCRIPTS
   # =============================================================================
 
+  # Downstream Git repository sync helper
+  - path: /usr/local/sbin/rke2-cluster-repo-sync
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+
+      repo_dir="/var/lib/incus-rke2-cluster"
+      default_repo="https://github.com/nxmatic/incus-rke2-state.git"
+      default_branch="main"
+
+      if [[ -f /etc/rancher/rke2/environment ]]; then
+        # shellcheck disable=SC1091
+        source /etc/rancher/rke2/environment
+      fi
+
+      repo_url="${CLUSTER_STATE_REPO_URL:-$default_repo}"
+      repo_branch="${CLUSTER_STATE_BRANCH:-$default_branch}"
+
+      if [[ -z "${repo_url}" ]]; then
+        echo "[rke2-cluster-repo-sync] CLUSTER_STATE_REPO_URL not set" >&2
+        exit 1
+      fi
+
+      mkdir -p "${repo_dir}"
+      if [[ -d "${repo_dir}/.git" ]]; then
+        git -C "${repo_dir}" fetch origin "${repo_branch}"
+        git -C "${repo_dir}" reset --hard "origin/${repo_branch}"
+        git -C "${repo_dir}" clean -fdx
+      else
+        rm -rf "${repo_dir}"
+        git clone --single-branch --branch "${repo_branch}" "${repo_url}" "${repo_dir}"
+      fi
+
   # Route cleanup script to remove DHCP default routes from vmnet0
   - path: /usr/local/sbin/rke2-route-cleanup
     permissions: "0755"
@@ -1027,6 +1060,23 @@ write_files:
 # =============================================================================
 
 ## Converted former 'systemd:' units into explicit write_files + runcmd enable/mask (@codebase)
+  - path: /etc/systemd/system/rke2-cluster-repo-sync.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Sync downstream cluster Git repository
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-cluster-repo-sync
+      RemainAfterExit=yes
+      StandardOutput=journal
+      StandardError=journal
+
+      [Install]
+      WantedBy=multi-user.target
   # ---- Systemd unit files (converted from previous systemd: units) ----
   - path: /etc/systemd/system/rke2-network-debug.service
     permissions: "0644"
@@ -1140,6 +1190,8 @@ write_files:
 runcmd:
   - [ sysctl, -p, /etc/sysctl.d/99-disable-ipv6.conf ]
   - [ systemctl, daemon-reload ]
+  - [ systemctl, enable, rke2-cluster-repo-sync.service ]
+  - [ systemctl, start, rke2-cluster-repo-sync.service ]
   - [ systemctl, enable,
       rke2-network-config.service,
       rke2-network-debug.service,

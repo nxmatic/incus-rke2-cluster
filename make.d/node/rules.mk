@@ -30,12 +30,16 @@ ifeq ($(.cluster.NAME),bioskop)
   .cluster.SERVICE_NETWORK_CIDR := 10.43.0.0/16
   .cluster.LIMA_LAN_INTERFACE := vmlan0
   .cluster.LIMA_VMNET_INTERFACE := vmwan0
+  .cluster.STATE_REPO := https://github.com/nxmatic/incus-rke2-state.git
+  .cluster.STATE_BRANCH := bioskop
 else ifeq ($(.cluster.NAME),alcide)
   .cluster.ID := 2
   .cluster.POD_NETWORK_CIDR := 10.44.0.0/16
   .cluster.SERVICE_NETWORK_CIDR := 10.45.0.0/16
   .cluster.LIMA_LAN_INTERFACE := vmlan0
   .cluster.LIMA_VMNET_INTERFACE := vmwan0
+  .cluster.STATE_REPO := https://github.com/nxmatic/incus-rke2-state.git
+  .cluster.STATE_BRANCH := alcide
 else
   $(error [node] Unknown cluster: $(.cluster.NAME). Supported clusters: bioskop alcide)
 endif
@@ -49,6 +53,8 @@ cluster.POD_NETWORK_CIDR := $(.cluster.POD_NETWORK_CIDR)
 cluster.SERVICE_NETWORK_CIDR := $(.cluster.SERVICE_NETWORK_CIDR)
 cluster.LIMA_LAN_INTERFACE := $(.cluster.LIMA_LAN_INTERFACE)
 cluster.LIMA_VMNET_INTERFACE := $(.cluster.LIMA_VMNET_INTERFACE)
+cluster.STATE_REPO := $(.cluster.STATE_REPO)
+cluster.STATE_BRANCH := $(.cluster.STATE_BRANCH)
 
 # Export cluster variables for environment/templates
 export CLUSTER_NAME := $(cluster.NAME)
@@ -59,6 +65,8 @@ export POD_NETWORK_CIDR := $(cluster.POD_NETWORK_CIDR)
 export SERVICE_NETWORK_CIDR := $(cluster.SERVICE_NETWORK_CIDR)
 export LIMA_LAN_INTERFACE := $(cluster.LIMA_LAN_INTERFACE)
 export LIMA_VMNET_INTERFACE := $(cluster.LIMA_VMNET_INTERFACE)
+export CLUSTER_STATE_REPO_URL := $(cluster.STATE_REPO)
+export CLUSTER_STATE_BRANCH := $(cluster.STATE_BRANCH)
 
 # =============================================================================
 # NODE CONFIGURATION APPLICATION
