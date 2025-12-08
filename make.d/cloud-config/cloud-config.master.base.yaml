@@ -60,6 +60,8 @@ write_files:
       Description=Bootstrap Porch controllers
       After=rke2-server.service
       Wants=rke2-server.service
+      After=rke2-system-replicator.service
+      Requires=rke2-system-replicator.service
       ConditionPathExists=/var/lib/incus-rke2-cluster/kpt/system/porch
 
       [Service]
@@ -95,9 +97,32 @@ write_files:
       [Install]
       WantedBy=multi-user.target
 
+  # mittwald kubernetes-replicator controller (Helm-rendered kpt package)
+  - path: /etc/systemd/system/rke2-system-replicator.service
+    content: |
+      [Unit]
+      Description=Deploy mittwald kubernetes-replicator controller
+      After=rke2-server.service
+      Requires=rke2-server.service
+      ConditionPathExists=/var/lib/incus-rke2-cluster/kpt/system/replicator
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      WorkingDirectory=/var/lib/incus-rke2-cluster/kpt/system/replicator
+      EnvironmentFile=/etc/rancher/rke2/environment
+      ExecStart=/usr/local/sbin/rke2-kpt-deploy /var/lib/incus-rke2-cluster/kpt/system/replicator --timeout=5m
+      Restart=on-failure
+      RestartSec=10s
+
+      [Install]
+      WantedBy=multi-user.target
+
 runcmd:
   # Enable and start Porch bootstrap service
   - systemctl daemon-reload
+  - systemctl enable rke2-system-replicator.service
+  - systemctl start rke2-system-replicator.service
   - systemctl enable rke2-porch-bootstrap.service
   - systemctl start rke2-porch-bootstrap.service
   - systemctl enable rke2-porch-resources.service

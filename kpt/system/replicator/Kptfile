@@ -1,0 +1,17 @@
+apiVersion: kpt.dev/v1
+kind: Kptfile
+metadata:
+  name: kubernetes-replicator
+info:
+  description: Mittwald kubernetes-replicator rendered via Helm
+pipeline:
+  mutators:
+    - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+      configMap:
+        helm-repo: https://helm.mittwald.de
+        chart-name: kubernetes-replicator
+        chart-version: 2.12.2
+        release-name: kubernetes-replicator
+        target-namespace: kube-system
+    - image: ghcr.io/krm-functions/render-helm-chart
+      configPath: render-helm-chart.yaml

@@ -127,6 +127,24 @@ make show-network-allocation        # Display network topology
 make list-generated-targets         # Show all metaprogramming targets
 ----
 
+==== Remote Kubernetes Verification
+
+Run cluster validation commands through the Lima host to ensure the Incus master is reachable and the flox environment is active before executing `kubectl`:
+
+[source,bash]
+----
+ssh lima-nerd-nixos -- \
+	incus exec master -- \
+	flox activate --dir=/var/lib/rancher/rke2 -- \
+	kubectl get nodes
+----
+
+This wraps SSH → Incus exec → flox activation so every remote diagnostic reuses the same workflow.
+
+==== Hermetic Helm Rendering
+
+The replicator package follows the `render-helm-chart` guidance from https://github.com/krm-functions/catalog/blob/main/docs/render-helm-chart.md by embedding the Helm chart payload directly in the package. This keeps `kpt fn render` fully offline/air-gapped and avoids network/DNS quirks on control-plane nodes.
+
 == Viewing Documentation
 
 === Rendering Options

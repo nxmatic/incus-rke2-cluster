@@ -195,6 +195,7 @@ write_files:
         echo "Options:" >&2
         echo "  --timeout[=DURATION]   Override reconcile timeout (default: 3m or $${KPT_LIVE_TIMEOUT})" >&2
         echo "  --skip-fn              Skip kpt fn eval (run live apply only)" >&2
+        echo "  --render-output-dir DIR  Write fn render output to DIR and apply from there" >&2
         echo "  --<flag>               Additional kpt fn flags before \"--\" pass through to kpt fn eval" >&2
       }
 
@@ -206,6 +207,7 @@ write_files:
       shift
 
       timeout="$${KPT_LIVE_TIMEOUT:-3m}"
+      render_output_dir=""
       run_fn=1
       fn_flags=()
       while [[ $${#} -gt 0 ]]; do
@@ -225,6 +227,18 @@ write_files:
           --skip-fn)
             run_fn=0
             shift
+            ;;
+          --render-output-dir=*)
+            render_output_dir="$${1#*=}"
+            shift
+            ;;
+          --render-output-dir)
+            if [[ $${#} -lt 2 ]]; then
+              echo "[rke2-kpt-deploy] --render-output-dir requires a value" >&2
+              exit 64
+            fi
+            render_output_dir="$${2}"
+            shift 2
             ;;
           --)
             shift
@@ -246,6 +260,11 @@ write_files:
         fi
       }
       trap cleanup EXIT
+
+      if [[ -n "$${render_output_dir}" ]]; then
+        rm -rf "$${render_output_dir}"
+        mkdir -p "$${render_output_dir}"
+      fi
 
       if (( $${#setter_args[@]} )); then
         if ! command -v yq >/dev/null 2>&1; then
@@ -272,11 +291,16 @@ write_files:
         done
         fn_config_flag=(--fn-config "$${fn_config_file}")
       fi
+      apply_path="$${render_output_dir:-$${package_path}}"
+      render_args=("$${package_path}" "$${fn_flags[@]}" "$${fn_config_flag[@]}")
+      if [[ -n "$${render_output_dir}" ]]; then
+        render_args+=(--output "$${render_output_dir}")
+      fi
       if [[ $${run_fn} -eq 1 ]]; then
-        kpt fn render "$${package_path}" "$${fn_flags[@]}" "$${fn_config_flag[@]}"
+        kpt fn render "$${render_args[@]}"
       fi
 
-      kpt live apply "$${package_path}" \
+      kpt live apply "$${apply_path}" \
         --reconcile-timeout="$${timeout}" \
         --cache-dir=$${KPT_CACHE_DIR:-/var/lib/rancher/rke2/kpt-live-cache} \
         --inventory-policy=adopt

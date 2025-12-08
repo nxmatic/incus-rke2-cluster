@@ -1,0 +1,7 @@
+apiVersion: kpt.dev/v1alpha1
+kind: ResourceGroup
+metadata:
+  name: system-tekton-pipelines
+  namespace: tekton-pipelines
+  labels:
+    cli-utils.sigs.k8s.io/inventory-id: c4d9ecafffc44b20a165b8213dd24596
