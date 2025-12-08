@@ -117,18 +117,43 @@ common = '''
     done
   fi
   
-  # Load secrets only if directory and files exist
+  SECRETS_FILE=""
   if [ -n "$SECRETS_DIR" ]; then
-    [ -f "$SECRETS_DIR/tskey-client-id" ] && TSKEY_CLIENT_ID=$(cat "$SECRETS_DIR/tskey-client-id") || TSKEY_CLIENT_ID=""
-    [ -f "$SECRETS_DIR/tskey-client-token" ] && TSKEY_CLIENT_TOKEN=$(cat "$SECRETS_DIR/tskey-client-token") || TSKEY_CLIENT_TOKEN=""
-    [ -f "$SECRETS_DIR/tskey-api-id" ] && TSKEY_API_ID=$(cat "$SECRETS_DIR/tskey-api-id") || TSKEY_API_ID=""
-    [ -f "$SECRETS_DIR/tskey-api-token" ] && TSKEY_API_TOKEN=$(cat "$SECRETS_DIR/tskey-api-token") || TSKEY_API_TOKEN=""
-   else
-    TSKEY_CLIENT_ID=""
-    TSKEY_CLIENT_TOKEN=""
-    TSKEY_API_ID=""
-    TSKEY_API_TOKEN=""
+    for candidate in .secrets secrets.yaml secrets.yml; do
+      if [ -f "$SECRETS_DIR/$candidate" ]; then
+        SECRETS_FILE="$SECRETS_DIR/$candidate"
+        break
+      fi
+    done
   fi
+
+  secret_from_yaml() {
+    local expr="$1" fallback="$2" value=""
+    if [ -n "$SECRETS_FILE" ] && command -v yq >/dev/null 2>&1; then
+      value=$(yq -r "${expr} // \"\"" "$SECRETS_FILE" 2>/dev/null || true)
+    fi
+    if [ -z "$value" ] && [ -n "$fallback" ] && [ -f "$fallback" ]; then
+      value=$(cat "$fallback")
+    fi
+    printf '%s' "${value:-}"
+  }
+
+  TSKEY_CLIENT_ID=${TSKEY_CLIENT_ID:-$(secret_from_yaml '.tailscale.client.id' "${SECRETS_DIR:+$SECRETS_DIR/tskey-client-id}")}
+  TSKEY_CLIENT_TOKEN=${TSKEY_CLIENT_TOKEN:-$(secret_from_yaml '.tailscale.client.token' "${SECRETS_DIR:+$SECRETS_DIR/tskey-client-token}")}
+  TSKEY_API_ID=${TSKEY_API_ID:-$(secret_from_yaml '.tailscale.api.id' "${SECRETS_DIR:+$SECRETS_DIR/tskey-api-id}")}
+  TSKEY_API_TOKEN=${TSKEY_API_TOKEN:-$(secret_from_yaml '.tailscale.api.token' "${SECRETS_DIR:+$SECRETS_DIR/tskey-api-token}")}
+  CLUSTER_GITHUB_USERNAME=${CLUSTER_GITHUB_USERNAME:-$(secret_from_yaml '.github.username' '')}
+  CLUSTER_GITHUB_TOKEN=${CLUSTER_GITHUB_TOKEN:-$(secret_from_yaml '.github.token' "${SECRETS_DIR:+$SECRETS_DIR/cluster-github-token}")}
+  CLUSTER_DOCKER_CONFIG_JSON=${CLUSTER_DOCKER_CONFIG_JSON:-$(secret_from_yaml '.docker.configJson' "${SECRETS_DIR:+$SECRETS_DIR/docker-config-json}")}
+
+  : "Expose GitHub PAT / Docker registry defaults for tooling"
+  : "Prefer pre-set environment variables (e.g., CI) over YAML values"
+  CLUSTER_GITHUB_USERNAME=${CLUSTER_GITHUB_USERNAME:-x-access-token}
+  CLUSTER_GITHUB_TOKEN=${CLUSTER_GITHUB_TOKEN:-}
+  CLUSTER_DOCKER_CONFIG_JSON=${CLUSTER_DOCKER_CONFIG_JSON:-}
+  GITHUB_PAT=${CLUSTER_GITHUB_TOKEN}
+  DOCKER_CONFIG_JSON=${DOCKER_CONFIG_JSON:-$CLUSTER_DOCKER_CONFIG_JSON}
+
   
   set +a
 '''

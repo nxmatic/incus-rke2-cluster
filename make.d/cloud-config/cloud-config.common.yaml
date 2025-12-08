@@ -562,7 +562,7 @@ write_files:
       flox install \
         --dir=/var/lib/rancher/rke2 \
         ceph-client cilium-cli etcdctl helmfile \
-        kubernetes-helm kubectl yq-go # override
+        kubernetes-helm kubectl gh yq-go # override
       
       : "Install kpt v1 in isolated group to avoid dependency conflicts"
       flox install \
@@ -751,6 +751,74 @@ write_files:
       repo_url="${CLUSTER_STATE_REPO_URL:-$default_repo}"
       repo_branch="${CLUSTER_STATE_BRANCH:-$default_branch}"
 
+      if command -v flox >/dev/null 2>&1; then
+        source <( flox activate --dir /var/lib/rancher/rke2 )
+      fi
+
+      askpass_script=""
+      cleanup() {
+        if [[ -n "${askpass_script}" && -f "${askpass_script}" ]]; then
+          rm -f "${askpass_script}"
+        fi
+      }
+      trap cleanup EXIT
+
+      configure_git_with_gh() {
+        if [[ -z "${CLUSTER_GITHUB_TOKEN:-}" ]]; then
+          return 1
+        fi
+
+        if ! command -v gh >/dev/null 2>&1; then
+          return 1
+        fi
+
+        local gh_host="${CLUSTER_GITHUB_HOST:-github.com}"
+
+        if ! gh auth status --hostname "${gh_host}" >/dev/null 2>&1; then
+          if ! printf '%s\n' "${CLUSTER_GITHUB_TOKEN}" | gh auth login --with-token --hostname "${gh_host}" --git-protocol https >/dev/null 2>&1; then
+            return 1
+          fi
+        fi
+
+        if ! gh auth setup-git --hostname "${gh_host}" >/dev/null 2>&1; then
+          return 1
+        fi
+
+        export GIT_TERMINAL_PROMPT=0
+        return 0
+      }
+
+      configure_git_askpass() {
+        if [[ -z "${CLUSTER_GITHUB_TOKEN:-}" ]]; then
+          return 1
+        fi
+
+        export CLUSTER_GITHUB_USERNAME="${CLUSTER_GITHUB_USERNAME:-x-access-token}"
+        askpass_script="$(mktemp)"
+        cat <<'EOF' > "${askpass_script}"
+      #!/usr/bin/env bash
+      case "$1" in
+        *Username*) printf '%s\n' "${CLUSTER_GITHUB_USERNAME:-x-access-token}" ;;
+        *Password*) printf '%s\n' "${CLUSTER_GITHUB_TOKEN:-}" ;;
+        *) printf '\n' ;;
+      esac
+      EOF
+        chmod 0700 "${askpass_script}"
+        export GIT_ASKPASS="${askpass_script}"
+        export GIT_TERMINAL_PROMPT=0
+        return 0
+      }
+
+      configure_git_auth() {
+        if configure_git_with_gh; then
+          return 0
+        fi
+
+        configure_git_askpass
+      }
+
+      configure_git_auth
+
       if [[ -z "${repo_url}" ]]; then
         echo "[rke2-cluster-repo-sync] CLUSTER_STATE_REPO_URL not set" >&2
         exit 1
@@ -817,6 +885,70 @@ write_files:
       if command -v flox >/dev/null 2>&1; then
         source <( flox activate --dir /var/lib/rancher/rke2 )
       fi
+
+      askpass_script=""
+      cleanup() {
+        if [[ -n "${askpass_script}" && -f "${askpass_script}" ]]; then
+          rm -f "${askpass_script}"
+        fi
+      }
+      trap cleanup EXIT
+
+      configure_git_with_gh() {
+        if [[ -z "${CLUSTER_GITHUB_TOKEN:-}" ]]; then
+          return 1
+        fi
+
+        if ! command -v gh >/dev/null 2>&1; then
+          return 1
+        fi
+
+        local gh_host="${CLUSTER_GITHUB_HOST:-github.com}"
+
+        if ! gh auth status --hostname "${gh_host}" >/dev/null 2>&1; then
+          if ! printf '%s\n' "${CLUSTER_GITHUB_TOKEN}" | gh auth login --with-token --hostname "${gh_host}" --git-protocol https >/dev/null 2>&1; then
+            return 1
+          fi
+        fi
+
+        if ! gh auth setup-git --hostname "${gh_host}" >/dev/null 2>&1; then
+          return 1
+        fi
+
+        export GIT_TERMINAL_PROMPT=0
+        return 0
+      }
+
+      configure_git_askpass() {
+        if [[ -z "${CLUSTER_GITHUB_TOKEN:-}" ]]; then
+          return 1
+        fi
+
+        export CLUSTER_GITHUB_USERNAME="${CLUSTER_GITHUB_USERNAME:-x-access-token}"
+        askpass_script="$(mktemp)"
+        cat <<'EOF' > "${askpass_script}"
+      #!/usr/bin/env bash
+      case "$1" in
+        *Username*) printf '%s\n' "${CLUSTER_GITHUB_USERNAME:-x-access-token}" ;;
+        *Password*) printf '%s\n' "${CLUSTER_GITHUB_TOKEN:-}" ;;
+        *) printf '\n' ;;
+      esac
+      EOF
+        chmod 0700 "${askpass_script}"
+        export GIT_ASKPASS="${askpass_script}"
+        export GIT_TERMINAL_PROMPT=0
+        return 0
+      }
+
+      configure_git_auth() {
+        if configure_git_with_gh; then
+          return 0
+        fi
+
+        configure_git_askpass
+      }
+
+      configure_git_auth
 
       for tool in git kpt yq; do
         if ! command -v "$tool" >/dev/null 2>&1; then

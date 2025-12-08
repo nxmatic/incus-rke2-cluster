@@ -15,6 +15,20 @@ ifndef make.d/incus/rules.mk
 
 # Directory layout (per-instance runtime)
 .incus.secrets_dir ?= .secrets.d
+.incus.secrets_file ?= $(.incus.secrets_dir)/.secrets
+YQ_BIN ?= $(shell command -v yq 2>/dev/null)
+
+define incus-secret-from-yaml
+$(strip $(if $(and $(YQ_BIN),$(wildcard $(.incus.secrets_file))),$(shell $(YQ_BIN) -r '$(1) // ""' $(.incus.secrets_file) 2>/dev/null),))
+endef
+
+define incus-secret-from-path
+$(strip $(if $(and $(1),$(wildcard $(1))),$(file <$(1)),))
+endef
+
+define incus-secret
+$(strip $(or $(call incus-secret-from-yaml,$(1)),$(call incus-secret-from-path,$(2))))
+endef
 .incus.dir ?= $(run-dir)/incus
 .incus.image_dir ?= $(.incus.dir)
 .incus.instance_dir ?= $(.incus.dir)/$(node.NAME)
@@ -63,9 +77,14 @@ ifndef make.d/incus/rules.mk
 # Notes:
 #  - Canonical files: tsid, tskey-client, tskey-api.
 #  - Legacy "tskey" fallback removed for clarity and maintenance.
-#  - Whitespace stripped to avoid false empty detection.
-.incus.tskey_client_id ?= $(strip $(if $(wildcard $(.incus.secrets_dir)/tskey-client-id),$(file <$(.incus.secrets_dir)/tskey-client-id),))
-.incus.tskey_client_token ?= $(strip $(if $(wildcard $(.incus.secrets_dir)/tskey-client-token),$(file <$(.incus.secrets_dir)/tskey-client-token),))
+#  - Secrets default to YAML entries in .secrets; legacy flat files remain a fallback.
+.incus.tskey_client_id ?= $(call incus-secret,.tailscale.client.id,$(.incus.secrets_dir)/tskey-client-id)
+.incus.tskey_client_token ?= $(call incus-secret,.tailscale.client.token,$(.incus.secrets_dir)/tskey-client-token)
+.incus.tskey_api_id ?= $(call incus-secret,.tailscale.api.id,$(.incus.secrets_dir)/tskey-api-id)
+.incus.tskey_api_token ?= $(call incus-secret,.tailscale.api.token,$(.incus.secrets_dir)/tskey-api-token)
+.incus.cluster_github_token ?= $(call incus-secret,.github.token,$(.incus.secrets_dir)/cluster-github-token)
+.incus.cluster_github_username ?= $(or $(call incus-secret,.github.username,),x-access-token)
+.incus.docker_config_json ?= $(call incus-secret,.docker.configJson,$(.incus.secrets_dir)/docker-config-json)
 
 # Instance naming defaults (image alias)
 .incus.image_name ?= control-node
@@ -92,6 +111,12 @@ export RUN_NOCLOUD_NETCFG_FILE := $(.incus.run_nocloud_netcfg_file)
 export INCUS_EGRESS_INTERFACE := $(.incus.egress_interface)
 export TSKEY_CLIENT_ID := $(.incus.tskey_client_id)
 export TSKEY_CLIENT_TOKEN := $(.incus.tskey_client_token)
+CLUSTER_GITHUB_TOKEN ?= $(.incus.cluster_github_token)
+CLUSTER_GITHUB_USERNAME ?= $(.incus.cluster_github_username)
+CLUSTER_DOCKER_CONFIG_JSON ?= $(.incus.docker_config_json)
+export CLUSTER_GITHUB_TOKEN
+export CLUSTER_GITHUB_USERNAME
+export CLUSTER_DOCKER_CONFIG_JSON
 export NODE_PROFILE_NAME := $(network.NODE_PROFILE_NAME)
 export IMAGE_NAME := $(.incus.image_name)
 export CLUSTER_INET_MASTER := $(call cidr-to-host-ip,$(NODE_SUBNETS_NETWORK_0),$(call plus,10,0))

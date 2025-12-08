@@ -154,8 +154,8 @@ endef
 $(call register-cloud-config-targets,$(.cloud-config.userdata_file))
 $(.cloud-config.userdata_file):
 	: "[+] Merging cloud-config fragments (common/server/node) with envsubst ..."
-	if [ -z "$(TSKEY_CLIENT_ID)" ]; then echo "  ✗ TSKEY_CLIENT_ID unset/empty (expected .secrets.d/tskey-client-id)"; exit 1; else echo "  ✓ TSKEY_CLIENT_ID loaded"; fi
-	if [ -z "$(TSKEY_CLIENT_TOKEN)" ]; then echo "  ✗ TSKEY_CLIENT_TOKEN unset/empty (expected .secrets.d/tskey-client-token)"; exit 1; else echo "  ✓ TSKEY_CLIENT_TOKEN loaded"; fi
+	if [ -z "$(TSKEY_CLIENT_ID)" ]; then echo "  ✗ TSKEY_CLIENT_ID unset/empty (set tailscale.client.id in .secrets or legacy .secrets.d/tskey-client-id)"; exit 1; else echo "  ✓ TSKEY_CLIENT_ID loaded"; fi
+	if [ -z "$(TSKEY_CLIENT_TOKEN)" ]; then echo "  ✗ TSKEY_CLIENT_TOKEN unset/empty (set tailscale.client.token in .secrets or legacy .secrets.d/tskey-client-token)"; exit 1; else echo "  ✓ TSKEY_CLIENT_TOKEN loaded"; fi
 	$(eval _file_count := $(call length,$^))
 	$(call EXECUTE_YQ_CLOUD_CONFIG_MERGE,$(_file_count),$^,$@)
 

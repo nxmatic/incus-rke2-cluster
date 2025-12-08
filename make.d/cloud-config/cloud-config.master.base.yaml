@@ -68,7 +68,7 @@ write_files:
       RemainAfterExit=yes
       WorkingDirectory=/var/lib/incus-rke2-cluster/kpt/system/porch
       EnvironmentFile=/etc/rancher/rke2/environment
-      ExecStart=/usr/local/sbin/rke2-kpt-deploy /var/lib/incus-rke2-cluster/kpt/system/porch --timeout=5m
+      ExecStart=/usr/local/sbin/rke2-kpt-deploy /var/lib/incus-rke2-cluster/kpt/system/porch --timeout=5m -- porch-docker-config-json=${CLUSTER_DOCKER_CONFIG_JSON}
       Restart=on-failure
       RestartSec=10s
 
@@ -89,7 +89,7 @@ write_files:
       RemainAfterExit=yes
       WorkingDirectory=/var/lib/incus-rke2-cluster/kpt/system/porch-resources
       EnvironmentFile=/etc/rancher/rke2/environment
-      ExecStart=/usr/local/sbin/rke2-kpt-deploy /var/lib/incus-rke2-cluster/kpt/system/porch-resources --timeout=5m
+      ExecStart=/usr/local/sbin/rke2-kpt-deploy /var/lib/incus-rke2-cluster/kpt/system/porch-resources --timeout=5m -- cluster-github-token=${CLUSTER_GITHUB_TOKEN}
       Restart=on-failure
       RestartSec=10s
 
