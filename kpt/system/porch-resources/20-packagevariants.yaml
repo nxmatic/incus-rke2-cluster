@@ -1,15 +1,15 @@
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
 metadata:
-  name: bioskop-storage-openebs-zfs
+  name: storage-openebs-zfs
   namespace: porch-system
 spec:
   upstream:
     repo: bioskop-catalog
-    package: storage/openebs-zfs
+    package: storage-openebs-zfs
   downstream:
-    repo: bioskop-catalog
-    package: storage/openebs-zfs
+    repo: bioskop-state # kpt-set: ${cluster-state-repo}
+    package: storage-openebs-zfs
   adoptionPolicy: adoptNone
   deletionPolicy: delete
   labels:
@@ -30,14 +30,14 @@ spec:
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
 metadata:
-  name: bioskop-ha-kube-vip
+  name: ha-kube-vip
   namespace: porch-system
 spec:
   upstream:
     repo: bioskop-catalog
     package: ha/kube-vip
   downstream:
-    repo: bioskop-catalog
+    repo: bioskop-state # kpt-set: ${cluster-state-repo}
     package: ha/kube-vip
   adoptionPolicy: adoptNone
   deletionPolicy: delete
@@ -61,14 +61,14 @@ spec:
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
 metadata:
-  name: bioskop-networking-cilium
+  name: networking-cilium
   namespace: porch-system
 spec:
   upstream:
     repo: bioskop-catalog
     package: networking/cilium
   downstream:
-    repo: bioskop-catalog
+    repo: bioskop-state # kpt-set: ${cluster-state-repo}
     package: networking/cilium
   adoptionPolicy: adoptNone
   deletionPolicy: delete
@@ -97,14 +97,14 @@ spec:
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
 metadata:
-  name: bioskop-mesh-tailscale
+  name: mesh-tailscale
   namespace: porch-system
 spec:
   upstream:
     repo: bioskop-catalog
     package: mesh/tailscale
   downstream:
-    repo: bioskop-catalog
+    repo: bioskop-state # kpt-set: ${cluster-state-repo}
     package: mesh/tailscale
   adoptionPolicy: adoptNone
   deletionPolicy: delete
@@ -129,14 +129,14 @@ spec:
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
 metadata:
-  name: bioskop-mesh-headscale
+  name: mesh-headscale
   namespace: porch-system
 spec:
   upstream:
     repo: bioskop-catalog
     package: mesh/headscale
   downstream:
-    repo: bioskop-catalog
+    repo: bioskop-state # kpt-set: ${cluster-state-repo}
     package: mesh/headscale
   adoptionPolicy: adoptNone
   deletionPolicy: delete
@@ -161,14 +161,14 @@ spec:
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
 metadata:
-  name: bioskop-networking-envoy-gateway
+  name: networking-envoy-gateway
   namespace: porch-system
 spec:
   upstream:
     repo: bioskop-catalog
     package: networking/envoy-gateway
   downstream:
-    repo: bioskop-catalog
+    repo: bioskop-state # kpt-set: ${cluster-state-repo}
     package: networking/envoy-gateway
   adoptionPolicy: adoptNone
   deletionPolicy: delete
@@ -190,14 +190,14 @@ spec:
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
 metadata:
-  name: bioskop-runtime-flox
+  name: runtime-flox
   namespace: porch-system
 spec:
   upstream:
     repo: bioskop-catalog
     package: runtime/flox-containerd-shim
   downstream:
-    repo: bioskop-catalog
+    repo: bioskop-state # kpt-set: ${cluster-state-repo}
     package: runtime/flox-containerd-shim
   adoptionPolicy: adoptNone
   deletionPolicy: delete

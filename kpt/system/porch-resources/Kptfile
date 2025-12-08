@@ -28,3 +28,6 @@ pipeline:
         node-gateway-ip: 10.80.0.1
         home-lan-pool: 192.168.1.192/27
         headscale-lb-ip: 192.168.1.193
+        cluster-state-repo: bioskop-state
+        cluster-state-branch: bioskop
+        cluster-state-directory: clusters/bioskop

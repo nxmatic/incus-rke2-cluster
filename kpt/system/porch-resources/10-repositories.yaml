@@ -7,9 +7,26 @@ spec:
   description: Catalog of curated kpt packages tracked in nix-darwin-home
   type: git
   git:
-    repo: git@github.com:nxmatic/nix-darwin-home.git
+    repo: https://github.com/nxmatic/nix-darwin-home.git
     branch: develop
     directory: modules/nixos/incus-rke2-cluster/kpt/cluster
     secretRef:
-      name: porch-git-ssh
+      name: github-token
+  deployment: true
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: Repository
+metadata:
+  name: bioskop-state # kpt-set: ${cluster-state-repo}
+  namespace: porch-system
+spec:
+  description: Rendered Porch package state for bioskop cluster
+  type: git
+  git:
+    repo: https://github.com/nxmatic/incus-rke2-state.git
+    branch: bioskop # kpt-set: ${cluster-state-branch}
+    directory: clusters/bioskop # kpt-set: ${cluster-state-directory}
+    createBranch: true
+    secretRef:
+      name: github-token
   deployment: true
