@@ -1,7 +1,7 @@
 apiVersion: kpt.dev/v1alpha1
 kind: ResourceGroup
 metadata:
-  name: flox-runtime-inventory
+  name: flox-runtime-shim
   namespace: default
   labels:
     cli-utils.sigs.k8s.io/inventory-id: flox-runtime-shim

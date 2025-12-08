@@ -1,7 +1,7 @@
 apiVersion: kpt.dev/v1alpha1
 kind: ResourceGroup
 metadata:
-  name: kube-vip-inventory
+  name: kube-vip-ha-control-plane
   namespace: kube-vip
   labels:
     cli-utils.sigs.k8s.io/inventory-id: kube-vip-ha-control-plane
