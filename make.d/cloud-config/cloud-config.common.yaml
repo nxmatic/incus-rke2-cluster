@@ -766,6 +766,122 @@ write_files:
         git clone --single-branch --branch "${repo_branch}" "${repo_url}" "${repo_dir}"
       fi
 
+  # List of kpt packages that should be mirrored into the downstream repo
+  - path: /etc/rke2-kpt-packages.yaml
+    permissions: "0644"
+    content: |
+      # @codebase
+      packages:
+        - name: porch
+          target: kpt/system/porch
+          source: https://github.com/nxmatic/nix-darwin-home.git/modules/nixos/incus-rke2-cluster/kpt/system/porch
+          ref: develop
+        - name: porch-resources
+          target: kpt/system/porch-resources
+          source: https://github.com/nxmatic/nix-darwin-home.git/modules/nixos/incus-rke2-cluster/kpt/system/porch-resources
+          ref: develop
+        - name: replicator
+          target: kpt/system/replicator
+          source: https://github.com/nxmatic/nix-darwin-home.git/modules/nixos/incus-rke2-cluster/kpt/system/replicator
+          ref: develop
+
+  # Sync kpt packages from upstream into downstream repo and push changes
+  - path: /usr/local/sbin/rke2-kpt-package-sync
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -euo pipefail
+
+      set -o pipefail
+
+      repo_dir="/var/lib/incus-rke2-cluster"
+      manifest="/etc/rke2-kpt-packages.yaml"
+      default_branch="main"
+
+      if [[ -f /etc/rancher/rke2/environment ]]; then
+        # shellcheck disable=SC1091
+        source /etc/rancher/rke2/environment
+      fi
+
+      branch="${CLUSTER_STATE_BRANCH:-${default_branch}}"
+
+      if [[ ! -d "${repo_dir}/.git" ]]; then
+        echo "[rke2-kpt-package-sync] No downstream repo found at ${repo_dir}" >&2
+        exit 0
+      fi
+
+      if [[ ! -f "${manifest}" ]]; then
+        echo "[rke2-kpt-package-sync] Manifest ${manifest} missing" >&2
+        exit 0
+      fi
+
+      if command -v flox >/dev/null 2>&1; then
+        source <( flox activate --dir /var/lib/rancher/rke2 )
+      fi
+
+      for tool in git kpt yq; do
+        if ! command -v "$tool" >/dev/null 2>&1; then
+          echo "[rke2-kpt-package-sync] Required tool '$tool' not found" >&2
+          exit 1
+        fi
+      done
+
+      cd "${repo_dir}"
+
+      pkg_count=$(yq '.packages | length' "${manifest}")
+      if [[ "${pkg_count}" == "null" ]] || (( pkg_count == 0 )); then
+        echo "[rke2-kpt-package-sync] No packages defined in ${manifest}" >&2
+        exit 0
+      fi
+
+      for idx in $(seq 0 $((pkg_count - 1))); do
+        target=$(yq -r ".packages[${idx}].target" "${manifest}")
+        source_url=$(yq -r ".packages[${idx}].source" "${manifest}")
+        ref=$(yq -r ".packages[${idx}].ref // \"\"" "${manifest}")
+
+        if [[ -z "${target}" || -z "${source_url}" || "${target}" == "null" || "${source_url}" == "null" ]]; then
+          echo "[rke2-kpt-package-sync] Skipping package index ${idx} due to incomplete metadata" >&2
+          continue
+        fi
+
+        [[ "${ref}" == "null" ]] && ref=""
+
+        spec="${source_url}"
+        if [[ -n "${ref}" ]]; then
+          spec="${spec}@${ref}"
+        fi
+
+        if [[ ! -d "${target}" ]] || [[ ! -f "${target}/Kptfile" ]]; then
+          echo "[rke2-kpt-package-sync] Fetching ${target} from ${spec}"
+          rm -rf "${target}"
+          mkdir -p "$(dirname "${target}")"
+          kpt pkg get "${spec}" "${target}"
+          continue
+        fi
+
+        echo "[rke2-kpt-package-sync] Updating ${target}"
+        if ! kpt pkg update "${target}" --strategy=resource-merge; then
+          echo "[rke2-kpt-package-sync] Update failed for ${target}, refetching" >&2
+          rm -rf "${target}"
+          mkdir -p "$(dirname "${target}")"
+          kpt pkg get "${spec}" "${target}"
+        fi
+      done
+
+      if git status --porcelain | grep -q .; then
+        git config user.name "${GIT_AUTHOR_NAME:-rke2-automation}"
+        git config user.email "${GIT_AUTHOR_EMAIL:-rke2-automation@local}"
+        git add .
+        if git commit -m "chore: sync kpt packages"; then
+          git push origin "${branch}"
+        else
+          echo "[rke2-kpt-package-sync] No changes to commit" >&2
+        fi
+      else
+        echo "[rke2-kpt-package-sync] No changes detected"
+      fi
+
+      exit 0
+
   # Route cleanup script to remove DHCP default routes from vmnet0
   - path: /usr/local/sbin/rke2-route-cleanup
     permissions: "0755"
@@ -1077,6 +1193,24 @@ write_files:
 
       [Install]
       WantedBy=multi-user.target
+
+  - path: /etc/systemd/system/rke2-kpt-package-sync.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Sync kpt packages into downstream repo
+      After=rke2-cluster-repo-sync.service
+      Requires=rke2-cluster-repo-sync.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-kpt-package-sync
+      RemainAfterExit=yes
+      StandardOutput=journal
+      StandardError=journal
+
+      [Install]
+      WantedBy=multi-user.target
   # ---- Systemd unit files (converted from previous systemd: units) ----
   - path: /etc/systemd/system/rke2-network-debug.service
     permissions: "0644"
@@ -1191,7 +1325,9 @@ runcmd:
   - [ sysctl, -p, /etc/sysctl.d/99-disable-ipv6.conf ]
   - [ systemctl, daemon-reload ]
   - [ systemctl, enable, rke2-cluster-repo-sync.service ]
+  - [ systemctl, enable, rke2-kpt-package-sync.service ]
   - [ systemctl, start, rke2-cluster-repo-sync.service ]
+  - [ systemctl, start, rke2-kpt-package-sync.service ]
   - [ systemctl, enable,
       rke2-network-config.service,
       rke2-network-debug.service,

@@ -149,6 +149,8 @@ The replicator package follows the `render-helm-chart` guidance from https://git
 
 Control-plane nodes now clone the downstream cluster repo via `rke2-cluster-repo-sync.service`. The service checks out the cluster branch (for example `bioskop`) into `/var/lib/incus-rke2-cluster` and hard-resets it to the remote before any `kpt` deployments run. All systemd-managed packages (`rke2-system-replicator`, `rke2-porch-bootstrap`, `rke2-porch-resources`, etc.) depend on this service, guaranteeing that `kpt pkg update`/`kpt fn render` operate on the downstream copy instead of a bind-mounted upstream workspace.
 
+`rke2-kpt-package-sync.service` runs immediately after the repository sync to execute `kpt pkg get`/`kpt pkg update` for every package listed in `/etc/rke2-kpt-packages.yaml`. Completed updates are committed and pushed back to the downstream remote so the branch always reflects the manifests that were rendered/applied on the control-plane nodes. This service is now a hard dependency for the Porch + replicator units, ensuring they only start once the downstream repo contains the latest upstream package revisions.
+
 == Viewing Documentation
 
 === Rendering Options
