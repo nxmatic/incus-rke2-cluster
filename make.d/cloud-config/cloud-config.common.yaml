@@ -193,7 +193,7 @@ write_files:
         echo "Usage: rke2-kpt-deploy <package-path> [options] -- [setter args]" >&2
         echo >&2
         echo "Options:" >&2
-        echo "  --timeout[=DURATION]   Override reconcile timeout (default: 3m or \$${KPT_LIVE_TIMEOUT})" >&2
+        echo "  --timeout[=DURATION]   Override reconcile timeout (default: 3m or $${KPT_LIVE_TIMEOUT})" >&2
         echo "  --skip-fn              Skip kpt fn eval (run live apply only)" >&2
         echo "  --<flag>               Additional kpt fn flags before \"--\" pass through to kpt fn eval" >&2
       }
@@ -237,11 +237,13 @@ write_files:
         esac
       done
 
-      setter_args=("$${@}")
+      setter_args=($${@})
       fn_config_file=""
       fn_config_flag=()
       cleanup() {
-        [[ -n "$${fn_config_file}" && -f "$${fn_config_file}" ]] && rm -f "$${fn_config_file}"
+        if [[ -n "$${fn_config_file}" && -f "$${fn_config_file}" ]]; then
+          rm -f "$${fn_config_file}"
+        fi
       }
       trap cleanup EXIT
 
@@ -274,7 +276,10 @@ write_files:
         kpt fn render "$${package_path}" "$${fn_flags[@]}" "$${fn_config_flag[@]}"
       fi
 
-      kpt live apply "$${package_path}" --reconcile-timeout="$${timeout}" --cache-dir=$${KPT_CACHE_DIR:-/var/lib/rancher/rke2/kpt-live-cache}
+      kpt live apply "$${package_path}" \
+        --reconcile-timeout="$${timeout}" \
+        --cache-dir=$${KPT_CACHE_DIR:-/var/lib/rancher/rke2/kpt-live-cache} \
+        --inventory-policy=adopt
 
   # Wait for OpenEBS controller/CRDs to finish reconciling
   - path: /usr/local/sbin/rke2-openebs-ready-check
