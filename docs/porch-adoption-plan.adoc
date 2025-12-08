@@ -49,7 +49,7 @@ spec:
     branch: develop
     directory: modules/nixos/incus-rke2-cluster/kpt/cluster
     secretRef:
-      name: porch-git-ssh
+      name: github-token
   deployment: false
 ----
 
@@ -163,7 +163,7 @@ Config Sync (example) watches the deployment repo path containing published pack
 .. Apply upstream Porch manifests into the `porch-system` namespace.
 .. Configure RBAC, service accounts, and aggregated API server registration.
 . *Configure git credentials*
-.. Create Kubernetes Secrets (for example `porch-git-ssh`) with deploy keys for catalog and deployment repos.
+.. Create Kubernetes Secrets (for example `github-token`) with deploy keys for catalog and deployment repos.
 .. Reference Secrets in `Repository` CRs using `.spec.git.auth.sshSecretRef`.
 . *Register repositories*
 .. Apply the `bioskop-catalog` and `bioskop-deploy` `Repository` objects.
