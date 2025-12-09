@@ -4,7 +4,7 @@
 
 # Kube-VIP management has been migrated to kpt package
 # See: kpt/cluster/ha/kube-vip/
-# Deploy with: kpt live apply /var/lib/incus-rke2-cluster/kpt/cluster/ha/kube-vip
+# Deploy with: kpt live apply /var/lib/rancher/rke2/state/kpt/cluster/ha/kube-vip
 
 write_files: []
 

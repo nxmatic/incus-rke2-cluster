@@ -23,7 +23,7 @@ spec:
   description: Rendered Porch package state for bioskop cluster
   type: git
   git:
-    repo: https://github.com/nxmatic/incus-rke2-state.git
+    repo: https://github.com/nxmatic/rke2-state.git
     branch: bioskop # kpt-set: ${cluster-state-branch}
     directory: clusters/bioskop # kpt-set: ${cluster-state-directory}
     createBranch: true

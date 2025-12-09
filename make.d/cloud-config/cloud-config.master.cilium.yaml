@@ -62,8 +62,7 @@ write_files:
             hostNamespaceOnly: false
 
 # Cilium advanced features (BGP, L2, IP pools) migrated to kpt package
-# See: kpt/cluster/networking/cilium/
-# Deploy with: kpt live apply /var/lib/incus-rke2-cluster/kpt/cluster/networking/cilium
+# See: ${CLUSTER_STATE_DIR}/${CLUSTER_NAME}/networking/cilium
 
 # Envoy Gateway removed - now managed via kpt package
-# See: kpt/cluster/networking/envoy-gateway/
+# See: ${CLUSTER_STATE_DIR}/${CLUSTER_NAME}/networking/envoy-gateway

@@ -53,6 +53,44 @@ write_files:
   # Deployed by: kpt-deploy-tailscale-operator.service, kpt-deploy-tailscale-connector.service
   # Provides: mesh networking, subnet routing for VIP + LoadBalancer pool
 
+  # Downstream Git repository sync unit (control-plane only)
+  - path: /etc/systemd/system/rke2-cluster-repo-sync.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Sync downstream cluster Git repository
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-cluster-repo-sync
+      RemainAfterExit=yes
+      StandardOutput=journal
+      StandardError=journal
+
+      [Install]
+      WantedBy=multi-user.target
+
+  # Downstream kpt package sync unit (control-plane only)
+  - path: /etc/systemd/system/rke2-kpt-package-sync.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Sync kpt packages into downstream repo
+      After=rke2-cluster-repo-sync.service
+      Requires=rke2-cluster-repo-sync.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-kpt-package-sync
+      RemainAfterExit=yes
+      StandardOutput=journal
+      StandardError=journal
+
+      [Install]
+      WantedBy=multi-user.target
+
   # Porch bootstrap service - deploys namespace, repositories, and PackageVariants
   - path: /etc/systemd/system/rke2-porch-bootstrap.service
     content: |
@@ -61,14 +99,14 @@ write_files:
       After=rke2-server.service rke2-system-replicator.service rke2-kpt-package-sync.service
       Wants=rke2-server.service rke2-kpt-package-sync.service
       Requires=rke2-system-replicator.service rke2-kpt-package-sync.service
-      ConditionPathExists=/var/lib/incus-rke2-cluster/kpt/system/porch
+      ConditionPathExists=/var/lib/rancher/rke2/state/kpt/system/porch
 
       [Service]
       Type=oneshot
       RemainAfterExit=yes
-      WorkingDirectory=/var/lib/incus-rke2-cluster/kpt/system/porch
+      WorkingDirectory=/var/lib/rancher/rke2/state/kpt/system/porch
       EnvironmentFile=/etc/rancher/rke2/environment
-      ExecStart=/usr/local/sbin/rke2-kpt-deploy /var/lib/incus-rke2-cluster/kpt/system/porch --timeout=5m -- porch-docker-config-json=${CLUSTER_DOCKER_CONFIG_JSON}
+      ExecStart=/usr/local/sbin/rke2-kpt-deploy /var/lib/rancher/rke2/state/kpt/system/porch --timeout=5m -- porch-docker-config-json=${CLUSTER_DOCKER_CONFIG_JSON}
       Restart=on-failure
       RestartSec=10s
 
@@ -82,14 +120,14 @@ write_files:
       Description=Apply Porch repositories and PackageVariants
       After=rke2-porch-bootstrap.service rke2-kpt-package-sync.service
       Requires=rke2-porch-bootstrap.service rke2-kpt-package-sync.service
-      ConditionPathExists=/var/lib/incus-rke2-cluster/kpt/system/porch-resources
+      ConditionPathExists=/var/lib/rancher/rke2/state/kpt/system/porch-resources
 
       [Service]
       Type=oneshot
       RemainAfterExit=yes
-      WorkingDirectory=/var/lib/incus-rke2-cluster/kpt/system/porch-resources
+      WorkingDirectory=/var/lib/rancher/rke2/state/kpt/system/porch-resources
       EnvironmentFile=/etc/rancher/rke2/environment
-      ExecStart=/usr/local/sbin/rke2-kpt-deploy /var/lib/incus-rke2-cluster/kpt/system/porch-resources --timeout=5m -- cluster-github-token=${CLUSTER_GITHUB_TOKEN}
+      ExecStart=/usr/local/sbin/rke2-kpt-deploy /var/lib/rancher/rke2/state/kpt/system/porch-resources --timeout=5m -- cluster-github-token=${CLUSTER_GITHUB_TOKEN}
       Restart=on-failure
       RestartSec=10s
 
@@ -103,14 +141,14 @@ write_files:
       Description=Deploy mittwald kubernetes-replicator controller
       After=rke2-server.service rke2-kpt-package-sync.service
       Requires=rke2-server.service rke2-kpt-package-sync.service
-      ConditionPathExists=/var/lib/incus-rke2-cluster/kpt/system/replicator
+      ConditionPathExists=/var/lib/rancher/rke2/state/kpt/system/replicator
 
       [Service]
       Type=oneshot
       RemainAfterExit=yes
-      WorkingDirectory=/var/lib/incus-rke2-cluster/kpt/system/replicator
+      WorkingDirectory=/var/lib/rancher/rke2/state/kpt/system/replicator
       EnvironmentFile=/etc/rancher/rke2/environment
-      ExecStart=/usr/local/sbin/rke2-kpt-deploy /var/lib/incus-rke2-cluster/kpt/system/replicator --timeout=5m
+      ExecStart=/usr/local/sbin/rke2-kpt-deploy /var/lib/rancher/rke2/state/kpt/system/replicator --timeout=5m
       Restart=on-failure
       RestartSec=10s
 
@@ -120,6 +158,10 @@ write_files:
 runcmd:
   # Enable and start Porch bootstrap service
   - systemctl daemon-reload
+  - systemctl enable rke2-cluster-repo-sync.service
+  - systemctl enable rke2-kpt-package-sync.service
+  - systemctl start rke2-cluster-repo-sync.service
+  - systemctl start rke2-kpt-package-sync.service
   - systemctl enable rke2-system-replicator.service
   - systemctl start rke2-system-replicator.service
   - systemctl enable rke2-porch-bootstrap.service
