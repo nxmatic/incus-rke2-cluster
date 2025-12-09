@@ -7,7 +7,7 @@
 
 == Context
 
-- kpt packages live under `modules/nixos/incus-rke2-cluster/kpt/cluster` with a root `Kptfile` describing the stack.
+- kpt packages live under `modules/nixos/incus-rke2-cluster/kpt/catalog` with a root `Kptfile` describing the stack.
 - Systemd services on the master node currently run `rke2-kpt-deploy`, mutate setters, and execute `kpt live apply` for each package.
 - Goal: host Porch (kpt-as-a-service) inside the existing RKE2 control plane, manage package revisions through Porch APIs, and let a GitOps agent deploy published revisions. This replaces ad-hoc systemd jobs and makes the package lifecycle observable and versioned.
 
@@ -47,7 +47,7 @@ spec:
   git:
     repo: git@github.com:nxmatic/nix-darwin-home.git
     branch: develop
-    directory: modules/nixos/incus-rke2-cluster/kpt/cluster
+    directory: modules/nixos/incus-rke2-cluster/kpt/catalog
     secretRef:
       name: github-token
   deployment: false
@@ -67,7 +67,7 @@ spec:
   git:
     repo: git@github.com:nxmatic/bioskop-kube-deploy.git
     branch: main
-    directory: clusters/bioskop
+    directory: packagevariants/bioskop
     createBranch: true
     secretRef:
       name: porch-deploy-ssh
@@ -155,7 +155,7 @@ spec:
 
 === GitOps Agent Subscription
 
-Config Sync (example) watches the deployment repo path containing published packages (for example `clusters/bioskop/**`). Each Porch-published `PackageRevision` becomes a directory commit that the agent applies.
+Config Sync (example) watches the deployment repo path containing published packages (for example `packagevariants/bioskop/**`). Each Porch-published `PackageRevision` becomes a directory commit that the agent applies.
 
 == Deployment Workflow
 

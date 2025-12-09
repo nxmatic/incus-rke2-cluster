@@ -29,7 +29,7 @@ This directory contains comprehensive documentation for the Incus RKE2 cluster d
 === Deployment & Operations
 
 * link:../../docs/sessions/2025-11-12-bioskop-headscale-deployment.adoc[bioskop Headscale Deployment] - Step-by-step guide for deploying Headscale on bioskop cluster
-* link:../kpt/cluster/mesh/headscale/README.md[Headscale kpt Package] - Declarative Headscale deployment using kpt
+* link:../kpt/catalog/mesh/headscale/README.md[Headscale kpt Package] - Declarative Headscale deployment using kpt
 
 === Project Documentation
 
@@ -150,6 +150,27 @@ The replicator package follows the `render-helm-chart` guidance from https://git
 Control-plane nodes now clone the downstream cluster repo via `rke2-cluster-repo-sync.service`. The service checks out the cluster branch (for example `bioskop`) into `/var/lib/incus-rke2-cluster` and hard-resets it to the remote before any `kpt` deployments run. All systemd-managed packages (`rke2-system-replicator`, `rke2-porch-bootstrap`, `rke2-porch-resources`, etc.) depend on this service, guaranteeing that `kpt pkg update`/`kpt fn render` operate on the downstream copy instead of a bind-mounted upstream workspace.
 
 `rke2-kpt-package-sync.service` runs immediately after the repository sync to execute `kpt pkg get`/`kpt pkg update` for every package listed in `/etc/rke2-kpt-packages.yaml`. Completed updates are committed and pushed back to the downstream remote so the branch always reflects the manifests that were rendered/applied on the control-plane nodes. This service is now a hard dependency for the Porch + replicator units, ensuring they only start once the downstream repo contains the latest upstream package revisions.
+
+==== Layered Tekton Pipelines Package
+
+The Tekton Pipelines Helm chart lives in `kpt/system/tekton-pipelines` with sample setters only. `rke2-kpt-package-sync.service` now mirrors this package into the downstream repo so each cluster can:
+
+1. `kpt pkg get` the upstream package into `packagevariants/<name>/system/tekton-pipelines`.
+2. Update `tekton-setters.yaml` with real namespaces, Git/Docker credentials (encrypt edits with SOPS in the downstream repo).
+3. Run `kpt fn render ... --output <state repo>/packagevariants/<name>/system/tekton-pipelines` and commit the rendered manifests.
+4. Let Flux (or another GitOps agent) apply the rendered objects during bootstrap, so Tekton comes online without `rke2-kpt-deploy`.
+
+The same pattern now applies to `kpt/system/replicator` and `kpt/system/porch-resources`. Each ships sample setters in its root package so downstream clusters can clone, override with secret data (using SOPS), render locally, and commit the outputs for Flux.
+
+==== Cluster Layer Packages
+
+Cluster-scoped packages that live under `kpt/catalog/**` now follow the same "sample setters upstream, real values downstream" pattern:
+
+. `kpt pkg get` the upstream component into `packagevariants/<name>/cluster/<category>/<package>` inside the downstream/state repository.
+. Edit the package’s `*-setters.yaml` in that downstream copy (encrypting any sensitive data with SOPS) so it reflects the real VIPs, LAN CIDRs, or node labels for that cluster.
+. Run `kpt fn render` or `kpt fn eval --output <state repo>/packagevariants/<name>/cluster/...` and commit the rendered manifests so Flux or Porch can reconcile them during bootstrap.
+
+This keeps upstream packages opinionated yet generic while giving each cluster a clean place to pin concrete values. See link:../kpt/catalog/README.md[`kpt/catalog/README.md`] for a quick walk-through of the workflow and example commands.
 
 == Viewing Documentation
 
