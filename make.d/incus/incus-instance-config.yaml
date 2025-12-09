@@ -20,11 +20,11 @@ config:
   environment.CLUSTER_NAME: "${CLUSTER_NAME}"
   environment.CLUSTER_TOKEN: "${CLUSTER_TOKEN}"
   environment.CLUSTER_DOMAIN: "${CLUSTER_DOMAIN}"
+  environment.CLUSTER_STATE_DIR: "/var/lib/rancher/rke2/state"
   environment.CLUSTER_STATE_REPO_URL: "${CLUSTER_STATE_REPO_URL}"
   environment.CLUSTER_STATE_BRANCH: "${CLUSTER_STATE_BRANCH}"
   environment.CLUSTER_GITHUB_TOKEN: "${CLUSTER_GITHUB_TOKEN}"
   environment.CLUSTER_GITHUB_USERNAME: "${CLUSTER_GITHUB_USERNAME}"
-  environment.GITHUB_PAT: "${CLUSTER_GITHUB_TOKEN}"
   environment.CLUSTER_DOCKER_CONFIG_JSON: "${CLUSTER_DOCKER_CONFIG_JSON}"
   environment.NODE_ROLE: "${NODE_ROLE}"
   environment.NODE_NAME: "${NODE_NAME}"
@@ -82,6 +82,8 @@ config:
   environment.KREW_ROOT: "/var/lib/rancher/rke2/krew"
   # Kpt Configuration
   environment.KRM_FN_RUNTIME: "nerdctl"
+  # Home Directory
+  environment.HOME: "/root"
 devices:
   kmsg.dev:
     type: unix-char
@@ -93,8 +95,8 @@ devices:
     path: /dev/zfs
   secrets.dir:
     type: disk
-    source: ${PWD}/.secrets.d
-    path: /.secrets.d
+    source: ${PWD}/.secrets
+    path: /.secrets
     readonly: "true"
   shared.dir:
     type: disk

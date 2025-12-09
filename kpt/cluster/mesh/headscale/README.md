@@ -136,17 +136,18 @@ Customize using kpt setters in Kptfile:
 This package uses `.sops.yaml` (symlinked from repository root) for secret encryption with age.
 
 **Current Approach:** Secrets are created dynamically by the bootstrap job at runtime:
+
 - Admin user created via Headscale CLI
 - Preauth key generated and stored in `headscale-client-auth` Secret
 - More secure than committing static keys
 
-**Future Enhancement:** For GitOps with static configuration, create sops-encrypted secrets:
+**Future Enhancement:** For GitOps with static configuration, store the values inside the consolidated SOPS YAML and reference them from your manifests:
 
 ```bash
-# Example: Create encrypted secret in .secrets.d/
+# Example: update headscale.apiKey inside .secrets (@codebase)
 cd ../../.. # Repository root
-echo "your-api-key" > modules/nixos/incus-rke2-cluster/.secrets.d/headscale-api-key
-sops --encrypt --in-place modules/nixos/incus-rke2-cluster/.secrets.d/headscale-api-key
+sops --set '["headscale"]["apiKey"]="your-api-key"' \
+  modules/nixos/incus-rke2-cluster/.secrets
 
 # Reference in Kubernetes Secret manifest
 # Then use kpt fn to inject sops-encrypted values
