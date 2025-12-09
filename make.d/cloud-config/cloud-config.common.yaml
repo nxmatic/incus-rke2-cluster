@@ -381,7 +381,7 @@ write_files:
       vip_address="$$2"
       lb_pool_cidr="$$3"
       repo_dir="${CLUSTER_STATE_DIR}"
-      package_dir="$$repo_dir/kpt/cluster/mesh/tailscale"
+      package_dir="$$repo_dir/kpt/catalog/mesh/tailscale"
       connector_manifest="$$package_dir/03-connector.yaml"
 
       source <(flox activate --dir /var/lib/rancher/rke2)
@@ -809,6 +809,10 @@ write_files:
         - name: replicator
           target: kpt/system/replicator
           source: https://github.com/nxmatic/nix-darwin-home.git/modules/nixos/incus-rke2-cluster/kpt/system/replicator
+          ref: develop
+        - name: tekton-pipelines
+          target: kpt/system/tekton-pipelines
+          source: https://github.com/nxmatic/nix-darwin-home.git/modules/nixos/incus-rke2-cluster/kpt/system/tekton-pipelines
           ref: develop
 
   # Sync kpt packages from upstream into downstream repo and push changes

@@ -3,8 +3,8 @@
 # @codebase
 
 # Kube-VIP management has been migrated to kpt package
-# See: kpt/cluster/ha/kube-vip/
-# Deploy with: kpt live apply /var/lib/rancher/rke2/state/kpt/cluster/ha/kube-vip
+# See: kpt/catalog/ha/kube-vip/
+# Deploy with: kpt live apply /var/lib/rancher/rke2/state/kpt/catalog/ha/kube-vip
 
 write_files: []
 

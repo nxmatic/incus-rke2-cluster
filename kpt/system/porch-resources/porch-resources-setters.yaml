@@ -22,4 +22,4 @@ data:
   headscale-lb-ip: 192.168.1.10
   cluster-state-repo: example-state
   cluster-state-branch: main
-  cluster-state-directory: clusters/example
+  cluster-state-directory: packagevariants/example

@@ -44,12 +44,12 @@ write_files:
   # (Envoy Gateway manifest moved to full overlay)
 
   # OpenEBS ZFS - MIGRATED to kpt package
-  # See: kpt/cluster/storage/openebs-zfs/
+  # See: kpt/catalog/storage/openebs-zfs/
   # Deployed by: kpt-deploy-openebs-zfs.service
   # Provides: persistent storage backed by ZFS
 
   # Tailscale operator - MIGRATED to kpt package
-  # See: kpt/cluster/mesh/tailscale/
+  # See: kpt/catalog/mesh/tailscale/
   # Deployed by: kpt-deploy-tailscale-operator.service, kpt-deploy-tailscale-connector.service
   # Provides: mesh networking, subnet routing for VIP + LoadBalancer pool
 

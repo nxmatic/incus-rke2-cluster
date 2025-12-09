@@ -1,0 +1,9 @@
+# Bioskop Package Variants
+
+This directory captures everything needed to compose Bioskop’s downstream manifests:
+
+- `Kptfile` + `bioskop-setters.yaml` contain shared values that flow into every cloned catalog package.
+- `packages.yaml` lists the catalog packages that must be mirrored into the downstream repo (see comments for what each component provides).
+- `DEPLOYMENT-ORDER.md` defines the order in which the rendered packages should be applied on the cluster.
+
+After running `kpt pkg get` for each entry in `packages.yaml`, the downstream repo will have `packagevariants/bioskop/cluster/<category>/<package>` directories ready for `kpt fn render`.

@@ -7,8 +7,8 @@ This package embeds the Tekton Pipelines Helm chart via the `render-helm-chart` 
 1. **Fetch the package**
 
    ```bash
-   kpt pkg get https://github.com/nxmatic/nix-darwin-home.git/modules/nixos/incus-rke2-cluster/kpt/system/tekton-pipelines \
-     clusters/bioskop/system/tekton-pipelines
+    kpt pkg get https://github.com/nxmatic/nix-darwin-home.git/modules/nixos/incus-rke2-cluster/kpt/system/tekton-pipelines \
+       packagevariants/bioskop/system/tekton-pipelines
    ```
 
 2. **Edit setters for the cluster**: update `tekton-setters.yaml` with the namespace, release name, Git credentials, and Docker auth JSON (use SOPS within the downstream repo to encrypt secrets).
@@ -16,7 +16,7 @@ This package embeds the Tekton Pipelines Helm chart via the `render-helm-chart` 
 3. **Render locally**
 
    ```bash
-   kpt fn render clusters/bioskop/system/tekton-pipelines --output ../../state/clusters/bioskop/system/tekton-pipelines
+   kpt fn render packagevariants/bioskop/system/tekton-pipelines --output ../../state/packagevariants/bioskop/system/tekton-pipelines
    ```
 
 4. **Encrypt secrets in the rendered output** (downstream/state repo) and commit so Flux can reconcile the manifests at bootstrap.

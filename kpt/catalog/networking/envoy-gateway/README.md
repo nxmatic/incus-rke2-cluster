@@ -1,0 +1,137 @@
+# Envoy Gateway kpt Package
+
+This package deploys Envoy Gateway for Kubernetes Gateway API support in RKE2 clusters.
+
+## Components
+
+- **Namespace**: `envoy-gateway-system` for all Envoy Gateway components
+- **Installer Job**: Deploys Envoy Gateway from official release manifests
+  - Uses `kubectl apply --server-side` for reliable installation
+  - Waits for deployment to be available before completing
+- **GatewayClass**: Default `envoy` GatewayClass for Gateway API resources
+- **RBAC**: ServiceAccount and ClusterRoleBinding for installer Job
+
+## Architecture
+
+Envoy Gateway provides:
+- **Gateway API Implementation**: Native support for Kubernetes Gateway API
+- **Dynamic Configuration**: Gateway/HTTPRoute resources for ingress management
+- **Envoy Proxy**: High-performance L7 load balancer and proxy
+- **Cilium Integration**: Works with Cilium L2 announcements for LoadBalancer IPs
+
+## Usage
+
+### Deploy with kpt live (Recommended)
+
+```bash
+# From inside master container with kpt available
+ssh lima-nerd-nixos
+incus exec master -- bash
+source <( flox activate --dir /var/lib/rancher/rke2 )
+export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
+
+# Deploy with kpt live (adopts existing resources if present)
+cd /var/lib/incus-rke2-cluster/kpt/catalog/networking/envoy-gateway
+kpt live apply . --inventory-policy=adopt --reconcile-timeout=5m
+
+# Check status
+kpt live status .
+
+# Or from outside the container (one-liner)
+ssh lima-nerd-nixos "incus exec master -- bash -c 'source <( flox activate --dir /var/lib/rancher/rke2 ); export KUBECONFIG=/etc/rancher/rke2/rke2.yaml && kpt live apply /var/lib/incus-rke2-cluster/kpt/catalog/networking/envoy-gateway --inventory-policy=adopt --reconcile-timeout=5m'"
+```
+
+**Note**: The package uses a `resourcegroup.yaml` file for inventory tracking (kpt v1 best practice). The `--inventory-policy=adopt` flag is needed on first apply to take ownership of existing resources deployed via kubectl.
+
+### Alternative: Deploy with kubectl
+
+```bash
+# Direct kubectl apply (for testing or troubleshooting)
+ssh lima-nerd-nixos
+incus exec master -- flox activate --dir /var/lib/rancher/rke2 -- kubectl apply -f /var/lib/incus-rke2-cluster/kpt/catalog/networking/envoy-gateway/
+
+# Verify installation
+kubectl get pods -n envoy-gateway-system
+kubectl get gatewayclass
+kubectl get job -n envoy-gateway-system envoy-gateway-installer
+```
+
+## Configuration
+
+Customize using kpt setters in Kptfile:
+
+- `envoy-gateway-version`: Envoy Gateway release version (default: v1.4.2)
+- `envoy-gateway-namespace`: Namespace for Envoy Gateway components (default: envoy-gateway-system)
+
+Example:
+
+```bash
+kpt fn eval . --image ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2 -- \
+  envoy-gateway-version=v1.5.0
+```
+
+## Deployment Status
+
+### 🎯 Ready for Deployment
+
+- Created from cloud-config extraction (Phase 1 migration)
+- Tested Job-based installation approach
+- Independent of core cluster functionality
+- Can be deployed on running clusters without disruption
+
+### Verification
+
+After deployment, verify:
+
+```bash
+# Check installer job completion
+kubectl get job -n envoy-gateway-system envoy-gateway-installer
+
+# Check Envoy Gateway deployment
+kubectl get deployment -n envoy-gateway-system
+
+# Check GatewayClass
+kubectl get gatewayclass envoy
+
+# View Envoy Gateway logs
+kubectl logs -n envoy-gateway-system -l control-plane=envoy-gateway
+```
+
+## Integration with Gateway API
+
+Create Gateway resources using the `envoy` GatewayClass:
+
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: my-gateway
+  namespace: default
+spec:
+  gatewayClassName: envoy
+  listeners:
+  - name: http
+    protocol: HTTP
+    port: 80
+```
+
+## Cilium Integration
+
+Envoy Gateway works with Cilium L2 announcements:
+- Gateway LoadBalancer Services get IPs from Cilium IP pools
+- L2 announcements make Gateways accessible on home LAN
+- BGP can advertise Gateway routes to upstream routers
+
+## Prerequisites
+
+1. **Kubernetes Cluster**: RKE2 v1.29+ with Gateway API CRDs
+2. **kubectl**: Available in installer container image
+3. **Network Connectivity**: Access to GitHub releases (for installation YAML)
+4. **Cilium**: L2 announcements configured (optional, for LoadBalancer IPs)
+
+## See Also
+
+- Original cloud-config: `make.d/cloud-config/cloud-config.master.cilium.yaml`
+- Envoy Gateway docs: https://gateway.envoyproxy.io/
+- Kubernetes Gateway API: https://gateway-api.sigs.k8s.io/
+- Migration plan: `docs/kpt-migration-plan.adoc`

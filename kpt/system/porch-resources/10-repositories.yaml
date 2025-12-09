@@ -9,7 +9,7 @@ spec:
   git:
     repo: https://github.com/nxmatic/nix-darwin-home.git
     branch: develop
-    directory: modules/nixos/incus-rke2-cluster/kpt/cluster
+    directory: modules/nixos/incus-rke2-cluster/kpt/catalog
     secretRef:
       name: github-token
   deployment: true
@@ -25,7 +25,7 @@ spec:
   git:
     repo: https://github.com/nxmatic/rke2-state.git
     branch: bioskop # kpt-set: ${cluster-state-branch}
-    directory: clusters/bioskop # kpt-set: ${cluster-state-directory}
+    directory: packagevariants/bioskop # kpt-set: ${cluster-state-directory}
     createBranch: true
     secretRef:
       name: github-token
