@@ -1,1 +1,0 @@
-I think we can remove the wan bridges as they are using a vlan instead. Can we have the same logic for the lan bridges ? I want some k8s load-balancers being availabe in the local network, but using a vlan can we allocate a dedicated network for these and make them routable on the LAN ? 
