@@ -162,6 +162,24 @@ The Tekton Pipelines Helm chart lives in `kpt/system/tekton-pipelines` with samp
 
 The same pattern now applies to `kpt/system/replicator` and `kpt/system/porch-resources`. Each ships sample setters in its root package so downstream clusters can clone, override with secret data (using SOPS), render locally, and commit the outputs for Flux.
 
+==== Flux Operator Package
+
+`kpt/system/flux-operator` vendors the upstream Flux Operator Helm chart so each environment can bootstrap the GitOps operator exactly like any other system dependency:
+
+. `kpt pkg get` the package into `packagevariants/<name>/system/flux-operator` inside the downstream/state repository.
+. Update `flux-operator-setters.yaml` with the release name, namespace (typically `flux-system`), and chart version you want to run, encrypting any sensitive values with SOPS.
+. Execute `kpt fn render ... --output <state repo>/packagevariants/<name>/system/flux-operator` and commit the rendered manifests so the control-plane units can reconcile them.
+
+The packaged chart payload mirrors the upstream OCI artifact. If you want to smoke-test a new release before vendoring it, you can still use Helm directly against the OCI registry:
+
+@codebase
+[source,bash]
+----
+helm install flux-operator oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator \
+	--namespace flux-system \
+	--create-namespace
+----
+
 ==== Cluster Layer Packages
 
 Cluster-scoped packages that live under `kpt/catalog/**` now follow the same "sample setters upstream, real values downstream" pattern:
