@@ -24,18 +24,6 @@ storage_pools:
 # Internet access is exclusively via lan0/home router
 # Cluster allocation: 10.80.(CLUSTER_ID * 8).0/21
 networks:
-  - name: lan-br
-    type: bridge
-    config:
-      ipv4.address: none
-      ipv6.address: none
-      ipv4.dhcp: "false"
-      ipv6.dhcp: "false"
-      ipv4.nat: "false"
-      ipv6.nat: "false"
-      dns.mode: none
-      bridge.driver: native
-      bridge.external_interfaces: vmlan0
   - name: vmnet-br
     type: bridge
     config:
@@ -67,7 +55,8 @@ profiles:
         type: disk
       lan0:
         name: lan0
-        network: lan-br
+        nictype: bridged
+        parent: lan-br
         type: nic
       vmnet0:
         name: vmnet0
