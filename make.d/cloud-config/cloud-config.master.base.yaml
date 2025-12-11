@@ -99,14 +99,14 @@ write_files:
       After=rke2-server.service rke2-system-replicator.service rke2-kpt-package-sync.service
       Wants=rke2-server.service rke2-kpt-package-sync.service
       Requires=rke2-system-replicator.service rke2-kpt-package-sync.service
-      ConditionPathExists=/var/lib/rancher/rke2/state/kpt/system/porch
+      ConditionPathExists=${CLUSTER_STATE_DIR}/kpt/system/porch
 
       [Service]
       Type=oneshot
       RemainAfterExit=yes
-      WorkingDirectory=/var/lib/rancher/rke2/state/kpt/system/porch
+      WorkingDirectory=${CLUSTER_STATE_DIR}/kpt/system/porch
       EnvironmentFile=/etc/rancher/rke2/environment
-      ExecStart=/usr/local/sbin/rke2-kpt-deploy /var/lib/rancher/rke2/state/kpt/system/porch --timeout=5m -- porch-docker-config-json=${CLUSTER_DOCKER_CONFIG_JSON}
+      ExecStart=/usr/local/sbin/rke2-kpt-deploy ${CLUSTER_STATE_DIR}/kpt/system/porch --timeout=5m -- porch-docker-config-json=${CLUSTER_DOCKER_CONFIG_JSON}
       Restart=on-failure
       RestartSec=10s
 
@@ -120,14 +120,14 @@ write_files:
       Description=Apply Porch repositories and PackageVariants
       After=rke2-porch-bootstrap.service rke2-kpt-package-sync.service
       Requires=rke2-porch-bootstrap.service rke2-kpt-package-sync.service
-      ConditionPathExists=/var/lib/rancher/rke2/state/kpt/system/porch-resources
+      ConditionPathExists=${CLUSTER_STATE_DIR}/kpt/system/porch-resources
 
       [Service]
       Type=oneshot
       RemainAfterExit=yes
-      WorkingDirectory=/var/lib/rancher/rke2/state/kpt/system/porch-resources
+      WorkingDirectory=${CLUSTER_STATE_DIR}/kpt/system/porch-resources
       EnvironmentFile=/etc/rancher/rke2/environment
-      ExecStart=/usr/local/sbin/rke2-kpt-deploy /var/lib/rancher/rke2/state/kpt/system/porch-resources --timeout=5m -- cluster-github-token=${CLUSTER_GITHUB_TOKEN}
+      ExecStart=/usr/local/sbin/rke2-kpt-deploy ${CLUSTER_STATE_DIR}/kpt/system/porch-resources --timeout=5m -- cluster-github-token=${CLUSTER_GITHUB_TOKEN}
       Restart=on-failure
       RestartSec=10s
 
@@ -141,14 +141,14 @@ write_files:
       Description=Deploy mittwald kubernetes-replicator controller
       After=rke2-server.service rke2-kpt-package-sync.service
       Requires=rke2-server.service rke2-kpt-package-sync.service
-      ConditionPathExists=/var/lib/rancher/rke2/state/kpt/system/replicator
+      ConditionPathExists=${CLUSTER_STATE_DIR}/kpt/system/replicator
 
       [Service]
       Type=oneshot
       RemainAfterExit=yes
-      WorkingDirectory=/var/lib/rancher/rke2/state/kpt/system/replicator
+      WorkingDirectory=${CLUSTER_STATE_DIR}/kpt/system/replicator
       EnvironmentFile=/etc/rancher/rke2/environment
-      ExecStart=/usr/local/sbin/rke2-kpt-deploy /var/lib/rancher/rke2/state/kpt/system/replicator --timeout=5m
+      ExecStart=/usr/local/sbin/rke2-kpt-deploy ${CLUSTER_STATE_DIR}/kpt/system/replicator --timeout=5m
       Restart=on-failure
       RestartSec=10s
 

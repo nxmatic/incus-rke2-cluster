@@ -23,8 +23,8 @@ spec:
   description: Rendered Porch package state for bioskop cluster
   type: git
   git:
-    repo: https://github.com/nxmatic/rke2-state.git
-    branch: bioskop # kpt-set: ${cluster-state-branch}
+    repo: https://github.com/nxmatic/fleet-manifests.git
+    branch: rke2-subtree # kpt-set: ${cluster-state-branch}
     directory: packagevariants/bioskop # kpt-set: ${cluster-state-directory}
     createBranch: true
     secretRef:

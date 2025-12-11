@@ -763,7 +763,7 @@ write_files:
       #!/usr/bin/env -S bash -exu -o pipefail
 
       repo_dir="${CLUSTER_STATE_DIR}"
-      default_repo="https://github.com/nxmatic/rke2-state.git"
+      default_repo="https://github.com/nxmatic/fleet-manifests.git"
       default_branch="main"
 
       if [[ -f /etc/rancher/rke2/environment ]]; then
@@ -821,7 +821,7 @@ write_files:
     content: |
       #!/usr/bin/env -S bash -exuo pipefail
 
-      repo_dir="/var/lib/rancher/rke2/state"
+      repo_dir="${CLUSTER_STATE_DIR}"
       manifest="/etc/rke2-kpt-packages.yaml"
       default_branch="main"
 

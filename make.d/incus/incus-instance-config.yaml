@@ -20,7 +20,7 @@ config:
   environment.CLUSTER_NAME: "${CLUSTER_NAME}"
   environment.CLUSTER_TOKEN: "${CLUSTER_TOKEN}"
   environment.CLUSTER_DOMAIN: "${CLUSTER_DOMAIN}"
-  environment.CLUSTER_STATE_DIR: "/var/lib/rancher/rke2/state"
+  environment.CLUSTER_STATE_DIR: "${CLUSTER_STATE_DIR}"
   environment.CLUSTER_STATE_REPO_URL: "${CLUSTER_STATE_REPO_URL}"
   environment.CLUSTER_STATE_BRANCH: "${CLUSTER_STATE_BRANCH}"
   environment.CLUSTER_GITHUB_TOKEN: "${CLUSTER_GITHUB_TOKEN}"

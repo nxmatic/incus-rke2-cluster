@@ -30,24 +30,24 @@ ifeq ($(.cluster.NAME),bioskop)
   .cluster.SERVICE_NETWORK_CIDR := 10.43.0.0/16
   .cluster.LIMA_LAN_INTERFACE := vmlan0
   .cluster.LIMA_VMNET_INTERFACE := vmwan0
-  .cluster.STATE_REPO := https://github.com/nxmatic/rke2-state.git
-  .cluster.STATE_BRANCH := main
+  .cluster.STATE_REPO := https://github.com/nxmatic/fleet-manifests.git
+  .cluster.STATE_BRANCH := rke2-subtree
 else ifeq ($(.cluster.NAME),alcide)
   .cluster.ID := 2
   .cluster.POD_NETWORK_CIDR := 10.44.0.0/16
   .cluster.SERVICE_NETWORK_CIDR := 10.45.0.0/16
   .cluster.LIMA_LAN_INTERFACE := vmlan0
   .cluster.LIMA_VMNET_INTERFACE := vmwan0
-  .cluster.STATE_REPO := https://github.com/nxmatic/rke2-state.git
-  .cluster.STATE_BRANCH := main
+  .cluster.STATE_REPO := https://github.com/nxmatic/fleet-manifests.git
+  .cluster.STATE_BRANCH := rke2-subtree
 else ifeq ($(.cluster.NAME),nikopol)
   .cluster.ID := 2
   .cluster.POD_NETWORK_CIDR := 10.44.0.0/16
   .cluster.SERVICE_NETWORK_CIDR := 10.45.0.0/16
   .cluster.LIMA_LAN_INTERFACE := vmlan0
   .cluster.LIMA_VMNET_INTERFACE := vmwan0
-  .cluster.STATE_REPO := https://github.com/nxmatic/rke2-state.git
-  .cluster.STATE_BRANCH := main
+  .cluster.STATE_REPO := https://github.com/nxmatic/fleet-manifests.git
+  .cluster.STATE_BRANCH := rke2-subtree
 else
   $(error [node] Unknown cluster: $(.cluster.NAME). Supported clusters: bioskop alcide nikopol)
 endif
