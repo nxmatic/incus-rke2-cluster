@@ -304,7 +304,7 @@ info:
 upstream:
   type: git
   git:
-    repo: https://github.com/nxmatic/nix-darwin-home
+    repo: https://github.com/nxmatic/incus-rke2-cluster
     directory: modules/nixos/incus-rke2-cluster/kpt/catalog/mesh/headscale
     ref: develop
 pipeline:

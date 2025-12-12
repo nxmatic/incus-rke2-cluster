@@ -12,7 +12,7 @@ the setters before rendering.
 +
 [source,bash]
 ----
- kpt pkg get https://github.com/nxmatic/nix-darwin-home.git/modules/nixos/incus-rke2-cluster/kpt/system/tekton-pipelines \
+ kpt pkg get https://github.com/nxmatic/incus-rke2-cluster.git/kpt/system/tekton-pipelines \
     packagevariants/bioskop/system/tekton-pipelines
 ----
 . *Edit setters for the cluster*: update `+tekton-setters.yaml+` with

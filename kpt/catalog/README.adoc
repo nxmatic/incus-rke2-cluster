@@ -16,7 +16,7 @@ keeping the intent for each cluster isolated from the shared catalog.
 +
 [source,bash]
 ----
-kpt pkg get github.com/nxmatic/nix-darwin-home.git/modules/nixos/incus-rke2-cluster/kpt/catalog/mesh/headscale \
+kpt pkg get github.com/nxmatic/incus-rke2-cluster.git/kpt/catalog/mesh/headscale \
   packagevariants/bioskop/cluster/mesh/headscale
 ----
 . *Override setter values* – Edit the package’s `+*-setters.yaml+` file

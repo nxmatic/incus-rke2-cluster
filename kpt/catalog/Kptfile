@@ -17,4 +17,4 @@ info:
     - gateway: Envoy Gateway for ingress
     - observability: Monitoring and logging
     
-  site: https://github.com/nxmatic/nix-darwin-home
+  site: https://github.com/nxmatic/incus-rke2-cluster

@@ -4,10 +4,10 @@ metadata:
   name: bioskop-catalog
   namespace: porch-system
 spec:
-  description: Catalog of curated kpt packages tracked in nix-darwin-home
+  description: Catalog of curated kpt packages tracked in incus-rke2-cluster
   type: git
   git:
-    repo: https://github.com/nxmatic/nix-darwin-home.git
+    repo: https://github.com/nxmatic/incus-rke2-cluster.git
     branch: develop
     directory: modules/nixos/incus-rke2-cluster/kpt/catalog
     secretRef:

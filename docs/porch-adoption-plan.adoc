@@ -7,7 +7,7 @@
 
 == Context
 
-- kpt packages live under `modules/nixos/incus-rke2-cluster/kpt/catalog` with a root `Kptfile` describing the stack.
+- kpt packages live under `kpt/catalog` in this repository with a root `Kptfile` describing the stack.
 - Systemd services on the master node currently run `rke2-kpt-deploy`, mutate setters, and execute `kpt live apply` for each package.
 - Goal: host Porch (kpt-as-a-service) inside the existing RKE2 control plane, manage package revisions through Porch APIs, and let a GitOps agent deploy published revisions. This replaces ad-hoc systemd jobs and makes the package lifecycle observable and versioned.
 
@@ -45,7 +45,7 @@ metadata:
 spec:
   type: git
   git:
-    repo: git@github.com:nxmatic/nix-darwin-home.git
+    repo: git@github.com:nxmatic/incus-rke2-cluster.git
     branch: develop
     directory: modules/nixos/incus-rke2-cluster/kpt/catalog
     secretRef:
