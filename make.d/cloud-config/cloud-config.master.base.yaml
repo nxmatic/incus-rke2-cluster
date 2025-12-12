@@ -21,25 +21,27 @@ write_files:
       [Service]
       ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-cilium-check'
 
-  # Traefik config (bootstrap)
-  - path: /var/lib/rancher/rke2/server/manifests/rke2-traefik-config.yaml
+  # Traefik HelmChartConfig deployed via kpt
+  - path: /etc/systemd/system/rke2-traefik-config.service
+    permissions: "0644"
     content: |
-      apiVersion: helm.cattle.io/v1
-      kind: HelmChartConfig
-      metadata:
-        name: rke2-traefik
-        namespace: kube-system
-      spec:
-        valuesContent: |-
-          additionalArguments:
-            - "--api.insecure=true"
-          ports:
-            web:
-              expose:
-                default: true
-            websecure:
-              expose:
-                default: true
+      [Unit]
+      Description=Deploy Traefik HelmChartConfig via kpt
+      After=rke2-server.service rke2-kpt-package-sync.service
+      Requires=rke2-server.service rke2-kpt-package-sync.service
+      ConditionPathExists=${CLUSTER_STATE_DIR}/kpt/system/traefik-config
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      WorkingDirectory=${CLUSTER_STATE_DIR}/kpt/system/traefik-config
+      EnvironmentFile=/etc/rancher/rke2/environment
+      ExecStart=/usr/local/sbin/rke2-kpt-deploy ${CLUSTER_STATE_DIR}/kpt/system/traefik-config --timeout=3m
+      Restart=on-failure
+      RestartSec=10s
+
+      [Install]
+      WantedBy=multi-user.target
 
   # (Envoy Gateway manifest moved to full overlay)
 
@@ -162,6 +164,8 @@ runcmd:
   - systemctl enable rke2-kpt-package-sync.service
   - systemctl start rke2-cluster-repo-sync.service
   - systemctl start rke2-kpt-package-sync.service
+  - systemctl enable rke2-traefik-config.service
+  - systemctl start rke2-traefik-config.service
   - systemctl enable rke2-system-replicator.service
   - systemctl start rke2-system-replicator.service
   - systemctl enable rke2-porch-bootstrap.service

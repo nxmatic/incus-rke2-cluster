@@ -1,7 +1,0 @@
-apiVersion: kpt.dev/v1alpha1
-kind: ResourceGroup
-metadata:
-  name: headscale-mesh-networking
-  namespace: headscale
-  labels:
-    cli-utils.sigs.k8s.io/inventory-id: headscale-mesh-networking

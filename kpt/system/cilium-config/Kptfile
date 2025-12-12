@@ -1,0 +1,10 @@
+apiVersion: kpt.dev/v1
+kind: Kptfile
+metadata:
+  name: cilium-config
+info:
+  description: Core Cilium HelmChartConfig deployed via kpt
+pipeline:
+  mutators:
+    - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+      configPath: cilium-setters.yaml

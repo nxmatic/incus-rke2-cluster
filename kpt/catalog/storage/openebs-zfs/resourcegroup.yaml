@@ -1,7 +1,0 @@
-apiVersion: kpt.dev/v1alpha1
-kind: ResourceGroup
-metadata:
-  name: openebs-zfs-storage
-  namespace: openebs
-  labels:
-    cli-utils.sigs.k8s.io/inventory-id: openebs-zfs-storage

@@ -1,7 +1,0 @@
-apiVersion: kpt.dev/v1alpha1
-kind: ResourceGroup
-metadata:
-  name: system-replicator
-  namespace: kube-system
-  labels:
-    cli-utils.sigs.k8s.io/inventory-id: 192f9425aa091fb454bf89a04b9552bdf76b4b35-1765214152406346000

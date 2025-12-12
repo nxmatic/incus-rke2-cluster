@@ -1,0 +1,46 @@
+== kpt Layout Overview
+
+This tree is split into three concerns:
+
+* *`+kpt/catalog+`* – immutable, reusable packages grouped by domain
+(`+ha/+`, `+mesh/+`, `+networking/+`, etc.). Each package ships only
+sample setters so downstream repos can `+kpt pkg get+` them safely.
+* *`+kpt/packagevariants+`* – per-cluster compositions. Each cluster
+directory (for example `+bioskop/+`) tracks shared setters, deployment
+order, and a manifest (`+packages.yaml+`) listing which catalog packages
+should be cloned into the downstream repository.
+* *`+kpt/system+`* – shared infrastructure packages (Porch, replicator,
+Flux Operator, Tekton, etc.) that bootstrap the management plane itself.
+
+Typical workflow:
+
+[arabic]
+. `+kpt pkg get kpt/catalog/<category>/<package> packagevariants/<cluster>/cluster/<category>/<package>+`
+inside the downstream/state repo.
+. Update the downstream copy’s `+*-setters.yaml+` with real values
+(encrypt secrets with SOPS).
+. Run `+kpt fn render+` and commit the rendered manifests so Flux/Porch
+can reconcile them.
+
+== Directory Index
+
+* link:catalog/README.adoc[Catalog overview]
+** link:catalog/ha/kube-vip/README.adoc[kube-vip]
+** link:catalog/mesh/headscale/README.adoc[Headscale]
+** link:catalog/mesh/tailscale/README.adoc[Tailscale]
+** link:catalog/networking/cilium/README.adoc[Cilium advanced]
+** link:catalog/networking/envoy-gateway/README.adoc[Envoy Gateway]
+** link:catalog/runtime/flox-containerd-shim/README.adoc[flox-containerd shim]
+** link:catalog/storage/openebs-zfs/README.adoc[OpenEBS ZFS]
+* link:system/README.adoc[System packages]
+** link:system/porch/README.adoc[Porch controllers]
+** link:system/porch-resources/README.adoc[Porch resources]
+** link:system/replicator/README.adoc[Mittwald replicator]
+** link:system/flux-operator/README.adoc[Flux operator]
+** link:system/tekton-pipelines/README.adoc[Tekton pipelines]
+** link:system/traefik-config/README.adoc[Traefik config]
+** link:system/cilium-config/README.adoc[Cilium config]
+* link:packagevariants/bioskop/README.adoc[Packagevariants (Bioskop)]
+** link:packagevariants/bioskop/DEPLOYMENT-ORDER.adoc[Deployment order]
+
+See link:catalog/README.adoc[`kpt/catalog/README.adoc`] for catalog-specific details and link:packagevariants/bioskop/DEPLOYMENT-ORDER.adoc[`kpt/packagevariants/bioskop/DEPLOYMENT-ORDER.adoc`] for an end-to-end example that ties the packages together.

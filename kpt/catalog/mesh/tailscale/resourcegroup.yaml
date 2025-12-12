@@ -1,7 +1,0 @@
-apiVersion: kpt.dev/v1alpha1
-kind: ResourceGroup
-metadata:
-  name: tailscale-connector
-  namespace: default # ResourceGroup needs namespace even for cluster-scoped resources
-  labels:
-    cli-utils.sigs.k8s.io/inventory-id: tailscale-connector

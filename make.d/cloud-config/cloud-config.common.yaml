@@ -814,6 +814,14 @@ write_files:
           target: kpt/system/tekton-pipelines
           source: https://github.com/nxmatic/nix-darwin-home.git/modules/nixos/incus-rke2-cluster/kpt/system/tekton-pipelines
           ref: develop
+        - name: traefik-config
+          target: kpt/system/traefik-config
+          source: https://github.com/nxmatic/incus-rke2-cluster.git/kpt/system/traefik-config
+          ref: main
+        - name: cilium-config
+          target: kpt/system/cilium-config
+          source: https://github.com/nxmatic/incus-rke2-cluster.git/kpt/system/cilium-config
+          ref: main
 
   # Sync kpt packages from upstream into downstream repo and push changes
   - path: /usr/local/sbin/rke2-kpt-package-sync

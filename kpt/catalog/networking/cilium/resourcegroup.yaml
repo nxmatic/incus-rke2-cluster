@@ -1,7 +1,0 @@
-apiVersion: kpt.dev/v1alpha1
-kind: ResourceGroup
-metadata:
-  name: cilium-advanced-inventory
-  namespace: kube-system
-  labels:
-    cli-utils.sigs.k8s.io/inventory-id: cilium-advanced-networking
