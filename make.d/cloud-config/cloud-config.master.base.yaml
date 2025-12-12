@@ -29,14 +29,14 @@ write_files:
       Description=Deploy Traefik HelmChartConfig via kpt
       After=rke2-server.service rke2-kpt-package-sync.service
       Requires=rke2-server.service rke2-kpt-package-sync.service
-      ConditionPathExists=${CLUSTER_STATE_DIR}/kpt/system/traefik-config
+      ConditionPathExists=${CLUSTER_STATE_DIR}/kpt/system/traefik
 
       [Service]
       Type=oneshot
       RemainAfterExit=yes
-      WorkingDirectory=${CLUSTER_STATE_DIR}/kpt/system/traefik-config
+      WorkingDirectory=${CLUSTER_STATE_DIR}/kpt/system/traefik
       EnvironmentFile=/etc/rancher/rke2/environment
-      ExecStart=/usr/local/sbin/rke2-kpt-deploy ${CLUSTER_STATE_DIR}/kpt/system/traefik-config --timeout=3m
+      ExecStart=/usr/local/sbin/rke2-kpt-deploy ${CLUSTER_STATE_DIR}/kpt/system/traefik --timeout=3m
       Restart=on-failure
       RestartSec=10s
 

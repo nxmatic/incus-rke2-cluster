@@ -10,7 +10,7 @@ configuration now lives in git and is rendered/deployed via
 
 [arabic]
 . `+kpt pkg get+` this folder into the downstream cluster repo under
-`+kpt/system/traefik-config+`.
+`+kpt/system/traefik+`.
 . Adjust the Helm values if you need to restrict Traefik exposure (mTLS,
 entryPoints, etc.).
 . Commit the rendered package and let `+rke2-kpt-package-sync+` mirror

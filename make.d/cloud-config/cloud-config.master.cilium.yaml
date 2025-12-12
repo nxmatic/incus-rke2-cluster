@@ -9,14 +9,14 @@ write_files:
       Description=Deploy Cilium HelmChartConfig via kpt
       After=rke2-server.service rke2-kpt-package-sync.service
       Requires=rke2-server.service rke2-kpt-package-sync.service
-      ConditionPathExists=${CLUSTER_STATE_DIR}/kpt/system/cilium-config
+      ConditionPathExists=${CLUSTER_STATE_DIR}/kpt/system/cilium
 
       [Service]
       Type=oneshot
       RemainAfterExit=yes
-      WorkingDirectory=${CLUSTER_STATE_DIR}/kpt/system/cilium-config
+      WorkingDirectory=${CLUSTER_STATE_DIR}/kpt/system/cilium
       EnvironmentFile=/etc/rancher/rke2/environment
-      ExecStart=/usr/local/sbin/rke2-kpt-deploy ${CLUSTER_STATE_DIR}/kpt/system/cilium-config --timeout=5m -- cluster-name=${CLUSTER_NAME} cluster-id=${CLUSTER_SUBNET}
+      ExecStart=/usr/local/sbin/rke2-kpt-deploy ${CLUSTER_STATE_DIR}/kpt/system/cilium --timeout=5m -- cluster-name=${CLUSTER_NAME} cluster-id=${CLUSTER_SUBNET}
       Restart=on-failure
       RestartSec=10s
 

@@ -38,8 +38,8 @@ can reconcile them.
 ** link:system/replicator/README.adoc[Mittwald replicator]
 ** link:system/flux-operator/README.adoc[Flux operator]
 ** link:system/tekton-pipelines/README.adoc[Tekton pipelines]
-** link:system/traefik-config/README.adoc[Traefik config]
-** link:system/cilium-config/README.adoc[Cilium config]
+** link:system/traefik/README.adoc[Traefik config]
+** link:system/cilium/README.adoc[Cilium config]
 * link:packagevariants/bioskop/README.adoc[Packagevariants (Bioskop)]
 ** link:packagevariants/bioskop/DEPLOYMENT-ORDER.adoc[Deployment order]
 

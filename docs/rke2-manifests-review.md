@@ -7,13 +7,13 @@
 #### 1. **Traefik HelmChartConfig** ✅ BOOTSTRAP VIA KPT PACKAGE
 
 ```yaml
-/etc/systemd/system/rke2-traefik-config.service ➜ ${CLUSTER_STATE_DIR}/kpt/system/traefik-config
+/etc/systemd/system/rke2-traefik-config.service ➜ ${CLUSTER_STATE_DIR}/kpt/system/traefik
 ```
 
 **Assessment**: **Bootstrap-critical, now sourced from kpt**
 
 - **Reason**: Cluster still needs ingress before Porch/Flux render loops start
-- **Change**: Manifest moved into `kpt/system/traefik-config` and is applied by `rke2-traefik-config.service`
+- **Change**: Manifest moved into `kpt/system/traefik` and is applied by `rke2-traefik-config.service`
 - **Benefit**: Values now live in git, can be reviewed/versioned like other packages without inflating NoCloud user-data
 - **Risk**: Remains HIGH if package missing—service has `ConditionPathExists` to guard against empty state
 - **Operational note**: `rke2-kpt-package-sync` mirrors the package before the service runs, preserving the bootstrap order
@@ -81,13 +81,13 @@
 #### 1. **Cilium HelmChartConfig** ✅ BOOTSTRAP VIA KPT PACKAGE
 
 ```yaml
-/etc/systemd/system/rke2-cilium-config.service ➜ ${CLUSTER_STATE_DIR}/kpt/system/cilium-config
+/etc/systemd/system/rke2-cilium-config.service ➜ ${CLUSTER_STATE_DIR}/kpt/system/cilium
 ```
 
 **Assessment**: **Still core bootstrap, but now mirrored via kpt**
 
 - **Reason**: CNI must reconcile before anything else; service order enforces this
-- **Change**: The HelmChartConfig left NoCloud and lives in `kpt/system/cilium-config` (with setters for cluster name/id)
+- **Change**: The HelmChartConfig left NoCloud and lives in `kpt/system/cilium` (with setters for cluster name/id)
 - **Benefit**: Declarative history + ability to reuse the same package across clusters while passing setters via `rke2-kpt-deploy`
 - **Risk**: CRITICAL if package absent; systemd unit will fail fast so troubleshooting happens outside NoCloud space
 - **Status**: Advanced Cilium features remain in dedicated packages; only the bootstrap slice runs here
@@ -201,10 +201,10 @@ These should **NOT** be migrated:
 
 | Component | Location | Can Migrate? | Priority | Risk | Status |
 |-----------|----------|--------------|----------|------|--------|
-| Traefik Config | master.base | ✅ Done (kpt/system/traefik-config) | High | CRITICAL | Applied by rke2-traefik-config.service |
+| Traefik Config | master.base | ✅ Done (kpt/system/traefik) | High | CRITICAL | Applied by rke2-traefik-config.service |
 | OpenEBS ZFS | master.base | ⚠️ Maybe | Low | HIGH | Defer (Phase 5) |
 | Tailscale Operator | master.base | ✅ Yes | High | LOW-MED | **Recommended (Phase 4)** |
-| Cilium CNI Config | master.cilium | ✅ Done (kpt/system/cilium-config) | High | CRITICAL | Applied by rke2-cilium-config.service |
+| Cilium CNI Config | master.cilium | ✅ Done (kpt/system/cilium) | High | CRITICAL | Applied by rke2-cilium-config.service |
 | Headscale | master.headscale | ✅ Yes | - | - | ✅ Migrated (Phase 1) |
 | Envoy Gateway | master.cilium | ✅ Yes | - | - | ✅ Migrated (Phase 1) |
 | Kube-VIP | master.kube-vip | ✅ Yes | - | - | ✅ Migrated (Phase 2) |
