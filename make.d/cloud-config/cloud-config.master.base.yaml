@@ -55,7 +55,44 @@ write_files:
   # Deployed by: kpt-deploy-tailscale-operator.service, kpt-deploy-tailscale-connector.service
   # Provides: mesh networking, subnet routing for VIP + LoadBalancer pool
 
-  # Downstream Git repository sync unit (control-plane only)
+  # Downstream Git repository sync helper (control-plane only)
+  - path: /usr/local/sbin/rke2-cluster-repo-sync
+    permissions: "0755"
+    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-cluster-repo-sync.sh
+  - path: /etc/rke2-kpt-packages.yaml
+    permissions: "0644"
+    content: |
+      # @codebase
+      packages:
+        - name: porch
+          target: kpt/system/porch
+          source: https://github.com/nxmatic/incus-rke2-cluster.git/kpt/system/porch
+          ref: main
+        - name: porch-resources
+          target: kpt/system/porch-resources
+          source: https://github.com/nxmatic/incus-rke2-cluster.git/kpt/system/porch-resources
+          ref: main
+        - name: replicator
+          target: kpt/system/replicator
+          source: https://github.com/nxmatic/incus-rke2-cluster.git/kpt/system/replicator
+          ref: main
+        - name: tekton-pipelines
+          target: kpt/system/tekton-pipelines
+          source: https://github.com/nxmatic/incus-rke2-cluster.git/kpt/system/tekton-pipelines
+          ref: main
+        - name: traefik
+          target: kpt/system/traefik
+          source: https://github.com/nxmatic/incus-rke2-cluster.git/kpt/system/traefik
+          ref: main
+        - name: cilium
+          target: kpt/system/cilium
+          source: https://github.com/nxmatic/incus-rke2-cluster.git/kpt/system/cilium
+          ref: main
+
+  # Sync kpt packages from upstream into downstream repo (control-plane only)
+  - path: /usr/local/sbin/rke2-kpt-package-sync
+    permissions: "0755"
+    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-kpt-package-sync.sh
   - path: /etc/systemd/system/rke2-cluster-repo-sync.service
     permissions: "0644"
     content: |
@@ -136,6 +173,31 @@ write_files:
       [Install]
       WantedBy=multi-user.target
 
+  # Tekton environment bootstrap (master-only)
+  - path: /usr/local/sbin/rke2-tekton-env
+    permissions: "0755"
+    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-tekton-env.sh
+  - path: /etc/systemd/system/rke2-tekton-pipelines.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Deploy Tekton Pipelines via kpt
+      After=rke2-server.service rke2-system-replicator.service rke2-kpt-package-sync.service
+      Requires=rke2-server.service rke2-kpt-package-sync.service
+      ConditionPathExists=${CLUSTER_STATE_DIR}/kpt/system/tekton-pipelines
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      WorkingDirectory=${CLUSTER_STATE_DIR}/kpt/system/tekton-pipelines
+      EnvironmentFile=/etc/rancher/rke2/environment
+      ExecStart=/usr/local/sbin/rke2-kpt-deploy ${CLUSTER_STATE_DIR}/kpt/system/tekton-pipelines --timeout=5m -- tekton-git-username=${TEKTON_GIT_USERNAME} -- tekton-git-password=${TEKTON_GIT_PASSWORD} -- tekton-git-url=${TEKTON_GIT_URL} -- tekton-docker-config-json=${TEKTON_DOCKER_CONFIG_JSON} -- tekton-docker-registry-url=${TEKTON_DOCKER_REGISTRY_URL}
+      Restart=on-failure
+      RestartSec=10s
+
+      [Install]
+      WantedBy=multi-user.target
+
   # mittwald kubernetes-replicator controller (Helm-rendered kpt package)
   - path: /etc/systemd/system/rke2-system-replicator.service
     content: |
@@ -164,10 +226,13 @@ runcmd:
   - systemctl enable rke2-kpt-package-sync.service
   - systemctl start rke2-cluster-repo-sync.service
   - systemctl start rke2-kpt-package-sync.service
+  - /usr/local/sbin/rke2-tekton-env
   - systemctl enable rke2-traefik-config.service
   - systemctl start rke2-traefik-config.service
   - systemctl enable rke2-system-replicator.service
   - systemctl start rke2-system-replicator.service
+  - systemctl enable rke2-tekton-pipelines.service
+  - systemctl start rke2-tekton-pipelines.service
   - systemctl enable rke2-porch-bootstrap.service
   - systemctl start rke2-porch-bootstrap.service
   - systemctl enable rke2-porch-resources.service

@@ -20,6 +20,8 @@ ifndef make.d/cloud-config/rules.mk
 .cloud-config.master_cilium = $(.cloud-config.source_dir)/cloud-config.master.cilium.yaml
 .cloud-config.master_kube_vip = $(.cloud-config.source_dir)/cloud-config.master.kube-vip.yaml
 .cloud-config.peer = $(.cloud-config.source_dir)/cloud-config.peer.yaml
+.cloud-config.script_dir = $(.cloud-config.source_dir)/scripts
+.cloud-config.script_files = $(wildcard $(.cloud-config.script_dir)/*)
 
 
 
@@ -47,6 +49,14 @@ cloud-config.NETWORK_CONFIG_FILE := $(.cloud-config.netcfg_file)
 export NOCLOUD_METADATA_FILE := $(cloud-config.METADATA_FILE)
 export NOCLOUD_USERDATA_FILE := $(cloud-config.USERDATA_FILE)
 export NOCLOUD_NETCFG_FILE := $(cloud-config.NETWORK_CONFIG_FILE)
+export CLOUD_CONFIG_SOURCE_DIR := $(.cloud-config.source_dir)
+
+# Provide defaults for Tekton-specific setters so envsubst succeeds during compile-time.
+export TEKTON_GIT_USERNAME ?= $(if $(CLUSTER_GITHUB_USERNAME),$(CLUSTER_GITHUB_USERNAME),x-access-token)
+export TEKTON_GIT_PASSWORD ?= $(CLUSTER_GITHUB_TOKEN)
+export TEKTON_GIT_URL ?= https://$(if $(CLUSTER_GITHUB_HOST),$(CLUSTER_GITHUB_HOST),github.com)
+export TEKTON_DOCKER_CONFIG_JSON ?= $(CLUSTER_DOCKER_CONFIG_JSON)
+export TEKTON_DOCKER_REGISTRY_URL ?= $(if $(CLUSTER_DOCKER_REGISTRY_URL),$(CLUSTER_DOCKER_REGISTRY_URL),https://index.docker.io/v1/)
 
 # =============================================================================
 # CLOUD-CONFIG GENERATION RULES
@@ -80,9 +90,12 @@ ifeq ($(node.ROLE),master)
 $(.cloud-config.userdata_file): $(.cloud-config.master_base) ## master base fragment (@codebase)
 $(.cloud-config.userdata_file): $(.cloud-config.master_cilium) ## master cilium fragment (@codebase)
 $(.cloud-config.userdata_file): $(.cloud-config.master_kube_vip) ## master kube-vip fragment (@codebase)
-else ifeq ($(node.ROLE),peer)
+endif
+
+ifeq ($(node.ROLE),peer)
 $(.cloud-config.userdata_file): $(.cloud-config.peer) ## peer fragment (@codebase)
 endif
+$(.cloud-config.userdata_file): $(.cloud-config.script_files)
 
 # yq expressions for cloud-config merging with environment variable substitution
 # YQ cloud-config expressions (manually defined for now - TODO: metaprogramming)
@@ -143,6 +156,16 @@ YQ_CLOUD_CONFIG_EXPR_3 = $(YQ_CLOUD_CONFIG_MERGE_3_FILES)
 YQ_CLOUD_CONFIG_EXPR_5 = $(YQ_CLOUD_CONFIG_MERGE_5_FILES)
 YQ_CLOUD_CONFIG_EXPR_6 = $(YQ_CLOUD_CONFIG_MERGE_6_FILES)
 
+define YQ_INLINE_SCRIPT_LOAD
+with(
+	.write_files[]?;
+	select(has("content_from_file")) |= (
+		.content = load_str(.content_from_file) |
+		del(.content_from_file)
+	)
+)
+endef
+
 # Macro for executing the appropriate yq cloud-config merge based on file count
 define EXECUTE_YQ_CLOUD_CONFIG_MERGE
 $(if $(YQ_CLOUD_CONFIG_EXPR_$(1)),
@@ -157,8 +180,10 @@ $(.cloud-config.userdata_file):
 	if [ -z "$(TSKEY_CLIENT_ID)" ]; then echo "  ✗ TSKEY_CLIENT_ID unset/empty (set tailscale.client.id in .secrets)"; exit 1; else echo "  ✓ TSKEY_CLIENT_ID loaded"; fi
 	if [ -z "$(TSKEY_CLIENT_TOKEN)" ]; then echo "  ✗ TSKEY_CLIENT_TOKEN unset/empty (set tailscale.client.token in .secrets)"; exit 1; else echo "  ✓ TSKEY_CLIENT_TOKEN loaded"; fi
 	if [ -z "$(CLUSTER_GITHUB_TOKEN)" ]; then echo "  ✗ CLUSTER_GITHUB_TOKEN unset/empty (set github.token in .secrets via sops)"; exit 1; else echo "  ✓ CLUSTER_GITHUB_TOKEN loaded"; fi
-	$(eval _file_count := $(call length,$^))
-	$(call EXECUTE_YQ_CLOUD_CONFIG_MERGE,$(_file_count),$^,$@)
+	$(eval _merge_sources := $(filter %.yaml,$^))
+	$(eval _file_count := $(call length,$(_merge_sources)))
+	$(call EXECUTE_YQ_CLOUD_CONFIG_MERGE,$(_file_count),$(_merge_sources),$@)
+	yq eval --inplace '$(YQ_INLINE_SCRIPT_LOAD)' $@
 
 #-----------------------------
 # Generate NoCloud network-config file
