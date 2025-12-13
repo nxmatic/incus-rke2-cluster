@@ -21,38 +21,14 @@ write_files:
       [Service]
       ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-cilium-check'
 
-  # Traefik HelmChartConfig deployed via kpt
-  - path: /etc/systemd/system/rke2-traefik-config.service
-    permissions: "0644"
-    content: |
-      [Unit]
-      Description=Deploy Traefik HelmChartConfig via kpt
-      After=rke2-server.service rke2-kpt-package-sync.service
-      Requires=rke2-server.service rke2-kpt-package-sync.service
-      ConditionPathExists=${CLUSTER_STATE_DIR}/kpt/system/traefik
-
-      [Service]
-      Type=oneshot
-      RemainAfterExit=yes
-      WorkingDirectory=${CLUSTER_STATE_DIR}/kpt/system/traefik
-      EnvironmentFile=/etc/rancher/rke2/environment
-      ExecStart=/usr/local/sbin/rke2-kpt-deploy ${CLUSTER_STATE_DIR}/kpt/system/traefik --timeout=3m
-      Restart=on-failure
-      RestartSec=10s
-
-      [Install]
-      WantedBy=multi-user.target
-
   # (Envoy Gateway manifest moved to full overlay)
 
   # OpenEBS ZFS - MIGRATED to kpt package
   # See: kpt/catalog/storage/openebs-zfs/
-  # Deployed by: kpt-deploy-openebs-zfs.service
-  # Provides: persistent storage backed by ZFS
+  # Provides: persistent storage backed by ZFS via static manifests
 
   # Tailscale operator - MIGRATED to kpt package
   # See: kpt/catalog/mesh/tailscale/
-  # Deployed by: kpt-deploy-tailscale-operator.service, kpt-deploy-tailscale-connector.service
   # Provides: mesh networking, subnet routing for VIP + LoadBalancer pool
 
   # Downstream Git repository sync helper (control-plane only)
@@ -76,6 +52,10 @@ write_files:
           target: kpt/system/replicator
           source: https://github.com/nxmatic/incus-rke2-cluster.git/kpt/system/replicator
           ref: main
+        - name: flux-operator
+          target: kpt/system/flux-operator
+          source: https://github.com/nxmatic/incus-rke2-cluster.git/kpt/system/flux-operator
+          ref: main
         - name: tekton-pipelines
           target: kpt/system/tekton-pipelines
           source: https://github.com/nxmatic/incus-rke2-cluster.git/kpt/system/tekton-pipelines
@@ -89,10 +69,6 @@ write_files:
           source: https://github.com/nxmatic/incus-rke2-cluster.git/kpt/system/cilium
           ref: main
 
-  # Sync kpt packages from upstream into downstream repo (control-plane only)
-  - path: /usr/local/sbin/rke2-kpt-package-sync
-    permissions: "0755"
-    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-kpt-package-sync.sh
   - path: /etc/systemd/system/rke2-cluster-repo-sync.service
     permissions: "0644"
     content: |
@@ -111,129 +87,13 @@ write_files:
       [Install]
       WantedBy=multi-user.target
 
-  # Downstream kpt package sync unit (control-plane only)
-  - path: /etc/systemd/system/rke2-kpt-package-sync.service
-    permissions: "0644"
-    content: |
-      [Unit]
-      Description=Sync kpt packages into downstream repo
-      After=rke2-cluster-repo-sync.service
-      Requires=rke2-cluster-repo-sync.service
-
-      [Service]
-      Type=oneshot
-      ExecStart=/usr/local/sbin/rke2-kpt-package-sync
-      RemainAfterExit=yes
-      StandardOutput=journal
-      StandardError=journal
-
-      [Install]
-      WantedBy=multi-user.target
-
-  # Porch bootstrap service - deploys namespace, repositories, and PackageVariants
-  - path: /etc/systemd/system/rke2-porch-bootstrap.service
-    content: |
-      [Unit]
-      Description=Bootstrap Porch controllers
-      After=rke2-server.service rke2-system-replicator.service rke2-kpt-package-sync.service
-      Wants=rke2-server.service rke2-kpt-package-sync.service
-      Requires=rke2-system-replicator.service rke2-kpt-package-sync.service
-      ConditionPathExists=${CLUSTER_STATE_DIR}/kpt/system/porch
-
-      [Service]
-      Type=oneshot
-      RemainAfterExit=yes
-      WorkingDirectory=${CLUSTER_STATE_DIR}/kpt/system/porch
-      EnvironmentFile=/etc/rancher/rke2/environment
-      ExecStart=/usr/local/sbin/rke2-kpt-deploy ${CLUSTER_STATE_DIR}/kpt/system/porch --timeout=5m -- porch-docker-config-json=${CLUSTER_DOCKER_CONFIG_JSON}
-      Restart=on-failure
-      RestartSec=10s
-
-      [Install]
-      WantedBy=multi-user.target
-
-  # Porch resources service - applies repositories, secrets, PV/PVS after controllers
-  - path: /etc/systemd/system/rke2-porch-resources.service
-    content: |
-      [Unit]
-      Description=Apply Porch repositories and PackageVariants
-      After=rke2-porch-bootstrap.service rke2-kpt-package-sync.service
-      Requires=rke2-porch-bootstrap.service rke2-kpt-package-sync.service
-      ConditionPathExists=${CLUSTER_STATE_DIR}/kpt/system/porch-resources
-
-      [Service]
-      Type=oneshot
-      RemainAfterExit=yes
-      WorkingDirectory=${CLUSTER_STATE_DIR}/kpt/system/porch-resources
-      EnvironmentFile=/etc/rancher/rke2/environment
-      ExecStart=/usr/local/sbin/rke2-kpt-deploy ${CLUSTER_STATE_DIR}/kpt/system/porch-resources --timeout=5m -- cluster-github-token=${CLUSTER_GITHUB_TOKEN}
-      Restart=on-failure
-      RestartSec=10s
-
-      [Install]
-      WantedBy=multi-user.target
-
   # Tekton environment bootstrap (master-only)
   - path: /usr/local/sbin/rke2-tekton-env
     permissions: "0755"
     content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-tekton-env.sh
-  - path: /etc/systemd/system/rke2-tekton-pipelines.service
-    permissions: "0644"
-    content: |
-      [Unit]
-      Description=Deploy Tekton Pipelines via kpt
-      After=rke2-server.service rke2-system-replicator.service rke2-kpt-package-sync.service
-      Requires=rke2-server.service rke2-kpt-package-sync.service
-      ConditionPathExists=${CLUSTER_STATE_DIR}/kpt/system/tekton-pipelines
-
-      [Service]
-      Type=oneshot
-      RemainAfterExit=yes
-      WorkingDirectory=${CLUSTER_STATE_DIR}/kpt/system/tekton-pipelines
-      EnvironmentFile=/etc/rancher/rke2/environment
-      ExecStart=/usr/local/sbin/rke2-kpt-deploy ${CLUSTER_STATE_DIR}/kpt/system/tekton-pipelines --timeout=5m -- tekton-git-username=${TEKTON_GIT_USERNAME} -- tekton-git-password=${TEKTON_GIT_PASSWORD} -- tekton-git-url=${TEKTON_GIT_URL} -- tekton-docker-config-json=${TEKTON_DOCKER_CONFIG_JSON} -- tekton-docker-registry-url=${TEKTON_DOCKER_REGISTRY_URL}
-      Restart=on-failure
-      RestartSec=10s
-
-      [Install]
-      WantedBy=multi-user.target
-
-  # mittwald kubernetes-replicator controller (Helm-rendered kpt package)
-  - path: /etc/systemd/system/rke2-system-replicator.service
-    content: |
-      [Unit]
-      Description=Deploy mittwald kubernetes-replicator controller
-      After=rke2-server.service rke2-kpt-package-sync.service
-      Requires=rke2-server.service rke2-kpt-package-sync.service
-      ConditionPathExists=${CLUSTER_STATE_DIR}/kpt/system/replicator
-
-      [Service]
-      Type=oneshot
-      RemainAfterExit=yes
-      WorkingDirectory=${CLUSTER_STATE_DIR}/kpt/system/replicator
-      EnvironmentFile=/etc/rancher/rke2/environment
-      ExecStart=/usr/local/sbin/rke2-kpt-deploy ${CLUSTER_STATE_DIR}/kpt/system/replicator --timeout=5m
-      Restart=on-failure
-      RestartSec=10s
-
-      [Install]
-      WantedBy=multi-user.target
-
 runcmd:
-  # Enable and start Porch bootstrap service
   - systemctl daemon-reload
   - systemctl enable rke2-cluster-repo-sync.service
-  - systemctl enable rke2-kpt-package-sync.service
   - systemctl start rke2-cluster-repo-sync.service
-  - systemctl start rke2-kpt-package-sync.service
   - /usr/local/sbin/rke2-tekton-env
-  - systemctl enable rke2-traefik-config.service
-  - systemctl start rke2-traefik-config.service
-  - systemctl enable rke2-system-replicator.service
-  - systemctl start rke2-system-replicator.service
-  - systemctl enable rke2-tekton-pipelines.service
-  - systemctl start rke2-tekton-pipelines.service
-  - systemctl enable rke2-porch-bootstrap.service
-  - systemctl start rke2-porch-bootstrap.service
-  - systemctl enable rke2-porch-resources.service
-  - systemctl start rke2-porch-resources.service
+  - /usr/local/sbin/rke2-manifests-unpack

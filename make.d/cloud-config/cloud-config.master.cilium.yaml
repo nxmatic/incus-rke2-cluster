@@ -1,35 +1,15 @@
 # Full profile overlay: adds Cilium full-feature HelmChartConfig + cluster resources
 # @codebase
 
-write_files:
-  - path: /etc/systemd/system/rke2-cilium-config.service
-    permissions: "0644"
-    content: |
-      [Unit]
-      Description=Deploy Cilium HelmChartConfig via kpt
-      After=rke2-server.service rke2-kpt-package-sync.service
-      Requires=rke2-server.service rke2-kpt-package-sync.service
-      ConditionPathExists=${CLUSTER_STATE_DIR}/kpt/system/cilium
+# All rendered resources now live inside the fleet subtree and are
+# materialized on each control-plane node via rke2-manifests-unpack.
+# No extra systemd glue is required in this overlay.
 
-      [Service]
-      Type=oneshot
-      RemainAfterExit=yes
-      WorkingDirectory=${CLUSTER_STATE_DIR}/kpt/system/cilium
-      EnvironmentFile=/etc/rancher/rke2/environment
-      ExecStart=/usr/local/sbin/rke2-kpt-deploy ${CLUSTER_STATE_DIR}/kpt/system/cilium --timeout=5m -- cluster-name=${CLUSTER_NAME} cluster-id=${CLUSTER_SUBNET}
-      Restart=on-failure
-      RestartSec=10s
+write_files: []
+runcmd: []
 
-      [Install]
-      WantedBy=multi-user.target
-
-runcmd:
-  - systemctl daemon-reload
-  - systemctl enable rke2-cilium-config.service
-  - systemctl start rke2-cilium-config.service
-
-# Cilium advanced features (BGP, L2, IP pools) migrated to kpt package
+# Cilium advanced features (BGP, L2, IP pools) remain authored in the fleet repo.
 # See: ${CLUSTER_STATE_DIR}/${CLUSTER_NAME}/networking/cilium
 
-# Envoy Gateway removed - now managed via kpt package
+# Envoy Gateway remains managed via the same static manifest pipeline.
 # See: ${CLUSTER_STATE_DIR}/${CLUSTER_NAME}/networking/envoy-gateway
