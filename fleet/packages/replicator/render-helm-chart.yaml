@@ -1,10 +1,11 @@
 apiVersion: experimental.helm.sh/v1alpha1
 kind: RenderHelmChart
-metadata:
+metadata: # kpt-merge: /kubernetes-replicator
   name: kubernetes-replicator
   annotations:
     config.kubernetes.io/local-config: "true"
     experimental.helm.sh/chart-sum: sha256:212f2d54f3cd7770593f4f928dc26edcc26dbd73495cb88d8bcba9148b1f3efe
+    internal.kpt.dev/upstream-identifier: 'experimental.helm.sh|RenderHelmChart|default|kubernetes-replicator'
 helmCharts:
   - chartArgs:
       name: kubernetes-replicator # kpt-set: ${chart-name}

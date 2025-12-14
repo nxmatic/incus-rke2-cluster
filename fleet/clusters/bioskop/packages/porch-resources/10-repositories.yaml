@@ -19,7 +19,7 @@ spec:
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: Repository
 metadata: # kpt-merge: porch-system/bioskop-state
-  name: bioskop-state # kpt-set: ${cluster-state-repo}
+  name: example-state # kpt-set: ${cluster-state-repo}
   namespace: porch-system
   annotations:
     internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|Repository|porch-system|bioskop-state'
@@ -28,8 +28,8 @@ spec:
   type: git
   git:
     repo: https://github.com/nxmatic/fleet.git
-    branch: rke2-subtree # kpt-set: ${cluster-state-branch}
-    directory: packagevariants/bioskop # kpt-set: ${cluster-state-directory}
+    branch: main # kpt-set: ${cluster-state-branch}
+    directory: packagevariants/example # kpt-set: ${cluster-state-directory}
     createBranch: true
     secretRef:
       name: github-token
