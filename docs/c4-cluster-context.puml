@@ -1,0 +1,41 @@
+@startuml c4-cluster-context
+
+!define RELATIVE_INCLUDE()
+!include plantuml/c4/C4.puml
+!include plantuml/c4/C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+
+Person_Ext(devops, "Cluster Engineer", "Runs make targets, monitors RKE2")
+
+System_Boundary(bioskop, "Bioskop Workstation") {
+    System(limaStack, "Lima + Incus Stack", "NixOS + Incus", "Virtualization + automation entrypoint")
+    System_Boundary(rke2Boundary, "Incus-hosted RKE2 Control Plane") {
+        System(incusCluster, "Core control-plane", "RKE2", "API server,etcd,control processes")
+        System(porchApi, "Porch API + controllers", "kpt aggregated API", "Publishes PackageVariants and manages catalog repos")
+        System(fluxGitOps, "Flux Operator", "Flux controllers", "Reconcilers that pull Git and apply workloads")
+        System(tektonSvc, "Tekton Pipelines", "Pipeline controller", "Executes supply-chain tasks before Flux commits roll out")
+    }
+}
+
+System_Ext(githubFleet, "fleet-manifests repo", "GitHub", "Overlays + render scripts")
+System_Ext(githubIncus, "incus-rke2-cluster repo", "GitHub", "Makefiles, cloud-config, docs")
+System_Ext(homeLan, "Home LAN / Internet", "Router + registries", "DHCP, egress, upstream registries")
+
+Rel(devops, githubFleet, "Reviews + pushes overlays")
+Rel(devops, githubIncus, "Authors automation + docs")
+Rel(devops, limaStack, "Runs ./render.sh & make targets")
+Rel(devops, porchApi, "Approves PackageRevisions via porchctl")
+Rel(limaStack, githubFleet, "git clone + render overlays")
+Rel(limaStack, githubIncus, "git clone + execute Makefile stack")
+Rel(limaStack, incusCluster, "Creates containers + networks")
+Rel(limaStack, homeLan, "lan0 management + downloads")
+Rel(porchApi, githubIncus, "Catalog repo registered as Porch upstream")
+Rel(porchApi, githubFleet, "Publishes PackageVariants → downstream repo")
+Rel(fluxGitOps, githubFleet, "Watches GitOps state paths")
+Rel(fluxGitOps, incusCluster, "Applies CRDs + workloads")
+Rel(fluxGitOps, tektonSvc, "Creates PipelineRuns from GitOps commits")
+Rel(tektonSvc, githubFleet, "Pipelines clone/push via TEKTON_* credentials")
+Rel(incusCluster, homeLan, "Service + pod traffic via lan0/vmnet0")
+
+@enduml

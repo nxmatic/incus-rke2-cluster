@@ -1,0 +1,75 @@
+@startuml
+
+
+!define RELATIVE_INCLUDE()
+!include plantuml/c4/C4.puml
+!include plantuml/c4/C4_Deployment.puml
+
+' Actors
+Person_Ext(devops, "Cluster Engineer", "Runs make targets + render workflows")
+
+' Source repositories
+Deployment_Node(fleetrepo, "fleet-manifests", "GitHub", "Rendered package sources + overlays") {
+    Deployment_Node(fleetRender, "render.sh outputs", "Rendered manifests", "kpt fn render + kustomize build artifacts")
+}
+Deployment_Node(cloudcfgrepo, "incus-rke2-cluster", "GitHub", "Layered Make + cloud-config") {
+    Deployment_Node(cloudCfg, "cloud-config.*.yaml", "Cloud-config bundles", "Common/server/master/peer stacks")
+}
+
+Rel(devops, fleetRender, "./render.sh default")
+Rel(devops, cloudCfg, "make cloud-config.* targets")
+
+' Host stack
+Deployment_Node(macHost, "Darwin Host (Bioskop)", "macOS + pf", "Physical host, wraps Lima + Incus") {
+    Deployment_Node(lima, "Lima VM (nerd-nixos)", "NixOS", "Runs GNU Make and hosts Incus") {
+        Deployment_Node(incus, "Incus", "Container orchestrator", "Applies layered cloud-configs per rules.mk") {
+            Deployment_Node(netLan, "lan0", "192.168.1.0/24", "macvlan → home router, default route")
+            Deployment_Node(netVm, "vmnet0", "10.80.8.0/21", "Incus bridge for cluster traffic + VIP")
+
+            Deployment_Node(masterNode, "master container", "Ubuntu + RKE2 server", "common + server + master.base + master.cilium + kube-vip") {
+                Deployment_Node(masterRke2, "rke2-server.service", "systemd/RKE2", "Server role")
+            }
+            Deployment_Node(peerNodes, "peer containers", "Ubuntu + RKE2 server", "common + server + peer layer") {
+                Deployment_Node(peerRke2, "rke2-server.service", "systemd/RKE2", "Peer role")
+            }
+            Deployment_Node(workerNodes, "agent containers", "Ubuntu + RKE2 agent", "common + agent layer") {
+                Deployment_Node(agentRke2, "rke2-agent.service", "systemd/RKE2", "Agent role")
+            }
+            Deployment_Node(porchNs, "porch-system namespace", "Kubernetes namespace", "Hosts Porch aggregated API + controllers") {
+                Deployment_Node(porchServer, "porch-server", "Deployment", "Aggregated API server exposing kpt Porch endpoints")
+                Deployment_Node(porchControllers, "porch-controllers", "Deployment", "Reconcilers for Repositories, PackageVariants, and PackageRevisions")
+            }
+            Deployment_Node(fluxNs, "flux-system namespace", "Kubernetes namespace", "Flux Operator managed release") {
+                Deployment_Node(fluxOperatorNode, "flux-operator", "Deployment", "Bootstraps Flux components + CRDs")
+                Deployment_Node(fluxControllers, "Flux controllers", "Deployments", "source-controller, kustomize-controller, notification-controller")
+            }
+            Deployment_Node(tektonNs, "tekton-pipelines namespace", "Kubernetes namespace", "Tekton Helm release") {
+                Deployment_Node(tektonControllers, "tekton-pipelines controller", "Deployment", "Pipelines controller, webhook, and results API")
+            }
+        }
+    }
+}
+
+Rel(fleetRender, incus, "syncs manifests/ overlays via rsync + make")
+Rel(cloudCfg, incus, "push NoCloud bundles + netplan via make cloud-config.*")
+Rel(devops, macHost, "make start@incus, validate-cloud-config")
+
+Rel_L(masterNode, netLan, "DHCP", "Internet + upstream registry access")
+Rel_L(masterNode, netVm, "DHCP", "Cluster mesh + kube-vip 10.80.15.250")
+Rel_L(peerNodes, netLan, "DHCP", "Upstream access")
+Rel_L(peerNodes, netVm, "DHCP", "Cluster mesh")
+Rel_L(workerNodes, netLan, "DHCP", "Upstream access")
+Rel_L(workerNodes, netVm, "DHCP", "Cluster mesh")
+
+Rel(masterRke2, peerRke2, "etcd quorum + API sync", "10.80.8.0/21")
+Rel(masterRke2, agentRke2, "Schedule workloads", "10.42.0.0/16 pod CIDR")
+Rel(netVm, macHost, "kube-vip advertises VIP")
+Rel(porchServer, githubIncus, "Clones catalog packages (SSH)")
+Rel(porchServer, githubFleet, "Publishes PackageRevisions to deployment repo")
+Rel(porchControllers, porchServer, "Registers repositories + PackageVariants")
+Rel(fluxControllers, githubFleet, "Watches GitOps repo for system/app state")
+Rel(fluxOperatorNode, fluxControllers, "Manages Flux CRDs + releases")
+Rel(fluxControllers, tektonControllers, "Applies Tekton CRDs/PipelineRuns from GitOps commits")
+Rel(fluxControllers, porchServer, "Consumes Porch commits via GitOps repo")
+Rel(tektonControllers, githubFleet, "Pipeline tasks use TEKTON_* credentials for git clone/push")
+@enduml

@@ -16,20 +16,14 @@ Successfully completed the documentation reorganization from Markdown files scat
 [cols="2,3,1", options="header"]
 |===
 |Original Markdown |New AsciiDoc Location |Status
-
-|`LAYERED-ARCHITECTURE.md`
 |`docs/layered-architecture.adoc`
 |✅ Converted
-
-|`METAPROGRAMMING.md`
 |`docs/metaprogramming.adoc`
 |✅ Converted
 
-|`HELP-SYSTEM.md`
 |`docs/help-system.adoc`
 |✅ Converted
 
-|`README-cloud-config-organization.md`
 |`docs/cloud-config-organization.adoc`
 |✅ Converted
 
@@ -51,20 +45,9 @@ Successfully completed the documentation reorganization from Markdown files scat
 All root-level `.md` files have been removed:
 - `REFACTORING-PLAN.md` (archived - content integrated into other docs)
 - `YAML-TEMPLATE-UPDATES.md` (archived - superseded by cloud-config docs)
-- All other scattered markdown files
-
-== New Documentation Structure
-
-=== Organized by Category
-
-[source]
-----
-docs/
-├── README.adoc                      # Main documentation index
-├── layered-architecture.adoc        # System architecture overview
 ├── network-architecture.adoc        # Network design and IP allocation
+=== Manual Generation Options
 ├── cloud-config-organization.adoc   # Cloud-init configuration system
-├── metaprogramming.adoc             # Advanced GNU Make features
 ├── help-system.adoc                 # Auto-documentation system
 └── makefile-updates.adoc            # Implementation details
 ----
@@ -77,7 +60,6 @@ All documentation now follows consistent AsciiDoc formatting:
 * **Section Links**: Clickable section headers
 * **Syntax Highlighting**: Rouge highlighter for code blocks
 * **Cross-References**: Links between related documents
-* **Consistent Structure**: Headers, examples, and formatting patterns
 
 == Main Documentation Index
 
@@ -135,12 +117,9 @@ Documents are interconnected with appropriate links:
 - Open any `.adoc` file for live preview
 
 **Generate HTML Locally**:
+@codebase
 [source,bash]
 ----
-# Use the provided script
-./bin/generate-docs.sh
-
-# Or manually with asciidoctor
 cd docs
 asciidoctor README.adoc  # Creates README.html
 ----
@@ -163,21 +142,9 @@ asciidoctor README.adoc  # Creates README.html
 
 == Documentation Generation
 
-=== Automated Generation
-
-The `bin/generate-docs.sh` script provides one-command documentation generation:
-
-[source,bash]
-----
-# Generate all HTML documentation
-./bin/generate-docs.sh
-
-# Opens the main index in browser
-open docs/README.html
-----
-
 === Manual Generation Options
 
+@codebase
 [source,bash]
 ----
 # Individual files

@@ -408,6 +408,7 @@ help: ## Show grouped help for all targets (use FILTER=regex to filter)
 	group "Network" "network"
 	group "Cloud-Config" "cloud-config"
 	group "Metaprogramming" "meta"
+	group "PlantUML" "plantuml"
 	: "Special pattern-based groups for cross-cutting concerns"
 	group "Utility" "" "^(help|lint-yaml|zfs\\.allow|remove-hosts@tailscale|noop)$$"
 	echo ""

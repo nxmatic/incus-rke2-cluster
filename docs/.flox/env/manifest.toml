@@ -9,31 +9,13 @@
 version = 1
 
 
-[include]
-  [[include.environments]]
-    dir = '../fleet/flox/git'
-
-  [[include.environments]]
-    dir = '../fleet/flox/gnumake'
-
-  [[include.environments]]
-    dir = '../fleet/flox/k8s'
-
-
 ## Install Packages --------------------------------------------------
 ##  $ flox install gum  <- puts a package in [install] section below
 ##  $ flox search gum   <- search for a package
 ##  $ flox show gum     <- show all versions of a package
 ## -------------------------------------------------------------------
 [install]
-# lazygit.pkg-path = "lazygit"  # Disabled - using nix-darwin overlay version
-lsof.pkg-path = "lsof"
-gdu.pkg-path = "gdu"
-ncdu.pkg-path = "ncdu"
-direnv.pkg-path = "direnv"
-file.pkg-path = "file"
-envsubst.pkg-path = "envsubst"
-unzip.pkg-path = "unzip"
+
 # gum.pkg-path = "gum"
 # gum.version = "^0.14.5"
 
@@ -64,74 +46,6 @@ unzip.pkg-path = "unzip"
 ## ... sourced by _your shell_ when you run 'flox activate'.
 ## -------------------------------------------------------------------
 [profile]
-common = '''
-  set -a
-
-  PATH=/run/wrappers/bin:$PATH
-
-  CLUSTER_NAME=${LIMA_HOSTNAME:-=bioskop}
-  case $CLUSTER_NAME in
-    bioskop) CLUSTER_SUBNET=1 ;;
-    alcide) CLUSTER_SUBNET=2 ;;
-    *) CLUSTER_SUBNET=254;;
-  esac
-  CLUSTER_SUBNET=${CLUSTER_SUBNET:-1}
-  
-  # Find secrets - try current directory first, then FLOX_ENV_DIRS
-  # This works whether this env is used standalone or included
-  SECRETS_DIR=""
-  if [ -d ".secrets.d" ]; then
-    SECRETS_DIR=".secrets.d"
-  elif [ -n "$FLOX_ENV_DIRS" ]; then
-    # Search through all environment directories in the composition
-    for dir in $FLOX_ENV_DIRS; do
-      if [ -d "$dir/.secrets.d" ]; then
-        SECRETS_DIR="$dir/.secrets.d"
-        break
-      fi
-    done
-  fi
-  
-  SECRETS_FILE=""
-  if [ -n "$SECRETS_DIR" ]; then
-    for candidate in .secrets secrets.yaml secrets.yml; do
-      if [ -f "$SECRETS_DIR/$candidate" ]; then
-        SECRETS_FILE="$SECRETS_DIR/$candidate"
-        break
-      fi
-    done
-  fi
-
-  secret_from_yaml() {
-    local expr="$1" fallback="$2" value=""
-    if [ -n "$SECRETS_FILE" ] && command -v yq >/dev/null 2>&1; then
-      value=$(yq -r "${expr} // \"\"" "$SECRETS_FILE" 2>/dev/null || true)
-    fi
-    if [ -z "$value" ] && [ -n "$fallback" ] && [ -f "$fallback" ]; then
-      value=$(cat "$fallback")
-    fi
-    printf '%s' "${value:-}"
-  }
-
-  TSKEY_CLIENT_ID=${TSKEY_CLIENT_ID:-$(secret_from_yaml '.tailscale.client.id' "${SECRETS_DIR:+$SECRETS_DIR/tskey-client-id}")}
-  TSKEY_CLIENT_TOKEN=${TSKEY_CLIENT_TOKEN:-$(secret_from_yaml '.tailscale.client.token' "${SECRETS_DIR:+$SECRETS_DIR/tskey-client-token}")}
-  TSKEY_API_ID=${TSKEY_API_ID:-$(secret_from_yaml '.tailscale.api.id' "${SECRETS_DIR:+$SECRETS_DIR/tskey-api-id}")}
-  TSKEY_API_TOKEN=${TSKEY_API_TOKEN:-$(secret_from_yaml '.tailscale.api.token' "${SECRETS_DIR:+$SECRETS_DIR/tskey-api-token}")}
-  CLUSTER_GITHUB_USERNAME=${CLUSTER_GITHUB_USERNAME:-$(secret_from_yaml '.github.username' '')}
-  CLUSTER_GITHUB_TOKEN=${CLUSTER_GITHUB_TOKEN:-$(secret_from_yaml '.github.token' "${SECRETS_DIR:+$SECRETS_DIR/cluster-github-token}")}
-  CLUSTER_DOCKER_CONFIG_JSON=${CLUSTER_DOCKER_CONFIG_JSON:-$(secret_from_yaml '.docker.configJson' "${SECRETS_DIR:+$SECRETS_DIR/docker-config-json}")}
-
-  : "Expose GitHub PAT / Docker registry defaults for tooling"
-  : "Prefer pre-set environment variables (e.g., CI) over YAML values"
-  CLUSTER_GITHUB_USERNAME=${CLUSTER_GITHUB_USERNAME:-x-access-token}
-  CLUSTER_GITHUB_TOKEN=${CLUSTER_GITHUB_TOKEN:-}
-  CLUSTER_DOCKER_CONFIG_JSON=${CLUSTER_DOCKER_CONFIG_JSON:-}
-  GITHUB_PAT=${CLUSTER_GITHUB_TOKEN}
-  DOCKER_CONFIG_JSON=${DOCKER_CONFIG_JSON:-$CLUSTER_DOCKER_CONFIG_JSON}
-
-  
-  set +a
-'''
 # common = '''
 #   gum style \
 #   --foreground 212 --border-foreground 212 --border double \
@@ -151,6 +65,15 @@ common = '''
 ## ------------------------------------------------------------------
 [services]
 # myservice.command = "python3 -m http.server"
+
+
+## Include ----------------------------------------------------------
+## ... environments to create a composed environment
+## ------------------------------------------------------------------
+[include]
+  environments = [
+    { dir = "../../fleet/flox/asciidoc" }
+  ]
 
 
 ## Build and publish your own packages ------------------------------

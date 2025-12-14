@@ -60,6 +60,7 @@ REMOTE_EXEC := $(shell if [ -x /run/wrappers/bin/sudo ]; then echo ""; else echo
 -include make.d/cluster/rules.mk
 -include make.d/node/rules.mk
 -include make.d/network/rules.mk
+-include make.d/plantuml/rules.mk
 -include make.d/incus/rules.mk
 -include make.d/fleet/rules.mk
 
@@ -199,6 +200,9 @@ disable-metaprogramming: disable@meta ## Disable metaprogramming (use basic targ
 lint-yaml: ## Lint YAML configuration files
 	@: "[+] Running yamllint on YAML source files"
 	yamllint $(YAML_FILES)
+
+.PHONY: docs-diagrams
+docs-diagrams: diagrams@plantuml ## Regenerate committed PlantUML diagrams (alias)
 
 # Advanced targets (from metaprogramming modules) (@codebase)
 .PHONY: debug-variables show-runtime-config

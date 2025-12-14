@@ -1,263 +1,51 @@
-= Incus RKE2 Cluster Documentation
-:toc: left
-:toclevels: 3
-:sectlinks:
-:sectanchors:
-:source-highlighter: rouge
+= Documentation Guide
 
-== Overview
+The Incus RKE2 cluster documentation is authored in AsciiDoc and rendered locally. Diagrams are produced with PlantUML and checked into version control as SVGs so published docs never depend on an external diagram rendering service.
 
-This directory contains comprehensive documentation for the Incus RKE2 cluster deployment system. The documentation covers architecture, implementation details, usage guides, and maintenance procedures.
+== Prerequisites
 
-== Documentation Index
+All required tooling (Asciidoctor, PlantUML, Graphviz, Node.js) lives in the docs Flox environment. Activate it before building anything:
 
-=== Architecture & Design
-
-* link:layered-architecture.adoc[Layered Architecture] - Complete refactoring from flat to layered structure with rules.mk convention
-* link:layer-naming-pattern.adoc[Layer Naming Pattern] - Consistent @layer target naming for clear organization and understanding
-* link:network-architecture.adoc[Network Architecture] - Comprehensive network design and hierarchical IP allocation schema
-* link:cloud-config-organization.adoc[Cloud Configuration Organization] - YAML configuration layering and composition system
-
-=== Implementation & Features
-
-* link:metaprogramming.adoc[GNU Make Metaprogramming] - Advanced Make features: eval(), constructed names, secondary expansion
-* link:help-system.adoc[Auto-Documented Help System] - Self-documenting Makefile with comprehensive help targets
-* link:makefile-updates.adoc[Makefile Refactoring Updates] - Variable standardization and structural improvements
-* link:kpt-migration-plan.adoc[kpt Migration Plan] - Strategy for reducing RKE2 manifest dependencies using kpt
-* link:porch-adoption-plan.adoc[Porch Adoption Plan] - Replacing systemd kpt deployments with Porch + GitOps
-
-=== Deployment & Operations
-
-* link:../../docs/sessions/2025-11-12-bioskop-headscale-deployment.adoc[bioskop Headscale Deployment] - Step-by-step guide for deploying Headscale on bioskop cluster
-* link:../kpt/catalog/mesh/headscale/README.md[Headscale kpt Package] - Declarative Headscale deployment using kpt
-
-=== Project Documentation
-
-* link:documentation-reorganization.adoc[Documentation Reorganization] - Migration from Markdown to centralized AsciiDoc system
-
-== Quick Navigation
-
-=== Getting Started
-
-1. **Architecture Overview**: Start with link:layered-architecture.adoc[Layered Architecture] to understand the system structure
-2. **Network Setup**: Review link:network-architecture.adoc[Network Architecture] for networking concepts
-3. **Configuration**: Read link:cloud-config-organization.adoc[Cloud Configuration] for deployment options
-4. **Debugging**: Learn link:trace-system.adoc[Trace System] for shell control, debugging, and .ONESHELL support
-5. **Deployment**: Follow link:../../docs/sessions/2025-11-12-bioskop-headscale-deployment.adoc[bioskop Deployment Plan] for Headscale setup
-
-=== Advanced Topics
-
-1. **Metaprogramming**: Explore link:metaprogramming.adoc[GNU Make Metaprogramming] for advanced automation features
-2. **Help System**: Learn link:help-system.adoc[Auto-Documentation] for self-documenting makefiles
-3. **Refactoring**: Review link:makefile-updates.adoc[Makefile Updates] for implementation details
-
-=== Development & Maintenance
-
-* **Layer Organization**: Each functional area (network, incus, cloud-config, metaprogramming) has its own directory with `rules.mk`
-* **Documentation Standards**: All `.adoc` files follow consistent AsciiDoc formatting with table of contents and syntax highlighting
-* **Help Integration**: All documented targets include `## comment` syntax for auto-discovery
-
-== System Components
-
-=== Core Layers
-
-[cols="1,3,2", options="header"]
-|===
-|Layer |Purpose |Key Files
-
-|**Network**
-|Hierarchical IP allocation and bridge management
-|`network/rules.mk`
-
-|**Incus**
-|Container infrastructure lifecycle management
-|`incus/rules.mk`
-
-|**Cloud-Config**
-|Cloud-init configuration generation and validation
-|`cloud-config/rules.mk`, `cloud-config/*.yaml`
-
-|**Metaprogramming**
-|Advanced GNU Make features and dynamic rule generation
-|`metaprogramming/rules.mk`, `metaprogramming/*.mk`
-|===
-
-=== Advanced Features
-
-* **Dynamic Rule Generation**: Automatic target creation for all nodes and clusters
-* **Constructed Macro Names**: Data-driven configuration using variable-based lookups  
-* **Secondary Expansion**: Runtime dependency resolution for complex builds
-* **Auto-Documentation**: Self-maintaining help system with target discovery
-
-=== Configuration Profiles
-
-* **Network Modes**: Per-node isolation vs. shared bridge topology
-* **Cilium Profiles**: Full-featured vs. minimal CNI configuration
-* **Node Roles**: Master, peer, and worker node configurations
-* **Cluster Variants**: Support for multiple cluster deployments (bioskop, alcide)
-
-== Usage Patterns
-
-=== Basic Operations
-
-[source,bash]
+[source,shell]
 ----
-# Get help and discover available targets
-make help
-
-# Start cluster components
-make start NAME=master              # Start master node
-make start NAME=peer1               # Start peer node
-make start NAME=worker1             # Start worker node
-
-# Advanced operations
-make start-cluster-bioskop          # Start entire cluster (metaprogramming)
-make show-metaprogramming-features  # Discover advanced capabilities
-make validate-cloud-config          # Validate configuration files
+# @codebase
+flox activate --dir docs
 ----
 
-=== Development Workflow
+== Workflow Overview
 
-[source,bash]
+1. **Edit prose**: update the `.adoc` files under `docs/` as needed.
+2. **Update diagrams**: modify the `.puml` sources, then regenerate the SVGs so they remain committed alongside the prose.
+3. **Preview locally**: use the AsciiDoc VS Code extension (or any editor with built-in preview) to render the pages.
+
+=== Generating PlantUML assets
+
+The Makefile layer encapsulates PlantUML invocations and stores outputs in `docs/images/`. Regenerate everything after changing any `.puml` source:
+
+[source,shell]
 ----
-# Layer-specific help
-make show-cloud-config-files        # Show configuration files for current node
-make debug-cloud-config-merge       # Debug configuration composition
-make show-network-allocation        # Display network topology
-make list-generated-targets         # Show all metaprogramming targets
-----
-
-==== Remote Kubernetes Verification
-
-Run cluster validation commands through the Lima host to ensure the Incus master is reachable and the flox environment is active before executing `kubectl`:
-
-[source,bash]
-----
-ssh lima-nerd-nixos -- \
-	incus exec master -- \
-	flox activate --dir=/var/lib/rancher/rke2 -- \
-	kubectl get nodes
+# @codebase
+make diagrams@plantuml   # alias: make docs-diagrams
 ----
 
-This wraps SSH → Incus exec → flox activation so every remote diagnostic reuses the same workflow.
+Only committed SVGs under `docs/images/` should be referenced from `.adoc` files via `image::images/<name>.svg[]`.
 
-==== Hermetic Helm Rendering
+=== Previewing in VS Code
 
-The replicator package follows the `render-helm-chart` guidance from https://github.com/krm-functions/catalog/blob/main/docs/render-helm-chart.md by embedding the Helm chart payload directly in the package. This keeps `kpt fn render` fully offline/air-gapped and avoids network/DNS quirks on control-plane nodes.
+After activating the docs Flox environment, open the repository in VS Code, install the AsciiDoc extension, and use the built-in preview (`AsciiDoc: Open Preview to the Side`). PlantUML diagrams resolve immediately because the SVGs are committed under `docs/images/`.
 
-==== Downstream Git Sync
+=== Repository layout highlights
 
-Control-plane nodes now clone the downstream cluster repo via `rke2-cluster-repo-sync.service`. The service checks out the cluster branch (for example `bioskop`) into `/var/lib/incus-rke2-cluster` and hard-resets it to the remote before any `kpt` deployments run. All systemd-managed packages (`rke2-system-replicator`, `rke2-porch-bootstrap`, `rke2-porch-resources`, etc.) depend on this service, guaranteeing that `kpt pkg update`/`kpt fn render` operate on the downstream copy instead of a bind-mounted upstream workspace.
+* `docs/images/` – committed SVG artifacts generated from PlantUML.
+* `docs/*.puml` – system and C4 diagrams that feed the SVGs.
+* `docs/.asciidoctorconfig` – shared Asciidoctor attributes (table of contents, syntax highlighting, etc.).
+* `make diagrams@plantuml` – render/update every committed SVG used by the docs.
 
-`rke2-kpt-package-sync.service` runs immediately after the repository sync to execute `kpt pkg get`/`kpt pkg update` for every package listed in `/etc/rke2-kpt-packages.yaml`. Completed updates are committed and pushed back to the downstream remote so the branch always reflects the manifests that were rendered/applied on the control-plane nodes. This service is now a hard dependency for the Porch + replicator units, ensuring they only start once the downstream repo contains the latest upstream package revisions.
+=== Adding new diagrams
 
-==== Layered Tekton Pipelines Package
+1. Create a `.puml` file under `docs/` (or extend an existing one).
+2. Reference the generated SVG in the relevant `.adoc` file using `image::` syntax.
+3. Run `make diagrams@plantuml` and commit both the updated `.puml` and resulting SVG in `docs/images/`.
+4. Rebuild the HTML to validate the rendered output locally.
 
-The Tekton Pipelines Helm chart lives in `kpt/system/tekton-pipelines` with sample setters only. `rke2-kpt-package-sync.service` mirrors this package into the downstream repo so each cluster can:
-
-1. `kpt pkg get` the upstream package into `packagevariants/<name>/system/tekton-pipelines`.
-. Update `tekton-setters.yaml` with real namespaces and non-secret chart tweaks (no credentials committed to Git).
-3. Run `kpt fn render ... --output <state repo>/packagevariants/<name>/system/tekton-pipelines` and commit the rendered manifests.
-. Allow `rke2-tekton-pipelines.service` to apply the rendered objects immediately after the repo sync, guaranteeing Tekton is ready before Flux starts.
-
-Secrets stay in the Incus environment instead of Git: the systemd unit passes `TEKTON_GIT_USERNAME`, `TEKTON_GIT_PASSWORD`, `TEKTON_GIT_URL`, `TEKTON_DOCKER_CONFIG_JSON`, and `TEKTON_DOCKER_REGISTRY_URL` directly to `rke2-kpt-deploy`. Defaults derive from existing cluster variables (GitHub token, Docker config), but every value can be overridden per cluster via the cloud-init environment.
-
-The same pattern now applies to `kpt/system/replicator` and `kpt/system/porch-resources`. Each ships sample setters in its root package so downstream clusters can clone, override with secret data (using SOPS when needed), render locally, and commit the outputs for Flux.
-
-==== Flux Operator Package
-
-`kpt/system/flux-operator` vendors the upstream Flux Operator Helm chart so each environment can bootstrap the GitOps operator exactly like any other system dependency:
-
-. `kpt pkg get` the package into `packagevariants/<name>/system/flux-operator` inside the downstream/state repository.
-. Update `flux-operator-setters.yaml` with the release name, namespace (typically `flux-system`), and chart version you want to run, encrypting any sensitive values with SOPS.
-. Execute `kpt fn render ... --output <state repo>/packagevariants/<name>/system/flux-operator` and commit the rendered manifests so the control-plane units can reconcile them.
-
-The packaged chart payload mirrors the upstream OCI artifact. If you want to smoke-test a new release before vendoring it, you can still use Helm directly against the OCI registry:
-
-@codebase
-[source,bash]
-----
-helm install flux-operator oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator \
-	--namespace flux-system \
-	--create-namespace
-----
-
-==== Cluster Layer Packages
-
-Cluster-scoped packages that live under `kpt/catalog/**` now follow the same "sample setters upstream, real values downstream" pattern:
-
-. `kpt pkg get` the upstream component into `packagevariants/<name>/cluster/<category>/<package>` inside the downstream/state repository.
-. Edit the package’s `*-setters.yaml` in that downstream copy (encrypting any sensitive data with SOPS) so it reflects the real VIPs, LAN CIDRs, or node labels for that cluster.
-. Run `kpt fn render` or `kpt fn eval --output <state repo>/packagevariants/<name>/cluster/...` and commit the rendered manifests so Flux or Porch can reconcile them during bootstrap.
-
-This keeps upstream packages opinionated yet generic while giving each cluster a clean place to pin concrete values. See link:../kpt/catalog/README.md[`kpt/catalog/README.md`] for a quick walk-through of the workflow and example commands.
-
-== Viewing Documentation
-
-=== Rendering Options
-
-1. **GitHub/GitLab**: Automatic rendering in web interface with full AsciiDoc support
-2. **VS Code**: Install "AsciiDoc" extension for live preview and syntax highlighting
-3. **Command Line**: Use `asciidoctor` to generate HTML/PDF output
-4. **Live Preview**: Use `asciidoctor-web-pdf` or similar tools for continuous rendering
-
-=== Local HTML Generation
-
-[source,bash]
-----
-# Install asciidoctor
-gem install asciidoctor asciidoctor-diagram
-
-# Generate individual documents
-asciidoctor layered-architecture.adoc
-asciidoctor network-architecture.adoc
-
-# Generate all documentation
-find . -name "*.adoc" -exec asciidoctor {} \;
-
-# Generate PDF (requires asciidoctor-pdf)
-asciidoctor-pdf layered-architecture.adoc
-----
-
-=== Documentation Standards
-
-==== Structure Requirements
-
-* **Table of Contents**: All documents include `:toc: left` with `:toclevels: 3`
-* **Cross-References**: Use `:sectlinks:` and `:sectanchors:` for navigation
-* **Syntax Highlighting**: Include `:source-highlighter: rouge` for code blocks
-* **Consistent Headers**: Follow AsciiDoc heading hierarchy (=, ==, ===, ====)
-
-==== Content Guidelines
-
-* **Code Examples**: Use appropriate source language highlighting (`[source,makefile]`, `[source,bash]`)
-* **Cross-Links**: Reference other documents using `link:filename.adoc[Display Text]`
-* **Tables**: Use AsciiDoc table syntax with headers and appropriate column sizing
-* **Lists**: Prefer unordered lists with consistent bullet styling
-
-== Contributing
-
-=== Documentation Updates
-
-When making system changes:
-
-1. **Update Related Documentation**: Ensure all affected `.adoc` files reflect changes
-2. **Maintain Cross-References**: Update links between related documents
-3. **Test Documentation**: Verify AsciiDoc rendering and link validity
-4. **Update Index**: Add new documents to this main index
-
-=== Standards Compliance
-
-* Follow existing AsciiDoc formatting patterns
-* Include comprehensive examples and usage patterns
-* Maintain consistent terminology across all documents
-* Update the main index when adding new documentation
-
-=== Quality Assurance
-
-* **Validate AsciiDoc**: Use `asciidoctor --safe-mode=strict` to check syntax
-* **Check Links**: Verify all internal and external links work correctly
-* **Review Examples**: Test all code examples and command snippets
-* **Consistency Check**: Ensure formatting matches existing documentation
-
-This documentation system provides comprehensive coverage of the Incus RKE2 cluster deployment platform, from basic usage to advanced metaprogramming techniques.
+Keeping SVGs checked in ensures reviewers and automation can diff both prose and visuals without relying on remote services.

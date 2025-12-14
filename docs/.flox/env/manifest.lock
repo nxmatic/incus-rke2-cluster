@@ -1,0 +1,1956 @@
+{
+  "lockfile-version": 1,
+  "manifest": {
+    "version": 1,
+    "install": {
+      "age": {
+        "pkg-path": "age"
+      },
+      "antora": {
+        "pkg-path": "antora",
+        "pkg-group": "asciidoc"
+      },
+      "antora-lunr-extension": {
+        "pkg-path": "antora-lunr-extension",
+        "pkg-group": "asciidoc"
+      },
+      "antora-ui-default": {
+        "pkg-path": "antora-ui-default",
+        "pkg-group": "asciidoc"
+      },
+      "asciidoctor-with-extensions": {
+        "pkg-path": "asciidoctor-with-extensions",
+        "pkg-group": "asciidoc"
+      },
+      "gnupg": {
+        "pkg-path": "gnupg"
+      },
+      "graphviz": {
+        "pkg-path": "graphviz",
+        "pkg-group": "asciidoc"
+      },
+      "jdk": {
+        "pkg-path": "jdk",
+        "pkg-group": "asciidoc"
+      },
+      "keychain": {
+        "pkg-path": "keychain"
+      },
+      "nodejs": {
+        "pkg-path": "nodejs",
+        "pkg-group": "asciidoc"
+      },
+      "pass": {
+        "pkg-path": "pass"
+      },
+      "plantuml": {
+        "pkg-path": "plantuml",
+        "pkg-group": "asciidoc"
+      },
+      "pnpm": {
+        "pkg-path": "pnpm",
+        "pkg-group": "asciidoc"
+      },
+      "sops": {
+        "pkg-path": "sops"
+      },
+      "ssh-to-age": {
+        "pkg-path": "ssh-to-age"
+      }
+    },
+    "hook": {},
+    "profile": {
+      "common": "    GITHUB_SIGNING_KEYFILE=\"$HOME\"/.ssh/keys.d/github-signing\n    if [[ -r \"$GITHUB_SIGNING_KEYFILE\" ]]; then\n      set -a\n      SOPS_AGE_KEY=$( ssh-to-age -private-key < \"$GITHUB_SIGNING_KEYFILE\" )\n      set +a\n    else\n      echo no signing key\n    fi\n  \n    export ANTORA_CACHE_DIR=\"${FLOX_ENV_PROJECT}/.cache/antora\"\n    export DOCS_BUILD_DIR=\"${FLOX_ENV_PROJECT}/.output/docs\"\n  "
+    },
+    "options": {
+      "systems": [
+        "aarch64-darwin",
+        "aarch64-linux",
+        "x86_64-linux",
+        "x86_64-darwin"
+      ]
+    }
+  },
+  "packages": [
+    {
+      "attr_path": "antora",
+      "broken": false,
+      "derivation": "/nix/store/65l7kv9d495idpmrw056ykjxschd644h-antora-3.1.9.drv",
+      "description": "Modular documentation site generator. Designed for users of Asciidoctor",
+      "install_id": "antora",
+      "license": "MPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "antora-3.1.9",
+      "pname": "antora",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T02:54:43.620798Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "3.1.9",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/kcid8r6xw9hm88kqpjfzv8llzmmnf318-antora-3.1.9"
+      },
+      "system": "aarch64-darwin",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "antora",
+      "broken": false,
+      "derivation": "/nix/store/bhrmbm47p70dzmdg9ll48n5ijn7w139d-antora-3.1.9.drv",
+      "description": "Modular documentation site generator. Designed for users of Asciidoctor",
+      "install_id": "antora",
+      "license": "MPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "antora-3.1.9",
+      "pname": "antora",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:03:53.986407Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "3.1.9",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/bak8jwjmxqhizw9lh7l7782xssqhksnm-antora-3.1.9"
+      },
+      "system": "aarch64-linux",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "antora",
+      "broken": false,
+      "derivation": "/nix/store/pmclwwkrcjn1lllsfvy5cikilqd18iny-antora-3.1.9.drv",
+      "description": "Modular documentation site generator. Designed for users of Asciidoctor",
+      "install_id": "antora",
+      "license": "MPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "antora-3.1.9",
+      "pname": "antora",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:13:57.464106Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "3.1.9",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/1nbzma9pqdy6myfh35py2s8yhmgil651-antora-3.1.9"
+      },
+      "system": "x86_64-darwin",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "antora",
+      "broken": false,
+      "derivation": "/nix/store/fr1x7fmvpw6wjkk3kgmmk6hawm27b8qi-antora-3.1.9.drv",
+      "description": "Modular documentation site generator. Designed for users of Asciidoctor",
+      "install_id": "antora",
+      "license": "MPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "antora-3.1.9",
+      "pname": "antora",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:23:17.210239Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "3.1.9",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/1ph523hq3fpagcj58b28jl34jrj3lb9l-antora-3.1.9"
+      },
+      "system": "x86_64-linux",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "antora-lunr-extension",
+      "broken": false,
+      "derivation": "/nix/store/nrq1i85l1w1jb9byznbcbmv8yc99l4jx-antora-lunr-extension-1.0.0-alpha.8.drv",
+      "description": "Antora extension adding offline, full-text search powered by Lunr",
+      "install_id": "antora-lunr-extension",
+      "license": "MPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "antora-lunr-extension-1.0.0-alpha.8",
+      "pname": "antora-lunr-extension",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T02:54:43.620873Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.0.0-alpha.8",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/j1nbc4x24jacc09nncp6bqb6qbk996dl-antora-lunr-extension-1.0.0-alpha.8"
+      },
+      "system": "aarch64-darwin",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "antora-lunr-extension",
+      "broken": false,
+      "derivation": "/nix/store/7v2hrc09ssxhxv0yc5cav6v80nyr72gc-antora-lunr-extension-1.0.0-alpha.8.drv",
+      "description": "Antora extension adding offline, full-text search powered by Lunr",
+      "install_id": "antora-lunr-extension",
+      "license": "MPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "antora-lunr-extension-1.0.0-alpha.8",
+      "pname": "antora-lunr-extension",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:03:53.986484Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.0.0-alpha.8",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/hrp64yzxg4snmrrn4z7kwzrk7nbpv9zx-antora-lunr-extension-1.0.0-alpha.8"
+      },
+      "system": "aarch64-linux",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "antora-lunr-extension",
+      "broken": false,
+      "derivation": "/nix/store/2gfd4gk86jwck4xz0kvp0dlrqcnw22x8-antora-lunr-extension-1.0.0-alpha.8.drv",
+      "description": "Antora extension adding offline, full-text search powered by Lunr",
+      "install_id": "antora-lunr-extension",
+      "license": "MPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "antora-lunr-extension-1.0.0-alpha.8",
+      "pname": "antora-lunr-extension",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:13:57.464180Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.0.0-alpha.8",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/9mxjzx1qdpnkc1cr4mzzwhq1g8cf324h-antora-lunr-extension-1.0.0-alpha.8"
+      },
+      "system": "x86_64-darwin",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "antora-lunr-extension",
+      "broken": false,
+      "derivation": "/nix/store/skj0c1mlysvg6izdmp991pnv5bbnwjw9-antora-lunr-extension-1.0.0-alpha.8.drv",
+      "description": "Antora extension adding offline, full-text search powered by Lunr",
+      "install_id": "antora-lunr-extension",
+      "license": "MPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "antora-lunr-extension-1.0.0-alpha.8",
+      "pname": "antora-lunr-extension",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:23:17.210323Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.0.0-alpha.8",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/0zzbd55z409clk963dklgaid0kilvlas-antora-lunr-extension-1.0.0-alpha.8"
+      },
+      "system": "x86_64-linux",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "antora-ui-default",
+      "broken": false,
+      "derivation": "/nix/store/8q3i5z0nh5n2c9fggah6f3w376xl3n5r-antora-ui-default-0-unstable-2024-12-26.drv",
+      "description": "Antora default UI bundle",
+      "install_id": "antora-ui-default",
+      "license": "MPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "antora-ui-default-0-unstable-2024-12-26",
+      "pname": "antora-ui-default",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T02:54:43.620947Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2024-12-26",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/0fq7ap38g4f8j87140slj0x8b91azsdx-antora-ui-default-0-unstable-2024-12-26"
+      },
+      "system": "aarch64-darwin",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "antora-ui-default",
+      "broken": false,
+      "derivation": "/nix/store/cbbs7y4vazlha4igbczjz7kf0flp9xm2-antora-ui-default-0-unstable-2024-12-26.drv",
+      "description": "Antora default UI bundle",
+      "install_id": "antora-ui-default",
+      "license": "MPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "antora-ui-default-0-unstable-2024-12-26",
+      "pname": "antora-ui-default",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:03:53.986576Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2024-12-26",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/bvann2bglr2iy1s79gm42nbm9w6giza8-antora-ui-default-0-unstable-2024-12-26"
+      },
+      "system": "aarch64-linux",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "antora-ui-default",
+      "broken": false,
+      "derivation": "/nix/store/vrsl2nmwfypycf4bc103z3hmfnyxznj6-antora-ui-default-0-unstable-2024-12-26.drv",
+      "description": "Antora default UI bundle",
+      "install_id": "antora-ui-default",
+      "license": "MPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "antora-ui-default-0-unstable-2024-12-26",
+      "pname": "antora-ui-default",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:13:57.464255Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2024-12-26",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/bwzvls9v2pc492hfl2vaqnsxvx18faii-antora-ui-default-0-unstable-2024-12-26"
+      },
+      "system": "x86_64-darwin",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "antora-ui-default",
+      "broken": false,
+      "derivation": "/nix/store/h535m41vkwkp8y20yc1j6m072z433541-antora-ui-default-0-unstable-2024-12-26.drv",
+      "description": "Antora default UI bundle",
+      "install_id": "antora-ui-default",
+      "license": "MPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "antora-ui-default-0-unstable-2024-12-26",
+      "pname": "antora-ui-default",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:23:17.210406Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2024-12-26",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/14mpx8zrshll3p71iqgjvr3y51f36mpk-antora-ui-default-0-unstable-2024-12-26"
+      },
+      "system": "x86_64-linux",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "asciidoctor-with-extensions",
+      "broken": false,
+      "derivation": "/nix/store/833r53mf9z8wp4m5xaiy71ksd37z4k4c-asciidoctor-2.0.26.drv",
+      "description": "Faster Asciidoc processor written in Ruby, with many extensions enabled",
+      "install_id": "asciidoctor-with-extensions",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "asciidoctor-2.0.26",
+      "pname": "asciidoctor-with-extensions",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T02:54:43.638852Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.0.26",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/k0jmxdpw915f916sxmy2qmmsz7naajnv-asciidoctor-2.0.26"
+      },
+      "system": "aarch64-darwin",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "asciidoctor-with-extensions",
+      "broken": false,
+      "derivation": "/nix/store/9ks54h5zbmkxwjncc8gvyhxxxghxx9x3-asciidoctor-2.0.26.drv",
+      "description": "Faster Asciidoc processor written in Ruby, with many extensions enabled",
+      "install_id": "asciidoctor-with-extensions",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "asciidoctor-2.0.26",
+      "pname": "asciidoctor-with-extensions",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:03:54.012441Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.0.26",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/p05dgla2c8h07hjp9nbh2a7hxigf3y99-asciidoctor-2.0.26"
+      },
+      "system": "aarch64-linux",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "asciidoctor-with-extensions",
+      "broken": false,
+      "derivation": "/nix/store/paxmsh5y7zc7n83c7jd5f77b4qajl7n0-asciidoctor-2.0.26.drv",
+      "description": "Faster Asciidoc processor written in Ruby, with many extensions enabled",
+      "install_id": "asciidoctor-with-extensions",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "asciidoctor-2.0.26",
+      "pname": "asciidoctor-with-extensions",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:13:57.482603Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.0.26",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/m6gavmyzxsjdy3nnzlhnndh89md59w76-asciidoctor-2.0.26"
+      },
+      "system": "x86_64-darwin",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "asciidoctor-with-extensions",
+      "broken": false,
+      "derivation": "/nix/store/j4pj897f913fwns9qjw7r77g743afvhx-asciidoctor-2.0.26.drv",
+      "description": "Faster Asciidoc processor written in Ruby, with many extensions enabled",
+      "install_id": "asciidoctor-with-extensions",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "asciidoctor-2.0.26",
+      "pname": "asciidoctor-with-extensions",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:23:17.239334Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.0.26",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/3j9mncbnb15k3vxyrwpsx06gy21wwmhj-asciidoctor-2.0.26"
+      },
+      "system": "x86_64-linux",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "graphviz",
+      "broken": false,
+      "derivation": "/nix/store/9xcdr962v1k1yh8pvv66rjncf5w2l5kx-graphviz-12.2.1.drv",
+      "description": "Graph visualization tools",
+      "install_id": "graphviz",
+      "license": "EPL-1.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "graphviz-12.2.1",
+      "pname": "graphviz",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T02:54:44.997234Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "12.2.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/4xppasm3di23cp24rmv2f7k2x0y1q1pl-graphviz-12.2.1"
+      },
+      "system": "aarch64-darwin",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "graphviz",
+      "broken": false,
+      "derivation": "/nix/store/jrsiflzsw213g334i9mvs6q5kn8kixx0-graphviz-12.2.1.drv",
+      "description": "Graph visualization tools",
+      "install_id": "graphviz",
+      "license": "EPL-1.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "graphviz-12.2.1",
+      "pname": "graphviz",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:03:56.403121Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "12.2.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/aax6skriwdwna0874fmq84zzcapf6s44-graphviz-12.2.1"
+      },
+      "system": "aarch64-linux",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "graphviz",
+      "broken": false,
+      "derivation": "/nix/store/l84x8s8kcshbcw05w7l6kcaaf4vzrzk7-graphviz-12.2.1.drv",
+      "description": "Graph visualization tools",
+      "install_id": "graphviz",
+      "license": "EPL-1.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "graphviz-12.2.1",
+      "pname": "graphviz",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:13:58.897968Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "12.2.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/3zg5y70zbj88xzj674y84vn54n7j6b1n-graphviz-12.2.1"
+      },
+      "system": "x86_64-darwin",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "graphviz",
+      "broken": false,
+      "derivation": "/nix/store/kfqyxz4xrvxcw1279prz846nrg4hkxh9-graphviz-12.2.1.drv",
+      "description": "Graph visualization tools",
+      "install_id": "graphviz",
+      "license": "EPL-1.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "graphviz-12.2.1",
+      "pname": "graphviz",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:23:19.896366Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "12.2.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/imq34lr9y56df5l5gcm4135fdckd1vb9-graphviz-12.2.1"
+      },
+      "system": "x86_64-linux",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "jdk",
+      "broken": false,
+      "derivation": "/nix/store/dh4xkd0wqszb0g0c6rl825f4vbmp5zbv-zulu-ca-jdk-21.0.8.drv",
+      "description": "Certified builds of OpenJDK",
+      "install_id": "jdk",
+      "license": "GPL-2.0-only",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "zulu-ca-jdk-21.0.8",
+      "pname": "jdk",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T02:54:58.439827Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "21.0.8",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/zng56j969rl5xnkz5v5c7j9fsxpm7sm1-zulu-ca-jdk-21.0.8"
+      },
+      "system": "aarch64-darwin",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "jdk",
+      "broken": false,
+      "derivation": "/nix/store/jz9rkpw326a6b5i2cayhm20in1v63ksw-openjdk-21.0.9+10.drv",
+      "description": "Open-source Java Development Kit",
+      "install_id": "jdk",
+      "license": "GPL-2.0-only",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "openjdk-21.0.9+10",
+      "pname": "jdk",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:04:15.056838Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "21.0.9+10",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "debug": "/nix/store/qmczwsgqyfq49baj86rwza8nc49ag282-openjdk-21.0.9+10-debug",
+        "out": "/nix/store/jlxgl3k14x3zhfa00rsygfw3fgp6xgg8-openjdk-21.0.9+10"
+      },
+      "system": "aarch64-linux",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "jdk",
+      "broken": false,
+      "derivation": "/nix/store/b0fjz56wzxlwn9l9gjzd80cgwpyn31c8-zulu-ca-jdk-21.0.8.drv",
+      "description": "Certified builds of OpenJDK",
+      "install_id": "jdk",
+      "license": "GPL-2.0-only",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "zulu-ca-jdk-21.0.8",
+      "pname": "jdk",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:14:12.817493Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "21.0.8",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/bkqa7q4jkrg69fmmik1sz8lszclmibdw-zulu-ca-jdk-21.0.8"
+      },
+      "system": "x86_64-darwin",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "jdk",
+      "broken": false,
+      "derivation": "/nix/store/c51146q5p8f9hm337aj9m8j7dqbj91jd-openjdk-21.0.9+10.drv",
+      "description": "Open-source Java Development Kit",
+      "install_id": "jdk",
+      "license": "GPL-2.0-only",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "openjdk-21.0.9+10",
+      "pname": "jdk",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:23:38.872181Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "21.0.9+10",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "debug": "/nix/store/iqrpym2396ppr5498xci88zf6kc37yxl-openjdk-21.0.9+10-debug",
+        "out": "/nix/store/65qpdkc33j5wqzxvz8c23zhgms8hl35y-openjdk-21.0.9+10"
+      },
+      "system": "x86_64-linux",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "nodejs",
+      "broken": false,
+      "derivation": "/nix/store/x9g1nm5wwc7bycyw0q9k8fl03brz5yar-nodejs-22.21.1.drv",
+      "description": "Event-driven I/O framework for the V8 JavaScript engine",
+      "install_id": "nodejs",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "nodejs-22.21.1",
+      "pname": "nodejs",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T02:55:05.864189Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "22.21.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "dev": "/nix/store/bkir3agnj2cvpx80a0z1lj50pg2dhddi-nodejs-22.21.1-dev",
+        "libv8": "/nix/store/ivbmw7d10pxzkrz5397bimhqwwlrc8gp-nodejs-22.21.1-libv8",
+        "out": "/nix/store/92igwjsd6av0pg8dvygirhdwahwq2sh7-nodejs-22.21.1"
+      },
+      "system": "aarch64-darwin",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "nodejs",
+      "broken": false,
+      "derivation": "/nix/store/07m9qkb2rvy59x90w3hi9nykdxf409x8-nodejs-22.21.1.drv",
+      "description": "Event-driven I/O framework for the V8 JavaScript engine",
+      "install_id": "nodejs",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "nodejs-22.21.1",
+      "pname": "nodejs",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:04:31.849814Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "22.21.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "dev": "/nix/store/1akvaqvrp0cf6pd7mkqy7m3gnzc3wfd7-nodejs-22.21.1-dev",
+        "libv8": "/nix/store/ykj9hi9qv7gwxnbg2vh6ca00w9zsbhm0-nodejs-22.21.1-libv8",
+        "out": "/nix/store/hps7k16bd9isj7pfsjzg7q0wgvrw47kn-nodejs-22.21.1"
+      },
+      "system": "aarch64-linux",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "nodejs",
+      "broken": false,
+      "derivation": "/nix/store/j1fpqmshmrxx52k2xqqrv5c718y6sjih-nodejs-22.21.1.drv",
+      "description": "Event-driven I/O framework for the V8 JavaScript engine",
+      "install_id": "nodejs",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "nodejs-22.21.1",
+      "pname": "nodejs",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:14:20.707971Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "22.21.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "dev": "/nix/store/haa4773lz7wfhnql05181azh4z5141r7-nodejs-22.21.1-dev",
+        "libv8": "/nix/store/0pswqdxlx8y0v54gq0ixwps19agv6bds-nodejs-22.21.1-libv8",
+        "out": "/nix/store/wfjyiwara336j7r1v0ia3kib8779wzwf-nodejs-22.21.1"
+      },
+      "system": "x86_64-darwin",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "nodejs",
+      "broken": false,
+      "derivation": "/nix/store/wjimqspfnxjp5y11703a1rz75cbvj4ph-nodejs-22.21.1.drv",
+      "description": "Event-driven I/O framework for the V8 JavaScript engine",
+      "install_id": "nodejs",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "nodejs-22.21.1",
+      "pname": "nodejs",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:23:57.507358Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "22.21.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "dev": "/nix/store/l1idqv7ff0m2kbcqnn1yr415wyga1wxf-nodejs-22.21.1-dev",
+        "libv8": "/nix/store/farc7vk89kr367hsx0qchmahf6i6sbk1-nodejs-22.21.1-libv8",
+        "out": "/nix/store/l85fis49agvp5q1ild1rfh4rrgmn92sr-nodejs-22.21.1"
+      },
+      "system": "x86_64-linux",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "plantuml",
+      "broken": false,
+      "derivation": "/nix/store/zkixcf9kzh57g7kwnj5sg9g6y2vzrjhp-plantuml-1.2025.10.drv",
+      "description": "Draw UML diagrams using a simple and human readable text description",
+      "install_id": "plantuml",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "plantuml-1.2025.10",
+      "pname": "plantuml",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T02:55:19.374170Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.2025.10",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/3n8wczsqv5bwpjkz9ngd5vayy4zf28ha-plantuml-1.2025.10"
+      },
+      "system": "aarch64-darwin",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "plantuml",
+      "broken": false,
+      "derivation": "/nix/store/mmka9kvkqyvf08vnmxykjla6a3lljssx-plantuml-1.2025.10.drv",
+      "description": "Draw UML diagrams using a simple and human readable text description",
+      "install_id": "plantuml",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "plantuml-1.2025.10",
+      "pname": "plantuml",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:04:52.008964Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.2025.10",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/y2prvky505pn0vyryjaqc0knih4s027v-plantuml-1.2025.10"
+      },
+      "system": "aarch64-linux",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "plantuml",
+      "broken": false,
+      "derivation": "/nix/store/sab0q7jzx0a3wcqc1lm1zdf6h1wxq7z9-plantuml-1.2025.10.drv",
+      "description": "Draw UML diagrams using a simple and human readable text description",
+      "install_id": "plantuml",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "plantuml-1.2025.10",
+      "pname": "plantuml",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:14:35.298909Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.2025.10",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/hmg6r8lpvvm6q0yi460fw67d3n4ya20w-plantuml-1.2025.10"
+      },
+      "system": "x86_64-darwin",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "plantuml",
+      "broken": false,
+      "derivation": "/nix/store/8m6fgjqy5j02cpjcqbm1f8nka25z10sy-plantuml-1.2025.10.drv",
+      "description": "Draw UML diagrams using a simple and human readable text description",
+      "install_id": "plantuml",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "plantuml-1.2025.10",
+      "pname": "plantuml",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:24:18.742547Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.2025.10",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/wn4bhvjrq5r7id67gr6rn24xs0cf48z1-plantuml-1.2025.10"
+      },
+      "system": "x86_64-linux",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "pnpm",
+      "broken": false,
+      "derivation": "/nix/store/x0zph232nss9piv32ykd17mpx67jm36n-pnpm-10.24.0.drv",
+      "description": "Fast, disk space efficient package manager for JavaScript",
+      "install_id": "pnpm",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "pnpm-10.24.0",
+      "pname": "pnpm",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T02:55:19.782422Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "10.24.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/09p3ygf7zdspqfyqn7z25k2q832hfklr-pnpm-10.24.0"
+      },
+      "system": "aarch64-darwin",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "pnpm",
+      "broken": false,
+      "derivation": "/nix/store/s1l7pjqq57xawlich7zn7aka6kkk2vhr-pnpm-10.24.0.drv",
+      "description": "Fast, disk space efficient package manager for JavaScript",
+      "install_id": "pnpm",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "pnpm-10.24.0",
+      "pname": "pnpm",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:04:52.728204Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "10.24.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/nkfhs7q2gk8nns4cr4r8gmvdi1dx99lg-pnpm-10.24.0"
+      },
+      "system": "aarch64-linux",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "pnpm",
+      "broken": false,
+      "derivation": "/nix/store/k862iyda4vji0frdjann445sx2yv1a7p-pnpm-10.24.0.drv",
+      "description": "Fast, disk space efficient package manager for JavaScript",
+      "install_id": "pnpm",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "pnpm-10.24.0",
+      "pname": "pnpm",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:14:35.747774Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "10.24.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/qwp6r0zxrm5h4qa55wym2k9dy84rsaiq-pnpm-10.24.0"
+      },
+      "system": "x86_64-darwin",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "pnpm",
+      "broken": false,
+      "derivation": "/nix/store/gwhhb6k4wh6lr0q90hh5lm6x27bl91k7-pnpm-10.24.0.drv",
+      "description": "Fast, disk space efficient package manager for JavaScript",
+      "install_id": "pnpm",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "name": "pnpm-10.24.0",
+      "pname": "pnpm",
+      "rev": "addf7cf5f383a3101ecfba091b98d0a1263dc9b8",
+      "rev_count": 908783,
+      "rev_date": "2025-12-08T09:27:56Z",
+      "scrape_date": "2025-12-10T03:24:19.531763Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "10.24.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/x8brlvxzdkgpl75s9p7srnm2b5py8vnd-pnpm-10.24.0"
+      },
+      "system": "x86_64-linux",
+      "group": "asciidoc",
+      "priority": 5
+    },
+    {
+      "attr_path": "age",
+      "broken": false,
+      "derivation": "/nix/store/if3w85981wg0lfkiy97qqcd0pa7b651v-age-1.2.1.drv",
+      "description": "Modern encryption tool with small explicit keys",
+      "install_id": "age",
+      "license": "BSD-3-Clause",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "age-1.2.1",
+      "pname": "age",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:01:34.153444Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.2.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/gfbrwpq3gz8pimv8jnnnf9n81pgdkqy6-age-1.2.1"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "age",
+      "broken": false,
+      "derivation": "/nix/store/yl63c41fzrhkyayi4y0hf8yixzvwx9p2-age-1.2.1.drv",
+      "description": "Modern encryption tool with small explicit keys",
+      "install_id": "age",
+      "license": "BSD-3-Clause",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "age-1.2.1",
+      "pname": "age",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:17:13.786019Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.2.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/dp4cnyb1hcxqmk3jmj42h8vwiy6qyzx9-age-1.2.1"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "age",
+      "broken": false,
+      "derivation": "/nix/store/19nxbchicd36qw3hfrz91smv02y2kix7-age-1.2.1.drv",
+      "description": "Modern encryption tool with small explicit keys",
+      "install_id": "age",
+      "license": "BSD-3-Clause",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "age-1.2.1",
+      "pname": "age",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:34:37.299391Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.2.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/w58dc399xn7idm5y8g2q2j1bf2q6sbgx-age-1.2.1"
+      },
+      "system": "x86_64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "age",
+      "broken": false,
+      "derivation": "/nix/store/v6db0b9hb4zd58yfdm3bz0vgz2wsj9rp-age-1.2.1.drv",
+      "description": "Modern encryption tool with small explicit keys",
+      "install_id": "age",
+      "license": "BSD-3-Clause",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "age-1.2.1",
+      "pname": "age",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:50:20.599536Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.2.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/vzjkjvfy1y6g7jjqfxnma6mkvf1qsn51-age-1.2.1"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "gnupg",
+      "broken": false,
+      "derivation": "/nix/store/hd54zkryhdn5b832igws6p0zhnwhvlxs-gnupg-2.4.8.drv",
+      "description": "Modern release of the GNU Privacy Guard, a GPL OpenPGP implementation",
+      "install_id": "gnupg",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "gnupg-2.4.8",
+      "pname": "gnupg",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:01:35.571411Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.4.8",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/yx9r60aqnw7iwn21w4g5sa4yjp0rabzc-gnupg-2.4.8"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "gnupg",
+      "broken": false,
+      "derivation": "/nix/store/y3v122wpyn18a5bbaflz1yhg8038ww02-gnupg-2.4.8.drv",
+      "description": "Modern release of the GNU Privacy Guard, a GPL OpenPGP implementation",
+      "install_id": "gnupg",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "gnupg-2.4.8",
+      "pname": "gnupg",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:17:17.082760Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.4.8",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/q823y61120rwkc4ksy5wpv6k5fgcmz1a-gnupg-2.4.8"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "gnupg",
+      "broken": false,
+      "derivation": "/nix/store/hws5nfhnfl9nwpzm7dnkfxqr3md2z3g9-gnupg-2.4.8.drv",
+      "description": "Modern release of the GNU Privacy Guard, a GPL OpenPGP implementation",
+      "install_id": "gnupg",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "gnupg-2.4.8",
+      "pname": "gnupg",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:34:38.612086Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.4.8",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/dpwz0hlkidi3cr6bmw77lcnysa091dpv-gnupg-2.4.8"
+      },
+      "system": "x86_64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "gnupg",
+      "broken": false,
+      "derivation": "/nix/store/k34zfsd1aj0s3k6mp2b3h9xn8sk4rxwv-gnupg-2.4.8.drv",
+      "description": "Modern release of the GNU Privacy Guard, a GPL OpenPGP implementation",
+      "install_id": "gnupg",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "gnupg-2.4.8",
+      "pname": "gnupg",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:50:23.111862Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.4.8",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/0i1vlhh0ivpjc7dvxz77wr5csr9n9aak-gnupg-2.4.8"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "keychain",
+      "broken": false,
+      "derivation": "/nix/store/3y4mvf6yjkx632g6c680jf84j6dbgpzf-keychain-2.9.8.drv",
+      "description": "Manage SSH and GPG keys in a convenient and secure manner",
+      "install_id": "keychain",
+      "license": "GPL-2.0-only",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "keychain-2.9.8",
+      "pname": "keychain",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:01:49.904825Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.9.8",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/2lacwmayfryngjklml9nlxc4xaa3921z-keychain-2.9.8"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "keychain",
+      "broken": false,
+      "derivation": "/nix/store/8mv8v5da2m33w92mwidcz0y0440sq6yq-keychain-2.9.8.drv",
+      "description": "Manage SSH and GPG keys in a convenient and secure manner",
+      "install_id": "keychain",
+      "license": "GPL-2.0-only",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "keychain-2.9.8",
+      "pname": "keychain",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:17:45.882501Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.9.8",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/hns6f7ij1a7j9ahmcda3p8vyikm8r43s-keychain-2.9.8"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "keychain",
+      "broken": false,
+      "derivation": "/nix/store/v77jd0b1rnfyv3acvd9258i82xmd7l32-keychain-2.9.8.drv",
+      "description": "Manage SSH and GPG keys in a convenient and secure manner",
+      "install_id": "keychain",
+      "license": "GPL-2.0-only",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "keychain-2.9.8",
+      "pname": "keychain",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:34:52.911945Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.9.8",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/rfa9n0xh2cah4h23g88gsxk95a3qb0g8-keychain-2.9.8"
+      },
+      "system": "x86_64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "keychain",
+      "broken": false,
+      "derivation": "/nix/store/mnrpwlb9xkz0849qr8aj7nfppdrvkwah-keychain-2.9.8.drv",
+      "description": "Manage SSH and GPG keys in a convenient and secure manner",
+      "install_id": "keychain",
+      "license": "GPL-2.0-only",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "keychain-2.9.8",
+      "pname": "keychain",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:50:44.047189Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.9.8",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/mhhqrncdr7b3vjr0xrh1qs1l3anq3jn1-keychain-2.9.8"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "pass",
+      "broken": false,
+      "derivation": "/nix/store/84868gcgx9dkky3wr7layfgjfw6d40nx-password-store-1.7.4.drv",
+      "description": "Stores, retrieves, generates, and synchronizes passwords securely",
+      "install_id": "pass",
+      "license": "GPL-2.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "password-store-1.7.4",
+      "pname": "pass",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:02:00.119326Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.7.4",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/5x09bw01lwv8xznm15hlz8w7w3asrnby-password-store-1.7.4"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "pass",
+      "broken": false,
+      "derivation": "/nix/store/3aymdvhn1gqc38xj4hz7jssawykkc34i-password-store-1.7.4.drv",
+      "description": "Stores, retrieves, generates, and synchronizes passwords securely",
+      "install_id": "pass",
+      "license": "GPL-2.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "password-store-1.7.4",
+      "pname": "pass",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:18:12.724890Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.7.4",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/id46dnzf0drms8mgjlf9nd9zhmdc2qcj-password-store-1.7.4"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "pass",
+      "broken": false,
+      "derivation": "/nix/store/mbbc4rlxrpb06200rvkakbsdyx41cqcc-password-store-1.7.4.drv",
+      "description": "Stores, retrieves, generates, and synchronizes passwords securely",
+      "install_id": "pass",
+      "license": "GPL-2.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "password-store-1.7.4",
+      "pname": "pass",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:35:02.784641Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.7.4",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/qiznzm1ydacp1n2wh2cy78lirmjj0qf4-password-store-1.7.4"
+      },
+      "system": "x86_64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "pass",
+      "broken": false,
+      "derivation": "/nix/store/626f99v7hpj5qy6jglql60743xg8q822-password-store-1.7.4.drv",
+      "description": "Stores, retrieves, generates, and synchronizes passwords securely",
+      "install_id": "pass",
+      "license": "GPL-2.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "password-store-1.7.4",
+      "pname": "pass",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:51:05.525881Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.7.4",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/gl8x8xjjf7v8v23q34lz7sv3wkams8dy-password-store-1.7.4"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "sops",
+      "broken": false,
+      "derivation": "/nix/store/9cnwlhzc2x4xp65mvl5g5c3im0nyqv6z-sops-3.11.0.drv",
+      "description": "Simple and flexible tool for managing secrets",
+      "install_id": "sops",
+      "license": "MPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "sops-3.11.0",
+      "pname": "sops",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:03:22.542949Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "3.11.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/pnqy3wnpf4qx451dia2s54xl047fhyng-sops-3.11.0"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "sops",
+      "broken": false,
+      "derivation": "/nix/store/j71pas1ckbv1jkpcw23f1gz18bf8cksf-sops-3.11.0.drv",
+      "description": "Simple and flexible tool for managing secrets",
+      "install_id": "sops",
+      "license": "MPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "sops-3.11.0",
+      "pname": "sops",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:20:31.753165Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "3.11.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/kizxykq45gg1y81pclavg0h8cg9y70na-sops-3.11.0"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "sops",
+      "broken": false,
+      "derivation": "/nix/store/ijkfi4a84d7qsk5jdk8jdcm4ia0f5rz9-sops-3.11.0.drv",
+      "description": "Simple and flexible tool for managing secrets",
+      "install_id": "sops",
+      "license": "MPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "sops-3.11.0",
+      "pname": "sops",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:36:17.728538Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "3.11.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/1lhv618ylh4w9rq2ax0r3ggy9c526gah-sops-3.11.0"
+      },
+      "system": "x86_64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "sops",
+      "broken": false,
+      "derivation": "/nix/store/hdv9h18y817g1laq2bbdajsprjmh01yj-sops-3.11.0.drv",
+      "description": "Simple and flexible tool for managing secrets",
+      "install_id": "sops",
+      "license": "MPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "sops-3.11.0",
+      "pname": "sops",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:52:43.743293Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "3.11.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/mc0z6fk8npa3i4ag8znwiy26yrvmiibp-sops-3.11.0"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "ssh-to-age",
+      "broken": false,
+      "derivation": "/nix/store/qwdnr7wcfk53mbdni12fmz588lbmj9k8-ssh-to-age-1.2.0.drv",
+      "description": "Convert ssh private keys in ed25519 format to age keys",
+      "install_id": "ssh-to-age",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "ssh-to-age-1.2.0",
+      "pname": "ssh-to-age",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:03:23.271388Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.2.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/b1rmhl63f928f5x4yl13a7wvy2bf6r6a-ssh-to-age-1.2.0"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "ssh-to-age",
+      "broken": false,
+      "derivation": "/nix/store/spcsyavc919yr1f0x93w75qnvjvaz5ra-ssh-to-age-1.2.0.drv",
+      "description": "Convert ssh private keys in ed25519 format to age keys",
+      "install_id": "ssh-to-age",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "ssh-to-age-1.2.0",
+      "pname": "ssh-to-age",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:20:33.067336Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.2.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/mbn08nh17b1ajiz5dw46z8z6is8m8vgs-ssh-to-age-1.2.0"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "ssh-to-age",
+      "broken": false,
+      "derivation": "/nix/store/2zmiplw52n2ngf92c8hynyybcgiijgxn-ssh-to-age-1.2.0.drv",
+      "description": "Convert ssh private keys in ed25519 format to age keys",
+      "install_id": "ssh-to-age",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "ssh-to-age-1.2.0",
+      "pname": "ssh-to-age",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:36:18.389553Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.2.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/vj3ckbzb5smlzad03im2lz2brmi5jz1q-ssh-to-age-1.2.0"
+      },
+      "system": "x86_64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "ssh-to-age",
+      "broken": false,
+      "derivation": "/nix/store/0i0nrj2x6r8f3i1ngra264l6p83kcmi8-ssh-to-age-1.2.0.drv",
+      "description": "Convert ssh private keys in ed25519 format to age keys",
+      "install_id": "ssh-to-age",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "ssh-to-age-1.2.0",
+      "pname": "ssh-to-age",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:52:44.761368Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.2.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/lx7ry2p5cllxf62ikfcg76c9j0rgzpcm-ssh-to-age-1.2.0"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    }
+  ],
+  "compose": {
+    "composer": {
+      "version": 1,
+      "hook": {},
+      "profile": {},
+      "options": {},
+      "include": {
+        "environments": [
+          {
+            "dir": "../../fleet/flox/asciidoc"
+          }
+        ]
+      }
+    },
+    "include": [
+      {
+        "manifest": {
+          "version": 1,
+          "install": {
+            "age": {
+              "pkg-path": "age"
+            },
+            "antora": {
+              "pkg-path": "antora",
+              "pkg-group": "asciidoc"
+            },
+            "antora-lunr-extension": {
+              "pkg-path": "antora-lunr-extension",
+              "pkg-group": "asciidoc"
+            },
+            "antora-ui-default": {
+              "pkg-path": "antora-ui-default",
+              "pkg-group": "asciidoc"
+            },
+            "asciidoctor-with-extensions": {
+              "pkg-path": "asciidoctor-with-extensions",
+              "pkg-group": "asciidoc"
+            },
+            "gnupg": {
+              "pkg-path": "gnupg"
+            },
+            "graphviz": {
+              "pkg-path": "graphviz",
+              "pkg-group": "asciidoc"
+            },
+            "jdk": {
+              "pkg-path": "jdk",
+              "pkg-group": "asciidoc"
+            },
+            "keychain": {
+              "pkg-path": "keychain"
+            },
+            "nodejs": {
+              "pkg-path": "nodejs",
+              "pkg-group": "asciidoc"
+            },
+            "pass": {
+              "pkg-path": "pass"
+            },
+            "plantuml": {
+              "pkg-path": "plantuml",
+              "pkg-group": "asciidoc"
+            },
+            "pnpm": {
+              "pkg-path": "pnpm",
+              "pkg-group": "asciidoc"
+            },
+            "sops": {
+              "pkg-path": "sops"
+            },
+            "ssh-to-age": {
+              "pkg-path": "ssh-to-age"
+            }
+          },
+          "profile": {
+            "common": "    GITHUB_SIGNING_KEYFILE=\"$HOME\"/.ssh/keys.d/github-signing\n    if [[ -r \"$GITHUB_SIGNING_KEYFILE\" ]]; then\n      set -a\n      SOPS_AGE_KEY=$( ssh-to-age -private-key < \"$GITHUB_SIGNING_KEYFILE\" )\n      set +a\n    else\n      echo no signing key\n    fi\n  \n    export ANTORA_CACHE_DIR=\"${FLOX_ENV_PROJECT}/.cache/antora\"\n    export DOCS_BUILD_DIR=\"${FLOX_ENV_PROJECT}/.output/docs\"\n  "
+          },
+          "options": {
+            "systems": [
+              "aarch64-darwin",
+              "aarch64-linux",
+              "x86_64-linux",
+              "x86_64-darwin"
+            ]
+          }
+        },
+        "name": "asciidoc",
+        "descriptor": {
+          "dir": "../../fleet/flox/asciidoc"
+        }
+      }
+    ],
+    "warnings": []
+  }
+}

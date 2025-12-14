@@ -1,0 +1,54 @@
+@startuml c4-cluster-container
+
+!define RELATIVE_INCLUDE()
+!include plantuml/c4/C4.puml
+!include plantuml/c4/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+
+Person_Ext(devops, "Cluster Engineer", "Works from Bioskop")
+System_Ext(githubFleet, "fleet-manifests repo", "GitHub", "Overlay + render sources")
+System_Ext(githubIncus, "incus-rke2-cluster repo", "GitHub", "Automation + documentation")
+System_Ext(homeLan, "Home LAN / Internet", "Router + registries", "DHCP, image pulls, VIP consumers")
+
+System_Boundary(bioskop, "Bioskop Automation Stack") {
+    Container(devShell, "flox / devenv shell", "Nix + flox", "Pins CLI dependencies (kpt, kustomize, Incus)")
+    Container(renderPipeline, "render.sh pipeline", "bash + kpt + kustomize", "Expands overlays into RKE2 manifests")
+    Container(makeTargets, "make cloud-config.*", "GNU Make", "Assembles NoCloud bundles + pushes configs")
+    Container(configCache, "build/cloud-config", "NoCloud bundles", "Seeds, netplan, kube-vip manifests")
+    Container(incusAPI, "Incus API", "incusd", "Schedules containers, networks, storage volumes")
+    Container(cniPlane, "lan0/vmnet0 networks", "Incus networks", "Bridge to home LAN + VIP subnet")
+    Container(rke2Control, "RKE2 server set", "systemd/rke2-server", "etcd quorum + API/kube-controller")
+    Container(rke2Workers, "RKE2 worker set", "systemd/rke2-agent", "Runs cluster workloads + kube-proxy")
+    Container(kubeVip, "kube-vip", "DaemonSet/static pod", "Advertises 10.80.15.250 VIP")
+    Container(porchAPI, "Porch API + controllers", "Aggregated API + controllers", "Registers catalog repos and publishes PackageVariants into Git")
+    Container(fluxGitOps, "Flux GitOps controllers", "Flux Operator", "source-controller, kustomize-controller, notification-controller")
+    Container(tektonSvc, "Tekton Pipelines", "controller + webhook", "Runs supply-chain pipelines using TEKTON_* Git credentials")
+}
+
+Rel(devops, devShell, "Enters pinned shell")
+Rel(devShell, renderPipeline, "Runs ./render.sh")
+Rel(renderPipeline, githubFleet, "Pull overlays + sources")
+Rel(devShell, makeTargets, "Invokes make cloud-config.*")
+Rel(makeTargets, githubIncus, "Reads Makefiles/templates")
+Rel(makeTargets, configCache, "Writes NoCloud bundles")
+Rel(renderPipeline, incusAPI, "rsync manifests, incus exec")
+Rel(configCache, incusAPI, "Uploads seeds + kube-vip manifests")
+Rel(incusAPI, cniPlane, "Defines lan0/vmnet0")
+Rel(incusAPI, rke2Control, "Bootstraps master + peer containers")
+Rel(incusAPI, rke2Workers, "Bootstraps agent containers")
+Rel(rke2Control, rke2Workers, "Schedules workloads, syncs cluster state")
+Rel(rke2Control, kubeVip, "Manages static pod manifest")
+Rel(kubeVip, cniPlane, "Gratuitous ARP/BGP for VIP")
+Rel(rke2Workers, homeLan, "Exposes workloads, pulls images")
+Rel(rke2Control, homeLan, "Registry/API egress via lan0")
+Rel(porchAPI, githubIncus, "Catalog repo registered as Porch upstream")
+Rel(porchAPI, githubFleet, "Publishes PackageRevisions to deployment repo")
+Rel(porchAPI, fluxGitOps, "Commits consumed later via GitOps")
+Rel(fluxGitOps, githubFleet, "Watches GitOps state (system + apps)")
+Rel(fluxGitOps, rke2Control, "Applies CRDs + control-plane workloads")
+Rel(fluxGitOps, rke2Workers, "Deploys workloads + enforces drift correction")
+Rel(fluxGitOps, tektonSvc, "Creates Tekton CRDs/PipelineRuns from GitOps commits")
+Rel(tektonSvc, githubFleet, "Pipelines clone/push via TEKTON_* credentials")
+
+@enduml

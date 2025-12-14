@@ -1,0 +1,44 @@
+= C4 Deployment View
+:toc: left
+:toclevels: 2
+:sectanchors:
+:source-highlighter: rouge
+
+NOTE: Diagrams are pre-rendered SVG assets checked into `docs/images`. After editing any `docs/*.puml` source run `make diagrams@plantuml` (or the alias `make docs-diagrams`) inside the docs flox env so the committed SVGs stay in sync.
+
+Related documents:
+* link:layered-architecture.adoc[Layered Architecture Refactoring]
+* link:cloud-config-organization.adoc[Cloud Configuration Organization]
+* link:network-architecture.adoc[RKE2 Cluster Network Architecture]
+
+== Context Diagram (C4 Level 1)
+
+The context view follows the https://c4model.com/#SystemContextDiagrams[C4 guidance] to show how Bioskop, GitHub, and the home LAN interact. Use it to orient new contributors before diving into implementation details.
+
+image::c4-cluster-context.svg[title="Bioskop context view",alt="Bioskop context view"]
+
+The PlantUML source lives in `docs/c4-cluster-context.puml`; regenerate the SVG with `make diagrams@plantuml` whenever you tweak that model.
+
+== Container Diagram (C4 Level 2)
+
+This view decomposes the workstation boundary into the tooling stack (flox shell, render pipeline, Make targets) and the runtime surfaces (Incus API, networks, RKE2 control-plane services). Each container maps back to a directory or long-running service defined in this repository.
+
+image::c4-cluster-container.svg[title="Bioskop container view",alt="Bioskop container view"]
+
+=== GitOps + Package Automation
+
+* link:porch-adoption-plan.adoc[Porch adoption plan] covers the aggregated API and controllers that own the `Repository`, `PackageVariant`, and `PackageRevision` CRDs. Porch clones the catalog sources from this repo and publishes rendered revisions into the GitOps repo so other controllers can consume them.
+* link:../kpt/system/flux-operator/README.adoc[Flux operator] installs the Flux source/kustomize/notification controllers that watch the rendered repo (for example `fleet-manifests`) and apply both system packages and application overlays back onto the RKE2 nodes.
+* link:../kpt/system/tekton-pipelines/README.adoc[Tekton pipelines] come online ahead of Flux via `rke2-tekton-pipelines.service`, providing a pipeline engine whose controllers use the `TEKTON_*` credentials to clone or push Git content before Flux reconciles the same commit.
+
+== Deployment Diagram (C4 Level 3)
+
+The deployment view keeps the existing depth, but it is now framed as Level 3 per the C4 vocabulary. It captures which deployment nodes (repos, Lima VM, Incus containers, networks) host each container instance and how artifacts flow between them.
+
+image::c4-cluster-deployment.svg[title="Bioskop deployment view",alt="Bioskop deployment view"]
+
+== Reading Order
+
+. Review the source layering in link:layered-architecture.adoc[Layered Architecture Refactoring] to understand the Makefile stack.
+. Consult link:cloud-config-organization.adoc[Cloud Configuration Organization] for the exact composition per node role.
+. Use link:network-architecture.adoc[RKE2 Cluster Network Architecture] to map the lan0/vmnet0 topology shown in the diagram above.
