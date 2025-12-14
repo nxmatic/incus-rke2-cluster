@@ -1,0 +1,2510 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Namespace|default|porch-fn-system'
+  name: porch-fn-system
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Namespace|default|porch-system'
+  name: porch-system
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.1
+    internal.kpt.dev/upstream-identifier: apiextensions.k8s.io|CustomResourceDefinition|default|packagerevs.config.porch.kpt.dev
+  name: packagerevs.config.porch.kpt.dev
+spec:
+  group: config.porch.kpt.dev
+  names:
+    kind: PackageRev
+    listKind: PackageRevList
+    plural: packagerevs
+    singular: packagerev
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: PackageRev
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: PackageRevSpec defines the desired state of PackageRev
+            type: object
+          status:
+            description: PackageRevStatus defines the observed state of PackageRev
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.19.0
+    internal.kpt.dev/upstream-identifier: apiextensions.k8s.io|CustomResourceDefinition|default|packagevariants.config.porch.kpt.dev
+  name: packagevariants.config.porch.kpt.dev
+spec:
+  group: config.porch.kpt.dev
+  names:
+    kind: PackageVariant
+    listKind: PackageVariantList
+    plural: packagevariants
+    singular: packagevariant
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          PackageVariant represents an upstream and downstream porch package pair.
+          The upstream package should already exist. The PackageVariant controller is
+          responsible for creating the downstream package revisions based on the spec.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: PackageVariantSpec defines the desired state of PackageVariant
+            properties:
+              adoptionPolicy:
+                type: string
+              annotations:
+                additionalProperties:
+                  type: string
+                type: object
+              deletionPolicy:
+                type: string
+              downstream:
+                properties:
+                  package:
+                    type: string
+                  repo:
+                    type: string
+                type: object
+              injectors:
+                items:
+                  description: |-
+                    InjectionSelector specifies how to select in-cluster objects for
+                    resolving injection points.
+                  properties:
+                    group:
+                      type: string
+                    kind:
+                      type: string
+                    name:
+                      type: string
+                    version:
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
+              labels:
+                additionalProperties:
+                  type: string
+                type: object
+              packageContext:
+                description: |-
+                  PackageContext defines the data to be added or removed from the
+                  kptfile.kpt.dev ConfigMap during reconciliation.
+                properties:
+                  data:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  removeKeys:
+                    items:
+                      type: string
+                    type: array
+                type: object
+              pipeline:
+                description: Pipeline declares a pipeline of functions used to mutate
+                  or validate resources.
+                properties:
+                  mutators:
+                    description: Mutators defines a list of of KRM functions that
+                      mutate resources.
+                    items:
+                      description: Function specifies a KRM function.
+                      properties:
+                        configMap:
+                          additionalProperties:
+                            type: string
+                          description: '`ConfigMap` is a convenient way to specify
+                            a function config of kind ConfigMap.'
+                          type: object
+                        configPath:
+                          description: |-
+                            `ConfigPath` specifies a slash-delimited relative path to a file in the current directory
+                            containing a KRM resource used as the function config. This resource is
+                            excluded when resolving 'sources', and as a result cannot be operated on
+                            by the pipeline.
+                          type: string
+                        exclude:
+                          description: |-
+                            `Exclude` are used to specify resources on which the function should NOT be executed.
+                            If not specified, all resources selected by `Selectors` are selected.
+                          items:
+                            description: |-
+                              Selector specifies the selection criteria
+                              please update IsEmpty method if more properties are added
+                            properties:
+                              annotations:
+                                additionalProperties:
+                                  type: string
+                                description: Annotations on the target resources
+                                type: object
+                              apiVersion:
+                                description: APIVersion of the target resources
+                                type: string
+                              kind:
+                                description: Kind of the target resources
+                                type: string
+                              labels:
+                                additionalProperties:
+                                  type: string
+                                description: Labels on the target resources
+                                type: object
+                              name:
+                                description: Name of the target resources
+                                type: string
+                              namespace:
+                                description: Namespace of the target resources
+                                type: string
+                            type: object
+                          type: array
+                        exec:
+                          description: "Exec specifies the function binary executable.\nThe
+                            executable can be fully qualified or it must exists in
+                            the $PATH e.g:\n\n\t exec: set-namespace\n\t exec: /usr/local/bin/my-custom-fn"
+                          type: string
+                        image:
+                          description: "`Image` specifies the function container image.\nIt
+                            can either be fully qualified, e.g.:\n\n\timage: ghcr.io/kptdev/krm-functions-catalog/set-labels\n\nOptionally,
+                            kpt can be configured to use a image\nregistry host-path
+                            that will be used to resolve the image path in case\nthe
+                            image path is missing (Defaults to ghcr.io/kptdev/krm-functions-catalog).\ne.g.
+                            The following resolves to ghcr.io/kptdev/krm-functions-catalog/set-labels:\n\n\timage:
+                            set-labels"
+                          type: string
+                        name:
+                          description: |-
+                            `Name` is used to uniquely identify the function declaration
+                            this is primarily used for merging function declaration with upstream counterparts
+                          type: string
+                        selectors:
+                          description: |-
+                            `Selectors` are used to specify resources on which the function should be executed
+                            if not specified, all resources are selected
+                          items:
+                            description: |-
+                              Selector specifies the selection criteria
+                              please update IsEmpty method if more properties are added
+                            properties:
+                              annotations:
+                                additionalProperties:
+                                  type: string
+                                description: Annotations on the target resources
+                                type: object
+                              apiVersion:
+                                description: APIVersion of the target resources
+                                type: string
+                              kind:
+                                description: Kind of the target resources
+                                type: string
+                              labels:
+                                additionalProperties:
+                                  type: string
+                                description: Labels on the target resources
+                                type: object
+                              name:
+                                description: Name of the target resources
+                                type: string
+                              namespace:
+                                description: Namespace of the target resources
+                                type: string
+                            type: object
+                          type: array
+                      type: object
+                    type: array
+                  validators:
+                    description: |-
+                      Validators defines a list of KRM functions that validate resources.
+                      Validators are not permitted to mutate resources.
+                    items:
+                      description: Function specifies a KRM function.
+                      properties:
+                        configMap:
+                          additionalProperties:
+                            type: string
+                          description: '`ConfigMap` is a convenient way to specify
+                            a function config of kind ConfigMap.'
+                          type: object
+                        configPath:
+                          description: |-
+                            `ConfigPath` specifies a slash-delimited relative path to a file in the current directory
+                            containing a KRM resource used as the function config. This resource is
+                            excluded when resolving 'sources', and as a result cannot be operated on
+                            by the pipeline.
+                          type: string
+                        exclude:
+                          description: |-
+                            `Exclude` are used to specify resources on which the function should NOT be executed.
+                            If not specified, all resources selected by `Selectors` are selected.
+                          items:
+                            description: |-
+                              Selector specifies the selection criteria
+                              please update IsEmpty method if more properties are added
+                            properties:
+                              annotations:
+                                additionalProperties:
+                                  type: string
+                                description: Annotations on the target resources
+                                type: object
+                              apiVersion:
+                                description: APIVersion of the target resources
+                                type: string
+                              kind:
+                                description: Kind of the target resources
+                                type: string
+                              labels:
+                                additionalProperties:
+                                  type: string
+                                description: Labels on the target resources
+                                type: object
+                              name:
+                                description: Name of the target resources
+                                type: string
+                              namespace:
+                                description: Namespace of the target resources
+                                type: string
+                            type: object
+                          type: array
+                        exec:
+                          description: "Exec specifies the function binary executable.\nThe
+                            executable can be fully qualified or it must exists in
+                            the $PATH e.g:\n\n\t exec: set-namespace\n\t exec: /usr/local/bin/my-custom-fn"
+                          type: string
+                        image:
+                          description: "`Image` specifies the function container image.\nIt
+                            can either be fully qualified, e.g.:\n\n\timage: ghcr.io/kptdev/krm-functions-catalog/set-labels\n\nOptionally,
+                            kpt can be configured to use a image\nregistry host-path
+                            that will be used to resolve the image path in case\nthe
+                            image path is missing (Defaults to ghcr.io/kptdev/krm-functions-catalog).\ne.g.
+                            The following resolves to ghcr.io/kptdev/krm-functions-catalog/set-labels:\n\n\timage:
+                            set-labels"
+                          type: string
+                        name:
+                          description: |-
+                            `Name` is used to uniquely identify the function declaration
+                            this is primarily used for merging function declaration with upstream counterparts
+                          type: string
+                        selectors:
+                          description: |-
+                            `Selectors` are used to specify resources on which the function should be executed
+                            if not specified, all resources are selected
+                          items:
+                            description: |-
+                              Selector specifies the selection criteria
+                              please update IsEmpty method if more properties are added
+                            properties:
+                              annotations:
+                                additionalProperties:
+                                  type: string
+                                description: Annotations on the target resources
+                                type: object
+                              apiVersion:
+                                description: APIVersion of the target resources
+                                type: string
+                              kind:
+                                description: Kind of the target resources
+                                type: string
+                              labels:
+                                additionalProperties:
+                                  type: string
+                                description: Labels on the target resources
+                                type: object
+                              name:
+                                description: Name of the target resources
+                                type: string
+                              namespace:
+                                description: Namespace of the target resources
+                                type: string
+                            type: object
+                          type: array
+                      type: object
+                    type: array
+                type: object
+              upstream:
+                properties:
+                  package:
+                    type: string
+                  repo:
+                    type: string
+                  revision:
+                    type: integer
+                  workspaceName:
+                    type: string
+                type: object
+            type: object
+          status:
+            description: PackageVariantStatus defines the observed state of PackageVariant
+            properties:
+              conditions:
+                description: Conditions describes the reconciliation state of the
+                  object.
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              downstreamTargets:
+                description: |-
+                  DownstreamTargets contains the downstream targets that the PackageVariant
+                  either created or adopted.
+                items:
+                  properties:
+                    name:
+                      type: string
+                    renderStatus:
+                      description: |-
+                        RenderStatus represents the result of performing render operation
+                        on a package resources.
+                      properties:
+                        error:
+                          type: string
+                        result:
+                          description: ResultList contains aggregated results from
+                            multiple functions
+                          properties:
+                            apiVersion:
+                              description: |-
+                                APIVersion defines the versioned schema of this representation of an object.
+                                Servers should convert recognized schemas to the latest internal value, and
+                                may reject unrecognized values.
+                                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+                              type: string
+                            exitCode:
+                              description: ExitCode is the exit code of kpt command
+                              type: integer
+                            items:
+                              description: Items contain a list of function result
+                              items:
+                                description: Result contains the structured result
+                                  from an individual function
+                                properties:
+                                  exec:
+                                    description: |-
+                                      ExecPath is the the absolute os-specific path to the executable file
+                                      If user provides an executable file with commands, ExecPath should
+                                      contain the entire input string.
+                                    type: string
+                                  exitCode:
+                                    description: ExitCode is the exit code from running
+                                      the function
+                                    type: integer
+                                  image:
+                                    description: |-
+                                      Image is the full name of the image that generates this result
+                                      Image and Exec are mutually exclusive
+                                    type: string
+                                  results:
+                                    description: Results is the list of results for
+                                      the function
+                                    items:
+                                      description: ResultItem defines a validation
+                                        result
+                                      properties:
+                                        field:
+                                          description: Field is a reference to the
+                                            field in a resource this result refers
+                                            to
+                                          properties:
+                                            currentValue:
+                                              description: CurrentValue is the current
+                                                field value
+                                              type: string
+                                            path:
+                                              description: Path is the field path.
+                                                This field is required.
+                                              type: string
+                                            proposedValue:
+                                              description: ProposedValue is the proposed
+                                                value of the field to fix an issue.
+                                              type: string
+                                          type: object
+                                        file:
+                                          description: File references a file containing
+                                            the resource this result refers to
+                                          properties:
+                                            index:
+                                              description: |-
+                                                Index is the index into the file containing the resource
+                                                (i.e. if there are multiple resources in a single file)
+                                              type: integer
+                                            path:
+                                              description: |-
+                                                Path is relative path to the file containing the resource.
+                                                This field is required.
+                                              type: string
+                                          type: object
+                                        message:
+                                          description: Message is a human readable
+                                            message. This field is required.
+                                          type: string
+                                        resourceRef:
+                                          description: |-
+                                            ResourceRef is a reference to a resource.
+                                            Required fields: apiVersion, kind, name.
+                                          properties:
+                                            apiVersion:
+                                              description: |-
+                                                APIVersion defines the versioned schema of this representation of an object.
+                                                Servers should convert recognized schemas to the latest internal value, and
+                                                may reject unrecognized values.
+                                                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+                                              type: string
+                                            kind:
+                                              description: |-
+                                                Kind is a string value representing the REST resource this object represents.
+                                                Servers may infer this from the endpoint the client submits requests to.
+                                                Cannot be updated.
+                                                In CamelCase.
+                                                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+                                              type: string
+                                            name:
+                                              description: Name is the metadata.name
+                                                field of a Resource
+                                              type: string
+                                            namespace:
+                                              description: Namespace is the metadata.namespace
+                                                field of a Resource
+                                              type: string
+                                          type: object
+                                        severity:
+                                          description: Severity is the severity of
+                                            this result
+                                          type: string
+                                        tags:
+                                          additionalProperties:
+                                            type: string
+                                          description: |-
+                                            Tags is an unstructured key value map stored with a result that may be set
+                                            by external tools to store and retrieve arbitrary metadata
+                                          type: object
+                                      type: object
+                                    type: array
+                                  stderr:
+                                    description: |-
+                                      Enable this once test harness supports filepath based assertions.
+                                      Pkg is OS specific Absolute path to the package.
+                                      Pkg string `yaml:"pkg,omitempty"`
+                                      Stderr is the content in function stderr
+                                    type: string
+                                required:
+                                - exitCode
+                                type: object
+                              type: array
+                            kind:
+                              description: |-
+                                Kind is a string value representing the REST resource this object represents.
+                                Servers may infer this from the endpoint the client submits requests to.
+                                Cannot be updated.
+                                In CamelCase.
+                                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+                              type: string
+                            metadata:
+                              type: object
+                          required:
+                          - exitCode
+                          type: object
+                      required:
+                      - error
+                      type: object
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.19.0
+    internal.kpt.dev/upstream-identifier: apiextensions.k8s.io|CustomResourceDefinition|default|packagevariantsets.config.porch.kpt.dev
+  name: packagevariantsets.config.porch.kpt.dev
+spec:
+  group: config.porch.kpt.dev
+  names:
+    kind: PackageVariantSet
+    listKind: PackageVariantSetList
+    plural: packagevariantsets
+    singular: packagevariantset
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          PackageVariantSet represents an upstream package revision and a way to
+          target specific downstream repositories where a variant of the upstream
+          package should be created.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: PackageVariantSetSpec defines the desired state of PackageVariantSet
+            properties:
+              adoptionPolicy:
+                type: string
+              annotations:
+                additionalProperties:
+                  type: string
+                type: object
+              deletionPolicy:
+                type: string
+              labels:
+                additionalProperties:
+                  type: string
+                type: object
+              targets:
+                items:
+                  properties:
+                    objects:
+                      description: 'option 3: a selector against a set of arbitrary
+                        objects'
+                      properties:
+                        repoName:
+                          properties:
+                            fromField:
+                              type: string
+                            value:
+                              type: string
+                          type: object
+                        selectors:
+                          items:
+                            properties:
+                              annotations:
+                                additionalProperties:
+                                  type: string
+                                description: Annotations on the target resources
+                                type: object
+                              apiVersion:
+                                description: APIVersion of the target resources
+                                type: string
+                              kind:
+                                description: Kind of the target resources
+                                type: string
+                              labelSelector:
+                                description: Labels on the target resources
+                                properties:
+                                  matchExpressions:
+                                    description: matchExpressions is a list of label
+                                      selector requirements. The requirements are
+                                      ANDed.
+                                    items:
+                                      description: |-
+                                        A label selector requirement is a selector that contains values, a key, and an operator that
+                                        relates the key and values.
+                                      properties:
+                                        key:
+                                          description: key is the label key that the
+                                            selector applies to.
+                                          type: string
+                                        operator:
+                                          description: |-
+                                            operator represents a key's relationship to a set of values.
+                                            Valid operators are In, NotIn, Exists and DoesNotExist.
+                                          type: string
+                                        values:
+                                          description: |-
+                                            values is an array of string values. If the operator is In or NotIn,
+                                            the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                            the values array must be empty. This array is replaced during a strategic
+                                            merge patch.
+                                          items:
+                                            type: string
+                                          type: array
+                                          x-kubernetes-list-type: atomic
+                                      required:
+                                      - key
+                                      - operator
+                                      type: object
+                                    type: array
+                                    x-kubernetes-list-type: atomic
+                                  matchLabels:
+                                    additionalProperties:
+                                      type: string
+                                    description: |-
+                                      matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+                                      map is equivalent to an element of matchExpressions, whose key field is "key", the
+                                      operator is "In", and the values array contains only "value". The requirements are ANDed.
+                                    type: object
+                                type: object
+                                x-kubernetes-map-type: atomic
+                              name:
+                                description: Name of the target resources
+                                type: string
+                              namespace:
+                                description: Namespace of the target resources
+                                type: string
+                            type: object
+                          type: array
+                      type: object
+                    package:
+                      description: 'option 1: an explicit repo/package name pair'
+                      properties:
+                        name:
+                          type: string
+                        repo:
+                          type: string
+                      type: object
+                    packageName:
+                      description: |-
+                        For options 2 and 3, PackageName specifies how to create the name of the
+                        package variant
+                      properties:
+                        baseName:
+                          properties:
+                            fromField:
+                              type: string
+                            value:
+                              type: string
+                          type: object
+                        namePrefix:
+                          properties:
+                            fromField:
+                              type: string
+                            value:
+                              type: string
+                          type: object
+                        nameSuffix:
+                          properties:
+                            fromField:
+                              type: string
+                            value:
+                              type: string
+                          type: object
+                      type: object
+                    repositories:
+                      description: 'option 2: a label selector against a set of repositories'
+                      properties:
+                        matchExpressions:
+                          description: matchExpressions is a list of label selector
+                            requirements. The requirements are ANDed.
+                          items:
+                            description: |-
+                              A label selector requirement is a selector that contains values, a key, and an operator that
+                              relates the key and values.
+                            properties:
+                              key:
+                                description: key is the label key that the selector
+                                  applies to.
+                                type: string
+                              operator:
+                                description: |-
+                                  operator represents a key's relationship to a set of values.
+                                  Valid operators are In, NotIn, Exists and DoesNotExist.
+                                type: string
+                              values:
+                                description: |-
+                                  values is an array of string values. If the operator is In or NotIn,
+                                  the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                  the values array must be empty. This array is replaced during a strategic
+                                  merge patch.
+                                items:
+                                  type: string
+                                type: array
+                                x-kubernetes-list-type: atomic
+                            required:
+                            - key
+                            - operator
+                            type: object
+                          type: array
+                          x-kubernetes-list-type: atomic
+                        matchLabels:
+                          additionalProperties:
+                            type: string
+                          description: |-
+                            matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+                            map is equivalent to an element of matchExpressions, whose key field is "key", the
+                            operator is "In", and the values array contains only "value". The requirements are ANDed.
+                          type: object
+                      type: object
+                      x-kubernetes-map-type: atomic
+                  type: object
+                type: array
+              upstream:
+                properties:
+                  package:
+                    properties:
+                      name:
+                        type: string
+                      repo:
+                        type: string
+                    type: object
+                  ref:
+                    type: string
+                  revision:
+                    type: integer
+                type: object
+            type: object
+          status:
+            description: PackageVariantSetStatus defines the observed state of PackageVariantSet
+            properties:
+              conditions:
+                description: Conditions describes the reconciliation state of the
+                  object.
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: false
+    storage: false
+    subresources:
+      status: {}
+  - name: v1alpha2
+    schema:
+      openAPIV3Schema:
+        description: |-
+          PackageVariantSet represents an upstream package revision and a way to
+          target specific downstream repositories where a variant of the upstream
+          package should be created.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: PackageVariantSetSpec defines the desired state of PackageVariantSet
+            properties:
+              targets:
+                items:
+                  properties:
+                    objectSelector:
+                      description: 'option 3: a selector against a set of arbitrary
+                        objects'
+                      properties:
+                        apiVersion:
+                          description: APIVersion of the target resources
+                          type: string
+                        kind:
+                          description: Kind of the target resources
+                          type: string
+                        matchExpressions:
+                          description: matchExpressions is a list of label selector
+                            requirements. The requirements are ANDed.
+                          items:
+                            description: |-
+                              A label selector requirement is a selector that contains values, a key, and an operator that
+                              relates the key and values.
+                            properties:
+                              key:
+                                description: key is the label key that the selector
+                                  applies to.
+                                type: string
+                              operator:
+                                description: |-
+                                  operator represents a key's relationship to a set of values.
+                                  Valid operators are In, NotIn, Exists and DoesNotExist.
+                                type: string
+                              values:
+                                description: |-
+                                  values is an array of string values. If the operator is In or NotIn,
+                                  the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                  the values array must be empty. This array is replaced during a strategic
+                                  merge patch.
+                                items:
+                                  type: string
+                                type: array
+                                x-kubernetes-list-type: atomic
+                            required:
+                            - key
+                            - operator
+                            type: object
+                          type: array
+                          x-kubernetes-list-type: atomic
+                        matchLabels:
+                          additionalProperties:
+                            type: string
+                          description: |-
+                            matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+                            map is equivalent to an element of matchExpressions, whose key field is "key", the
+                            operator is "In", and the values array contains only "value". The requirements are ANDed.
+                          type: object
+                        name:
+                          description: Name of the target resource
+                          type: string
+                      type: object
+                      x-kubernetes-map-type: atomic
+                    repositories:
+                      description: |-
+                        Exactly one of Repositories, RepositorySeletor, and ObjectSelector must be
+                        populated
+                        option 1: an explicit repositories and package names
+                      items:
+                        properties:
+                          name:
+                            description: |-
+                              Name contains the name of the Repository resource, which must be in
+                              the same namespace as the PackageVariantSet resource.
+                            type: string
+                          packageNames:
+                            description: |-
+                              PackageNames contains names to use for package instances in this repository;
+                              that is, the same upstream will be instantiated multiple times using these names.
+                            items:
+                              type: string
+                            type: array
+                        required:
+                        - name
+                        type: object
+                      type: array
+                    repositorySelector:
+                      description: 'option 2: a label selector against a set of repositories'
+                      properties:
+                        matchExpressions:
+                          description: matchExpressions is a list of label selector
+                            requirements. The requirements are ANDed.
+                          items:
+                            description: |-
+                              A label selector requirement is a selector that contains values, a key, and an operator that
+                              relates the key and values.
+                            properties:
+                              key:
+                                description: key is the label key that the selector
+                                  applies to.
+                                type: string
+                              operator:
+                                description: |-
+                                  operator represents a key's relationship to a set of values.
+                                  Valid operators are In, NotIn, Exists and DoesNotExist.
+                                type: string
+                              values:
+                                description: |-
+                                  values is an array of string values. If the operator is In or NotIn,
+                                  the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                  the values array must be empty. This array is replaced during a strategic
+                                  merge patch.
+                                items:
+                                  type: string
+                                type: array
+                                x-kubernetes-list-type: atomic
+                            required:
+                            - key
+                            - operator
+                            type: object
+                          type: array
+                          x-kubernetes-list-type: atomic
+                        matchLabels:
+                          additionalProperties:
+                            type: string
+                          description: |-
+                            matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+                            map is equivalent to an element of matchExpressions, whose key field is "key", the
+                            operator is "In", and the values array contains only "value". The requirements are ANDed.
+                          type: object
+                      type: object
+                      x-kubernetes-map-type: atomic
+                    template:
+                      description: Template specifies how to generate a PackageVariant
+                        from a target
+                      properties:
+                        adoptionPolicy:
+                          description: AdoptionPolicy allows overriding the PackageVariant
+                            adoption policy
+                          type: string
+                        annotationExprs:
+                          description: |-
+                            AnnotationsExprs allows specifying the spec.Annotations field of the generated PackageVariant
+                            using CEL to dynamically create the keys and values. Entries in this field take precedent over
+                            those with the same keys that are present in Annotations.
+                          items:
+                            description: |-
+                              MapExpr is used for various fields to calculate map entries. Only one of
+                              Key and KeyExpr may be specified; similarly only on of Value and ValueExpr
+                              may be specified.
+                            properties:
+                              key:
+                                type: string
+                              keyExpr:
+                                type: string
+                              value:
+                                type: string
+                              valueExpr:
+                                type: string
+                            type: object
+                          type: array
+                        annotations:
+                          additionalProperties:
+                            type: string
+                          description: Annotations allows specifying the spec.Annotations
+                            field of the generated PackageVariant
+                          type: object
+                        deletionPolicy:
+                          description: DeletionPolicy allows overriding the PackageVariant
+                            deletion policy
+                          type: string
+                        downstream:
+                          description: Downstream allows overriding the default downstream
+                            package and repository name
+                          properties:
+                            package:
+                              type: string
+                            packageExpr:
+                              type: string
+                            repo:
+                              type: string
+                            repoExpr:
+                              type: string
+                          type: object
+                        injectors:
+                          description: Injectors allows specifying the spec.Injectors
+                            field of the generated PackageVariant
+                          items:
+                            description: |-
+                              InjectionSelectorTemplate is used to calculate the injectors field of the
+                              resulting package variants. Exactly one of the Name and NameExpr fields must
+                              be specified. The other fields are optional.
+                            properties:
+                              group:
+                                type: string
+                              kind:
+                                type: string
+                              name:
+                                type: string
+                              nameExpr:
+                                type: string
+                              version:
+                                type: string
+                            type: object
+                          type: array
+                        labelExprs:
+                          description: |-
+                            LabelsExprs allows specifying the spec.Labels field of the generated PackageVariant
+                            using CEL to dynamically create the keys and values. Entries in this field take precedent over
+                            those with the same keys that are present in Labels.
+                          items:
+                            description: |-
+                              MapExpr is used for various fields to calculate map entries. Only one of
+                              Key and KeyExpr may be specified; similarly only on of Value and ValueExpr
+                              may be specified.
+                            properties:
+                              key:
+                                type: string
+                              keyExpr:
+                                type: string
+                              value:
+                                type: string
+                              valueExpr:
+                                type: string
+                            type: object
+                          type: array
+                        labels:
+                          additionalProperties:
+                            type: string
+                          description: Labels allows specifying the spec.Labels field
+                            of the generated PackageVariant
+                          type: object
+                        packageContext:
+                          description: PackageContext allows specifying the spec.PackageContext
+                            field of the generated PackageVariant
+                          properties:
+                            data:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            dataExprs:
+                              items:
+                                description: |-
+                                  MapExpr is used for various fields to calculate map entries. Only one of
+                                  Key and KeyExpr may be specified; similarly only on of Value and ValueExpr
+                                  may be specified.
+                                properties:
+                                  key:
+                                    type: string
+                                  keyExpr:
+                                    type: string
+                                  value:
+                                    type: string
+                                  valueExpr:
+                                    type: string
+                                type: object
+                              type: array
+                            removeKeyExprs:
+                              items:
+                                type: string
+                              type: array
+                            removeKeys:
+                              items:
+                                type: string
+                              type: array
+                          type: object
+                        pipeline:
+                          description: Pipeline allows specifying the spec.Pipeline
+                            field of the generated PackageVariant
+                          properties:
+                            mutators:
+                              description: |-
+                                Mutators is used to caculate the pipeline.mutators field of the
+                                resulting package variants.
+                              items:
+                                description: |-
+                                  FunctionTemplate is used in generating KRM function pipeline entries; that
+                                  is, it is used to generate Kptfile Function objects.
+                                properties:
+                                  configMap:
+                                    additionalProperties:
+                                      type: string
+                                    description: '`ConfigMap` is a convenient way
+                                      to specify a function config of kind ConfigMap.'
+                                    type: object
+                                  configMapExprs:
+                                    description: |-
+                                      ConfigMapExprs allows use of CEL to dynamically create the keys and values in the
+                                      function config ConfigMap. Entries in this field take precedent over those with
+                                      the same keys that are present in ConfigMap.
+                                    items:
+                                      description: |-
+                                        MapExpr is used for various fields to calculate map entries. Only one of
+                                        Key and KeyExpr may be specified; similarly only on of Value and ValueExpr
+                                        may be specified.
+                                      properties:
+                                        key:
+                                          type: string
+                                        keyExpr:
+                                          type: string
+                                        value:
+                                          type: string
+                                        valueExpr:
+                                          type: string
+                                      type: object
+                                    type: array
+                                  configPath:
+                                    description: |-
+                                      `ConfigPath` specifies a slash-delimited relative path to a file in the current directory
+                                      containing a KRM resource used as the function config. This resource is
+                                      excluded when resolving 'sources', and as a result cannot be operated on
+                                      by the pipeline.
+                                    type: string
+                                  exclude:
+                                    description: |-
+                                      `Exclude` are used to specify resources on which the function should NOT be executed.
+                                      If not specified, all resources selected by `Selectors` are selected.
+                                    items:
+                                      description: |-
+                                        Selector specifies the selection criteria
+                                        please update IsEmpty method if more properties are added
+                                      properties:
+                                        annotations:
+                                          additionalProperties:
+                                            type: string
+                                          description: Annotations on the target resources
+                                          type: object
+                                        apiVersion:
+                                          description: APIVersion of the target resources
+                                          type: string
+                                        kind:
+                                          description: Kind of the target resources
+                                          type: string
+                                        labels:
+                                          additionalProperties:
+                                            type: string
+                                          description: Labels on the target resources
+                                          type: object
+                                        name:
+                                          description: Name of the target resources
+                                          type: string
+                                        namespace:
+                                          description: Namespace of the target resources
+                                          type: string
+                                      type: object
+                                    type: array
+                                  exec:
+                                    description: "Exec specifies the function binary
+                                      executable.\nThe executable can be fully qualified
+                                      or it must exists in the $PATH e.g:\n\n\t exec:
+                                      set-namespace\n\t exec: /usr/local/bin/my-custom-fn"
+                                    type: string
+                                  image:
+                                    description: "`Image` specifies the function container
+                                      image.\nIt can either be fully qualified, e.g.:\n\n\timage:
+                                      ghcr.io/kptdev/krm-functions-catalog/set-labels\n\nOptionally,
+                                      kpt can be configured to use a image\nregistry
+                                      host-path that will be used to resolve the image
+                                      path in case\nthe image path is missing (Defaults
+                                      to ghcr.io/kptdev/krm-functions-catalog).\ne.g.
+                                      The following resolves to ghcr.io/kptdev/krm-functions-catalog/set-labels:\n\n\timage:
+                                      set-labels"
+                                    type: string
+                                  name:
+                                    description: |-
+                                      `Name` is used to uniquely identify the function declaration
+                                      this is primarily used for merging function declaration with upstream counterparts
+                                    type: string
+                                  selectors:
+                                    description: |-
+                                      `Selectors` are used to specify resources on which the function should be executed
+                                      if not specified, all resources are selected
+                                    items:
+                                      description: |-
+                                        Selector specifies the selection criteria
+                                        please update IsEmpty method if more properties are added
+                                      properties:
+                                        annotations:
+                                          additionalProperties:
+                                            type: string
+                                          description: Annotations on the target resources
+                                          type: object
+                                        apiVersion:
+                                          description: APIVersion of the target resources
+                                          type: string
+                                        kind:
+                                          description: Kind of the target resources
+                                          type: string
+                                        labels:
+                                          additionalProperties:
+                                            type: string
+                                          description: Labels on the target resources
+                                          type: object
+                                        name:
+                                          description: Name of the target resources
+                                          type: string
+                                        namespace:
+                                          description: Namespace of the target resources
+                                          type: string
+                                      type: object
+                                    type: array
+                                type: object
+                              type: array
+                            validators:
+                              description: |-
+                                Validators is used to caculate the pipeline.validators field of the
+                                resulting package variants.
+                              items:
+                                description: |-
+                                  FunctionTemplate is used in generating KRM function pipeline entries; that
+                                  is, it is used to generate Kptfile Function objects.
+                                properties:
+                                  configMap:
+                                    additionalProperties:
+                                      type: string
+                                    description: '`ConfigMap` is a convenient way
+                                      to specify a function config of kind ConfigMap.'
+                                    type: object
+                                  configMapExprs:
+                                    description: |-
+                                      ConfigMapExprs allows use of CEL to dynamically create the keys and values in the
+                                      function config ConfigMap. Entries in this field take precedent over those with
+                                      the same keys that are present in ConfigMap.
+                                    items:
+                                      description: |-
+                                        MapExpr is used for various fields to calculate map entries. Only one of
+                                        Key and KeyExpr may be specified; similarly only on of Value and ValueExpr
+                                        may be specified.
+                                      properties:
+                                        key:
+                                          type: string
+                                        keyExpr:
+                                          type: string
+                                        value:
+                                          type: string
+                                        valueExpr:
+                                          type: string
+                                      type: object
+                                    type: array
+                                  configPath:
+                                    description: |-
+                                      `ConfigPath` specifies a slash-delimited relative path to a file in the current directory
+                                      containing a KRM resource used as the function config. This resource is
+                                      excluded when resolving 'sources', and as a result cannot be operated on
+                                      by the pipeline.
+                                    type: string
+                                  exclude:
+                                    description: |-
+                                      `Exclude` are used to specify resources on which the function should NOT be executed.
+                                      If not specified, all resources selected by `Selectors` are selected.
+                                    items:
+                                      description: |-
+                                        Selector specifies the selection criteria
+                                        please update IsEmpty method if more properties are added
+                                      properties:
+                                        annotations:
+                                          additionalProperties:
+                                            type: string
+                                          description: Annotations on the target resources
+                                          type: object
+                                        apiVersion:
+                                          description: APIVersion of the target resources
+                                          type: string
+                                        kind:
+                                          description: Kind of the target resources
+                                          type: string
+                                        labels:
+                                          additionalProperties:
+                                            type: string
+                                          description: Labels on the target resources
+                                          type: object
+                                        name:
+                                          description: Name of the target resources
+                                          type: string
+                                        namespace:
+                                          description: Namespace of the target resources
+                                          type: string
+                                      type: object
+                                    type: array
+                                  exec:
+                                    description: "Exec specifies the function binary
+                                      executable.\nThe executable can be fully qualified
+                                      or it must exists in the $PATH e.g:\n\n\t exec:
+                                      set-namespace\n\t exec: /usr/local/bin/my-custom-fn"
+                                    type: string
+                                  image:
+                                    description: "`Image` specifies the function container
+                                      image.\nIt can either be fully qualified, e.g.:\n\n\timage:
+                                      ghcr.io/kptdev/krm-functions-catalog/set-labels\n\nOptionally,
+                                      kpt can be configured to use a image\nregistry
+                                      host-path that will be used to resolve the image
+                                      path in case\nthe image path is missing (Defaults
+                                      to ghcr.io/kptdev/krm-functions-catalog).\ne.g.
+                                      The following resolves to ghcr.io/kptdev/krm-functions-catalog/set-labels:\n\n\timage:
+                                      set-labels"
+                                    type: string
+                                  name:
+                                    description: |-
+                                      `Name` is used to uniquely identify the function declaration
+                                      this is primarily used for merging function declaration with upstream counterparts
+                                    type: string
+                                  selectors:
+                                    description: |-
+                                      `Selectors` are used to specify resources on which the function should be executed
+                                      if not specified, all resources are selected
+                                    items:
+                                      description: |-
+                                        Selector specifies the selection criteria
+                                        please update IsEmpty method if more properties are added
+                                      properties:
+                                        annotations:
+                                          additionalProperties:
+                                            type: string
+                                          description: Annotations on the target resources
+                                          type: object
+                                        apiVersion:
+                                          description: APIVersion of the target resources
+                                          type: string
+                                        kind:
+                                          description: Kind of the target resources
+                                          type: string
+                                        labels:
+                                          additionalProperties:
+                                            type: string
+                                          description: Labels on the target resources
+                                          type: object
+                                        name:
+                                          description: Name of the target resources
+                                          type: string
+                                        namespace:
+                                          description: Namespace of the target resources
+                                          type: string
+                                      type: object
+                                    type: array
+                                type: object
+                              type: array
+                          type: object
+                      type: object
+                  type: object
+                type: array
+              upstream:
+                properties:
+                  package:
+                    type: string
+                  repo:
+                    type: string
+                  revision:
+                    type: integer
+                  workspaceName:
+                    type: string
+                type: object
+            type: object
+          status:
+            description: PackageVariantSetStatus defines the observed state of PackageVariantSet
+            properties:
+              conditions:
+                description: Conditions describes the reconciliation state of the
+                  object.
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.19.0
+    internal.kpt.dev/upstream-identifier: apiextensions.k8s.io|CustomResourceDefinition|default|repositories.config.porch.kpt.dev
+  name: repositories.config.porch.kpt.dev
+spec:
+  group: config.porch.kpt.dev
+  names:
+    kind: Repository
+    listKind: RepositoryList
+    plural: repositories
+    singular: repository
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.type
+      name: Type
+      type: string
+    - jsonPath: .spec.content
+      name: Content
+      type: string
+    - jsonPath: .spec.sync.schedule
+      name: Sync schedule
+      type: string
+    - jsonPath: .spec.deployment
+      name: Deployment
+      type: boolean
+    - jsonPath: .status.conditions[?(@.type=='Ready')].status
+      name: Ready
+      type: string
+    - jsonPath: .spec['git','oci']['repo','registry']
+      name: Address
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Repository
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: |-
+              RepositorySpec defines the desired state of Repository
+
+              Notes:
+                - deployment repository - in KRM API ConfigSync would be configured directly? (or via this API)
+            properties:
+              content:
+                default: Package
+                description: |-
+                  The Content field is deprecated, please do not specify it in new manifests.
+                  For partial backward compatibility it is still recognized, but its only valid value is "Package", and if not specified its default value is also "Package".
+                type: string
+                x-kubernetes-validations:
+                - message: The 'content' field is deprecated, its only valid value
+                    is 'Package'
+                  rule: self == '' || self == 'Package'
+              deployment:
+                description: The repository is a deployment repository; final packages
+                  in this repository are deployment ready.
+                type: boolean
+              description:
+                description: User-friendly description of the repository
+                type: string
+              git:
+                description: Git repository details. Required if `type` is `git`.
+                  Ignored if `type` is not `git`.
+                properties:
+                  author:
+                    description: Author to use for commits
+                    type: string
+                  branch:
+                    default: main
+                    description: Name of the branch containing the packages. Finalized
+                      packages will be committed to this branch (if the repository
+                      allows write access). If unspecified, defaults to "main".
+                    minLength: 1
+                    type: string
+                  createBranch:
+                    description: CreateBranch specifies if Porch should create the
+                      package branch if it doesn't exist.
+                    type: boolean
+                  directory:
+                    description: Directory within the Git repository where the packages
+                      are stored. A subdirectory of this directory containing a Kptfile
+                      is considered a package. If unspecified, defaults to root directory.
+                    type: string
+                  email:
+                    description: Email to use for commits
+                    type: string
+                  repo:
+                    description: |-
+                      Address of the Git repository, for example:
+                        `https://github.com/GoogleCloudPlatform/blueprints.git`
+                    type: string
+                  secretRef:
+                    description: Reference to secret containing authentication credentials.
+                    properties:
+                      name:
+                        description: Name of the secret. The secret is expected to
+                          be located in the same namespace as the resource containing
+                          the reference.
+                        type: string
+                    required:
+                    - name
+                    type: object
+                required:
+                - repo
+                type: object
+              oci:
+                description: OCI repository details. Required if `type` is `oci`.
+                  Ignored if `type` is not `oci`.
+                properties:
+                  registry:
+                    description: Registry is the address of the OCI registry
+                    type: string
+                  secretRef:
+                    description: Reference to secret containing authentication credentials.
+                    properties:
+                      name:
+                        description: Name of the secret. The secret is expected to
+                          be located in the same namespace as the resource containing
+                          the reference.
+                        type: string
+                    required:
+                    - name
+                    type: object
+                required:
+                - registry
+                type: object
+              sync:
+                description: Repository sync/reconcile details
+                properties:
+                  runOnceAt:
+                    description: Value in metav1.Time format to indicate when the
+                      repository should be synced once outside the periodic cron based
+                      reconcile loop.
+                    format: date-time
+                    type: string
+                  schedule:
+                    description: 'Cron value to indicate when the repository should
+                      be synced periodically. Example: `*/10 * * * *` to sync every
+                      10 minutes.'
+                    type: string
+                type: object
+              type:
+                description: Type of the repository (i.e. git, OCI)
+                type: string
+            type: object
+          status:
+            description: RepositoryStatus defines the observed state of Repository
+            properties:
+              conditions:
+                description: Conditions describes the reconciliation state of the
+                  object.
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+            type: object
+        type: object
+        x-kubernetes-validations:
+        - message: metadata.name must conform to the RFC1123 DNS label standard
+          rule: self.metadata.name.matches('^[a-z0-9]([-a-z0-9]*[a-z0-9])?$')
+        - message: metadata.name must be no more than 63 characters
+          rule: size(self.metadata.name) <= 63
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: v1
+imagePullSecrets:
+- name: ghcr-pull
+kind: ServiceAccount
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ServiceAccount|porch-fn-system|default'
+    kpt.dev/inventory-policy: adopt
+  name: default
+  namespace: porch-fn-system
+---
+apiVersion: v1
+imagePullSecrets:
+- name: ghcr-pull
+kind: ServiceAccount
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ServiceAccount|porch-system|porch-controllers'
+  name: porch-controllers
+  namespace: porch-system
+---
+apiVersion: v1
+imagePullSecrets:
+- name: ghcr-pull
+kind: ServiceAccount
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ServiceAccount|porch-system|porch-fn-runner'
+  name: porch-fn-runner
+  namespace: porch-system
+---
+apiVersion: v1
+imagePullSecrets:
+- name: ghcr-pull
+kind: ServiceAccount
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ServiceAccount|porch-system|porch-server'
+  name: porch-server
+  namespace: porch-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|Role|porch-fn-system|porch-function-executor
+  name: porch-function-executor
+  namespace: porch-fn-system
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - create
+  - delete
+  - patch
+  - get
+  - watch
+  - list
+- apiGroups:
+  - ""
+  resources:
+  - services
+  - endpoints
+  verbs:
+  - create
+  - delete
+  - get
+  - watch
+  - list
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - update
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|Role|porch-system|aggregated-apiserver-role
+  name: aggregated-apiserver-role
+  namespace: porch-system
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts/token
+  verbs:
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRole|default|aggregated-apiserver-clusterrole
+  name: aggregated-apiserver-clusterrole
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  - secrets
+  verbs:
+  - get
+  - watch
+  - list
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - mutatingwebhookconfigurations
+  - validatingwebhookconfigurations
+  verbs:
+  - get
+  - watch
+  - list
+  - create
+  - patch
+  - delete
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - validatingadmissionpolicybindings
+  - validatingadmissionpolicies
+  verbs:
+  - get
+  - watch
+  - list
+- apiGroups:
+  - config.porch.kpt.dev
+  resources:
+  - repositories
+  - repositories/status
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+- apiGroups:
+  - porch.kpt.dev
+  resources:
+  - packagerevisions
+  - packagerevisions/status
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - config.porch.kpt.dev
+  resources:
+  - packagerevs
+  - packagerevs/status
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - apiregistration.k8s.io
+  resources:
+  - apiservices
+  verbs:
+  - get
+- apiGroups:
+  - flowcontrol.apiserver.k8s.io
+  resources:
+  - flowschemas
+  - prioritylevelconfigurations
+  verbs:
+  - get
+  - watch
+  - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRole|default|porch-controllers
+  name: porch-controllers
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRole|default|porch-controllers-packagevariants
+  name: porch-controllers-packagevariants
+rules:
+- apiGroups:
+  - config.porch.kpt.dev
+  resources:
+  - packagevariants
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - config.porch.kpt.dev
+  resources:
+  - packagevariants/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - config.porch.kpt.dev
+  resources:
+  - packagevariants/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - config.porch.kpt.dev
+  resources:
+  - repositories
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - porch.kpt.dev
+  resources:
+  - packagerevisionresources
+  - packagerevisions
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRole|default|porch-controllers-packagevariantsets
+  name: porch-controllers-packagevariantsets
+rules:
+- apiGroups:
+  - '*'
+  resources:
+  - '*'
+  verbs:
+  - list
+- apiGroups:
+  - config.porch.kpt.dev
+  resources:
+  - packagevariants
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - config.porch.kpt.dev
+  resources:
+  - packagevariantsets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - config.porch.kpt.dev
+  resources:
+  - packagevariantsets/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - config.porch.kpt.dev
+  resources:
+  - packagevariantsets/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - config.porch.kpt.dev
+  resources:
+  - repositories
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|RoleBinding|kube-system|porch-auth-reader
+  name: porch-auth-reader
+  namespace: kube-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: extension-apiserver-authentication-reader
+subjects:
+- kind: ServiceAccount
+  name: porch-server
+  namespace: porch-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|RoleBinding|porch-fn-system|porch-function-executor
+  name: porch-function-executor
+  namespace: porch-fn-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: porch-function-executor
+subjects:
+- kind: ServiceAccount
+  name: porch-fn-runner
+  namespace: porch-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|RoleBinding|porch-system|sample-apiserver-rolebinding
+  name: sample-apiserver-rolebinding
+  namespace: porch-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: aggregated-apiserver-role
+subjects:
+- kind: ServiceAccount
+  name: porch-server
+  namespace: porch-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRoleBinding|default|porch-system:porch-controllers-packagevariants
+  name: porch-system:porch-controllers-packagevariants
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: porch-controllers-packagevariants
+subjects:
+- kind: ServiceAccount
+  name: porch-controllers
+  namespace: porch-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRoleBinding|default|porch-system:porch-controllers-packagevariantsets
+  name: porch-system:porch-controllers-packagevariantsets
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: porch-controllers-packagevariantsets
+subjects:
+- kind: ServiceAccount
+  name: porch-controllers
+  namespace: porch-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRoleBinding|default|porch:system:auth-delegator
+  name: porch:system:auth-delegator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+- kind: ServiceAccount
+  name: porch-server
+  namespace: porch-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRoleBinding|default|sample-apiserver-clusterrolebinding
+  name: sample-apiserver-clusterrolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: aggregated-apiserver-clusterrole
+subjects:
+- kind: ServiceAccount
+  name: porch-server
+  namespace: porch-system
+---
+apiVersion: v1
+data:
+  pod-cache-config.yaml: |
+    ghcr.io/kptdev/krm-functions-catalog/apply-replacements:v0.1.1: 30m
+    ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2.0: 30m
+    ghcr.io/kptdev/krm-functions-catalog/create-setters:v0.1.0: 30m
+    ghcr.io/kptdev/krm-functions-catalog/ensure-name-substring:v0.2.0: 30m
+    ghcr.io/kptdev/krm-functions-catalog/gatekeeper:v0.2.1: 30m
+    ghcr.io/kptdev/krm-functions-catalog/kubeconform:v0.1.1: 30m
+    ghcr.io/kptdev/krm-functions-catalog/search-replace:v0.2.0: 30m
+    ghcr.io/kptdev/krm-functions-catalog/set-annotations:v0.1.4: 30m
+    ghcr.io/kptdev/krm-functions-catalog/set-enforcement-action:v0.1.0: 30m
+    ghcr.io/kptdev/krm-functions-catalog/set-image:v0.1.1: 30m
+    ghcr.io/kptdev/krm-functions-catalog/set-labels:v0.1.5: 30m
+    ghcr.io/kptdev/krm-functions-catalog/set-namespace:v0.4.1: 30m
+    ghcr.io/kptdev/krm-functions-catalog/starlark:v0.4.3: 30m
+    ghcr.io/kptdev/krm-functions-catalog/upsert-resource:v0.2.0: 30m
+    ghcr.io/kptdev/krm-functions-catalog/enable-gcp-services:v0.1.0: 30m
+    ghcr.io/kptdev/krm-functions-catalog/export-terraform:v0.1.0: 30m
+    ghcr.io/kptdev/krm-functions-catalog/generate-folders:v0.1.1: 30m
+    ghcr.io/kptdev/krm-functions-catalog/remove-local-config-resources:v0.1.0: 30m
+    ghcr.io/kptdev/krm-functions-catalog/set-project-id:v0.2.0: 30m
+kind: ConfigMap
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|porch-system|pod-cache-config'
+  name: pod-cache-config
+  namespace: porch-system
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Service|porch-system|api'
+  name: api
+  namespace: porch-system
+spec:
+  ports:
+  - name: api
+    port: 443
+    protocol: TCP
+    targetPort: 4443
+  - name: webhooks
+    port: 8443
+    protocol: TCP
+    targetPort: 8443
+  selector:
+    app: porch-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Service|porch-system|function-runner'
+  name: function-runner
+  namespace: porch-system
+spec:
+  ports:
+  - port: 9445
+    protocol: TCP
+    targetPort: 9445
+  selector:
+    app: function-runner
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: apps|Deployment|porch-system|function-runner
+  name: function-runner
+  namespace: porch-system
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: function-runner
+  template:
+    metadata:
+      labels:
+        app: function-runner
+    spec:
+      containers:
+      - command:
+        - /server
+        - --config=/config.yaml
+        - --functions=/functions
+        - --pod-namespace=porch-fn-system
+        - --max-request-body-size=6291456
+        env:
+        - name: WRAPPER_SERVER_IMAGE
+          value: ghcr.io/nxmatic/porch-wrapper-server:nxmatic-37254b4
+        image: ghcr.io/nxmatic/porch-function-runner:nxmatic-37254b4
+        imagePullPolicy: IfNotPresent
+        name: function-runner
+        ports:
+        - containerPort: 9445
+        readinessProbe:
+          exec:
+            command:
+            - /grpc-health-probe
+            - -addr
+            - localhost:9445
+        resources:
+          requests:
+            cpu: 125m
+            memory: 64Mi
+        volumeMounts:
+        - mountPath: /pod-cache-config
+          name: pod-cache-config-volume
+      serviceAccountName: porch-fn-runner
+      volumes:
+      - configMap:
+          name: pod-cache-config
+        name: pod-cache-config-volume
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: apps|Deployment|porch-system|porch-controllers
+  labels:
+    k8s-app: porch-controllers
+  name: porch-controllers
+  namespace: porch-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: porch-controllers
+  template:
+    metadata:
+      labels:
+        k8s-app: porch-controllers
+    spec:
+      containers:
+      - env:
+        - name: ENABLE_PACKAGEVARIANTS
+          value: "true"
+        - name: ENABLE_PACKAGEVARIANTSETS
+          value: "true"
+        image: ghcr.io/nxmatic/porch-controllers:nxmatic-37254b4
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: 8081
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 5
+        name: porch-controllers
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /readyz
+            port: 8081
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 3
+      serviceAccountName: porch-controllers
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: apps|Deployment|porch-system|porch-server
+  name: porch-server
+  namespace: porch-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: porch-server
+  template:
+    metadata:
+      labels:
+        app: porch-server
+    spec:
+      containers:
+      - args:
+        - --function-runner=function-runner:9445
+        - --cache-directory=/cache
+        - --cert-dir=/tmp/certs
+        - --secure-port=4443
+        - --repo-sync-frequency=3m
+        - --repo-operation-retry-attempts=3
+        - --max-request-body-size=6291456
+        env:
+        - name: OTEL_SERVICE_NAME
+          value: porch-server
+        - name: CERT_STORAGE_DIR
+          value: /etc/webhook/certs
+        - name: GOOGLE_API_GO_EXPERIMENTAL_DISABLE_NEW_AUTH_LIB
+          value: "true"
+        image: ghcr.io/nxmatic/porch-server:nxmatic-37254b4
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: 4443
+            scheme: HTTPS
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 5
+        name: porch-server
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /readyz
+            port: 4443
+            scheme: HTTPS
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 3
+        resources:
+          limits:
+            memory: 512Mi
+          requests:
+            cpu: 250m
+            memory: 256Mi
+        securityContext:
+          runAsGroup: 65532
+          runAsNonRoot: true
+          runAsUser: 65532
+        volumeMounts:
+        - mountPath: /cache
+          name: cache-volume
+        - mountPath: /etc/webhook/certs
+          name: webhook-certs
+        - mountPath: /tmp/certs
+          name: api-server-certs
+      serviceAccountName: porch-server
+      volumes:
+      - emptyDir: {}
+        name: cache-volume
+      - emptyDir: {}
+        name: webhook-certs
+      - emptyDir: {}
+        name: api-server-certs
+---
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: apiregistration.k8s.io|APIService|default|v1alpha1.porch.kpt.dev
+  name: v1alpha1.porch.kpt.dev
+spec:
+  group: porch.kpt.dev
+  groupPriorityMinimum: 1000
+  insecureSkipTLSVerify: true
+  service:
+    name: api
+    namespace: porch-system
+  version: v1alpha1
+  versionPriority: 15
