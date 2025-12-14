@@ -287,40 +287,6 @@ write_files:
   - path: /usr/local/sbin/rke2-manifests-unpack
     permissions: "0755"
     content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-manifests-unpack.sh
-  - path: /etc/rke2-kpt-packages.yaml
-    permissions: "0644"
-    content: |
-      # @codebase
-      packages:
-        - name: porch
-          target: kpt/system/porch
-          source: https://github.com/nxmatic/incus-rke2-cluster.git/kpt/system/porch
-          ref: main
-        - name: porch-resources
-          target: kpt/system/porch-resources
-          source: https://github.com/nxmatic/incus-rke2-cluster.git/kpt/system/porch-resources
-          ref: main
-        - name: replicator
-          target: kpt/system/replicator
-          source: https://github.com/nxmatic/incus-rke2-cluster.git/kpt/system/replicator
-          ref: main
-        - name: flux-operator
-          target: kpt/system/flux-operator
-          source: https://github.com/nxmatic/incus-rke2-cluster.git/kpt/system/flux-operator
-          ref: main
-        - name: tekton-pipelines
-          target: kpt/system/tekton-pipelines
-          source: https://github.com/nxmatic/incus-rke2-cluster.git/kpt/system/tekton-pipelines
-          ref: main
-        - name: traefik
-          target: kpt/system/traefik
-          source: https://github.com/nxmatic/incus-rke2-cluster.git/kpt/system/traefik
-          ref: main
-        - name: cilium
-          target: kpt/system/cilium
-          source: https://github.com/nxmatic/incus-rke2-cluster.git/kpt/system/cilium
-          ref: main
-
   - path: /usr/local/sbin/rke2-route-cleanup
     permissions: "0755"
     content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-route-cleanup.sh

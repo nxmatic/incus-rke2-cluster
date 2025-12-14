@@ -17,6 +17,9 @@ version = 1
     dir = '../fleet/flox/gnumake'
 
   [[include.environments]]
+    dir = '../fleet/flox/net-tools'
+
+  [[include.environments]]
     dir = '../fleet/flox/k8s'
 
 

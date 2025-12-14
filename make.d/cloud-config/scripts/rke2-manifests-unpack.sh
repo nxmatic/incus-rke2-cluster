@@ -1,23 +1,17 @@
 #!/usr/bin/env -S bash -exuo pipefail
 
-manifest_file="/etc/rke2-kpt-packages.yaml"
-dest_dir="/var/lib/rancher/rke2/server/manifests"
-
 log() {
   echo "[rke2-manifests-unpack] $*" >&2
 }
-
-if [[ -f /etc/rancher/rke2/environment ]]; then
-  # shellcheck disable=SC1091
-  source /etc/rancher/rke2/environment
-fi
-
-repo_dir="${CLUSTER_STATE_DIR:-}"
 
 if command -v flox >/dev/null 2>&1; then
   # shellcheck disable=SC1090
   source <(flox activate --dir /var/lib/rancher/rke2)
 fi
+
+manifest_file="/etc/rke2-kpt-packages.yaml"
+dest_dir="/var/lib/rancher/rke2/server/manifests"
+repo_dir="${CLUSTER_STATE_DIR:-}"
 
 if [[ -z "${repo_dir}" ]]; then
   log "CLUSTER_STATE_DIR is unset; skipping manifest generation"

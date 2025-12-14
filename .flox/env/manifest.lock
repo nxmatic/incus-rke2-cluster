@@ -19,8 +19,15 @@
       },
       "dasel": {
         "pkg-path": "dasel",
-        "pkg-group": "k8s-yaml-tools",
+        "pkg-group": "yaml-tools",
         "version": "^2.8.1"
+      },
+      "dhcp": {
+        "pkg-path": "dhcp",
+        "pkg-group": "net-tools",
+        "systems": [
+          "aarch64-linux"
+        ]
       },
       "direnv": {
         "pkg-path": "direnv"
@@ -32,6 +39,13 @@
         "pkg-path": "etcdctl",
         "pkg-group": "k8s-etcd-tools",
         "version": "^3.3.27"
+      },
+      "ethtool": {
+        "pkg-path": "ethtool",
+        "pkg-group": "net-tools",
+        "systems": [
+          "aarch64-linux"
+        ]
       },
       "file": {
         "pkg-path": "file"
@@ -69,6 +83,18 @@
       "helmfile": {
         "pkg-path": "helmfile",
         "pkg-group": "k8s-kubectl-tools"
+      },
+      "ipcalc": {
+        "pkg-path": "ipcalc",
+        "pkg-group": "net-tools",
+        "version": "^1.0.3"
+      },
+      "iptstate": {
+        "pkg-path": "iptstate",
+        "pkg-group": "net-tools",
+        "systems": [
+          "aarch64-linux"
+        ]
       },
       "keychain": {
         "pkg-path": "keychain"
@@ -131,6 +157,23 @@
       "ncdu": {
         "pkg-path": "ncdu"
       },
+      "netplan": {
+        "pkg-path": "netplan",
+        "pkg-group": "net-tools",
+        "systems": [
+          "aarch64-linux"
+        ]
+      },
+      "nmap": {
+        "pkg-path": "nmap",
+        "pkg-group": "net-tools"
+      },
+      "openssh": {
+        "pkg-path": "openssh"
+      },
+      "openssl": {
+        "pkg-path": "openssl"
+      },
       "pass": {
         "pkg-path": "pass"
       },
@@ -143,6 +186,10 @@
       },
       "ssh-to-age": {
         "pkg-path": "ssh-to-age"
+      },
+      "tshark": {
+        "pkg-path": "tshark",
+        "pkg-group": "net-tools"
       },
       "tubekit": {
         "pkg-path": "tubekit",
@@ -160,7 +207,7 @@
       "on-activate": "    if [ -d \"${FLOX_ENV_PROJECT}/.github\" ]; then\n      remote=$(git -C \"${FLOX_ENV_PROJECT}\" remote get-url origin 2>/dev/null || true)\n      if [ -n \"${remote}\" ]; then\n        remote_host=\"github.com\"\n        case \"${remote}\" in\n          git@*:* )\n            remote_host=$(printf '%s' \"${remote}\" | cut -d'@' -f 2 | cut -d':' -f 1)\n            ;;\n          http://*|https://*)\n            remote_host=$(printf '%s' \"${remote}\" | cut -d'/' -f 3)\n            ;;\n          ssh://*)\n            remote_host=$(printf '%s' \"${remote}\" | cut -d'/' -f 3 | cut -d':' -f 1)\n            ;;\n        esac\n    \n        if [ -n \"${GH_TOKEN:-}\" ] && ! gh auth status --hostname \"${remote_host}\" >/dev/null 2>&1; then\n          echo \"Detected GH_TOKEN, logging in gh for ${remote_host}...\" >&2\n          printf '%s' \"${GH_TOKEN}\" | gh auth login --with-token --hostname \"${remote_host}\" >/dev/null 2>&1 || true\n        fi\n    \n        if gh auth status --hostname \"${remote_host}\" >/dev/null 2>&1; then\n          gh auth setup-git --hostname \"${remote_host}\" >/dev/null 2>&1 || true\n        fi\n      fi\n    fi\n  "
     },
     "profile": {
-      "common": "    GITHUB_SIGNING_KEYFILE=\"$HOME\"/.ssh/keys.d/github-signing\n    if [[ -r \"$GITHUB_SIGNING_KEYFILE\" ]]; then\n      set -a\n      SOPS_AGE_KEY=$( ssh-to-age -private-key < \"$GITHUB_SIGNING_KEYFILE\" )\n      set +a\n    else\n      echo no signing key\n    fi\n  \n    if [ -d \"${FLOX_ENV_PROJECT}/.github\" ]; then\n      gh_login=\"\"\n      if [ -n \"${GH_TOKEN:-}\" ]; then\n        gh_login=$(gh api user --jq '.login' 2>/dev/null || true)\n      elif command -v pass >/dev/null 2>&1; then\n        gh_secret=$(pass show coding/github@work 2>/dev/null | head -n 1 || true)\n        if [ -n \"${gh_secret}\" ]; then\n          gh_login=$(env GH_TOKEN=\"${gh_secret}\" gh api user --jq '.login' 2>/dev/null || true)\n        fi\n      fi\n      if [ -n \"${gh_login}\" ]; then\n        remote=$(git -C \"${FLOX_ENV_PROJECT}\" remote get-url origin 2>/dev/null || true)\n        if [ -n \"${remote}\" ]; then\n          owner=$(printf '%s' \"${remote}\" | cut -d'/' -f 4)\n          repo_name=$(printf '%s' \"${remote}\" | cut -d'/' -f 5 | cut -d'.' -f 1)\n          export GITHUB_LOGIN=\"${gh_login}\"\n          export GITHUB_OWNER=\"${owner}\"\n          export GITHUB_REPOSITORY=\"${owner}/${repo_name}\"\n        fi\n      fi\n    fi\n  \n  set -a\n\n  PATH=/run/wrappers/bin:$PATH\n\n  CLUSTER_NAME=${LIMA_HOSTNAME:-=bioskop}\n  case $CLUSTER_NAME in\n    bioskop) CLUSTER_SUBNET=1 ;;\n    alcide) CLUSTER_SUBNET=2 ;;\n    *) CLUSTER_SUBNET=254;;\n  esac\n  CLUSTER_SUBNET=${CLUSTER_SUBNET:-1}\n  \n  # Find secrets - try current directory first, then FLOX_ENV_DIRS\n  # This works whether this env is used standalone or included\n  SECRETS_DIR=\"\"\n  if [ -d \".secrets.d\" ]; then\n    SECRETS_DIR=\".secrets.d\"\n  elif [ -n \"$FLOX_ENV_DIRS\" ]; then\n    # Search through all environment directories in the composition\n    for dir in $FLOX_ENV_DIRS; do\n      if [ -d \"$dir/.secrets.d\" ]; then\n        SECRETS_DIR=\"$dir/.secrets.d\"\n        break\n      fi\n    done\n  fi\n  \n  SECRETS_FILE=\"\"\n  if [ -n \"$SECRETS_DIR\" ]; then\n    for candidate in .secrets secrets.yaml secrets.yml; do\n      if [ -f \"$SECRETS_DIR/$candidate\" ]; then\n        SECRETS_FILE=\"$SECRETS_DIR/$candidate\"\n        break\n      fi\n    done\n  fi\n\n  secret_from_yaml() {\n    local expr=\"$1\" fallback=\"$2\" value=\"\"\n    if [ -n \"$SECRETS_FILE\" ] && command -v yq >/dev/null 2>&1; then\n      value=$(yq -r \"${expr} // \\\"\\\"\" \"$SECRETS_FILE\" 2>/dev/null || true)\n    fi\n    if [ -z \"$value\" ] && [ -n \"$fallback\" ] && [ -f \"$fallback\" ]; then\n      value=$(cat \"$fallback\")\n    fi\n    printf '%s' \"${value:-}\"\n  }\n\n  TSKEY_CLIENT_ID=${TSKEY_CLIENT_ID:-$(secret_from_yaml '.tailscale.client.id' \"${SECRETS_DIR:+$SECRETS_DIR/tskey-client-id}\")}\n  TSKEY_CLIENT_TOKEN=${TSKEY_CLIENT_TOKEN:-$(secret_from_yaml '.tailscale.client.token' \"${SECRETS_DIR:+$SECRETS_DIR/tskey-client-token}\")}\n  TSKEY_API_ID=${TSKEY_API_ID:-$(secret_from_yaml '.tailscale.api.id' \"${SECRETS_DIR:+$SECRETS_DIR/tskey-api-id}\")}\n  TSKEY_API_TOKEN=${TSKEY_API_TOKEN:-$(secret_from_yaml '.tailscale.api.token' \"${SECRETS_DIR:+$SECRETS_DIR/tskey-api-token}\")}\n  CLUSTER_GITHUB_USERNAME=${CLUSTER_GITHUB_USERNAME:-$(secret_from_yaml '.github.username' '')}\n  CLUSTER_GITHUB_TOKEN=${CLUSTER_GITHUB_TOKEN:-$(secret_from_yaml '.github.token' \"${SECRETS_DIR:+$SECRETS_DIR/cluster-github-token}\")}\n  CLUSTER_DOCKER_CONFIG_JSON=${CLUSTER_DOCKER_CONFIG_JSON:-$(secret_from_yaml '.docker.configJson' \"${SECRETS_DIR:+$SECRETS_DIR/docker-config-json}\")}\n\n  : \"Expose GitHub PAT / Docker registry defaults for tooling\"\n  : \"Prefer pre-set environment variables (e.g., CI) over YAML values\"\n  CLUSTER_GITHUB_USERNAME=${CLUSTER_GITHUB_USERNAME:-x-access-token}\n  CLUSTER_GITHUB_TOKEN=${CLUSTER_GITHUB_TOKEN:-}\n  CLUSTER_DOCKER_CONFIG_JSON=${CLUSTER_DOCKER_CONFIG_JSON:-}\n  GITHUB_PAT=${CLUSTER_GITHUB_TOKEN}\n  DOCKER_CONFIG_JSON=${DOCKER_CONFIG_JSON:-$CLUSTER_DOCKER_CONFIG_JSON}\n\n  \n  set +a\n"
+      "common": "    GITHUB_SIGNING_KEYFILE=\"$HOME\"/.ssh/keys.d/github-signing\n    if [[ -r \"$GITHUB_SIGNING_KEYFILE\" ]]; then\n      set -a\n      SOPS_AGE_KEY=$( ssh-to-age -private-key < \"$GITHUB_SIGNING_KEYFILE\" )\n      set +a\n    else\n      echo no signing key\n    fi\n  \n    if [ -d \"${FLOX_ENV_PROJECT}/.github\" ]; then\n      gh_login=\"\"\n      if [ -n \"${GH_TOKEN:-}\" ]; then\n        gh_login=$(gh api user --jq '.login' 2>/dev/null || true)\n      elif command -v pass >/dev/null 2>&1; then\n        gh_secret=$(pass show coding/github@work 2>/dev/null | head -n 1 || true)\n        if [ -n \"${gh_secret}\" ]; then\n          gh_login=$(env GH_TOKEN=\"${gh_secret}\" gh api user --jq '.login' 2>/dev/null || true)\n        fi\n      fi\n      if [ -n \"${gh_login}\" ]; then\n        remote=$(git -C \"${FLOX_ENV_PROJECT}\" remote get-url origin 2>/dev/null || true)\n        if [ -n \"${remote}\" ]; then\n          owner=$(printf '%s' \"${remote}\" | cut -d'/' -f 4)\n          repo_name=$(printf '%s' \"${remote}\" | cut -d'/' -f 5 | cut -d'.' -f 1)\n          export GITHUB_LOGIN=\"${gh_login}\"\n          export GITHUB_OWNER=\"${owner}\"\n          export GITHUB_REPOSITORY=\"${owner}/${repo_name}\"\n        fi\n      fi\n    fi\n  \n    GITHUB_SIGNING_KEYFILE=\"$HOME\"/.ssh/keys.d/github-signing\n    if [[ -r \"$GITHUB_SIGNING_KEYFILE\" ]]; then\n      set -a\n      SOPS_AGE_KEY=$( ssh-to-age -private-key < \"$GITHUB_SIGNING_KEYFILE\" )\n      set +a\n    else\n      echo no signing key\n    fi\n  \n  set -a\n\n  PATH=/run/wrappers/bin:$PATH\n\n  CLUSTER_NAME=${LIMA_HOSTNAME:-=bioskop}\n  case $CLUSTER_NAME in\n    bioskop) CLUSTER_SUBNET=1 ;;\n    alcide) CLUSTER_SUBNET=2 ;;\n    *) CLUSTER_SUBNET=254;;\n  esac\n  CLUSTER_SUBNET=${CLUSTER_SUBNET:-1}\n  \n  # Find secrets - try current directory first, then FLOX_ENV_DIRS\n  # This works whether this env is used standalone or included\n  SECRETS_DIR=\"\"\n  if [ -d \".secrets.d\" ]; then\n    SECRETS_DIR=\".secrets.d\"\n  elif [ -n \"$FLOX_ENV_DIRS\" ]; then\n    # Search through all environment directories in the composition\n    for dir in $FLOX_ENV_DIRS; do\n      if [ -d \"$dir/.secrets.d\" ]; then\n        SECRETS_DIR=\"$dir/.secrets.d\"\n        break\n      fi\n    done\n  fi\n  \n  SECRETS_FILE=\"\"\n  if [ -n \"$SECRETS_DIR\" ]; then\n    for candidate in .secrets secrets.yaml secrets.yml; do\n      if [ -f \"$SECRETS_DIR/$candidate\" ]; then\n        SECRETS_FILE=\"$SECRETS_DIR/$candidate\"\n        break\n      fi\n    done\n  fi\n\n  secret_from_yaml() {\n    local expr=\"$1\" fallback=\"$2\" value=\"\"\n    if [ -n \"$SECRETS_FILE\" ] && command -v yq >/dev/null 2>&1; then\n      value=$(yq -r \"${expr} // \\\"\\\"\" \"$SECRETS_FILE\" 2>/dev/null || true)\n    fi\n    if [ -z \"$value\" ] && [ -n \"$fallback\" ] && [ -f \"$fallback\" ]; then\n      value=$(cat \"$fallback\")\n    fi\n    printf '%s' \"${value:-}\"\n  }\n\n  TSKEY_CLIENT_ID=${TSKEY_CLIENT_ID:-$(secret_from_yaml '.tailscale.client.id' \"${SECRETS_DIR:+$SECRETS_DIR/tskey-client-id}\")}\n  TSKEY_CLIENT_TOKEN=${TSKEY_CLIENT_TOKEN:-$(secret_from_yaml '.tailscale.client.token' \"${SECRETS_DIR:+$SECRETS_DIR/tskey-client-token}\")}\n  TSKEY_API_ID=${TSKEY_API_ID:-$(secret_from_yaml '.tailscale.api.id' \"${SECRETS_DIR:+$SECRETS_DIR/tskey-api-id}\")}\n  TSKEY_API_TOKEN=${TSKEY_API_TOKEN:-$(secret_from_yaml '.tailscale.api.token' \"${SECRETS_DIR:+$SECRETS_DIR/tskey-api-token}\")}\n  CLUSTER_GITHUB_USERNAME=${CLUSTER_GITHUB_USERNAME:-$(secret_from_yaml '.github.username' '')}\n  CLUSTER_GITHUB_TOKEN=${CLUSTER_GITHUB_TOKEN:-$(secret_from_yaml '.github.token' \"${SECRETS_DIR:+$SECRETS_DIR/cluster-github-token}\")}\n  CLUSTER_DOCKER_CONFIG_JSON=${CLUSTER_DOCKER_CONFIG_JSON:-$(secret_from_yaml '.docker.configJson' \"${SECRETS_DIR:+$SECRETS_DIR/docker-config-json}\")}\n\n  : \"Expose GitHub PAT / Docker registry defaults for tooling\"\n  : \"Prefer pre-set environment variables (e.g., CI) over YAML values\"\n  CLUSTER_GITHUB_USERNAME=${CLUSTER_GITHUB_USERNAME:-x-access-token}\n  CLUSTER_GITHUB_TOKEN=${CLUSTER_GITHUB_TOKEN:-}\n  CLUSTER_DOCKER_CONFIG_JSON=${CLUSTER_DOCKER_CONFIG_JSON:-}\n  GITHUB_PAT=${CLUSTER_GITHUB_TOKEN}\n  DOCKER_CONFIG_JSON=${DOCKER_CONFIG_JSON:-$CLUSTER_DOCKER_CONFIG_JSON}\n\n  \n  set +a\n"
     },
     "options": {
       "systems": [
@@ -1641,64 +1688,6 @@
       "priority": 5
     },
     {
-      "attr_path": "dasel",
-      "broken": false,
-      "derivation": "/nix/store/00kwr06q197q2zmmj2jhga0vkiyzb3dj-dasel-2.8.1.drv",
-      "description": "Query and update data structures from the command line",
-      "install_id": "dasel",
-      "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
-      "name": "dasel-2.8.1",
-      "pname": "dasel",
-      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
-      "rev_count": 910362,
-      "rev_date": "2025-12-11T16:57:14Z",
-      "scrape_date": "2025-12-14T03:01:34.867169Z",
-      "stabilities": [
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "2.8.1",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/cdyi2m3793s4f2pwk386hmf4mibjc01s-dasel-2.8.1"
-      },
-      "system": "aarch64-darwin",
-      "group": "k8s-yaml-tools",
-      "priority": 5
-    },
-    {
-      "attr_path": "dasel",
-      "broken": false,
-      "derivation": "/nix/store/5gzabypsvgm0v1fq4xxhr8s19dcbbdwy-dasel-2.8.1.drv",
-      "description": "Query and update data structures from the command line",
-      "install_id": "dasel",
-      "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
-      "name": "dasel-2.8.1",
-      "pname": "dasel",
-      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
-      "rev_count": 910362,
-      "rev_date": "2025-12-11T16:57:14Z",
-      "scrape_date": "2025-12-14T03:17:14.836317Z",
-      "stabilities": [
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "2.8.1",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/s8yak46drdhgzjqcfl9cy2s4ybxx0jjf-dasel-2.8.1"
-      },
-      "system": "aarch64-linux",
-      "group": "k8s-yaml-tools",
-      "priority": 5
-    },
-    {
       "attr_path": "yq-go",
       "broken": false,
       "derivation": "/nix/store/xbkwannk52mma4j41vd1xkz5q8r7z79r-yq-go-4.49.2.drv",
@@ -1754,6 +1743,308 @@
       },
       "system": "aarch64-linux",
       "group": "k8s-yaml-tools",
+      "priority": 5
+    },
+    {
+      "attr_path": "dhcp",
+      "broken": false,
+      "derivation": "/nix/store/fwj9q1c9nqnnm2dcpbrsfqmgxw161yak-dhcp-4.4.3-P1.drv",
+      "description": "Dynamic Host Configuration Protocol (DHCP) tools",
+      "install_id": "dhcp",
+      "license": "MPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=9e1960bc196baf6881340d53dccb203a951745a2",
+      "name": "dhcp-4.4.3-P1",
+      "pname": "dhcp",
+      "rev": "9e1960bc196baf6881340d53dccb203a951745a2",
+      "rev_count": 509514,
+      "rev_date": "2023-08-01T09:21:54Z",
+      "scrape_date": "2024-08-16T00:46:51Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "4.4.3-P1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/r89cyz0gsimqc41hivdrcwjiryw7db3s-dhcp-4.4.3-P1"
+      },
+      "system": "aarch64-linux",
+      "group": "net-tools",
+      "priority": 5
+    },
+    {
+      "attr_path": "ethtool",
+      "broken": false,
+      "derivation": "/nix/store/wjg1yz5bscfdghwxw8xccvwg7w721gqp-ethtool-6.1.drv",
+      "description": "Utility for controlling network drivers and hardware",
+      "install_id": "ethtool",
+      "license": "GPL-2.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=9e1960bc196baf6881340d53dccb203a951745a2",
+      "name": "ethtool-6.1",
+      "pname": "ethtool",
+      "rev": "9e1960bc196baf6881340d53dccb203a951745a2",
+      "rev_count": 509514,
+      "rev_date": "2023-08-01T09:21:54Z",
+      "scrape_date": "2024-08-16T00:46:51Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "6.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/rar06g4fyaap8936c5yhyxznq1g9kk52-ethtool-6.1"
+      },
+      "system": "aarch64-linux",
+      "group": "net-tools",
+      "priority": 5
+    },
+    {
+      "attr_path": "ipcalc",
+      "broken": false,
+      "derivation": "/nix/store/mywhhsbxxsm12pijxcchb747zsvpp23h-ipcalc-1.0.3.drv",
+      "description": "Simple IP network calculator",
+      "install_id": "ipcalc",
+      "license": "GPL-2.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=9e1960bc196baf6881340d53dccb203a951745a2",
+      "name": "ipcalc-1.0.3",
+      "pname": "ipcalc",
+      "rev": "9e1960bc196baf6881340d53dccb203a951745a2",
+      "rev_count": 509514,
+      "rev_date": "2023-08-01T09:21:54Z",
+      "scrape_date": "2024-08-16T00:46:51Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.0.3",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/70pbpilp1sjggdbj9h1cnigvymn7m48d-ipcalc-1.0.3"
+      },
+      "system": "aarch64-darwin",
+      "group": "net-tools",
+      "priority": 5
+    },
+    {
+      "attr_path": "ipcalc",
+      "broken": false,
+      "derivation": "/nix/store/8sd130xznc3j7s84psafmy32znnv2mc6-ipcalc-1.0.3.drv",
+      "description": "Simple IP network calculator",
+      "install_id": "ipcalc",
+      "license": "GPL-2.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=9e1960bc196baf6881340d53dccb203a951745a2",
+      "name": "ipcalc-1.0.3",
+      "pname": "ipcalc",
+      "rev": "9e1960bc196baf6881340d53dccb203a951745a2",
+      "rev_count": 509514,
+      "rev_date": "2023-08-01T09:21:54Z",
+      "scrape_date": "2024-08-16T00:46:51Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.0.3",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/qx4db6rpa6n42mlcis22farkpp0gpkhd-ipcalc-1.0.3"
+      },
+      "system": "aarch64-linux",
+      "group": "net-tools",
+      "priority": 5
+    },
+    {
+      "attr_path": "iptstate",
+      "broken": false,
+      "derivation": "/nix/store/763fipivrskl50kyjrpkg9mdg6dmj3g8-iptstate-2.2.7.drv",
+      "description": "Conntrack top like tool",
+      "install_id": "iptstate",
+      "license": "Zlib",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=9e1960bc196baf6881340d53dccb203a951745a2",
+      "name": "iptstate-2.2.7",
+      "pname": "iptstate",
+      "rev": "9e1960bc196baf6881340d53dccb203a951745a2",
+      "rev_count": 509514,
+      "rev_date": "2023-08-01T09:21:54Z",
+      "scrape_date": "2024-08-16T00:46:51Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.2.7",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/1idlrp2vs882f5vc1pbn2q9z7kl7djr3-iptstate-2.2.7"
+      },
+      "system": "aarch64-linux",
+      "group": "net-tools",
+      "priority": 5
+    },
+    {
+      "attr_path": "netplan",
+      "broken": false,
+      "derivation": "/nix/store/nb7jmxvi5p9vdikv6ygar68yivfmidg1-netplan-0.106.1.drv",
+      "description": "Backend-agnostic network configuration in YAML",
+      "install_id": "netplan",
+      "license": "GPL-3.0-only",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=9e1960bc196baf6881340d53dccb203a951745a2",
+      "name": "netplan-0.106.1",
+      "pname": "netplan",
+      "rev": "9e1960bc196baf6881340d53dccb203a951745a2",
+      "rev_count": 509514,
+      "rev_date": "2023-08-01T09:21:54Z",
+      "scrape_date": "2024-08-16T00:46:51Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.106.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/9bspsv42iw8d783hf7811yjffk13j2lc-netplan-0.106.1"
+      },
+      "system": "aarch64-linux",
+      "group": "net-tools",
+      "priority": 5
+    },
+    {
+      "attr_path": "nmap",
+      "broken": false,
+      "derivation": "/nix/store/znqr8r62dgdi07swh235qqvcv484jdya-nmap-7.94.drv",
+      "description": "A free and open source utility for network discovery and security auditing",
+      "install_id": "nmap",
+      "license": "GPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=9e1960bc196baf6881340d53dccb203a951745a2",
+      "name": "nmap-7.94",
+      "pname": "nmap",
+      "rev": "9e1960bc196baf6881340d53dccb203a951745a2",
+      "rev_count": 509514,
+      "rev_date": "2023-08-01T09:21:54Z",
+      "scrape_date": "2024-08-16T00:46:51Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "7.94",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/47kk63g8gi75gkn8ajk2pl0840dq1p3b-nmap-7.94"
+      },
+      "system": "aarch64-darwin",
+      "group": "net-tools",
+      "priority": 5
+    },
+    {
+      "attr_path": "nmap",
+      "broken": false,
+      "derivation": "/nix/store/56yxf4ib4gyimlyfq86k2nh2lnbj02li-nmap-7.94.drv",
+      "description": "A free and open source utility for network discovery and security auditing",
+      "install_id": "nmap",
+      "license": "GPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=9e1960bc196baf6881340d53dccb203a951745a2",
+      "name": "nmap-7.94",
+      "pname": "nmap",
+      "rev": "9e1960bc196baf6881340d53dccb203a951745a2",
+      "rev_count": 509514,
+      "rev_date": "2023-08-01T09:21:54Z",
+      "scrape_date": "2024-08-16T00:46:51Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "7.94",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/97vmbkg30hgjdp22qszm33p0aiwab62q-nmap-7.94"
+      },
+      "system": "aarch64-linux",
+      "group": "net-tools",
+      "priority": 5
+    },
+    {
+      "attr_path": "tshark",
+      "broken": false,
+      "derivation": "/nix/store/v3jzq23cy12wc9705q024r0kv7qqdn2b-wireshark-cli-4.0.6.drv",
+      "description": "Powerful network protocol analyzer",
+      "install_id": "tshark",
+      "license": "GPL-2.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=9e1960bc196baf6881340d53dccb203a951745a2",
+      "name": "wireshark-cli-4.0.6",
+      "pname": "tshark",
+      "rev": "9e1960bc196baf6881340d53dccb203a951745a2",
+      "rev_count": 509514,
+      "rev_date": "2023-08-01T09:21:54Z",
+      "scrape_date": "2024-08-16T00:46:51Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "4.0.6",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "dev": "/nix/store/6gc6kjj1g3zpkgifc7057ckx7dm40708-wireshark-cli-4.0.6-dev",
+        "out": "/nix/store/3wzhra3ckp9rfw2h37wc11x644qhixib-wireshark-cli-4.0.6"
+      },
+      "system": "aarch64-darwin",
+      "group": "net-tools",
+      "priority": 5
+    },
+    {
+      "attr_path": "tshark",
+      "broken": false,
+      "derivation": "/nix/store/03059hvsk89sbrlk467bs6jwv5rj034k-wireshark-cli-4.0.6.drv",
+      "description": "Powerful network protocol analyzer",
+      "install_id": "tshark",
+      "license": "GPL-2.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=9e1960bc196baf6881340d53dccb203a951745a2",
+      "name": "wireshark-cli-4.0.6",
+      "pname": "tshark",
+      "rev": "9e1960bc196baf6881340d53dccb203a951745a2",
+      "rev_count": 509514,
+      "rev_date": "2023-08-01T09:21:54Z",
+      "scrape_date": "2024-08-16T00:46:51Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "4.0.6",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "dev": "/nix/store/2giiig28jrcgmi48v2glzibwm6cy9kfs-wireshark-cli-4.0.6-dev",
+        "out": "/nix/store/6dxl0jf567ly1cfr4rp18j72h5mac8vh-wireshark-cli-4.0.6"
+      },
+      "system": "aarch64-linux",
+      "group": "net-tools",
       "priority": 5
     },
     {
@@ -2285,6 +2576,139 @@
       "priority": 5
     },
     {
+      "attr_path": "openssh",
+      "broken": false,
+      "derivation": "/nix/store/6kk6mh4wpw5rgxrq4xz23r9idgrmdwy3-openssh-10.2p1.drv",
+      "description": "Implementation of the SSH protocol",
+      "install_id": "openssh",
+      "license": "BSD-2-Clause",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "openssh-10.2p1",
+      "pname": "openssh",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:01:59.595897Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "10.2p1",
+      "outputs_to_install": [
+        "man",
+        "out"
+      ],
+      "outputs": {
+        "dev": "/nix/store/g0y06zasx0jw2jpfk85c6bcfk59n46jv-openssh-10.2p1-dev",
+        "man": "/nix/store/i65vp5snsvihp461l8j3h57pf8k3jmsh-openssh-10.2p1-man",
+        "out": "/nix/store/agnj8gz5q5rzj56qs6xck1sss1qg4k1s-openssh-10.2p1"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "openssh",
+      "broken": false,
+      "derivation": "/nix/store/n8acvw5p13d4swp0xbq1na81597sqmvc-openssh-10.2p1.drv",
+      "description": "Implementation of the SSH protocol",
+      "install_id": "openssh",
+      "license": "BSD-2-Clause",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "openssh-10.2p1",
+      "pname": "openssh",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:18:11.287544Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "10.2p1",
+      "outputs_to_install": [
+        "man",
+        "out"
+      ],
+      "outputs": {
+        "dev": "/nix/store/sx7cpyqvnh9iqvv4vdhi1z1shfqx7qf6-openssh-10.2p1-dev",
+        "man": "/nix/store/cwlfbq56kw3phs1ja0c0m29qrs011jky-openssh-10.2p1-man",
+        "out": "/nix/store/zj0bk3ch8mc90j9wq8cq3qb0c4vv425q-openssh-10.2p1"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "openssl",
+      "broken": false,
+      "derivation": "/nix/store/0hx3sis9pi4yfjyv74h5bsiws89fk0k1-openssl-3.6.0.drv",
+      "description": "Cryptographic library that implements the SSL and TLS protocols",
+      "install_id": "openssl",
+      "license": "Apache-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "openssl-3.6.0",
+      "pname": "openssl",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:01:59.604792Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "3.6.0",
+      "outputs_to_install": [
+        "bin",
+        "man"
+      ],
+      "outputs": {
+        "bin": "/nix/store/z9prisxci5h5lsk3rdknd4jzq7k9q13d-openssl-3.6.0-bin",
+        "dev": "/nix/store/h0qgqik0mk0wn7rmm2kk3grfi1wzly74-openssl-3.6.0-dev",
+        "doc": "/nix/store/yx3ip21fdaaxpjn5fbir02mqnaw9cm4f-openssl-3.6.0-doc",
+        "man": "/nix/store/ii9mnzr3i92mgk9dkgg65739mavd0j6f-openssl-3.6.0-man",
+        "out": "/nix/store/3z54dgks2mz3dhwddj158sdibll8xmq5-openssl-3.6.0"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "openssl",
+      "broken": false,
+      "derivation": "/nix/store/2x0qxv09mdhl3qpjk5rsylam9gvzv9vq-openssl-3.6.0.drv",
+      "description": "Cryptographic library that implements the SSL and TLS protocols",
+      "install_id": "openssl",
+      "license": "Apache-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "openssl-3.6.0",
+      "pname": "openssl",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:18:11.299640Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "3.6.0",
+      "outputs_to_install": [
+        "bin",
+        "man"
+      ],
+      "outputs": {
+        "bin": "/nix/store/wb6q44n9kcb5acmaa4rgqsajadx1fhhl-openssl-3.6.0-bin",
+        "debug": "/nix/store/ci6d4k1sj4bnr892lsrqqmjiihqsk0bl-openssl-3.6.0-debug",
+        "dev": "/nix/store/pq8b7fb3282g68pmk14mbyi20qn6chid-openssl-3.6.0-dev",
+        "doc": "/nix/store/vaplp6w56dyz38986bgkf0pbg3r486b2-openssl-3.6.0-doc",
+        "man": "/nix/store/c9n1alb7ypzjvzd47m16fiwfczz23qs3-openssl-3.6.0-man",
+        "out": "/nix/store/nj50gkyx813dxvfmsg1q8m330hmf3h86-openssl-3.6.0"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
       "attr_path": "pass",
       "broken": false,
       "derivation": "/nix/store/84868gcgx9dkky3wr7layfgjfw6d40nx-password-store-1.7.4.drv",
@@ -2515,6 +2939,64 @@
       "system": "aarch64-linux",
       "group": "toplevel",
       "priority": 5
+    },
+    {
+      "attr_path": "dasel",
+      "broken": false,
+      "derivation": "/nix/store/00kwr06q197q2zmmj2jhga0vkiyzb3dj-dasel-2.8.1.drv",
+      "description": "Query and update data structures from the command line",
+      "install_id": "dasel",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "dasel-2.8.1",
+      "pname": "dasel",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:01:34.867169Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.8.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/cdyi2m3793s4f2pwk386hmf4mibjc01s-dasel-2.8.1"
+      },
+      "system": "aarch64-darwin",
+      "group": "yaml-tools",
+      "priority": 5
+    },
+    {
+      "attr_path": "dasel",
+      "broken": false,
+      "derivation": "/nix/store/5gzabypsvgm0v1fq4xxhr8s19dcbbdwy-dasel-2.8.1.drv",
+      "description": "Query and update data structures from the command line",
+      "install_id": "dasel",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "name": "dasel-2.8.1",
+      "pname": "dasel",
+      "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+      "rev_count": 910362,
+      "rev_date": "2025-12-11T16:57:14Z",
+      "scrape_date": "2025-12-14T03:17:14.836317Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.8.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/s8yak46drdhgzjqcfl9cy2s4ybxx0jjf-dasel-2.8.1"
+      },
+      "system": "aarch64-linux",
+      "group": "yaml-tools",
+      "priority": 5
     }
   ],
   "compose": {
@@ -2555,6 +3037,9 @@
           },
           {
             "dir": "../fleet/flox/gnumake"
+          },
+          {
+            "dir": "../fleet/flox/net-tools"
           },
           {
             "dir": "../fleet/flox/k8s"
@@ -2639,6 +3124,93 @@
         "manifest": {
           "version": 1,
           "install": {
+            "age": {
+              "pkg-path": "age"
+            },
+            "dhcp": {
+              "pkg-path": "dhcp",
+              "pkg-group": "net-tools",
+              "systems": [
+                "aarch64-linux"
+              ]
+            },
+            "ethtool": {
+              "pkg-path": "ethtool",
+              "pkg-group": "net-tools",
+              "systems": [
+                "aarch64-linux"
+              ]
+            },
+            "gnupg": {
+              "pkg-path": "gnupg"
+            },
+            "ipcalc": {
+              "pkg-path": "ipcalc",
+              "pkg-group": "net-tools",
+              "version": "^1.0.3"
+            },
+            "iptstate": {
+              "pkg-path": "iptstate",
+              "pkg-group": "net-tools",
+              "systems": [
+                "aarch64-linux"
+              ]
+            },
+            "keychain": {
+              "pkg-path": "keychain"
+            },
+            "netplan": {
+              "pkg-path": "netplan",
+              "pkg-group": "net-tools",
+              "systems": [
+                "aarch64-linux"
+              ]
+            },
+            "nmap": {
+              "pkg-path": "nmap",
+              "pkg-group": "net-tools"
+            },
+            "openssh": {
+              "pkg-path": "openssh"
+            },
+            "openssl": {
+              "pkg-path": "openssl"
+            },
+            "pass": {
+              "pkg-path": "pass"
+            },
+            "sops": {
+              "pkg-path": "sops"
+            },
+            "ssh-to-age": {
+              "pkg-path": "ssh-to-age"
+            },
+            "tshark": {
+              "pkg-path": "tshark",
+              "pkg-group": "net-tools"
+            }
+          },
+          "profile": {
+            "common": "    GITHUB_SIGNING_KEYFILE=\"$HOME\"/.ssh/keys.d/github-signing\n    if [[ -r \"$GITHUB_SIGNING_KEYFILE\" ]]; then\n      set -a\n      SOPS_AGE_KEY=$( ssh-to-age -private-key < \"$GITHUB_SIGNING_KEYFILE\" )\n      set +a\n    else\n      echo no signing key\n    fi\n  "
+          },
+          "options": {
+            "systems": [
+              "aarch64-darwin",
+              "aarch64-linux",
+              "x86_64-linux",
+              "x86_64-darwin"
+            ]
+          }
+        },
+        "name": "net-tools",
+        "descriptor": {
+          "dir": "../fleet/flox/net-tools"
+        }
+      },
+      {
+        "manifest": {
+          "version": 1,
+          "install": {
             "ceph-client": {
               "pkg-path": "ceph-client",
               "pkg-group": "k8s-kubectl-tools",
@@ -2652,7 +3224,7 @@
             },
             "dasel": {
               "pkg-path": "dasel",
-              "pkg-group": "k8s-yaml-tools",
+              "pkg-group": "yaml-tools",
               "version": "^2.8.1"
             },
             "etcdctl": {
@@ -2742,6 +3314,70 @@
         }
       }
     ],
-    "warnings": []
+    "warnings": [
+      {
+        "warning": {
+          "Overriding": [
+            "install",
+            "age"
+          ]
+        },
+        "higher_priority_name": "net-tools"
+      },
+      {
+        "warning": {
+          "Overriding": [
+            "install",
+            "gnupg"
+          ]
+        },
+        "higher_priority_name": "net-tools"
+      },
+      {
+        "warning": {
+          "Overriding": [
+            "install",
+            "keychain"
+          ]
+        },
+        "higher_priority_name": "net-tools"
+      },
+      {
+        "warning": {
+          "Overriding": [
+            "install",
+            "pass"
+          ]
+        },
+        "higher_priority_name": "net-tools"
+      },
+      {
+        "warning": {
+          "Overriding": [
+            "install",
+            "sops"
+          ]
+        },
+        "higher_priority_name": "net-tools"
+      },
+      {
+        "warning": {
+          "Overriding": [
+            "install",
+            "ssh-to-age"
+          ]
+        },
+        "higher_priority_name": "net-tools"
+      },
+      {
+        "warning": {
+          "Overriding": [
+            "options",
+            "systems"
+          ]
+        },
+        "higher_priority_name": "k8s"
+      }
+    ]
   }
 }
