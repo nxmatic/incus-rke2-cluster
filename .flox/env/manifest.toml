@@ -70,8 +70,6 @@ unzip.pkg-path = "unzip"
 common = '''
   set -a
 
-  PATH=/run/wrappers/bin:$PATH
-
   CLUSTER_NAME=${LIMA_HOSTNAME:-=bioskop}
   case $CLUSTER_NAME in
     bioskop) CLUSTER_SUBNET=1 ;;

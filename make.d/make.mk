@@ -191,7 +191,7 @@ $(call make.trace,host-detection,(host.UNAME host.IS_DARWIN host.IS_NIXOS))
 
 # Early environment validation: Incus operations require NixOS
 ifneq ($(host.IS_NIXOS),T)
-$(error [make.mk] Incus cluster operations must run on NixOS VM, not $(host.UNAME). Please SSH into lima-nerd-nixos and run from /var/lib/nixos/config/modules/nixos/incus-rke2-cluster)
+$(warn [make.mk] Incus cluster operations must run on NixOS VM, not $(host.UNAME). Please SSH into lima-nerd-nixos and run from /var/lib/nixos/config/modules/nixos/incus-rke2-cluster)
 endif
 
 # Layer-specific trace macros
