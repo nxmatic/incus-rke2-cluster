@@ -37,6 +37,7 @@ can reconcile them.
 ** link:system/porch-resources/README.adoc[Porch resources]
 ** link:system/replicator/README.adoc[Mittwald replicator]
 ** link:system/flux-operator/README.adoc[Flux operator]
+** link:system/flux-instance/README.adoc[Flux instance]
 ** link:system/tekton-pipelines/README.adoc[Tekton pipelines]
 ** link:system/traefik/README.adoc[Traefik config]
 ** link:system/cilium/README.adoc[Cilium config]

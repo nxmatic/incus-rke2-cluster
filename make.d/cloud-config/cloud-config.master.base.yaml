@@ -52,6 +52,10 @@ write_files:
           target: kpt/system/flux-operator
           source: https://github.com/nxmatic/incus-rke2-cluster.git/kpt/system/flux-operator
           ref: main
+        - name: flux-instance
+          target: kpt/system/flux-instance
+          source: https://github.com/nxmatic/incus-rke2-cluster.git/kpt/system/flux-instance
+          ref: main
         - name: tekton-pipelines
           target: kpt/system/tekton-pipelines
           source: https://github.com/nxmatic/incus-rke2-cluster.git/kpt/system/tekton-pipelines
