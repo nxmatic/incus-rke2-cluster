@@ -30,6 +30,6 @@ mkdir -p /var/lib/rancher/rke2/server
 db::check
 
 : Ensure rendered manifests land in the static manifests directory
-if [[ -x /usr/local/sbin/rke2-manifests-unpack ]]; then
-  /usr/local/sbin/rke2-manifests-unpack
+if [[ -x /usr/local/sbin/rke2-manifests-install ]]; then
+  /usr/local/sbin/rke2-manifests-install
 fi

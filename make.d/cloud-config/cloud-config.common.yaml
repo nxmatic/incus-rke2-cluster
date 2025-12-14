@@ -284,9 +284,9 @@ write_files:
   - path: /usr/local/sbin/rke2-cluster-repo-sync
     permissions: "0755"
     content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-cluster-repo-sync.sh
-  - path: /usr/local/sbin/rke2-manifests-unpack
+  - path: /usr/local/sbin/rke2-manifests-install
     permissions: "0755"
-    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-manifests-unpack.sh
+    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-manifests-install.sh
   - path: /usr/local/sbin/rke2-route-cleanup
     permissions: "0755"
     content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-route-cleanup.sh

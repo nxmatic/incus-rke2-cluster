@@ -8,7 +8,7 @@ This branch mirrors the `rke2/` rootlet of the monorepo. Everything here is orga
 * `rendered/<package>/` — output of `kpt fn render` for each package, with an auto-generated `kustomization.yaml` per directory.
 * `overlays/<cluster>/<package>/` — patch layers that reference the rendered package contents.
 * `overlays/<cluster>/kustomization.yaml` — aggregates the packages that should deploy for that cluster.
-* `manifests/<cluster>/kpt-XX-<package>.yaml` — deterministic YAML bundles consumed by Flux and `rke2-manifests-unpack`.
+* `manifests/<cluster>/kpt-XX-<package>.yaml` — deterministic YAML bundles consumed by Flux and `rke2-manifests-install`.
 
 == Workflows
 

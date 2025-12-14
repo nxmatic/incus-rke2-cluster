@@ -8,7 +8,7 @@ This branch houses the contents of the `rke2/` rootlet in the monorepo. The layo
 - `rendered/<package>/` – output of `kpt fn render` for each package plus an auto-generated `kustomization.yaml`.
 - `overlays/<cluster>/<package>/` – per-cluster overlays referencing the rendered package (patches/variants live here).
 - `overlays/<cluster>/kustomization.yaml` – aggregates the packages that should deploy on that cluster.
-- `manifests/<cluster>/kpt-XX-<package>.yaml` – rendered YAML ready for Flux or `rke2-manifests-unpack`.
+- `manifests/<cluster>/kpt-XX-<package>.yaml` – rendered YAML ready for Flux or `rke2-manifests-install`.
 
 ## Workflows
 
