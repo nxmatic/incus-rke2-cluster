@@ -1,0 +1,118 @@
+# Source: tekton-pipeline/templates/tekton-pipelines-remote-resolvers-deploy.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: resolvers
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/name: resolvers
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/version: v1.6.0
+    pipeline.tekton.dev/release: v1.6.0
+    version: v1.6.0
+  name: tekton-pipelines-remote-resolvers
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: resolvers
+      app.kubernetes.io/instance: default
+      app.kubernetes.io/name: resolvers
+      app.kubernetes.io/part-of: tekton-pipelines
+  template:
+    metadata:
+      labels:
+        app: tekton-pipelines-resolvers
+        app.kubernetes.io/component: resolvers
+        app.kubernetes.io/instance: default
+        app.kubernetes.io/name: resolvers
+        app.kubernetes.io/part-of: tekton-pipelines
+        app.kubernetes.io/version: v1.6.0
+        pipeline.tekton.dev/release: v1.6.0
+        version: v1.6.0
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/os
+                operator: NotIn
+                values:
+                - windows
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: resolvers
+                  app.kubernetes.io/instance: default
+                  app.kubernetes.io/name: resolvers
+                  app.kubernetes.io/part-of: tekton-pipelines
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+      containers:
+      - args: []
+        command:
+        - /sbin/tini
+        - --
+        - /ko-app/resolvers
+        env:
+        - name: SYSTEM_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: KUBERNETES_MIN_VERSION
+          value: v1.28.0
+        - name: CONFIG_LOGGING_NAME
+          value: config-logging
+        - name: CONFIG_OBSERVABILITY_NAME
+          value: config-observability
+        - name: CONFIG_FEATURE_FLAGS_NAME
+          value: feature-flags
+        - name: CONFIG_LEADERELECTION_NAME
+          value: config-leader-election-resolvers
+        - name: METRICS_DOMAIN
+          value: tekton.dev/resolution
+        - name: PROBES_PORT
+          value: "8080"
+        - name: TEKTON_HUB_API
+          value: ""
+        - name: ARTIFACT_HUB_API
+          value: https://artifacthub.io/
+        image: ghcr.io/tektoncd/pipeline/resolvers-ff86b24f130c42b88983d3c13993056d:v1.6.0@sha256:e77cc55c6e507c393be029335c765c6c34238ee48b49379428da3d01713e9293
+        name: controller
+        ports:
+        - containerPort: 9090
+          name: metrics
+        - containerPort: 8008
+          name: profiling
+        - containerPort: 8080
+          name: probes
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 4Gi
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 65532
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        - mountPath: /tmp
+          name: tmp-clone-volume
+      nodeSelector:
+      serviceAccountName: tekton-pipelines-resolvers
+      tolerations:
+      volumes:
+      - emptyDir:
+          sizeLimit: 4Gi
+        name: tmp-clone-volume

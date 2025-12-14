@@ -1,0 +1,268 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
+    porch.kpt.dev/git-auth: ssh
+    sops.dev/managed: "true"
+  name: github-token
+  namespace: porch-system
+stringData:
+  password: ""
+  username: PAT
+type: kubernetes.io/basic-auth
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata:
+  name: ha-kube-vip
+  namespace: porch-system
+spec:
+  adoptionPolicy: adoptNone
+  deletionPolicy: delete
+  downstream:
+    package: ha/kube-vip
+    repo: example-state
+  labels:
+    nxmatic.dev/app: kube-vip
+    nxmatic.dev/cluster: example
+    nxmatic.dev/component: ha
+  packageContext:
+    data:
+      cluster-env: home
+      cluster-name: example
+  pipeline:
+    mutators:
+    - configMap:
+        cluster-vip-address: 10.0.0.1
+        cluster-vip-interface: vmnet0
+        kube-vip-namespace: kube-vip
+        kube-vip-version: v0.8.7
+      image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+  upstream:
+    package: ha/kube-vip
+    repo: bioskop-catalog
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata:
+  name: mesh-headscale
+  namespace: porch-system
+spec:
+  adoptionPolicy: adoptNone
+  deletionPolicy: delete
+  downstream:
+    package: mesh/headscale
+    repo: example-state
+  labels:
+    nxmatic.dev/app: headscale
+    nxmatic.dev/cluster: example
+    nxmatic.dev/component: mesh
+  packageContext:
+    data:
+      cluster-env: home
+      cluster-name: example
+  pipeline:
+    mutators:
+    - configMap:
+        cluster-name: example
+        darwin-host: example
+        headscale-lb-ip: 192.168.1.10
+        home-lan-pool: 192.168.1.0/24
+        vip-network-cidr: 10.0.2.0/24
+      image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+  upstream:
+    package: mesh/headscale
+    repo: bioskop-catalog
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata:
+  name: mesh-tailscale
+  namespace: porch-system
+spec:
+  adoptionPolicy: adoptNone
+  deletionPolicy: delete
+  downstream:
+    package: mesh/tailscale
+    repo: example-state
+  labels:
+    nxmatic.dev/app: tailscale
+    nxmatic.dev/cluster: example
+    nxmatic.dev/component: mesh
+  packageContext:
+    data:
+      cluster-env: home
+      cluster-name: example
+  pipeline:
+    mutators:
+    - configMap:
+        cluster-name: example-cluster
+        lb-pool-cidr: 10.0.1.0/24
+        tailscale-namespace: tailscale-system
+        tailscale-version: 1.82.0
+        vip-address: 10.0.0.1
+      image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+  upstream:
+    package: mesh/tailscale
+    repo: bioskop-catalog
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata:
+  name: networking-cilium
+  namespace: porch-system
+spec:
+  adoptionPolicy: adoptNone
+  deletionPolicy: delete
+  downstream:
+    package: networking/cilium
+    repo: example-state
+  labels:
+    nxmatic.dev/app: cilium
+    nxmatic.dev/cluster: example
+    nxmatic.dev/component: networking
+  packageContext:
+    data:
+      cluster-env: home
+      cluster-name: example
+  pipeline:
+    mutators:
+    - configMap:
+        bgp-local-asn: "65001"
+        bgp-peer-asn: "65000"
+        cluster-id: "1"
+        cluster-name: example-cluster
+        l2-interface-1: vmnet0
+        l2-interface-2: lan0
+        lb-pool-cidr: 10.0.1.0/24
+        node-gateway-ip: 10.0.0.254
+        vip-pool-cidr: 10.0.2.0/24
+      image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+  upstream:
+    package: networking/cilium
+    repo: bioskop-catalog
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata:
+  name: networking-envoy-gateway
+  namespace: porch-system
+spec:
+  adoptionPolicy: adoptNone
+  deletionPolicy: delete
+  downstream:
+    package: networking/envoy-gateway
+    repo: example-state
+  labels:
+    nxmatic.dev/app: envoy-gateway
+    nxmatic.dev/cluster: example
+    nxmatic.dev/component: networking
+  packageContext:
+    data:
+      cluster-env: home
+      cluster-name: example
+  pipeline:
+    mutators:
+    - configMap:
+        envoy-gateway-namespace: envoy-gateway-system
+        envoy-gateway-version: v1.4.2
+      image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+  upstream:
+    package: networking/envoy-gateway
+    repo: bioskop-catalog
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata:
+  name: runtime-flox
+  namespace: porch-system
+spec:
+  adoptionPolicy: adoptNone
+  deletionPolicy: delete
+  downstream:
+    package: runtime/flox-containerd-shim
+    repo: example-state
+  labels:
+    nxmatic.dev/app: flox-containerd-shim
+    nxmatic.dev/cluster: example
+    nxmatic.dev/component: runtime
+  packageContext:
+    data:
+      cluster-env: home
+      cluster-name: example
+  pipeline:
+    mutators:
+    - configMap:
+        apk-max-retries: "5"
+        containerd-address: /run/k3s/containerd/containerd.sock
+        containerd-config-file: /var/lib/rancher/rke2/agent/etc/containerd/config.toml
+        flox-namespace: flox
+        node-label-key: flox.dev/enabled
+        node-label-value: "true"
+        runtime-class-name: flox
+      image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+  upstream:
+    package: runtime/flox-containerd-shim
+    repo: bioskop-catalog
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata:
+  name: storage-openebs-zfs
+  namespace: porch-system
+spec:
+  adoptionPolicy: adoptNone
+  deletionPolicy: delete
+  downstream:
+    package: storage-openebs-zfs
+    repo: example-state
+  labels:
+    nxmatic.dev/app: openebs-zfs
+    nxmatic.dev/cluster: example
+    nxmatic.dev/component: storage
+  packageContext:
+    data:
+      cluster-env: home
+      cluster-name: example
+  pipeline:
+    mutators:
+    - configMap:
+        kubelet-dir: /var/lib/rancher/rke2/server/tank
+        poolname: tank
+      image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+  upstream:
+    package: storage-openebs-zfs
+    repo: bioskop-catalog
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: Repository
+metadata:
+  name: bioskop-catalog
+  namespace: porch-system
+spec:
+  deployment: true
+  description: Catalog of curated kpt packages tracked in incus-rke2-cluster
+  git:
+    branch: develop
+    directory: modules/nixos/incus-rke2-cluster/kpt/catalog
+    repo: https://github.com/nxmatic/incus-rke2-cluster.git
+    secretRef:
+      name: github-token
+  type: git
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: Repository
+metadata:
+  name: example-state
+  namespace: porch-system
+spec:
+  deployment: true
+  description: Rendered Porch package state for bioskop cluster
+  git:
+    branch: main
+    createBranch: true
+    directory: packagevariants/example
+    repo: https://github.com/nxmatic/fleet-manifests.git
+    secretRef:
+      name: github-token
+  type: git
