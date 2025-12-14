@@ -7,9 +7,3 @@
 
 write_files: []
 runcmd: []
-
-# Cilium advanced features (BGP, L2, IP pools) remain authored in the fleet repo.
-# See: ${CLUSTER_STATE_DIR}/${CLUSTER_NAME}/networking/cilium
-
-# Envoy Gateway remains managed via the same static manifest pipeline.
-# See: ${CLUSTER_STATE_DIR}/${CLUSTER_NAME}/networking/envoy-gateway

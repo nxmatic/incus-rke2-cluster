@@ -20,9 +20,6 @@ config:
   environment.CLUSTER_NAME: "${CLUSTER_NAME}"
   environment.CLUSTER_TOKEN: "${CLUSTER_TOKEN}"
   environment.CLUSTER_DOMAIN: "${CLUSTER_DOMAIN}"
-  environment.CLUSTER_STATE_DIR: "${CLUSTER_STATE_DIR}"
-  environment.CLUSTER_STATE_REPO_URL: "${CLUSTER_STATE_REPO_URL}"
-  environment.CLUSTER_STATE_BRANCH: "${CLUSTER_STATE_BRANCH}"
   environment.CLUSTER_GITHUB_TOKEN: "${CLUSTER_GITHUB_TOKEN}"
   environment.CLUSTER_GITHUB_USERNAME: "${CLUSTER_GITHUB_USERNAME}"
   environment.TEKTON_GIT_USERNAME: "${TEKTON_GIT_USERNAME}"
@@ -98,11 +95,15 @@ devices:
     type: unix-char
     source: /dev/zfs
     path: /dev/zfs
-  secrets.dir:
+  secrets.file:
     type: disk
     source: ${PWD}/.secrets
     path: /.secrets
     readonly: "true"
+  manifests.file:
+    type: disk
+    source: ${CLUSTER_MANIFESTS_FILE}
+    path: /var/lib/rancher/rke2/server/manifests/cluster-manifests.yaml
   shared.dir:
     type: disk
     source: ${PWD}/${RUN_INSTANCE_DIR}/shared

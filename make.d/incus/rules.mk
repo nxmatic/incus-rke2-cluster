@@ -106,9 +106,8 @@ export INCUS_EGRESS_INTERFACE := $(.incus.egress_interface)
 export TSKEY_CLIENT_ID := $(.incus.tskey_client_id)
 export TSKEY_CLIENT_TOKEN := $(.incus.tskey_client_token)
 # Fleet manifests repo provides the canonical kpt render tree (@codebase)
-FLEET_MANIFESTS_ROOT ?= $(if $(wildcard /var/lib/git/nxmatic/fleet-manifests/.git),/var/lib/git/nxmatic/fleet-manifests,$(abspath $(top-dir)/fleet))
-CLUSTER_STATE_DIR ?= $(FLEET_MANIFESTS_ROOT)/rke2/$(CLUSTER_NAME)
-export CLUSTER_STATE_DIR
+export CLUSTER_STATE_DIR ?= $(if $(wildcard /var/lib/git/nxmatic/fleet/.git),/var/lib/git/nxmatic/fleet,$(abspath $(top-dir)/fleet))
+export CLUSTER_MANIFESTS_FILE := $(CLUSTER_STATE_DIR)/rke2/clusters/$(cluster.NAME)/manifests.yaml
 export CLUSTER_GITHUB_TOKEN := $(.incus.cluster_github_token)
 export CLUSTER_GITHUB_USERNAME := $(.incus.cluster_github_username)
 export CLUSTER_DOCKER_CONFIG_JSON := $(.incus.docker_config_json)

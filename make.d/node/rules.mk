@@ -73,8 +73,6 @@ export POD_NETWORK_CIDR := $(cluster.POD_NETWORK_CIDR)
 export SERVICE_NETWORK_CIDR := $(cluster.SERVICE_NETWORK_CIDR)
 export LIMA_LAN_INTERFACE := $(cluster.LIMA_LAN_INTERFACE)
 export LIMA_VMNET_INTERFACE := $(cluster.LIMA_VMNET_INTERFACE)
-export CLUSTER_STATE_REPO_URL := $(cluster.STATE_REPO)
-export CLUSTER_STATE_BRANCH := $(cluster.STATE_BRANCH)
 
 # =============================================================================
 # NODE CONFIGURATION APPLICATION

@@ -2,10 +2,6 @@
 # Provides HA VIP management independent of Cilium LoadBalancer IPAM
 # @codebase
 
-# Kube-VIP management has been migrated to kpt package
-# See: kpt/catalog/ha/kube-vip/
-# Deploy with: kpt live apply ${CLUSTER_STATE_DIR}/kpt/catalog/ha/kube-vip
-
 write_files: []
 
 # Original deployment (now in kpt package):
