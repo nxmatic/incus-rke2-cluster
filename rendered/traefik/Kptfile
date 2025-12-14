@@ -1,6 +1,0 @@
-apiVersion: kpt.dev/v1
-kind: Kptfile
-metadata:
-  name: traefik
-info:
-  description: RKE2 Traefik HelmChartConfig bootstrap package
