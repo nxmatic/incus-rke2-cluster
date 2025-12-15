@@ -16,6 +16,7 @@ ifndef make.d/incus/rules.mk
 # Directory layout (per-instance runtime)
 .incus.secrets_file ?= $(abspath $(.make.top-dir)/.secrets)
 YQ_BIN ?= $(shell command -v yq 2>/dev/null)
+BASE64_BIN ?= $(shell command -v base64 2>/dev/null)
 
 define incus-secret-from-yaml
 $(strip $(if $(and $(YQ_BIN),$(wildcard $(.incus.secrets_file))),$(shell $(YQ_BIN) -r '$(1) // ""' $(.incus.secrets_file) 2>/dev/null),))
@@ -71,14 +72,37 @@ endef
 # Tailscale secrets (canonical naming only, file-based fallback removed) – used for image build & cleanup (@codebase)
 # Notes:
 #  - Secrets resolve exclusively from the SOPS-managed YAML (.secrets).
-#  - Populate tailscale.*, github.*, and docker.configJson entries with `sops --in-place` edits.
+#  - Populate tailscale.* and github.* entries with `sops --in-place` edits. The GHCR dockerconfigjson
+#    content is derived automatically from the GitHub credentials below.
 .incus.tskey_client_id ?= $(call incus-secret,.tailscale.client.id)
 .incus.tskey_client_token ?= $(call incus-secret,.tailscale.client.token)
 .incus.tskey_api_id ?= $(call incus-secret,.tailscale.api.id)
 .incus.tskey_api_token ?= $(call incus-secret,.tailscale.api.token)
 .incus.cluster_github_token ?= $(call incus-secret,.github.token)
 .incus.cluster_github_username ?= $(or $(call incus-secret,.github.username,),x-access-token)
-.incus.docker_config_json ?= $(call incus-secret,.docker.configJson)
+
+define incus-github-basic-auth
+$(strip $(if $(and $(BASE64_BIN),$(.incus.cluster_github_token)),\
+$(shell printf '%s' "$(strip $(.incus.cluster_github_username)):$(strip $(.incus.cluster_github_token))" | $(BASE64_BIN) | tr -d '\n'),))
+endef
+
+define incus-ghcr-dockerconfig-json
+$(strip $(if $(and $(YQ_BIN),$(BASE64_BIN),$(.incus.cluster_github_token)),\
+$(shell $(YQ_BIN) -o=json -n \
+	--arg user "$(strip $(.incus.cluster_github_username))" \
+	--arg token "$(strip $(.incus.cluster_github_token))" \
+	--arg auth "$(call incus-github-basic-auth)" \
+	'{ "auths": { "ghcr.io": { "username": $$user, "password": $$token, "auth": $$auth } } }' \
+	| $(BASE64_BIN) | tr -d '\n'),))
+endef
+
+ifeq ($(origin .incus.docker_config_json),undefined)
+ifneq ($(strip $(CLUSTER_DOCKER_CONFIG_JSON)),)
+.incus.docker_config_json := $(strip $(CLUSTER_DOCKER_CONFIG_JSON))
+else
+.incus.docker_config_json := $(call incus-ghcr-dockerconfig-json)
+endif
+endif
 
 # Instance naming defaults (image alias)
 .incus.image_name ?= control-node

@@ -22,3 +22,5 @@ pipeline:
   mutators:
     - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
       configPath: porch-setters.yaml
+    - image: gcr.io/kpt-fn/delete-resources:v0.1
+      configPath: functions/delete-replicated-secrets.yaml
