@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: # kpt-merge: /porch-setters
+  name: porch-setters
+  annotations:
+    config.kubernetes.io/local-config: "true"
+    internal.kpt.dev/function-config: apply-setters
+    description.kpt.dev: Default Porch image + inventory settings
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|default|porch-setters'
+data:
+  porch-server-image: ghcr.io/nxmatic/porch-server:nxmatic-37254b4
+  porch-controllers-image: ghcr.io/nxmatic/porch-controllers:nxmatic-37254b4
+  porch-function-runner-image: ghcr.io/nxmatic/porch-function-runner:nxmatic-37254b4
+  porch-wrapper-server-image: ghcr.io/nxmatic/porch-wrapper-server:nxmatic-37254b4
+  porch-image-pull-secret: ghcr-pull
+  # sops encrypted value
+  porch-docker-config-json: |
+    eyJhdXRocyI6eyJnaGNyLmlvIjp7InVzZXJuYW1lIjoieC1hY2Nlc3MtdG9rZW4iLCJwYXNzd29y
+    ZCI6ImdocF9Xb05BMTF0SXY3eEM0N3FoVU1BMEhnNXdsNWFxZmEwUlpHemsiLCJhdXRoIjoiZUMx
+    aFkyTmxjM010ZEc5clpXNDZaMmh3WDFkdlRrRXhNWFJKZGpkNFF6UTNjV2hWVFVFd1NHYzFkMncx
+    WVhGbVlUQlNXa2Q2YXdvPSJ9fX0=
+  porch-inventory-name: porch-platform
+  porch-inventory-namespace: porch-system
