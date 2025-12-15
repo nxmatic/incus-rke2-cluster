@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: github-token
+  namespace: kube-system
+  annotations:
+    # kpt-set: ${shared-secret-target-namespaces}
+    replicator.v1.mittwald.de/replicate-to: porch-system,tekton-pipelines
+    porch.kpt.dev/git-auth: ssh
+    sops.dev/comment: sops encrypted value
+type: kubernetes.io/basic-auth
+stringData:
+  # kpt-set: ${github-username}
+  username: x-access-token
+  # sops:encrypted
+  password: ENC[AES256_GCM,data:bh2XGbaNrfKY4hu93EMWRb6FC/Gr4wsp4nVNQMeIGOPyYdcoj6pZ8w==,iv:1NJRi6sKZNc6Hv8cslcZNx26m1x+K/N7u4uV+1d1DFg=,tag:Wzg2s/iJFcNW3vc6dSie/w==,type:str]
+sops:
+  age:
+    - recipient: age10ey0lcup4zpjqcknpxw7enpsagn674nm634f2u75trfr5t62uq5qdjuxzv
+      enc: |
+        -----BEGIN AGE ENCRYPTED FILE-----
+        YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBYck9TSmh6bi95VDRiUG5W
+        NUkrd1phODRsNENISWZYZFJsaGYvMHc0OG00CjBRSHh0QmdiOCtRdHZCKzVlV294
+        djd6OEwwZG5KU0FlemM1Vk5xM2FyMGsKLS0tIG44RU1CRkZVVTVMdnRtMStnZ1E4
+        cVdocDNlZDJPVEVCMzlwN2F0TUxjd28K7q5Ym3gjmGmzx3apt+VD6F4c68vQXBL4
+        Ad8TAoSP+lh99TKR2ZBtNEmNZHkuFACKfZwvQ9LGOK3j4j3+RlsV8Q==
+        -----END AGE ENCRYPTED FILE-----
+  lastmodified: "2025-12-15T10:40:26Z"
+  mac: ENC[AES256_GCM,data:ZVeO0GsU8VB6zFMGl1DnVcW5ITcrLJfxBXR7BQXQNM9EhJnGza83JyQcdVVjD9l0iKaZmlt7asZdjxw2GQHFwfXVIsswnToNFBi1VXPYWzt71XKHOkCqdvHlZSfV3ISojmdBXnb3WyWdUFCANycXirPAZQhrXD2hgNHd1K9P0Ig=,iv:bmj6kivjlYkvZpNk6Y9R0Ivw8QPFeZG1+Zul9yPDvuE=,tag:GwrMnocAKchzjtG+sDeO0Q==,type:str]
+  encrypted_comment_regex: sops:encrypted
+  version: 3.11.0
