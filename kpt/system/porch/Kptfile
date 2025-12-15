@@ -15,7 +15,7 @@ upstreamLock:
     repo: https://github.com/nephio-project/catalog
     directory: /nephio/core/porch
     ref: main
-    commit: df004221eba44296ea2b479c90e25f3b8b499d5a
+    commit: 8d7ad7365fa803b8e942e98d7f9c9d4310c7f032
 info:
   description: porch
 pipeline:
