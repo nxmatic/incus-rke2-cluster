@@ -8,14 +8,14 @@ upstream:
     repo: https://github.com/nxmatic/incus-rke2-cluster
     directory: /kpt/system/porch
     ref: main
-  updateStrategy: resource-merge
+  updateStrategy: force-delete-replace
 upstreamLock:
   type: git
   git:
     repo: https://github.com/nxmatic/incus-rke2-cluster
     directory: /kpt/system/porch
     ref: main
-    commit: 065aeba432ddf4b27bf090b539d1bf3121eec1e7
+    commit: 40718db473d6539d2e2e3dc8ac297caaeeb79bd4
 info:
   description: porch
 pipeline:

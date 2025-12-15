@@ -5,10 +5,10 @@ This branch houses the contents of the `rke2/` rootlet in the monorepo. The layo
 ## Layout
 
 - `packages/<package>/` – raw kpt packages mirrored from `incus-rke2-cluster/kpt/system/**`.
-- `rendered/<package>/` – output of `kpt fn render` for each package plus an auto-generated `kustomization.yaml`.
-- `overlays/<cluster>/<package>/` – per-cluster overlays referencing the rendered package (patches/variants live here).
-- `overlays/<cluster>/kustomization.yaml` – aggregates the packages that should deploy on that cluster.
-- `manifests/<cluster>/kpt-XX-<package>.yaml` – rendered YAML ready for Flux or `rke2-manifests-install`.
+- `clusters/<cluster>/packages/<package>/` – output of `kpt fn render` for each package plus an auto-generated `kustomization.yaml`.
+- `clusters/<cluster>/packages/kustomization.yaml` – aggregates rendered packages so overlays can import them as a single unit.
+- `clusters/<cluster>/overlays/` – per-cluster overlays referencing the rendered packages (patches/variants live here).
+- `clusters/<cluster>/manifests.yaml` – final hydrated YAML produced by `kustomize build`.
 
 ## Workflows
 
@@ -23,25 +23,24 @@ This command re-vendors each package from the upstream repo. Run it whenever the
 ### Render manifests for a cluster
 
 ```
-make render            # defaults to the "default" cluster in render.sh
-./render.sh <cluster>  # explicit cluster name
+make render@fleet [FLEET_CLUSTER=bioskop] [FLEET_PACKAGES="porch flux-operator"]
 ```
 
-`render.sh` first runs `kpt fn render` for every package (emitting outputs under `rendered/<package>`), then invokes `kustomize build overlays/<cluster>/<package>` to assemble deterministic `kpt-XX-*` files under `manifests/<cluster>`. Commit those outputs to publish an updated state snapshot.
+`render@fleet` runs `kpt fn render` for each package (writing outputs beneath `clusters/<cluster>/packages/<package>`) and finishes with `kustomize build clusters/<cluster>` to produce `clusters/<cluster>/manifests.yaml`. Commit those artifacts to publish an updated state snapshot.
 
 > **Prerequisites**: `kpt fn render` executes containerized functions (apply-setters, render-helm-chart). Ensure a supported container runtime (Docker, nerdctl, or podman) is running and configure `KPT_FN_RUNTIME` if you are not using Docker.
 
 ### Cleaning outputs
 
 ```
-make clean-rendered   # remove rendered package snapshots
-make clean-manifests  # drop hydrated YAML
+rm -rf clusters/<cluster>/packages
+rm -f clusters/<cluster>/manifests.yaml
 ```
 
-Clean rendered packages before re-running `render.sh` if you need to ensure no stale files remain between runs.
+Remove the rendered packages before re-running `make render@fleet` if you need to ensure no stale files remain between runs.
 
 ## Next steps
 
-- Expand `render.sh` once we onboard additional clusters.
+- Expand `render@fleet` once we onboard additional clusters.
 - Introduce package-specific overlays (patches, setters) inside `overlays/<cluster>/<package>`.
 - Wire CI to validate that `kustomize build overlays/<cluster>/<package>` matches committed YAML.

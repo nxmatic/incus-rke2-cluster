@@ -30231,6 +30231,17 @@ apiVersion: v1
 kind: Secret
 metadata:
   annotations:
+    internal.kpt.dev/upstream-identifier: '|Secret|porch-system|ghcr-pull'
+  name: ghcr-pull
+  namespace: porch-system
+stringData:
+  .dockerconfigjson: eyJhdXRocyI6eyJnaGNyLmlvIjp7InVzZXJuYW1lIjoieC1hY2Nlc3MtdG9rZW4iLCJwYXNzd29yZCI6ImdocF9Xb05BMTF0SXY3eEM0N3FoVU1BMEhnNXdsNWFxZmEwUlpHemsiLCJhdXRoIjoiWjJod1gxZHZUa0V4TVhSSmRqZDRRelEzY1doVlRVRXdTR2MxZDJ3MVlYRm1ZVEJTV2tkNmF3PT0ifX19
+type: kubernetes.io/dockerconfigjson
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
     internal.kpt.dev/upstream-identifier: '|Secret|porch-system|github-token'
     porch.kpt.dev/git-auth: ssh
     sops.dev/managed: "true"
@@ -30619,6 +30630,7 @@ spec:
         - --functions=/functions
         - --pod-namespace=porch-fn-system
         - --max-request-body-size=6291456
+        - --warm-up-pod-cache=true
         env:
         - name: WRAPPER_SERVER_IMAGE
           value: ghcr.io/nxmatic/porch-wrapper-server:nxmatic-37254b4
