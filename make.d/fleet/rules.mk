@@ -18,6 +18,7 @@ fleet.cluster_packages_dir = $(fleet.root)/clusters/$(FLEET_CLUSTER)/packages
 fleet.cluster_kustomization = $(fleet.cluster_packages_dir)/kustomization.yaml
 fleet.manifests_file = $(fleet.root)/clusters/$(FLEET_CLUSTER)/manifests.yaml
 fleet.package_render_markers = $(foreach pkg,$(FLEET_PACKAGES),$(fleet.cluster_packages_dir)/$(pkg)/.rendered)
+fleet.package_aux_files := .sops.yaml .krmignore
 
 define fleet.require-bin
 	@if ! command -v $(1) >/dev/null 2>&1; then
@@ -74,6 +75,11 @@ $(fleet.cluster_packages_dir)/%/.rendered: $(fleet.packages_root)/%
 	fi
 	: "[fleet] kpt fn render $*"
 	kpt fn render "$<" -o "$(dir $@)"
+	for aux in $(fleet.package_aux_files); do
+		if [ -f "$</$$aux" ]; then
+			cp "$</$$aux" "$(dir $@)/$$aux"
+		fi
+	done
 	(
 		cd "$(dir $@)"
 		resources="$$(find . -type f -name '*.yaml' ! -name 'kustomization.yaml' | LC_ALL=C sort)"
