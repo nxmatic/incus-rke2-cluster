@@ -13,6 +13,11 @@ data:
   porch-function-runner-image: ghcr.io/nxmatic/porch-function-runner:nxmatic-37254b4
   porch-wrapper-server-image: ghcr.io/nxmatic/porch-wrapper-server:nxmatic-37254b4
   porch-image-pull-secret: ghcr-pull
-  porch-docker-config-json: ""
+  # sops encrypted value
+  porch-docker-config-json: |
+    eyJhdXRocyI6eyJnaGNyLmlvIjp7InVzZXJuYW1lIjoieC1hY2Nlc3MtdG9rZW4iLCJwYXNzd29y
+    ZCI6ImdocF9Xb05BMTF0SXY3eEM0N3FoVU1BMEhnNXdsNWFxZmEwUlpHemsiLCJhdXRoIjoiZUMx
+    aFkyTmxjM010ZEc5clpXNDZaMmh3WDFkdlRrRXhNWFJKZGpkNFF6UTNjV2hWVFVFd1NHYzFkMncx
+    WVhGbVlUQlNXa2Q2YXdvPSJ9fX0=
   porch-inventory-name: porch-platform
   porch-inventory-namespace: porch-system
