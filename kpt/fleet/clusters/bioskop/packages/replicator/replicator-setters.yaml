@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: # kpt-merge: /replicator-setters
+  name: replicator-setters
+  annotations:
+    config.kubernetes.io/local-config: "true"
+    internal.kpt.dev/function-config: apply-setters
+    description.kpt.dev: Sample mittwald kubernetes-replicator Helm values
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|default|replicator-setters'
+data:
+  helm-repo: https://helm.mittwald.de
+  chart-name: kubernetes-replicator
+  chart-version: 2.12.2
+  release-name: kubernetes-replicator
+  target-namespace: kube-system
