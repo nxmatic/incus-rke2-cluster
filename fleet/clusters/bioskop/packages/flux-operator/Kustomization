@@ -1,4 +1,0 @@
-
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-resources: [ clusterrole_flux-operator-edit.yaml,clusterrole_flux-operator-view.yaml,clusterrolebinding_flux-operator.yaml,customresourcedefinition_fluxinstances.fluxcd.controlplane.io.yaml,customresourcedefinition_fluxreports.fluxcd.controlplane.io.yaml,customresourcedefinition_resourcesetinputproviders.fluxcd.controlplane.io.yaml,customresourcedefinition_resourcesets.fluxcd.controlplane.io.yaml,flux-operator-setters.yaml ]
