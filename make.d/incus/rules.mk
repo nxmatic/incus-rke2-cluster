@@ -81,28 +81,17 @@ endef
 .incus.cluster_github_token ?= $(call incus-secret,.github.token)
 .incus.cluster_github_username ?= $(or $(call incus-secret,.github.username,),x-access-token)
 
-define incus-github-basic-auth
-$(strip $(if $(.incus.cluster_github_token),\
-$(shell printf '%s' "$(strip $(.incus.cluster_github_username)):$(strip $(.incus.cluster_github_token))" | $(BASE64_BIN) | tr -d '\n'),))
+define .incus-github-basic-auth
+$(shell printf '%s' "$(strip $(.incus.cluster_github_username)):$(strip $(.incus.cluster_github_token))" |
+   $(BASE64_BIN) |
+   tr -d '\n')
 endef
 
-define incus-ghcr-dockerconfig-json
-$(strip $(shell $(YQ_BIN) -o=json -I 0 -n --from-file=
-	'{ "auths": { "ghcr.io": { "username": "$(incus.cluster_github_username)", "password": "$(incus.cluster_github_token)", "auth": "$(call incus-github-basic-auth)" } } }' |
+define .incus-ghcr-dockerconfig-json
+(shell $(YQ_BIN) -o=json -I 0 -n eval \
+	'{ "auths": { "ghcr.io": { "username": "$(.incus.cluster_github_username)", "password": "$(.incus.cluster_github_token)", "auth": "$(call .incus-github-basic-auth)" } } }' |
 	$(BASE64_BIN) |
-	tr -d '\n') )
-endef
-
-define .docker.config-json.content :=
-{
-  "auths": {
-	"ghcr.io": {
-	  "username": "$(incus.cluster_github_username)",)",
-	  "password": "$(incus.cluster_github_token)",
-	  "auth": "$(call incus-github-basic-auth)"
-	}
-  }
-}
+	tr -d '\n')
 endef
 
 ifeq ($(origin .incus.docker_config_json),undefined)
