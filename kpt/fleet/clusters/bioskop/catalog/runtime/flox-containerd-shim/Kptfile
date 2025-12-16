@@ -1,0 +1,22 @@
+apiVersion: kpt.dev/v1
+kind: Kptfile
+metadata:
+  name: flox-containerd-shim
+  annotations:
+    config.kubernetes.io/local-config: "true"
+info:
+  description: |
+    Deploys the Flox Imageless Kubernetes runtime shim on labeled nodes and
+    registers the corresponding RuntimeClass for pods to target. The installer
+    runs as a privileged DaemonSet init container that shells into the host to
+    execute the official flox/containerd-shim-flox-installer environment.
+  keywords:
+    - flox
+    - imageless-kubernetes
+    - runtime-class
+    - containerd
+  site: https://flox.dev/docs/k8s/install/self-managed/
+pipeline:
+  mutators:
+    - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+      configPath: flox-containerd-shim-setters.yaml

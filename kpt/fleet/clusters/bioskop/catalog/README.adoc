@@ -1,0 +1,42 @@
+== Cluster Layer kpt Packages
+
+The packages under `+kpt/catalog+` act as upstream templates for
+cluster-scoped components (kube-vip, Cilium overlays, Headscale, etc.).
+Each package only ships sample setter values in a `+*-setters.yaml+`
+file so that downstream/state repositories can create per-cluster copies
+without leaking real IP ranges or credentials into the upstream tree.
+Downstream overlays live under `+kpt/packagevariants/<cluster>/...+`,
+keeping the intent for each cluster isolated from the shared catalog.
+
+=== Workflow
+
+[arabic]
+. *Clone the package per cluster* – In the downstream repo (for example
+`+/var/lib/incus-rke2-cluster+`), run:
++
+[source,bash]
+----
+kpt pkg get github.com/nxmatic/incus-rke2-cluster.git/kpt/catalog/mesh/headscale \
+  packagevariants/bioskop/cluster/mesh/headscale
+----
+. *Override setter values* – Edit the package’s `+*-setters.yaml+` file
+in the downstream copy and encrypt any secrets with SOPS. Only the
+downstream repo should contain real VIPs, LAN CIDRs, or node metadata.
+. *Render and commit* – Use `+kpt fn render+` (or `+kpt fn eval+`) to
+materialize the manifests and commit both the rendered output and the
+updated setters back to the downstream repo so Flux can apply them.
+
+Repeat the same pattern for every cluster-layer package that needs
+customization (Cilium, kube-vip, Envoy Gateway, etc.). Upstream packages
+stay opinionated-but-generic, while downstream clones capture
+cluster-specific intent.
+
+=== Package Index
+
+* link:ha/kube-vip/README.adoc[Kube-VIP]
+* link:mesh/headscale/README.adoc[Headscale]
+* link:mesh/tailscale/README.adoc[Tailscale]
+* link:networking/cilium/README.adoc[Cilium Advanced]
+* link:networking/envoy-gateway/README.adoc[Envoy Gateway]
+* link:runtime/flox-containerd-shim/README.adoc[flox-containerd Shim]
+* link:storage/openebs-zfs/README.adoc[OpenEBS ZFS]

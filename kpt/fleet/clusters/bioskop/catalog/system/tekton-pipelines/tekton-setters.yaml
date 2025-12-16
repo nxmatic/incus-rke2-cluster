@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: # kpt-merge: /tekton-setters
+  name: tekton-setters
+  annotations:
+    config.kubernetes.io/local-config: "true"
+    internal.kpt.dev/function-config: apply-setters
+    description.kpt.dev: Sample Tekton Pipelines setters; override in cluster-specific copies
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|default|tekton-setters'
+data:
+  helm-repo: https://cdfoundation.github.io/tekton-helm-chart
+  chart-name: tekton-pipeline
+  chart-version: 1.6.1
+  release-name: tekton-pipelines
+  target-namespace: tekton-pipelines
+  tekton-git-username: x-access-token
+  tekton-git-password: ""
+  tekton-git-url: https://github.com
+  tekton-docker-config-json: ""
+  tekton-docker-registry-url: https://index.docker.io/v1/

@@ -1,16 +1,59 @@
 apiVersion: v1
 kind: Namespace
 metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Namespace|default|envoy-gateway-system'
+    kpt.dev/package-layer: networking
+    kpt.dev/package-name: envoy-gateway
+  name: envoy-gateway-system
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Namespace|default|flox-runtime'
+    kpt.dev/package-layer: runtime
+    kpt.dev/package-name: flox-containerd-shim
   labels:
-    app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/name: flux-system
-  name: flux-system
+    flox.dev/component: runtime
+  name: flox-runtime
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Namespace|default|headscale'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  name: headscale
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Namespace|default|kube-vip'
+    kpt.dev/package-layer: ha
+    kpt.dev/package-name: kube-vip
+  labels:
+    name: kube-vip
+  name: kube-vip
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Namespace|default|openebs'
+    kpt.dev/package-layer: storage
+    kpt.dev/package-name: openebs-zfs
+  name: openebs
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: '|Namespace|default|porch-fn-system'
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: porch-fn-system
 ---
 apiVersion: v1
@@ -18,19 +61,52 @@ kind: Namespace
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: '|Namespace|default|porch-system'
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: porch-system
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Namespace|default|tailscale-system'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: tailscale
+  name: tailscale-system
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/part-of: tekton-pipelines
     pod-security.kubernetes.io/enforce: restricted
   name: tekton-pipelines
 ---
+allowVolumeExpansion: true
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: storage.k8s.io|StorageClass|default|openebs-zfs
+    kpt.dev/package-layer: storage
+    kpt.dev/package-name: openebs-zfs
+  name: openebs-zfs
+parameters:
+  fstype: zfs
+  poolname: tank
+provisioner: zfs.csi.openebs.io
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
     app.kubernetes.io/part-of: tekton-pipelines
@@ -898,6 +974,8 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: flux-operator
   labels:
     app.kubernetes.io/instance: flux-operator
     app.kubernetes.io/managed-by: Helm
@@ -1514,6 +1592,8 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: flux-operator
   labels:
     app.kubernetes.io/instance: flux-operator
     app.kubernetes.io/managed-by: Helm
@@ -1817,6 +1897,8 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.1
     internal.kpt.dev/upstream-identifier: apiextensions.k8s.io|CustomResourceDefinition|default|packagerevs.config.porch.kpt.dev
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: packagerevs.config.porch.kpt.dev
 spec:
   group: config.porch.kpt.dev
@@ -1867,6 +1949,8 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
     internal.kpt.dev/upstream-identifier: apiextensions.k8s.io|CustomResourceDefinition|default|packagevariants.config.porch.kpt.dev
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: packagevariants.config.porch.kpt.dev
 spec:
   group: config.porch.kpt.dev
@@ -2425,6 +2509,8 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
     internal.kpt.dev/upstream-identifier: apiextensions.k8s.io|CustomResourceDefinition|default|packagevariantsets.config.porch.kpt.dev
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: packagevariantsets.config.porch.kpt.dev
 spec:
   group: config.porch.kpt.dev
@@ -3371,6 +3457,9 @@ spec:
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
     app.kubernetes.io/part-of: tekton-pipelines
@@ -8965,6 +9054,9 @@ spec:
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
     app.kubernetes.io/part-of: tekton-pipelines
@@ -10614,6 +10706,8 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
     internal.kpt.dev/upstream-identifier: apiextensions.k8s.io|CustomResourceDefinition|default|repositories.config.porch.kpt.dev
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: repositories.config.porch.kpt.dev
 spec:
   group: config.porch.kpt.dev
@@ -10850,6 +10944,9 @@ spec:
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     resolution.tekton.dev/release: devel
   name: resolutionrequests.resolution.tekton.dev
@@ -11164,6 +11261,8 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: flux-operator
   labels:
     app.kubernetes.io/instance: flux-operator
     app.kubernetes.io/managed-by: Helm
@@ -11532,6 +11631,8 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: flux-operator
   labels:
     app.kubernetes.io/instance: flux-operator
     app.kubernetes.io/managed-by: Helm
@@ -11944,6 +12045,9 @@ spec:
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
     app.kubernetes.io/part-of: tekton-pipelines
@@ -13086,6 +13190,9 @@ spec:
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
     app.kubernetes.io/part-of: tekton-pipelines
@@ -20406,6 +20513,9 @@ spec:
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
     app.kubernetes.io/part-of: tekton-pipelines
@@ -28037,6 +28147,9 @@ spec:
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
     app.kubernetes.io/part-of: tekton-pipelines
@@ -28168,9 +28281,32 @@ spec:
     storage: true
 ---
 apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ServiceAccount|envoy-gateway-system|envoy-gateway-installer'
+    kpt.dev/package-layer: networking
+    kpt.dev/package-name: envoy-gateway
+  name: envoy-gateway-installer
+  namespace: envoy-gateway-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ServiceAccount|flox-runtime|flox-runtime-installer'
+    kpt.dev/package-layer: runtime
+    kpt.dev/package-name: flox-containerd-shim
+  name: flox-runtime-installer
+  namespace: flox-runtime
+---
+apiVersion: v1
 automountServiceAccountToken: true
 kind: ServiceAccount
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: flux-operator
   labels:
     app.kubernetes.io/instance: flux-operator
     app.kubernetes.io/managed-by: Helm
@@ -28181,9 +28317,42 @@ metadata:
   namespace: flux-system
 ---
 apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ServiceAccount|headscale|headscale-bootstrap'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  name: headscale-bootstrap
+  namespace: headscale
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ServiceAccount|headscale|headscale-client'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  name: headscale-client
+  namespace: headscale
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ServiceAccount|headscale|headscale-gateway'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  name: headscale-gateway
+  namespace: headscale
+---
+apiVersion: v1
 automountServiceAccountToken: true
 kind: ServiceAccount
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: replicator
   labels:
     app.kubernetes.io/instance: kubernetes-replicator
     app.kubernetes.io/managed-by: Helm
@@ -28194,6 +28363,16 @@ metadata:
   namespace: kube-system
 ---
 apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ServiceAccount|kube-vip|kube-vip'
+    kpt.dev/package-layer: ha
+    kpt.dev/package-name: kube-vip
+  name: kube-vip
+  namespace: kube-vip
+---
+apiVersion: v1
 imagePullSecrets:
 - name: ghcr-pull
 kind: ServiceAccount
@@ -28201,6 +28380,8 @@ metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: '|ServiceAccount|porch-fn-system|default'
     kpt.dev/inventory-policy: adopt
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: default
   namespace: porch-fn-system
 ---
@@ -28211,6 +28392,8 @@ kind: ServiceAccount
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: '|ServiceAccount|porch-system|porch-controllers'
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: porch-controllers
   namespace: porch-system
 ---
@@ -28221,6 +28404,8 @@ kind: ServiceAccount
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: '|ServiceAccount|porch-system|porch-fn-runner'
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: porch-fn-runner
   namespace: porch-system
 ---
@@ -28231,12 +28416,17 @@ kind: ServiceAccount
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: '|ServiceAccount|porch-system|porch-server'
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: porch-server
   namespace: porch-system
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: controller
     app.kubernetes.io/instance: default
@@ -28247,6 +28437,9 @@ secrets: null
 apiVersion: v1
 kind: ServiceAccount
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: events
     app.kubernetes.io/instance: default
@@ -28256,6 +28449,9 @@ metadata:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: controller
     app.kubernetes.io/instance: default
@@ -28265,6 +28461,9 @@ metadata:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
     app.kubernetes.io/instance: default
@@ -28274,6 +28473,9 @@ metadata:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: webhook
     app.kubernetes.io/instance: default
@@ -28284,7 +28486,49 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|Role|headscale|headscale-bootstrap
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  name: headscale-bootstrap
+  namespace: headscale
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - create
+  - update
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - ""
+  resources:
+  - pods/exec
+  verbs:
+  - create
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - get
+  - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|Role|porch-fn-system|porch-function-executor
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: porch-function-executor
   namespace: porch-fn-system
 rules:
@@ -28325,6 +28569,8 @@ kind: Role
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|Role|porch-system|aggregated-apiserver-role
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: aggregated-apiserver-role
   namespace: porch-system
 rules:
@@ -28344,6 +28590,9 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: controller
     app.kubernetes.io/instance: default
@@ -28373,6 +28622,9 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: events
     app.kubernetes.io/instance: default
@@ -28402,6 +28654,9 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
     app.kubernetes.io/part-of: tekton-pipelines
@@ -28419,6 +28674,9 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
     app.kubernetes.io/part-of: tekton-pipelines
@@ -28440,6 +28698,9 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
     app.kubernetes.io/instance: default
@@ -28472,6 +28733,9 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: webhook
     app.kubernetes.io/instance: default
@@ -28518,6 +28782,8 @@ kind: ClusterRole
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRole|default|aggregated-apiserver-clusterrole
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: aggregated-apiserver-clusterrole
 rules:
 - apiGroups:
@@ -28602,6 +28868,9 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: flux-operator
   labels:
     app.kubernetes.io/instance: flux-operator
     app.kubernetes.io/managed-by: Helm
@@ -28627,6 +28896,9 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: flux-operator
   labels:
     app.kubernetes.io/instance: flux-operator
     app.kubernetes.io/managed-by: Helm
@@ -28651,6 +28923,26 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRole|default|headscale-client
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  name: headscale-client
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: replicator
   labels:
     app.kubernetes.io/instance: kubernetes-replicator
     app.kubernetes.io/managed-by: Helm
@@ -28700,6 +28992,8 @@ kind: ClusterRole
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRole|default|porch-controllers
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: porch-controllers
 rules:
 - apiGroups:
@@ -28727,6 +29021,8 @@ kind: ClusterRole
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRole|default|porch-controllers-packagevariants
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: porch-controllers-packagevariants
 rules:
 - apiGroups:
@@ -28782,6 +29078,8 @@ kind: ClusterRole
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRole|default|porch-controllers-packagevariantsets
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: porch-controllers-packagevariantsets
 rules:
 - apiGroups:
@@ -28840,6 +29138,42 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRole|default|system:kube-vip-role
+    kpt.dev/package-layer: ha
+    kpt.dev/package-name: kube-vip
+    rbac.authorization.kubernetes.io/autoupdate: "true"
+  name: system:kube-vip-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - services
+  - services/status
+  - nodes
+  - endpoints
+  verbs:
+  - list
+  - get
+  - watch
+  - update
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - list
+  - get
+  - watch
+  - update
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
     app.kubernetes.io/part-of: tekton-pipelines
@@ -28870,6 +29204,9 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
     app.kubernetes.io/part-of: tekton-pipelines
@@ -28894,6 +29231,9 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: events
     app.kubernetes.io/instance: default
@@ -28916,6 +29256,9 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: controller
     app.kubernetes.io/instance: default
@@ -29009,6 +29352,9 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: controller
     app.kubernetes.io/instance: default
@@ -29063,6 +29409,9 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
     app.kubernetes.io/instance: default
@@ -29102,6 +29451,9 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: webhook
     app.kubernetes.io/instance: default
@@ -29183,7 +29535,27 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|RoleBinding|headscale|headscale-bootstrap
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  name: headscale-bootstrap
+  namespace: headscale
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: headscale-bootstrap
+subjects:
+- kind: ServiceAccount
+  name: headscale-bootstrap
+  namespace: headscale
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|RoleBinding|kube-system|porch-auth-reader
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: porch-auth-reader
   namespace: kube-system
 roleRef:
@@ -29200,6 +29572,8 @@ kind: RoleBinding
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|RoleBinding|porch-fn-system|porch-function-executor
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: porch-function-executor
   namespace: porch-fn-system
 roleRef:
@@ -29216,6 +29590,8 @@ kind: RoleBinding
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|RoleBinding|porch-system|sample-apiserver-rolebinding
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: sample-apiserver-rolebinding
   namespace: porch-system
 roleRef:
@@ -29230,6 +29606,9 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: events
     app.kubernetes.io/instance: default
@@ -29247,6 +29626,9 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: controller
     app.kubernetes.io/instance: default
@@ -29264,6 +29646,9 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: controller
     app.kubernetes.io/instance: default
@@ -29281,6 +29666,9 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: events
     app.kubernetes.io/instance: default
@@ -29298,6 +29686,9 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
     app.kubernetes.io/part-of: tekton-pipelines
@@ -29314,6 +29705,9 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
     app.kubernetes.io/instance: default
@@ -29331,6 +29725,9 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: webhook
     app.kubernetes.io/instance: default
@@ -29348,6 +29745,9 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: webhook
     app.kubernetes.io/instance: default
@@ -29365,6 +29765,26 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRoleBinding|default|envoy-gateway-installer
+    kpt.dev/package-layer: networking
+    kpt.dev/package-name: envoy-gateway
+  name: envoy-gateway-installer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: envoy-gateway-installer
+  namespace: envoy-gateway-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: flux-operator
   labels:
     app.kubernetes.io/instance: flux-operator
     app.kubernetes.io/managed-by: Helm
@@ -29384,6 +29804,26 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRoleBinding|default|headscale-client
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  name: headscale-client
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: headscale-client
+subjects:
+- kind: ServiceAccount
+  name: headscale-client
+  namespace: headscale
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: replicator
   labels:
     app.kubernetes.io/instance: kubernetes-replicator
     app.kubernetes.io/managed-by: Helm
@@ -29405,6 +29845,8 @@ kind: ClusterRoleBinding
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRoleBinding|default|porch-system:porch-controllers-packagevariants
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: porch-system:porch-controllers-packagevariants
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -29420,6 +29862,8 @@ kind: ClusterRoleBinding
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRoleBinding|default|porch-system:porch-controllers-packagevariantsets
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: porch-system:porch-controllers-packagevariantsets
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -29435,6 +29879,8 @@ kind: ClusterRoleBinding
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRoleBinding|default|porch:system:auth-delegator
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: porch:system:auth-delegator
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -29450,6 +29896,8 @@ kind: ClusterRoleBinding
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRoleBinding|default|sample-apiserver-clusterrolebinding
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: sample-apiserver-clusterrolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -29463,6 +29911,26 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRoleBinding|default|system:kube-vip-binding
+    kpt.dev/package-layer: ha
+    kpt.dev/package-name: kube-vip
+  name: system:kube-vip-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:kube-vip-role
+subjects:
+- kind: ServiceAccount
+  name: kube-vip
+  namespace: kube-vip
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: events
     app.kubernetes.io/instance: default
@@ -29480,6 +29948,9 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: controller
     app.kubernetes.io/instance: default
@@ -29497,6 +29968,9 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: controller
     app.kubernetes.io/instance: default
@@ -29514,6 +29988,9 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
     app.kubernetes.io/instance: default
@@ -29531,6 +30008,9 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: webhook
     app.kubernetes.io/instance: default
@@ -29544,6 +30024,126 @@ subjects:
 - kind: ServiceAccount
   name: tekton-pipelines-webhook
   namespace: tekton-pipelines
+---
+apiVersion: v1
+data:
+  acl.json: |
+    {
+      "groups": {
+        "group:admin": []
+      },
+      "tagOwners": {
+        "tag:darwin": ["group:admin"],
+        "tag:nixos": ["group:admin"],
+        "tag:rke2": ["group:admin"]
+      },
+      "acls": [
+        {
+          "action": "accept",
+          "src": ["*"],
+          "dst": ["*:*"]
+        }
+      ],
+      "ssh": [
+        {
+          "action": "accept",
+          "src": ["group:admin", "tag:darwin", "tag:nixos"],
+          "dst": ["*"],
+          "users": ["autogroup:nonroot", "root"]
+        }
+      ]
+    }
+kind: ConfigMap
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|headscale|headscale-acl'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  name: headscale-acl
+  namespace: headscale
+---
+apiVersion: v1
+data:
+  config.yaml: |
+    server_url: http://192.168.1.193:8080 # kpt-set: http://${headscale-lb-ip}:8080
+    listen_addr: 0.0.0.0:8080
+    metrics_listen_addr: 0.0.0.0:9090
+    grpc_listen_addr: 0.0.0.0:50443
+    grpc_allow_insecure: true
+
+    tls:
+      letsencrypt_hostname: ""
+      letsencrypt_cache_dir: ""
+      letsencrypt_challenge_type: ""
+      cert_path: ""
+      key_path: ""
+
+    private_key_path: /var/lib/headscale/private.key
+    noise:
+      private_key_path: /var/lib/headscale/noise_private.key
+
+    prefixes:
+      v4: 100.64.0.0/10
+      v6: fd7a:115c:a1e0::/48
+
+    derp:
+      server:
+        enabled: false
+      urls: []
+      paths:
+        - /etc/headscale/derp.yaml
+      auto_update_enabled: false
+      update_frequency: 24h
+
+    disable_check_updates: true
+    ephemeral_node_inactivity_timeout: 30m
+    database:
+      type: sqlite
+      sqlite:
+        path: /var/lib/headscale/db.sqlite
+
+    policy:
+      mode: file
+      path: /etc/headscale/acl.json
+
+    dns:
+      base_domain: lan
+      nameservers:
+        global:
+          - 192.168.1.254
+          - 1.1.1.1
+          - 8.8.8.8
+      magic_dns: true
+
+    log:
+      format: text
+      level: info
+kind: ConfigMap
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|headscale|headscale-config'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  name: headscale-config
+  namespace: headscale
+---
+apiVersion: v1
+data:
+  derp.yaml: |
+    regions:
+      900:
+        regionid: 900
+        regioncode: local
+        regionname: Local LAN
+        nodes: []
+kind: ConfigMap
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|headscale|headscale-derp'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  name: headscale-derp
+  namespace: headscale
 ---
 apiVersion: v1
 data:
@@ -29571,6 +30171,8 @@ kind: ConfigMap
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: '|ConfigMap|porch-system|pod-cache-config'
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: pod-cache-config
   namespace: porch-system
 ---
@@ -29580,6 +30182,9 @@ data:
   default-service-account: default
 kind: ConfigMap
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
     app.kubernetes.io/instance: default
@@ -29594,6 +30199,9 @@ data:
   default-namespace: ""
 kind: ConfigMap
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
     app.kubernetes.io/instance: default
@@ -29748,6 +30356,9 @@ data:
     default-step-ref-concurrency-limit: "5"
 kind: ConfigMap
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
     app.kubernetes.io/part-of: tekton-pipelines
@@ -29783,6 +30394,9 @@ data:
     sink: "https://events.sink/cdevents"
 kind: ConfigMap
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
     app.kubernetes.io/part-of: tekton-pipelines
@@ -29821,6 +30435,9 @@ data:
     buckets: "1"
 kind: ConfigMap
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
     app.kubernetes.io/part-of: tekton-pipelines
@@ -29859,6 +30476,9 @@ data:
     buckets: "1"
 kind: ConfigMap
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
     app.kubernetes.io/part-of: tekton-pipelines
@@ -29897,6 +30517,9 @@ data:
     buckets: "1"
 kind: ConfigMap
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
     app.kubernetes.io/instance: default
@@ -29936,6 +30559,9 @@ data:
     buckets: "1"
 kind: ConfigMap
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
     app.kubernetes.io/part-of: tekton-pipelines
@@ -29972,6 +30598,9 @@ data:
     }
 kind: ConfigMap
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
     app.kubernetes.io/instance: default
@@ -30019,6 +30648,9 @@ data:
     metrics.allow-stackdriver-custom-metrics: "false"
 kind: ConfigMap
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
     app.kubernetes.io/instance: default
@@ -30028,6 +30660,9 @@ metadata:
 apiVersion: v1
 kind: ConfigMap
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
     app.kubernetes.io/part-of: tekton-pipelines
@@ -30063,6 +30698,9 @@ data:
     # spire-node-alias-prefix: "/tekton-node/"
 kind: ConfigMap
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
     app.kubernetes.io/part-of: tekton-pipelines
@@ -30095,6 +30733,9 @@ data:
     credentialsSecret: "jaeger-creds"
 kind: ConfigMap
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
     app.kubernetes.io/part-of: tekton-pipelines
@@ -30109,6 +30750,9 @@ data:
   steps: "5"
 kind: ConfigMap
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
     app.kubernetes.io/part-of: tekton-pipelines
@@ -30141,6 +30785,9 @@ data:
   trusted-resources-verification-no-match-policy: ignore
 kind: ConfigMap
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
     app.kubernetes.io/part-of: tekton-pipelines
@@ -30159,6 +30806,9 @@ data:
   server-url: ""
 kind: ConfigMap
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
     app.kubernetes.io/instance: default
@@ -30170,6 +30820,9 @@ data:
   fetch-timeout: 1m
 kind: ConfigMap
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
     app.kubernetes.io/instance: default
@@ -30185,6 +30838,9 @@ data:
   default-type: artifact
 kind: ConfigMap
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
     app.kubernetes.io/instance: default
@@ -30196,6 +30852,9 @@ data:
   version: v1.6.0
 kind: ConfigMap
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
     app.kubernetes.io/part-of: tekton-pipelines
@@ -30207,6 +30866,9 @@ data:
   ttl: 5m
 kind: ConfigMap
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
     app.kubernetes.io/instance: default
@@ -30221,6 +30883,9 @@ data:
   enable-hub-resolver: "true"
 kind: ConfigMap
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
     app.kubernetes.io/instance: default
@@ -30231,30 +30896,8 @@ apiVersion: v1
 kind: Secret
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: '|Secret|porch-system|ghcr-pull'
-  name: ghcr-pull
-  namespace: porch-system
-stringData:
-  .dockerconfigjson: eyJhdXRocyI6eyJnaGNyLmlvIjp7InVzZXJuYW1lIjoieC1hY2Nlc3MtdG9rZW4iLCJwYXNzd29yZCI6ImdocF9Xb05BMTF0SXY3eEM0N3FoVU1BMEhnNXdsNWFxZmEwUlpHemsiLCJhdXRoIjoiWjJod1gxZHZUa0V4TVhSSmRqZDRRelEzY1doVlRVRXdTR2MxZDJ3MVlYRm1ZVEJTV2tkNmF3PT0ifX19
-type: kubernetes.io/dockerconfigjson
----
-apiVersion: v1
-kind: Secret
-metadata:
-  annotations:
-    internal.kpt.dev/upstream-identifier: '|Secret|porch-system|github-token'
-    porch.kpt.dev/git-auth: ssh
-    sops.dev/managed: "true"
-  name: github-token
-  namespace: porch-system
-stringData:
-  password: ""
-  username: PAT
-type: kubernetes.io/basic-auth
----
-apiVersion: v1
-kind: Secret
-metadata:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: webhook
     app.kubernetes.io/instance: default
@@ -30265,6 +30908,9 @@ metadata:
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: flux-operator
   labels:
     app.kubernetes.io/instance: flux-operator
     app.kubernetes.io/managed-by: Helm
@@ -30287,7 +30933,62 @@ apiVersion: v1
 kind: Service
 metadata:
   annotations:
+    internal.kpt.dev/upstream-identifier: '|Service|headscale|headscale'
+    io.cilium/lb-ipam-ips: 192.168.100.193
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+    tailscale.com/expose: "true"
+    tailscale.com/hostname: example-host-headscale
+  labels:
+    app: headscale
+    io.cilium/lb-ipam: home-lan
+  name: headscale
+  namespace: headscale
+spec:
+  ports:
+  - name: http
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  - name: metrics
+    port: 9090
+    protocol: TCP
+    targetPort: 9090
+  selector:
+    app: headscale
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Service|kube-system|control-plane-nodeport'
+    kpt.dev/package-layer: ha
+    kpt.dev/package-name: kube-vip
+  labels:
+    backup-service: "true"
+  name: control-plane-nodeport
+  namespace: kube-system
+spec:
+  externalTrafficPolicy: Cluster
+  ports:
+  - name: kube-apiserver
+    nodePort: 30443
+    port: 6443
+    protocol: TCP
+    targetPort: 6443
+  selector:
+    component: kube-apiserver
+    tier: control-plane
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
     internal.kpt.dev/upstream-identifier: '|Service|porch-system|api'
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: api
   namespace: porch-system
 spec:
@@ -30308,6 +31009,8 @@ kind: Service
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: '|Service|porch-system|function-runner'
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: function-runner
   namespace: porch-system
 spec:
@@ -30321,6 +31024,9 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app: tekton-events-controller
     app.kubernetes.io/component: events
@@ -30351,6 +31057,9 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app: tekton-pipelines-controller
     app.kubernetes.io/component: controller
@@ -30381,6 +31090,9 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app: tekton-pipelines-remote-resolvers
     app.kubernetes.io/component: resolvers
@@ -30411,6 +31123,9 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app: tekton-pipelines-webhook
     app.kubernetes.io/component: webhook
@@ -30444,6 +31159,9 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: flux-operator
   labels:
     app.kubernetes.io/instance: flux-operator
     app.kubernetes.io/managed-by: Helm
@@ -30460,6 +31178,8 @@ spec:
   template:
     metadata:
       annotations:
+        kpt.dev/package-layer: system
+        kpt.dev/package-name: flux-operator
         prometheus.io/path: /metrics
         prometheus.io/port: "8080"
         prometheus.io/scrape: "true"
@@ -30539,6 +31259,214 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: apps|Deployment|headscale|headscale
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  labels:
+    app: headscale
+  name: headscale
+  namespace: headscale
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: headscale
+  template:
+    metadata:
+      annotations:
+        kpt.dev/package-layer: mesh
+        kpt.dev/package-name: headscale
+      labels:
+        app: headscale
+    spec:
+      containers:
+      - command:
+        - headscale
+        - serve
+        image: headscale/headscale:0.27.0
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        name: headscale
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        - containerPort: 9090
+          name: metrics
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        volumeMounts:
+        - mountPath: /etc/headscale/config.yaml
+          name: config
+          subPath: config.yaml
+        - mountPath: /etc/headscale/acl.json
+          name: acl
+          subPath: acl.json
+        - mountPath: /etc/headscale/derp.yaml
+          name: derp
+          subPath: derp.yaml
+        - mountPath: /var/lib/headscale
+          name: data
+        - mountPath: /var/run/headscale
+          name: run
+      nodeSelector:
+        bioskop.cluster/node-role: master
+      volumes:
+      - configMap:
+          name: headscale-config
+        name: config
+      - configMap:
+          name: headscale-acl
+        name: acl
+      - configMap:
+          name: headscale-derp
+        name: derp
+      - emptyDir: {}
+        name: data
+      - emptyDir: {}
+        name: run
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: apps|Deployment|headscale|headscale-gateway
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  labels:
+    app: headscale-gateway
+  name: headscale-gateway
+  namespace: headscale
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: headscale-gateway
+  template:
+    metadata:
+      annotations:
+        kpt.dev/package-layer: mesh
+        kpt.dev/package-name: headscale
+      labels:
+        app: headscale-gateway
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - command:
+        - sh
+        - -c
+        - |
+          set -e
+          sysctl -w net.ipv4.ip_forward=1
+          sysctl -w net.ipv6.conf.all.forwarding=1 || true
+
+          echo "Starting tailscaled router..."
+          tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock &
+          TAILSCALED_PID=$$!
+
+          until [ -S /var/run/tailscale/tailscaled.sock ]; do sleep 1; done
+
+          HEADSCALE_URL="http://headscale.headscale.svc.cluster.local:8080"
+
+          tailscale up \
+            --login-server=$$HEADSCALE_URL \
+            --authkey=file:/var/secrets/authkey \
+            --hostname=$${DARWIN_HOST}-gateway \
+            --advertise-routes=$${VIP_NETWORK_CIDR} \
+            --accept-dns=false \
+            --ssh \
+            --reset
+
+          tailscale set --advertise-routes=$${VIP_NETWORK_CIDR}
+
+          wait $$TAILSCALED_PID
+        env:
+        - name: DARWIN_HOST
+          value: example-host
+        - name: VIP_NETWORK_CIDR
+          value: 10.0.15.0/24
+        - name: TS_AUTHKEY
+          valueFrom:
+            secretKeyRef:
+              key: authkey
+              name: headscale-client-auth
+        image: tailscale/tailscale:v1.76.6
+        name: tailscale-gateway
+        resources:
+          limits:
+            cpu: 200m
+            ephemeral-storage: 500Mi
+            memory: 256Mi
+          requests:
+            cpu: 50m
+            ephemeral-storage: 100Mi
+            memory: 64Mi
+        securityContext:
+          capabilities:
+            add:
+            - NET_ADMIN
+            - NET_RAW
+          privileged: true
+        volumeMounts:
+        - mountPath: /dev/net/tun
+          name: dev-net-tun
+        - mountPath: /var/lib/tailscale
+          name: tailscale-state
+        - mountPath: /var/run/tailscale
+          name: tailscale-socket
+        - mountPath: /var/secrets
+          name: authkey
+          readOnly: true
+      dnsPolicy: ClusterFirstWithHostNet
+      hostNetwork: true
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+      serviceAccountName: headscale-gateway
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/control-plane
+        operator: Exists
+      volumes:
+      - hostPath:
+          path: /dev/net/tun
+          type: CharDevice
+        name: dev-net-tun
+      - hostPath:
+          path: /var/lib/tailscale
+          type: DirectoryOrCreate
+        name: tailscale-state
+      - emptyDir: {}
+        name: tailscale-socket
+      - name: authkey
+        secret:
+          items:
+          - key: authkey
+            path: authkey
+          secretName: headscale-client-auth
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: replicator
   labels:
     app.kubernetes.io/instance: kubernetes-replicator
     app.kubernetes.io/managed-by: Helm
@@ -30557,6 +31485,8 @@ spec:
   template:
     metadata:
       annotations:
+        kpt.dev/package-layer: system
+        kpt.dev/package-name: replicator
         reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
       labels:
         app.kubernetes.io/instance: kubernetes-replicator
@@ -30611,6 +31541,8 @@ kind: Deployment
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: apps|Deployment|porch-system|function-runner
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: function-runner
   namespace: porch-system
 spec:
@@ -30620,6 +31552,9 @@ spec:
       app: function-runner
   template:
     metadata:
+      annotations:
+        kpt.dev/package-layer: system
+        kpt.dev/package-name: porch
       labels:
         app: function-runner
     spec:
@@ -30663,6 +31598,8 @@ kind: Deployment
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: apps|Deployment|porch-system|porch-controllers
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   labels:
     k8s-app: porch-controllers
   name: porch-controllers
@@ -30674,6 +31611,9 @@ spec:
       k8s-app: porch-controllers
   template:
     metadata:
+      annotations:
+        kpt.dev/package-layer: system
+        kpt.dev/package-name: porch
       labels:
         k8s-app: porch-controllers
     spec:
@@ -30713,6 +31653,8 @@ kind: Deployment
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: apps|Deployment|porch-system|porch-server
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: porch-server
   namespace: porch-system
 spec:
@@ -30722,6 +31664,9 @@ spec:
       app: porch-server
   template:
     metadata:
+      annotations:
+        kpt.dev/package-layer: system
+        kpt.dev/package-name: porch
       labels:
         app: porch-server
     spec:
@@ -30793,6 +31738,9 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: events
     app.kubernetes.io/instance: default
@@ -30812,6 +31760,9 @@ spec:
       app.kubernetes.io/part-of: tekton-pipelines
   template:
     metadata:
+      annotations:
+        kpt.dev/package-layer: system
+        kpt.dev/package-name: tekton-pipelines
       labels:
         app: tekton-events-controller
         app.kubernetes.io/component: events
@@ -30905,6 +31856,9 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: controller
     app.kubernetes.io/instance: default
@@ -30926,6 +31880,8 @@ spec:
     metadata:
       annotations:
         fake: value
+        kpt.dev/package-layer: system
+        kpt.dev/package-name: tekton-pipelines
       labels:
         app: tekton-pipelines-controller
         app.kubernetes.io/component: controller
@@ -31055,6 +32011,9 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
     app.kubernetes.io/instance: default
@@ -31074,6 +32033,9 @@ spec:
       app.kubernetes.io/part-of: tekton-pipelines
   template:
     metadata:
+      annotations:
+        kpt.dev/package-layer: system
+        kpt.dev/package-name: tekton-pipelines
       labels:
         app: tekton-pipelines-resolvers
         app.kubernetes.io/component: resolvers
@@ -31173,6 +32135,9 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: webhook
     app.kubernetes.io/instance: default
@@ -31191,6 +32156,9 @@ spec:
       app.kubernetes.io/part-of: tekton-pipelines
   template:
     metadata:
+      annotations:
+        kpt.dev/package-layer: system
+        kpt.dev/package-name: tekton-pipelines
       labels:
         app: tekton-pipelines-webhook
         app.kubernetes.io/component: webhook
@@ -31307,6 +32275,8 @@ kind: APIService
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: apiregistration.k8s.io|APIService|default|v1alpha1.porch.kpt.dev
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
   name: v1alpha1.porch.kpt.dev
 spec:
   group: porch.kpt.dev
@@ -31318,9 +32288,449 @@ spec:
   version: v1alpha1
   versionPriority: 15
 ---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: apps|DaemonSet|flox-runtime|flox-runtime-installer
+    kpt.dev/package-layer: runtime
+    kpt.dev/package-name: flox-containerd-shim
+  labels:
+    app.kubernetes.io/component: runtime-shim
+    app.kubernetes.io/name: flox-runtime-installer
+  name: flox-runtime-installer
+  namespace: flox-runtime
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: flox-runtime-installer
+  template:
+    metadata:
+      annotations:
+        kpt.dev/package-layer: runtime
+        kpt.dev/package-name: flox-containerd-shim
+      labels:
+        app.kubernetes.io/component: runtime-shim
+        app.kubernetes.io/name: flox-runtime-installer
+    spec:
+      containers:
+      - image: registry.k8s.io/pause:3.10
+        name: pause
+        resources:
+          limits:
+            cpu: 10m
+            memory: 64Mi
+          requests:
+            cpu: 5m
+            memory: 32Mi
+      hostPID: true
+      initContainers:
+      - command:
+        - /bin/sh
+        - -c
+        - |
+          set -euxo pipefail
+
+          install_deps() {
+            local attempt=0
+            local max_attempts=${APK_MAX_RETRIES:-5}
+            while true; do
+              attempt=$((attempt + 1))
+              if apk update && apk add --no-cache bash util-linux coreutils >/tmp/apk.log; then
+                return 0
+              fi
+              if [[ ${attempt} -ge ${max_attempts} ]]; then
+                echo "apk install failed after ${attempt} attempts" >&2
+                sleep infinity
+              fi
+              sleep $((attempt * 2))
+            done
+          }
+
+          install_deps
+
+          nsenter --target 1 --mount --uts --ipc --net --pid -- env \
+            CONTAINERD_CONFIG_FILE="${CONTAINERD_CONFIG_FILE}" \
+            bash <<'HOSTSCRIPT'
+          set -euxo pipefail
+          export PATH="/var/lib/rancher/rke2/bin:/var/lib/rancher/rke2/agent/bin:${PATH}"
+          export FLOX_NO_TELEMETRY=1
+          export FLOX_NONINTERACTIVE=1
+
+          CONFIG_FILE="${CONTAINERD_CONFIG_FILE}"
+          CONFIG_DIR="$(dirname "${CONFIG_FILE}")"
+          CONFIG_TEMPLATE="${CONFIG_DIR}/config.toml.tmpl"
+          FLOX_ENV_DIR="/var/lib/flox-runtime/containerd-shim"
+          ARCH="$(uname -m)"
+
+          mkdir -p "${FLOX_ENV_DIR}"
+          if [[ ! -d "${FLOX_ENV_DIR}/.flox" ]]; then
+            (cd "${FLOX_ENV_DIR}" && flox init -b)
+          fi
+
+          if command -v containerd >/dev/null 2>&1; then
+            CONTAINERD_BIN="$(command -v containerd)"
+          elif [[ -x /var/lib/rancher/rke2/bin/containerd ]]; then
+            CONTAINERD_BIN="/var/lib/rancher/rke2/bin/containerd"
+          elif [[ -x /var/lib/rancher/rke2/agent/bin/containerd ]]; then
+            CONTAINERD_BIN="/var/lib/rancher/rke2/agent/bin/containerd"
+          else
+            echo "containerd binary not found" >&2
+            exit 1
+          fi
+
+          CONTAINERD_VERSION="$(${CONTAINERD_BIN} --version | awk '{print $3}')"
+          CONTAINERD_VERSION="${CONTAINERD_VERSION#v}"
+          CONTAINERD_MAJOR="${CONTAINERD_VERSION%%.*}"
+          if [[ -z "${CONTAINERD_MAJOR}" ]]; then
+            echo "unable to determine containerd version" >&2
+            exit 1
+          fi
+          if [[ "${CONTAINERD_MAJOR}" -ge 2 ]]; then
+            SHIM_PKG="flox/containerd-shim-flox-2x"
+          else
+            SHIM_PKG="flox/containerd-shim-flox-17"
+          fi
+
+          flox install --dir "${FLOX_ENV_DIR}" "${SHIM_PKG}"
+
+          SHIM_RUN_DIR="$(find "${FLOX_ENV_DIR}/.flox/run" -maxdepth 1 -name "${ARCH}-linux.containerd-shim*.run" -print -quit || true)"
+          if [[ -z "${SHIM_RUN_DIR}" ]]; then
+            echo "unable to locate Flox shim run directory" >&2
+            exit 1
+          fi
+          SHIM_PATH="$(realpath "${SHIM_RUN_DIR}")/bin/containerd-shim-flox-v2"
+          if [[ ! -f "${SHIM_PATH}" ]]; then
+            echo "shim binary missing at ${SHIM_PATH}" >&2
+            exit 1
+          fi
+          install -D -m 0755 "${SHIM_PATH}" /usr/local/bin/containerd-shim-flox-v2
+
+          if [[ ! -f "${CONFIG_TEMPLATE}" ]]; then
+            cp "${CONFIG_FILE}" "${CONFIG_TEMPLATE}"
+          fi
+
+          CONFIG_VERSION="$(grep -m1 '^version' "${CONFIG_FILE}" | awk -F '=' '{print $2}' | tr -d ' "')"
+          if [[ "${CONFIG_VERSION}" == "3" ]]; then
+            RUNTIME_SECTION='plugins."io.containerd.cri.v1.runtime".containerd.runtimes.flox'
+          else
+            RUNTIME_SECTION='plugins."io.containerd.grpc.v1.cri".containerd.runtimes.flox'
+          fi
+
+          update_config() {
+            local target="$1"
+            [[ -f "${target}" ]] || return 0
+            local tmp
+            tmp="$(mktemp)"
+            awk '
+              BEGIN {skip=0}
+              /^## Flox runtime shim/ {skip=1; next}
+              /^\[plugins\..*containerd\.runtimes\.flox/ {skip=1; next}
+              skip && /^\[/ && $0 !~ /containerd\.runtimes\.flox/ {skip=0}
+              skip {next}
+              {print}
+            ' "${target}" > "${tmp}"
+            mv "${tmp}" "${target}"
+            cat <<EOF_BLOCK | sed "s|__RUNTIME_SECTION__|${RUNTIME_SECTION}|" | sed 's/^              //' >> "${target}"
+          ## Flox runtime shim
+          [__RUNTIME_SECTION__]
+            runtime_path = "/usr/local/bin/containerd-shim-flox-v2"
+            runtime_type = "io.containerd.runc.v2"
+            pod_annotations = [ "flox.dev/*" ]
+            container_annotations = [ "flox.dev/*" ]
+          [__RUNTIME_SECTION__.options]
+            SystemdCgroup = true
+          EOF_BLOCK
+          }
+
+          update_config "${CONFIG_FILE}"
+          update_config "${CONFIG_TEMPLATE}"
+
+          if systemctl is-active rke2-server >/dev/null; then
+            systemctl restart rke2-server
+          elif systemctl is-active rke2-agent >/dev/null; then
+            systemctl restart rke2-agent
+          elif systemctl is-active containerd >/dev/null; then
+            systemctl restart containerd
+          else
+            echo "no known service to restart" >&2
+          fi
+          HOSTSCRIPT
+        env:
+        - name: CONTAINERD_CONFIG_FILE
+          value: /var/lib/rancher/rke2/agent/etc/containerd/config.toml
+        - name: CONTAINERD_ADDRESS
+          value: /run/k3s/containerd/containerd.sock
+        - name: APK_MAX_RETRIES
+          value: "5"
+        image: alpine:3.20
+        imagePullPolicy: IfNotPresent
+        name: shim-installer
+        securityContext:
+          privileged: true
+          runAsGroup: 0
+          runAsUser: 0
+      nodeSelector:
+        flox.dev/enabled: "true"
+      restartPolicy: Always
+      serviceAccountName: flox-runtime-installer
+      tolerations:
+      - operator: Exists
+      volumes: []
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 1
+    type: RollingUpdate
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: apps|DaemonSet|headscale|headscale-client
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  labels:
+    app: headscale-client
+  name: headscale-client
+  namespace: headscale
+spec:
+  selector:
+    matchLabels:
+      app: headscale-client
+  template:
+    metadata:
+      annotations:
+        kpt.dev/package-layer: mesh
+        kpt.dev/package-name: headscale
+      labels:
+        app: headscale-client
+    spec:
+      containers:
+      - command:
+        - sh
+        - -c
+        - |
+          set -e
+          echo "Starting tailscaled..."
+          tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock &
+          TAILSCALED_PID=$$!
+
+          echo "Waiting for tailscaled socket..."
+          until [ -S /var/run/tailscale/tailscaled.sock ]; do sleep 1; done
+
+          # Use internal cluster service (HTTP) - client is inside the cluster
+          # External clients use https://alcide-headscale via Tailscale operator
+          HEADSCALE_URL="http://headscale.headscale.svc.cluster.local:8080"
+
+          echo "Connecting to Headscale at $$HEADSCALE_URL..."
+          tailscale up \
+            --login-server=$$HEADSCALE_URL \
+            --authkey=file:/var/secrets/authkey \
+            --hostname=$${DARWIN_HOST}-$$NODE_NAME \
+            --advertise-tags=tag:rke2,tag:alcide \
+            --accept-routes \
+            --ssh \
+            --reset
+
+          echo "Headscale client connected!"
+          wait $$TAILSCALED_PID
+        env:
+        - name: DARWIN_HOST
+          value: example-host
+        - name: CLUSTER_NAME
+          value: example-cluster
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: TS_AUTHKEY
+          valueFrom:
+            secretKeyRef:
+              key: authkey
+              name: headscale-client-auth
+        - name: TS_STATE_DIR
+          value: /var/lib/tailscale
+        - name: TS_SOCKET
+          value: /var/run/tailscale/tailscaled.sock
+        - name: TS_USERSPACE
+          value: "false"
+        - name: TS_KUBE_SECRET
+          value: ""
+        image: tailscale/tailscale:v1.76.6
+        name: tailscale
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 50m
+            memory: 64Mi
+        securityContext:
+          capabilities:
+            add:
+            - NET_ADMIN
+            - NET_RAW
+          privileged: true
+        volumeMounts:
+        - mountPath: /dev/net/tun
+          name: dev-net-tun
+        - mountPath: /var/lib/tailscale
+          name: tailscale-state
+        - mountPath: /var/run/tailscale
+          name: tailscale-socket
+        - mountPath: /var/secrets
+          name: authkey
+          readOnly: true
+      dnsPolicy: ClusterFirstWithHostNet
+      hostNetwork: true
+      hostPID: true
+      initContainers:
+      - command:
+        - sh
+        - -c
+        - |
+          echo "Waiting for Headscale server..."
+          until wget -q -O- http://headscale.headscale.svc.cluster.local:8080/health; do
+            echo "Headscale not ready, retrying in 5s..."
+            sleep 5
+          done
+          echo "Headscale is ready!"
+        image: busybox:1.36
+        name: wait-for-headscale
+      - command:
+        - sh
+        - -c
+        - |
+          echo "Waiting for auth key Secret..."
+          until [ -f /var/secrets/authkey ]; do
+            echo "Auth key not available, retrying in 5s..."
+            sleep 5
+          done
+          echo "Auth key found!"
+        image: busybox:1.36
+        name: wait-for-authkey
+        volumeMounts:
+        - mountPath: /var/secrets
+          name: authkey
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+      serviceAccountName: headscale-client
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/control-plane
+        operator: Exists
+      volumes:
+      - hostPath:
+          path: /dev/net/tun
+          type: CharDevice
+        name: dev-net-tun
+      - hostPath:
+          path: /var/lib/tailscale
+          type: DirectoryOrCreate
+        name: tailscale-state
+      - emptyDir: {}
+        name: tailscale-socket
+      - name: authkey
+        secret:
+          items:
+          - key: authkey
+            path: authkey
+          secretName: headscale-client-auth
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: apps|DaemonSet|kube-vip|kube-vip-ds
+    kpt.dev/package-layer: ha
+    kpt.dev/package-name: kube-vip
+  labels:
+    app: kube-vip
+  name: kube-vip-ds
+  namespace: kube-vip
+spec:
+  selector:
+    matchLabels:
+      name: kube-vip-ds
+  template:
+    metadata:
+      annotations:
+        kpt.dev/package-layer: ha
+        kpt.dev/package-name: kube-vip
+      labels:
+        app: kube-vip
+        name: kube-vip-ds
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-role.kubernetes.io/master
+                operator: Exists
+            - matchExpressions:
+              - key: node-role.kubernetes.io/control-plane
+                operator: Exists
+      containers:
+      - args:
+        - manager
+        env:
+        - name: vip_arp
+          value: "true"
+        - name: port
+          value: "6443"
+        - name: vip_interface
+          value: eth0
+        - name: vip_cidr
+          value: "32"
+        - name: dns_mode
+          value: first
+        - name: cp_enable
+          value: "true"
+        - name: cp_namespace
+          value: kube-system
+        - name: svc_enable
+          value: "false"
+        - name: vip_leaderelection
+          value: "true"
+        - name: vip_leaseduration
+          value: "5"
+        - name: vip_renewdeadline
+          value: "3"
+        - name: vip_retryperiod
+          value: "1"
+        - name: address
+          value: 10.0.15.1
+        image: ghcr.io/kube-vip/kube-vip:v0.8.7
+        imagePullPolicy: Always
+        name: kube-vip
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+          requests:
+            cpu: 50m
+            memory: 64Mi
+        securityContext:
+          capabilities:
+            add:
+            - NET_ADMIN
+            - NET_RAW
+            - SYS_TIME
+      hostNetwork: true
+      serviceAccountName: kube-vip
+      tolerations:
+      - effect: NoSchedule
+        operator: Exists
+      - effect: NoExecute
+        operator: Exists
+---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: webhook
     app.kubernetes.io/instance: default
@@ -31345,11 +32755,265 @@ spec:
     kind: Deployment
     name: tekton-pipelines-webhook
 ---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: batch|Job|envoy-gateway-system|envoy-gateway-installer
+    kpt.dev/package-layer: networking
+    kpt.dev/package-name: envoy-gateway
+  name: envoy-gateway-installer
+  namespace: envoy-gateway-system
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      annotations:
+        kpt.dev/package-layer: networking
+        kpt.dev/package-name: envoy-gateway
+    spec:
+      containers:
+      - command:
+        - sh
+        - -c
+        - |
+          set -e
+          echo "Installing Envoy Gateway v1.4.2..." # kpt-set: Installing Envoy Gateway ${envoy-gateway-version}...
+          kubectl apply \
+            --server-side \
+            --force-conflicts \
+            -f https://github.com/envoyproxy/gateway/releases/download/v1.4.2/install.yaml # kpt-set: -f https://github.com/envoyproxy/gateway/releases/download/${envoy-gateway-version}/install.yaml
+
+          echo "Waiting for Envoy Gateway deployment..."
+          kubectl wait --timeout=300s \
+            --namespace envoy-gateway-system \
+            --for=condition=available \
+            deployment/envoy-gateway
+
+          echo "Envoy Gateway installation complete!"
+        image: alpine/k8s:1.29.8
+        name: installer
+      restartPolicy: OnFailure
+      serviceAccountName: envoy-gateway-installer
+  ttlSecondsAfterFinished: 300
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: batch|Job|headscale|headscale-bootstrap
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  name: headscale-bootstrap
+  namespace: headscale
+spec:
+  template:
+    metadata:
+      annotations:
+        kpt.dev/package-layer: mesh
+        kpt.dev/package-name: headscale
+    spec:
+      containers:
+      - command:
+        - sh
+        - -c
+        - |
+          set -e
+
+          # Install dependencies
+          apk add --no-cache curl kubectl jq
+
+          echo "Waiting for Headscale server to be ready..."
+          until curl -sf http://headscale:8080/health; do
+            echo "Headscale not ready, retrying in 5s..."
+            sleep 5
+          done
+
+          echo "Waiting for headscale pod to be running..."
+          until kubectl get pod -n headscale -l app=headscale -o jsonpath='{.items[0].status.phase}' 2>/dev/null | grep -q Running; do
+            echo "Headscale pod not ready, retrying in 2s..."
+            sleep 2
+          done
+
+          # Use kubectl exec to run headscale CLI inside the pod
+          # The CLI has direct access to headscale without API key requirements
+
+          echo "Creating admin user..."
+          kubectl exec -n headscale deployment/headscale -- \
+            headscale users create admin 2>/dev/null || echo "User admin already exists"
+
+          echo "Getting admin user ID..."
+          USER_JSON=$$(kubectl exec -n headscale deployment/headscale -- \
+            headscale users list -o json)
+          USER_ID=$$(echo "$$USER_JSON" | jq -r '.[] | select(.name=="admin") | .id // empty')
+
+          if [ -z "$$USER_ID" ]; then
+            echo "ERROR: Failed to get admin user ID"
+            echo "User list output: $$USER_JSON"
+            exit 1
+          fi
+
+          echo "Admin user ID: $$USER_ID"
+
+          echo "Creating reusable preauth key..."
+          PREAUTH_JSON=$$(kubectl exec -n headscale deployment/headscale -- \
+            headscale preauthkeys --user "$$USER_ID" create \
+            --reusable --expiration 720h -o json)
+
+          PREAUTH_KEY=$$(echo "$$PREAUTH_JSON" | jq -r '.key // empty')
+
+          if [ -z "$$PREAUTH_KEY" ]; then
+            echo "ERROR: Failed to extract preauth key"
+            echo "Preauth key output: $$PREAUTH_JSON"
+            exit 1
+          fi
+
+          echo "Preauth key created: $${PREAUTH_KEY:0:16}..."
+
+          echo "Storing preauth key in Secret..."
+          kubectl create secret generic headscale-client-auth \
+            --from-literal=authkey="$$PREAUTH_KEY" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          echo "Bootstrap complete!"
+        image: alpine:3.19
+        name: bootstrap
+      restartPolicy: OnFailure
+      serviceAccountName: headscale-bootstrap
+  ttlSecondsAfterFinished: 300
+---
+apiVersion: cilium.io/v2
+kind: CiliumBGPAdvertisement
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: cilium.io|CiliumBGPAdvertisement|default|control-plane-advertisement
+    kpt.dev/package-layer: networking
+    kpt.dev/package-name: cilium
+  name: control-plane-advertisement
+spec:
+  advertisements:
+  - advertisementType: Service
+    selector:
+      matchLabels:
+        io.cilium/lb-ipam: load-balancers
+    service:
+      addresses:
+      - ExternalIP
+      - LoadBalancerIP
+  - advertisementType: PodCIDR
+---
+apiVersion: cilium.io/v2
+kind: CiliumBGPClusterConfig
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: cilium.io|CiliumBGPClusterConfig|default|bgp-cluster-config
+    kpt.dev/package-layer: networking
+    kpt.dev/package-name: cilium
+  name: bgp-cluster-config
+spec:
+  bgpInstances:
+  - localASN: 65010
+    name: control-plane-bgp
+    peers:
+    - name: gateway-peer
+      peerASN: 65020
+      peerAddress: 10.0.0.1
+      peerConfigRef:
+        name: cilium-peer
+  nodeSelector:
+    matchLabels:
+      node-role.kubernetes.io/control-plane: ""
+---
+apiVersion: cilium.io/v2alpha1
+kind: CiliumL2AnnouncementPolicy
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: cilium.io|CiliumL2AnnouncementPolicy|default|home-lan-policy
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  name: home-lan-policy
+spec:
+  interfaces:
+  - ^lan0$
+  loadBalancerIPs: true
+  nodeSelector:
+    matchExpressions:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+  serviceSelector:
+    matchLabels:
+      io.cilium/lb-ipam: home-lan
+---
+apiVersion: cilium.io/v2alpha1
+kind: CiliumL2AnnouncementPolicy
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: cilium.io|CiliumL2AnnouncementPolicy|default|host
+    kpt.dev/package-layer: networking
+    kpt.dev/package-name: cilium
+  name: host
+spec:
+  interfaces:
+  - eth0
+  - lan0
+  loadBalancerIPs: true
+  nodeSelector:
+    matchExpressions:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+  serviceSelector:
+    matchLabels: {}
+---
+apiVersion: cilium.io/v2alpha1
+kind: CiliumLoadBalancerIPPool
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: cilium.io|CiliumLoadBalancerIPPool|default|home-lan
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  name: home-lan
+spec:
+  blocks:
+  - cidr: 192.168.100.192/27
+  serviceSelector:
+    matchLabels:
+      io.cilium/lb-ipam: home-lan
+---
+apiVersion: cilium.io/v2alpha1
+kind: CiliumLoadBalancerIPPool
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: cilium.io|CiliumLoadBalancerIPPool|default|load-balancers
+    kpt.dev/package-layer: networking
+    kpt.dev/package-name: cilium
+  name: load-balancers
+spec:
+  blocks:
+  - cidr: 10.0.8.0/24
+  serviceSelector:
+    matchExpressions:
+    - key: io.cilium/lb-ipam
+      operator: DoesNotExist
+---
+apiVersion: cilium.io/v2alpha1
+kind: CiliumLoadBalancerIPPool
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: cilium.io|CiliumLoadBalancerIPPool|default|virtual-addresses
+    kpt.dev/package-layer: networking
+    kpt.dev/package-name: cilium
+  name: virtual-addresses
+spec:
+  blocks:
+  - cidr: 10.0.15.0/24
+---
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: config.porch.kpt.dev|PackageVariant|porch-system|ha-kube-vip
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch-resources
   name: ha-kube-vip
   namespace: porch-system
 spec:
@@ -31383,6 +33047,8 @@ kind: PackageVariant
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: config.porch.kpt.dev|PackageVariant|porch-system|mesh-headscale
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch-resources
   name: mesh-headscale
   namespace: porch-system
 spec:
@@ -31417,6 +33083,8 @@ kind: PackageVariant
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: config.porch.kpt.dev|PackageVariant|porch-system|mesh-tailscale
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch-resources
   name: mesh-tailscale
   namespace: porch-system
 spec:
@@ -31451,6 +33119,8 @@ kind: PackageVariant
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: config.porch.kpt.dev|PackageVariant|porch-system|networking-cilium
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch-resources
   name: networking-cilium
   namespace: porch-system
 spec:
@@ -31489,6 +33159,8 @@ kind: PackageVariant
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: config.porch.kpt.dev|PackageVariant|porch-system|networking-envoy-gateway
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch-resources
   name: networking-envoy-gateway
   namespace: porch-system
 spec:
@@ -31520,6 +33192,8 @@ kind: PackageVariant
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: config.porch.kpt.dev|PackageVariant|porch-system|runtime-flox
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch-resources
   name: runtime-flox
   namespace: porch-system
 spec:
@@ -31556,6 +33230,8 @@ kind: PackageVariant
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: config.porch.kpt.dev|PackageVariant|porch-system|storage-openebs-zfs
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch-resources
   name: storage-openebs-zfs
   namespace: porch-system
 spec:
@@ -31587,6 +33263,8 @@ kind: Repository
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: config.porch.kpt.dev|Repository|porch-system|bioskop-catalog
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch-resources
   name: bioskop-catalog
   namespace: porch-system
 spec:
@@ -31605,6 +33283,8 @@ kind: Repository
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: config.porch.kpt.dev|Repository|porch-system|bioskop-state
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch-resources
   name: example-state
   namespace: porch-system
 spec:
@@ -31622,6 +33302,9 @@ spec:
 apiVersion: fluxcd.controlplane.io/v1
 kind: FluxInstance
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: flux-instance
   labels:
     app.kubernetes.io/instance: flux-instance
     app.kubernetes.io/managed-by: Helm
@@ -31655,11 +33338,66 @@ spec:
     ref: rke2-subtree
     url: https://github.com/nxmatic/fleet.git
 ---
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: gateway.networking.k8s.io|GatewayClass|default|envoy
+    kpt.dev/package-layer: networking
+    kpt.dev/package-name: envoy-gateway
+  name: envoy
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+---
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: helm.cattle.io|HelmChart|kube-system|tailscale-operator
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: tailscale
+  name: tailscale-operator
+  namespace: kube-system
+spec:
+  chart: tailscale-operator
+  createNamespace: true
+  repo: https://pkgs.tailscale.com/helmcharts
+  targetNamespace: tailscale-system
+  valuesContent: |-
+    oauth:
+      clientId: kT715erNJB21CNTRL # sops:encrypted
+      clientSecret: tskey-client-kT715erNJB21CNTRL-BQPzAaha7Keq7CRE3NkXKezuo7yJCTfqE # sops:encrypted
+    operatorConfig:
+      hostname: "bioskop-cluster-tailscale-operator" # kpt-set: ${cluster-name}-tailscale-operator
+      debug: true
+  version: 1.82.0
+---
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: helm.cattle.io|HelmChart|openebs|openebs-zfs
+    kpt.dev/package-layer: storage
+    kpt.dev/package-name: openebs-zfs
+  name: openebs-zfs
+  namespace: openebs
+spec:
+  chart: zfs-localpv
+  createNamespace: true
+  repo: https://openebs.github.io/zfs-localpv
+  targetNamespace: openebs
+  valuesContent: |-
+    zfsNode:
+      kubeletDir: /var/lib/rancher/rke2/server/tank # kpt-set: ${kubelet-dir}
+  version: 2.8.0
+---
 apiVersion: helm.cattle.io/v1
 kind: HelmChartConfig
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: helm.cattle.io|HelmChartConfig|kube-system|rke2-cilium
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: cilium
   name: rke2-cilium
   namespace: kube-system
 spec:
@@ -31719,6 +33457,8 @@ kind: HelmChartConfig
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: helm.cattle.io|HelmChartConfig|kube-system|rke2-traefik
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: traefik
   name: rke2-traefik
   namespace: kube-system
 spec:
@@ -31733,9 +33473,51 @@ spec:
         expose:
           default: true
 ---
+apiVersion: kpt.dev/v1
+info:
+  description: RKE2 Traefik HelmChartConfig bootstrap package
+kind: Kptfile
+metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: traefik
+  name: traefik
+---
+apiVersion: node.k8s.io/v1
+handler: flox
+kind: RuntimeClass
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: node.k8s.io|RuntimeClass|default|flox
+    kpt.dev/package-layer: runtime
+    kpt.dev/package-name: flox-containerd-shim
+  name: flox
+scheduling:
+  nodeSelector:
+    flox.dev/enabled: "true"
+---
+apiVersion: tailscale.com/v1alpha1
+kind: Connector
+metadata:
+  annotations:
+    config.kubernetes.io/depends-on: helm.cattle.io/namespaces/kube-system/HelmChart/tailscale-operator
+    internal.kpt.dev/upstream-identifier: tailscale.com|Connector|default|controlplane
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: tailscale
+  name: controlplane
+spec:
+  hostname: example-cluster-controlplane
+  subnetRouter:
+    advertiseRoutes:
+    - 10.0.15.1/32
+    - 10.0.8.0/24
+---
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: webhook
     app.kubernetes.io/instance: default
@@ -31756,6 +33538,9 @@ webhooks:
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: webhook
     app.kubernetes.io/instance: default
@@ -31779,6 +33564,9 @@ webhooks:
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: webhook
     app.kubernetes.io/instance: default
