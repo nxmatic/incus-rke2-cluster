@@ -1,31 +1,30 @@
-# fleet/rules.mk - Fleet manifests subtree helpers (@codebase)
+# kpt/rules.mk - KPT package catalog and fleet manifests management (@codebase)
 # Self-guarding include so the layer can be pulled in multiple times safely.
 
-ifndef make.d/fleet/rules.mk
+ifndef make.d/kpt/rules.mk
 
 -include make.d/make.mk
 
-# Fleet render configuration (@codebase)
+# KPT catalog configuration (@codebase)
 
-system.packages.dir := $(top-dir)/kpt/system
-system.packages.names = $(notdir $(patsubst %/,%,$(dir $(wildcard $(system.packages.dir)/*/Kptfile))))
+kpt.catalog.system.dir := $(top-dir)/kpt/catalog/system
+kpt.catalog.system.packages = $(notdir $(patsubst %/,%,$(dir $(wildcard $(kpt.catalog.system.dir)/*/Kptfile))))
+
+# Fleet render configuration (@codebase)
 
 .fleet.git.remote ?= fleet
 .fleet.git.branch ?= rke2-subtree
-.fleet.git.subtree.dir ?= $(top-dir)/fleet
+.fleet.git.subtree.dir ?= $(top-dir)/kpt/fleet
 
 .fleet.cluster.name := $(cluster.NAME)
 .fleet.cluster.dir := $(.fleet.git.subtree.dir)/clusters/$(.fleet.cluster.name)
-.fleet.cluster.packages.dir := $(.fleet.cluster.dir)/packages
-.fleet.cluster.packages.Kustomization.file := $(.fleet.cluster.packages.dir)/Kustomization
+.fleet.cluster.catalog.dir := $(.fleet.cluster.dir)/catalog
 .fleet.cluster.overlays.dir := $(.fleet.cluster.dir)/overlays
 .fleet.cluster.overlays.Kustomization.file := $(.fleet.cluster.overlays.dir)/Kustomization
 .fleet.cluster.Kustomization.file := $(.fleet.cluster.dir)/Kustomization
 .fleet.cluster.manifests.file := $(.fleet.cluster.dir)/manifests.yaml
 
-.fleet.packages.source.dir := $(top-dir)/kpt/catalog/system
-.fleet.cluster.packages.names = $(notdir $(patsubst %/,%,$(dir $(wildcard $(.fleet.cluster.packages.dir)/*/Kptfile))))
-.fleet.cluster.packages.rendered.kustomizations = $(foreach pkg,$(.fleet.cluster.packages.names),$(.fleet.cluster.packages.dir)/$(pkg)/Kustomization)
+.fleet.cluster.catalog.names = $(notdir $(patsubst %/,%,$(dir $(wildcard $(.fleet.cluster.catalog.dir)/*/Kptfile))))
 .fleet.package.aux_files := .gitattributes .krmignore
 
 define .fleet.require-bin
@@ -36,36 +35,66 @@ define .fleet.require-bin
 endef
 
 # ----------------------------------------------------------------------------
+# Catalog Kustomization management (@codebase)
+# ----------------------------------------------------------------------------
+
+.PHONY: update-kustomizations@kpt
+
+update-kustomizations@kpt:  ## Update Kustomization files in all catalog packages
+	@for layer in $(kpt.catalog.system.dir)/../*/; do \
+		[ -d "$$layer" ] || continue; \
+		for pkg in "$$layer"/*/; do \
+			[ -d "$$pkg" ] || continue; \
+			if [ -f "$$pkg/Kptfile" ]; then \
+				echo "[kpt] Updating Kustomization for package $$(basename $$pkg)"; \
+				resources="$$(cd $$pkg && find . -maxdepth 1 -name '*.yaml' ! -name 'Kustomization' ! -name '*-setters.yaml' ! -name 'render-*.yaml' ! -name 'helmchartconfig.yaml' -type f | sed 's|^\./||' | sort)"; \
+				if [ -n "$$resources" ]; then \
+					echo "apiVersion: kustomize.config.k8s.io/v1beta1" > "$$pkg/Kustomization"; \
+					echo "kind: Kustomization" >> "$$pkg/Kustomization"; \
+					echo "resources:" >> "$$pkg/Kustomization"; \
+					for res in $$resources; do \
+						echo "  - $$res" >> "$$pkg/Kustomization"; \
+					done; \
+				else \
+					echo "apiVersion: kustomize.config.k8s.io/v1beta1" > "$$pkg/Kustomization"; \
+					echo "kind: Kustomization" >> "$$pkg/Kustomization"; \
+					echo "resources: []" >> "$$pkg/Kustomization"; \
+				fi; \
+			fi; \
+		done; \
+	done
+
+# ----------------------------------------------------------------------------
 # Rendering pipeline (@codebase)
 # ----------------------------------------------------------------------------
 
-.PHONY: render@fleet check-tools@fleet prepare@fleet
+.PHONY: render@kpt check-tools@kpt prepare@kpt
 
-render@fleet: check-tools@fleet prepare@fleet
-render@fleet: $(.fleet.cluster.manifests.file)
-render@fleet:  ## Render Fleet packages via kpt fn render + kustomize (@codebase)
-	: "[fleet] wrote manifests to $(.fleet.cluster.manifests.file)"
-
-check-tools@fleet:
-	$(call .fleet.require-bin,kpt)
-	$(call .fleet.require-bin,kustomize)
-	: "[fleet] Rendering cluster $(.fleet.cluster.name)"
-
-prepare@fleet: git.repo := https://github.com/nxmatic/incus-rke2-cluster.git
-prepare@fleet:
-	: "[fleet] Preparing cluster $(.fleet.cluster.name) packages via kpt pkg get"
-	mkdir -p "$(.fleet.cluster.dir)"
-	if [[ ! -d "$(.fleet.cluster.packages.dir)" ]]; then
-	  kpt pkg get "$(git.repo)/kpt/catalog/system" "$(.fleet.cluster.packages.dir)"
-	else
-	  : "[fleet] Cluster packages already exist; use 'kpt pkg update' to refresh"
-	fi
-	rm -f "$(.fleet.cluster.manifests.file)"
-	mkdir -p "$(.fleet.cluster.overlays.dir)"
+render@kpt: check-tools@kpt prepare@kpt $(.fleet.cluster.overlays.Kustomization.file) $(.fleet.cluster.Kustomization.file)
+render@kpt: $(.fleet.cluster.manifests.file)  ## Render catalog via kpt, aggregate via kustomize (@codebase)
 
 $(.fleet.cluster.manifests.file): $(.fleet.cluster.Kustomization.file)
 $(.fleet.cluster.manifests.file):
+	: "[kpt] Rendering catalog for cluster $(.fleet.cluster.name) via kpt fn render"
+	kpt fn render --truncate-output=false "$(.fleet.cluster.catalog.dir)"
+	: "[kpt] Building manifests for cluster $(.fleet.cluster.name) via kustomize build"
 	kustomize build "$(.fleet.cluster.dir)" > "$@"
+
+check-tools@kpt:
+	$(call .fleet.require-bin,kpt)
+	$(call .fleet.require-bin,kustomize)
+	: "[kpt] Rendering cluster $(.fleet.cluster.name)"
+
+prepare@kpt:
+	: "[kpt] Preparing cluster $(.fleet.cluster.name) catalog via rsync"
+	mkdir -p "$(.fleet.cluster.dir)"
+	if [[ ! -d "$(.fleet.cluster.catalog.dir)" ]]; then
+	  rsync -avz "$(top-dir)/kpt/catalog/" "$(.fleet.cluster.catalog.dir)/"
+	else
+	  : "[kpt] Cluster catalog already exists; use 'rsync' to refresh"
+	fi
+	rm -f "$(.fleet.cluster.manifests.file)"
+	mkdir -p "$(.fleet.cluster.overlays.dir)"
 
 define .yaml.comma-join =
 $(subst $(space),$1,$(strip $2))
@@ -82,68 +111,44 @@ kind: Kustomization
 resources: $(call .yaml.rangeOf,$(1))
 endef
 
-define .packages.kustomize = 
-	: "[fleet] Writing packages Kustomization for cluster $(.fleet.cluster.name)"
-	echo "$(call .Kustomization.file.content,$(.fleet.cluster.packages.names))" > "$(1)"
-endef
-
 define .cluster.overlays.kustomize = 
-	: "[fleet] Writing overlays Kustomization for cluster $(.fleet.cluster.name)"
+	: "[kpt] Writing overlays Kustomization for cluster $(.fleet.cluster.name)"
 	echo "apiVersion: kustomize.config.k8s.io/v1beta1" > "$(1)"
 	echo "kind: Kustomization" >> "$(1)"
 	echo "resources:" >> "$(1)"
-	echo "  - ../packages" >> "$(1)"
+	echo "  - ../catalog" >> "$(1)"
 endef
 
 define .cluster.kustomize = 
-	: "[fleet] Writing cluster Kustomization for $(.fleet.cluster.name)"
+	: "[kpt] Writing cluster Kustomization for $(.fleet.cluster.name)"
 	echo "apiVersion: kustomize.config.k8s.io/v1beta1" > "$(1)"
 	echo "kind: Kustomization" >> "$(1)"
 	echo "resources:" >> "$(1)"
-	echo "  - packages" >> "$(1)"
+	echo "  - catalog" >> "$(1)"
 	echo "  - overlays" >> "$(1)"
 endef
 
-$(.fleet.cluster.packages.Kustomization.file): $(.fleet.cluster.packages.rendered.kustomizations)
-$(.fleet.cluster.packages.Kustomization.file):
-	$(call .packages.kustomize,$@)
-
-$(.fleet.cluster.overlays.Kustomization.file): $(.fleet.cluster.packages.Kustomization.file)
 $(.fleet.cluster.overlays.Kustomization.file):
 	$(call .cluster.overlays.kustomize,$@)
 
-$(.fleet.cluster.Kustomization.file): $(.fleet.cluster.packages.Kustomization.file) $(.fleet.cluster.overlays.Kustomization.file)
+$(.fleet.cluster.Kustomization.file): $(.fleet.cluster.overlays.Kustomization.file)
 $(.fleet.cluster.Kustomization.file):
 	$(call .cluster.kustomize,$@)
 
-define .package.resources =
-$(warning gathering resources for package $(1))
-$(notdir $(wildcard $(1)/*.yaml))
-endef
-
-define .package.kustomize =
-	: "[fleet] Writing Kustomization for package '$(notdir $(1))'"
-	echo "$(call .Kustomization.file.content,$(call .package.resources,$(1)))" > "$(2)"
-endef
-
-$(.fleet.cluster.packages.rendered.kustomizations): $(.fleet.cluster.packages.dir)/Kptfile
-$(.fleet.cluster.packages.rendered.kustomizations):
-	: "[fleet] Rendering all packages for cluster $(.fleet.cluster.name)"
-	kpt fn render --truncate-output=false "$(.fleet.cluster.packages.dir)"
-	$(foreach pkg,$(.fleet.cluster.packages.names),$(call .package.kustomize,$(.fleet.cluster.packages.dir)/$(pkg),$(.fleet.cluster.packages.dir)/$(pkg)/Kustomization)$(newline))
+# Catalog packages and Kustomizations are now managed in the fetched catalog directory
 
 # ----------------------------------------------------------------------------
 # Fleet subtree synchronization (@codebase)
 # ----------------------------------------------------------------------------
 
-.PHONY: remote@fleet finalize-merge@fleet check-clean@fleet pull@fleet push@fleet
+.PHONY: remote@kpt finalize-merge@kpt check-clean@kpt pull@kpt push@kpt
 
-remote@fleet:
+remote@kpt:
 	@if ! git remote get-url "$(.fleet.git.remote)" >/dev/null 2>&1; then
 		git remote add "$(.fleet.git.remote)" git@github.com:nxmatic/fleet-manifests.git
 	fi
 
-finalize-merge@fleet:
+finalize-merge@kpt:
 	@if git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; then
 		if git diff --name-only --diff-filter=U | grep -q .; then
 			echo "Merge in progress with unresolved conflicts; resolve before continuing." >&2
@@ -153,7 +158,7 @@ finalize-merge@fleet:
 		GIT_MERGE_AUTOEDIT=no git commit --no-edit --quiet
 	fi
 
-check-clean@fleet:
+check-clean@kpt:
 	@if ! git diff --quiet -- "$(.fleet.git.subtree.dir)"; then
 		echo "Uncommitted changes detected inside $(.fleet.git.subtree.dir)." >&2
 		exit 1
@@ -166,11 +171,11 @@ check-clean@fleet:
 		exit 1
 	fi
 
-pull@fleet: remote@fleet finalize-merge@fleet check-clean@fleet
+pull@kpt: remote@kpt finalize-merge@kpt check-clean@kpt
 	git fetch --prune "$(.fleet.git.remote)" "$(.fleet.git.branch)"
 	git subtree pull --prefix="$(.fleet.git.subtree.dir)" "$(.fleet.git.remote)" "$(.fleet.git.branch)" --squash
 
-push@fleet: remote@fleet check-clean@fleet
+push@kpt: remote@kpt check-clean@kpt
 	@split_sha="$$(git subtree split --prefix="$(_.fleet.git.subtree.dir)" HEAD)"
 	remote_sha="$$(git ls-remote --heads "$(_.fleet.git.remote)" "$(_.fleet.git.branch)" | awk '{print $$1}')" || true
 	if [ -n "$$remote_sha" ] && [ "$$split_sha" = "$$remote_sha" ]; then
@@ -179,4 +184,4 @@ push@fleet: remote@fleet check-clean@fleet
 		git subtree push --prefix="$(.fleet.git.subtree.dir)" "$(.fleet.git.remote)" "$(.fleet.git.branch)"
 	fi
 
-endif # make.d/fleet/rules.mk guard
+endif # make.d/kpt/rules.mk guard
