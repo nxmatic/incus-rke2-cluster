@@ -10,22 +10,22 @@ metadata:
     sops.dev/comment: sops encrypted value
 type: kubernetes.io/basic-auth
 stringData:
-  # kpt-set: ${github-username}
-  username: x-access-token
-  # sops:encrypted
-  password: ENC[AES256_GCM,data:bh2XGbaNrfKY4hu93EMWRb6FC/Gr4wsp4nVNQMeIGOPyYdcoj6pZ8w==,iv:1NJRi6sKZNc6Hv8cslcZNx26m1x+K/N7u4uV+1d1DFg=,tag:Wzg2s/iJFcNW3vc6dSie/w==,type:str]
+  #ENC[AES256_GCM,data:q4Sf8Vp2F9PMqezUYnmNDOILc0bbuf5XdxCT+w==,iv:JreEmStmuybmh4eTks8VLWk5viRqqTP6ksPO5hmBWzk=,tag:kv0sxLnqAcnkPLVHG2yhQw==,type:comment]
+  username: ENC[AES256_GCM,data:sGByIBVmATo51B6Yaso=,iv:yE+TNOb17XeKckVb4PW31hL1DlGX43NwfHlM9ygtc4M=,tag:dvN0U307ZgDdQWCDIvf1eQ==,type:str]
+  #ENC[AES256_GCM,data:6MZWg7oeXR1pHL4bashF,iv:a854wJ1crlC62mmqdMUxdGVgQitjQgfRyLW8IByrbmM=,tag:1NcWzJcdpxshufcg1tGlNg==,type:comment]
+  password: ENC[AES256_GCM,data:EfxR6l9p4Yw7nuOIoCAE1CUabxwuEHzWhZy3TdW1l+8QqvaD7TuEiw==,iv:uqvsp97ZtovYDT7A10iKGSHFJZTCIAs12BoXOqLbzzw=,tag:GfcGANM7rswfedDyFCFnZg==,type:str]
 sops:
   age:
     - recipient: age10ey0lcup4zpjqcknpxw7enpsagn674nm634f2u75trfr5t62uq5qdjuxzv
       enc: |
         -----BEGIN AGE ENCRYPTED FILE-----
-        YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBYck9TSmh6bi95VDRiUG5W
-        NUkrd1phODRsNENISWZYZFJsaGYvMHc0OG00CjBRSHh0QmdiOCtRdHZCKzVlV294
-        djd6OEwwZG5KU0FlemM1Vk5xM2FyMGsKLS0tIG44RU1CRkZVVTVMdnRtMStnZ1E4
-        cVdocDNlZDJPVEVCMzlwN2F0TUxjd28K7q5Ym3gjmGmzx3apt+VD6F4c68vQXBL4
-        Ad8TAoSP+lh99TKR2ZBtNEmNZHkuFACKfZwvQ9LGOK3j4j3+RlsV8Q==
+        YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBEWXhwaXphdnA5cXgvTkZ6
+        MGF4M2JEYzlHcGxqRVltSloxdlBPQ3huc3dNCnNVVG5UdVNieXhMUGE2TFdkRXNC
+        TEtkMGpjMHFjc2dTYlRlQXp2YXFFRzQKLS0tIFZ6WEVkMno2SHphYlZtZEhNZWpl
+        a2ZwcHhxNGJwNWFoTExIOWtaTm5oZUkKM9U0uiHb2kIMcNZPSuMmefL8sORc0j+f
+        15K7M8MDm+lr4i5ZvnNC/YIctU+YdToKUE7xpPYvwn0X43toS14gTw==
         -----END AGE ENCRYPTED FILE-----
-  lastmodified: "2025-12-15T10:40:26Z"
-  mac: ENC[AES256_GCM,data:ZVeO0GsU8VB6zFMGl1DnVcW5ITcrLJfxBXR7BQXQNM9EhJnGza83JyQcdVVjD9l0iKaZmlt7asZdjxw2GQHFwfXVIsswnToNFBi1VXPYWzt71XKHOkCqdvHlZSfV3ISojmdBXnb3WyWdUFCANycXirPAZQhrXD2hgNHd1K9P0Ig=,iv:bmj6kivjlYkvZpNk6Y9R0Ivw8QPFeZG1+Zul9yPDvuE=,tag:GwrMnocAKchzjtG+sDeO0Q==,type:str]
-  encrypted_comment_regex: sops:encrypted
+  lastmodified: "2025-12-16T01:44:46Z"
+  mac: ENC[AES256_GCM,data:7aifqoK0Bwdk+vyXWHksEzWlr31rUWMT8X/JcZw0TA4YiXxmCXE31Zvlq+hqxZ7SM6/hPvqJTCBZiKx7LBqdjWrnMnFIMWuVX41UmhhuRNH8fV9AGY9lo9E2oSStps/t3oq0kS4uquKtCR7Y72OFG4c+gUq+tCVCUZhmN5QxQjM=,iv:Re6nI2vE3h1MtS3N1xQ9HTbHH0RNPLvlcn7zOztla+s=,tag:82iVXDdS9f8SvtQ3CVUezQ==,type:str]
+  encrypted_regex: ^(data|stringData)$
   version: 3.11.0

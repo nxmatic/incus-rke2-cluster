@@ -8,18 +8,38 @@ namespace, and chart version downstream before rendering.
 === Usage
 
 [arabic]
-. Fetch the package into the downstream/state repository:
+. Fetch the package into the downstream/state repository. Until Porch
+owns `PackageVariant` resources in this cluster, substitute whatever
+path you actually commit to (for example
+`fleet/bioskop/flux-operator`):
 
-`+@codebase bash kpt pkg get ../kpt/system/flux-operator ./packagevariants/<cluster>/system/flux-operator+`
+`+@codebase bash kpt pkg get ../kpt/system/flux-operator ./<cluster>/system/flux-operator+`
+
+. Commit that pristine copy so you can always roll back to the upstream
+layout before (re)rendering. If a future `kpt fn render` removes files
+you still need, you can immediately undo the change with
+`@codebase bash git restore --staged --worktree <cluster>/system/flux-operator`
+(swap the path for your real tree, e.g.
+`fleet/bioskop/flux-operator`) or target specific filenames as needed.
 
 [arabic]
 . Update `+flux-operator-setters.yaml+` (or replace it with a
 SOPS-encrypted Secret) to match the environment. Typical edits include
 the namespace, chart version, and release name.
-. Run the render pipeline and commit the rendered manifests so your
-GitOps agent (Flux, Config Sync, etc.) can apply them:
+. Run the render pipeline so the Helm payload materializes inside the
+same directory. Before staging anything, restore any files the render
+operation deleted (for example the setters or `render-helm-chart.yaml`)
+with:
 
-`+@codebase bash kpt fn render packagevariants/<cluster>/system/flux-operator+`
+`+@codebase bash git restore --staged --worktree <cluster>/system/flux-operator+`
+(again, replace the path with your actual downstream location).
+
+Once the package tree looks correct, commit the rendered manifests so
+your GitOps agent (Flux, Config Sync, etc.) can apply them:
+
+`+@codebase bash kpt fn render <cluster>/system/flux-operator+`
+(or the equivalent `fleet/<cluster>/flux-operator` path you keep
+rendered in git).
 
 [arabic]
 . Apply the rendered resources to the cluster. If you want to test

@@ -2,19 +2,5 @@ apiVersion: kpt.dev/v1
 kind: Kptfile
 metadata:
   name: traefik
-upstream:
-  type: git
-  git:
-    repo: https://github.com/nxmatic/incus-rke2-cluster
-    directory: /kpt/system/traefik
-    ref: main
-  updateStrategy: resource-merge
-upstreamLock:
-  type: git
-  git:
-    repo: https://github.com/nxmatic/incus-rke2-cluster
-    directory: /kpt/system/traefik
-    ref: main
-    commit: 065aeba432ddf4b27bf090b539d1bf3121eec1e7
 info:
   description: RKE2 Traefik HelmChartConfig bootstrap package

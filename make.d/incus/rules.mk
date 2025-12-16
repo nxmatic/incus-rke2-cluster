@@ -14,9 +14,9 @@ ifndef make.d/incus/rules.mk
 # =============================================================================
 
 # Directory layout (per-instance runtime)
-.incus.secrets_file ?= $(abspath $(.make.top-dir)/.secrets)
-YQ_BIN ?= $(shell command -v yq 2>/dev/null)
-BASE64_BIN ?= $(shell command -v base64 2>/dev/null)
+.incus.secrets_file := $(abspath $(.make.top-dir)/.secrets)
+YQ_BIN := $(shell command -v yq 2>/dev/null)
+BASE64_BIN := $(shell command -v base64 2>/dev/null)
 
 define incus-secret-from-yaml
 $(strip $(if $(and $(YQ_BIN),$(wildcard $(.incus.secrets_file))),$(shell $(YQ_BIN) -r '$(1) // ""' $(.incus.secrets_file) 2>/dev/null),))
@@ -82,18 +82,27 @@ endef
 .incus.cluster_github_username ?= $(or $(call incus-secret,.github.username,),x-access-token)
 
 define incus-github-basic-auth
-$(strip $(if $(and $(BASE64_BIN),$(.incus.cluster_github_token)),\
+$(strip $(if $(.incus.cluster_github_token),\
 $(shell printf '%s' "$(strip $(.incus.cluster_github_username)):$(strip $(.incus.cluster_github_token))" | $(BASE64_BIN) | tr -d '\n'),))
 endef
 
 define incus-ghcr-dockerconfig-json
-$(strip $(if $(and $(YQ_BIN),$(BASE64_BIN),$(.incus.cluster_github_token)),\
-$(shell $(YQ_BIN) -o=json -n \
-	--arg user "$(strip $(.incus.cluster_github_username))" \
-	--arg token "$(strip $(.incus.cluster_github_token))" \
-	--arg auth "$(call incus-github-basic-auth)" \
-	'{ "auths": { "ghcr.io": { "username": $$user, "password": $$token, "auth": $$auth } } }' \
-	| $(BASE64_BIN) | tr -d '\n'),))
+$(strip $(shell $(YQ_BIN) -o=json -I 0 -n --from-file=
+	'{ "auths": { "ghcr.io": { "username": "$(incus.cluster_github_username)", "password": "$(incus.cluster_github_token)", "auth": "$(call incus-github-basic-auth)" } } }' |
+	$(BASE64_BIN) |
+	tr -d '\n') )
+endef
+
+define .docker.config-json.content :=
+{
+  "auths": {
+	"ghcr.io": {
+	  "username": "$(incus.cluster_github_username)",)",
+	  "password": "$(incus.cluster_github_token)",
+	  "auth": "$(call incus-github-basic-auth)"
+	}
+  }
+}
 endef
 
 ifeq ($(origin .incus.docker_config_json),undefined)

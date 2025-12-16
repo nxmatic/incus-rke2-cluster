@@ -8,7 +8,7 @@ ifndef make.d/fleet/rules.mk
 # Fleet render configuration (@codebase)
 
 system.packages.dir := $(top-dir)/kpt/system
-system.packages.names := $(notdir $(patsubst %/,%,$(dir $(wildcard $(system.packages.dir)/*/Kptfile))))
+system.packages.names = $(notdir $(patsubst %/,%,$(dir $(wildcard $(system.packages.dir)/*/Kptfile))))
 
 .fleet.git.remote ?= fleet
 .fleet.git.branch ?= rke2-subtree
@@ -21,11 +21,11 @@ system.packages.names := $(notdir $(patsubst %/,%,$(dir $(wildcard $(system.pack
 
 .fleet.packages.dir := $(.fleet.git.subtree.dir)/packages
 
-.fleet.packages.names := $(notdir $(patsubst %/,%,$(dir $(wildcard $(.fleet.packages.dir)/*/Kptfile))))
-.fleet.packages.rendered.paths := $(foreach pkg,$(.fleet.packages.names),$(.fleet.cluster.packages.dir)/$(pkg))
-.fleet.packages.tstamps := $(foreach path,$(.fleet.packages.rendered.paths),$(path)/.tstamp)
-.fleet.packages.rendered.kustomizations := $(foreach pkg,$(.fleet.packages.names),$(.fleet.cluster.packages.dir)/$(pkg)/Kustomization)
-.fleet.package.aux_files := .sops.yaml .krmignore
+.fleet.packages.names = $(notdir $(patsubst %/,%,$(dir $(wildcard $(.fleet.packages.dir)/*/Kptfile))))
+.fleet.packages.rendered.paths = $(foreach pkg,$(.fleet.packages.names),$(.fleet.cluster.packages.dir)/$(pkg))
+.fleet.packages.tstamps = $(foreach path,$(.fleet.packages.rendered.paths),$(path)/.tstamp)
+.fleet.packages.rendered.kustomizations = $(foreach pkg,$(.fleet.packages.names),$(.fleet.cluster.packages.dir)/$(pkg)/Kustomization)
+.fleet.package.aux_files := .gitattributes .krmignore
 
 define .fleet.require-bin
 	@if ! command -v $(1) >/dev/null 2>&1; then
@@ -48,10 +48,6 @@ render@fleet:  ## Render Fleet packages via kpt fn render + kustomize (@codebase
 check-tools@fleet:
 	$(call .fleet.require-bin,kpt)
 	$(call .fleet.require-bin,kustomize)
-	if [ -z "$(strip $(.fleet.packages.names))" ]; then
-		echo "[fleet] No packages discovered under $(.fleet.packages.dir)" >&2
-		exit 1
-	fi
 	: "[fleet] Rendering cluster $(.fleet.cluster.name) (packages: $(.fleet.packages.names))"
 
 prepare@fleet: git.repo := https://github.com/nxmatic/incus-rke2-cluster.git
@@ -99,9 +95,9 @@ $(.fleet.cluster.Kustomization.file):
 $(.fleet.packages.tstamps): $(.fleet.cluster.packages.dir)/%/.tstamp: $(.fleet.packages.dir)/%
 	src="$(.fleet.packages.dir)/$*"
 	dst="$(@D)"
-	: "[fleet] kpt fn render $${src} to $${dst}"
+	: "[fleet] kpt fn render  $${src} to $${dst}"
 	rm -fr "$${dst}"
-	kpt fn render "$${src}" -o "$${dst}"
+	kpt fn render --truncate-output=false "$${src}" -o "$${dst}"
 	for aux in $(.fleet.package.aux_files); do
 		if [ -f "$${src}/$$aux" ]; then
 			cp "$${src}/$$aux" "$${dst}/$$aux"

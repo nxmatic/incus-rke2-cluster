@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Secret
+# kpt-merge: kube-system/github-token
+metadata:
+  name: github-token
+  namespace: kube-system
+  annotations:
+    # kpt-set: ${shared-secret-target-namespaces}
+    replicator.v1.mittwald.de/replicate-to: porch-system,tekton-pipelines
+    porch.kpt.dev/git-auth: ssh
+    sops.dev/comment: sops encrypted value
+    internal.kpt.dev/upstream-identifier: '|Secret|kube-system|github-token'
+type: kubernetes.io/basic-auth
+stringData:
+  #ENC[AES256_GCM,data:nignILhVpcGsyQNpx57VP8Ux3EsHoyEQt+6o9A==,iv:A4kvIy9AeaYk4VHjwzFP7yHH2ieepQDZ5ZWaPLSewR0=,tag:6Av6oHzxFv8nHmj3chIq+A==,type:comment]
+  username: ENC[AES256_GCM,data:QHpPXKarJHCqWWX33do=,iv:YfEjqhid8zjs9dqNl9TrJI2Pu9j9fgWJ2KkRsYdq92g=,tag:L476fa3lGlP39mo6PhiAjA==,type:str]
+  #ENC[AES256_GCM,data:6RC+y0dv78wb1eaB24fW,iv:nH8v344AkUu6ZgCYZvTzK2mLEJ3VQG+4u6pK22BcldM=,tag:Ubk6/qeJFFRQv6kR/S36uw==,type:comment]
+  password: ENC[AES256_GCM,data:9U6r8F11UT3GcTCbVAyHpCW3dd1w5/9lvt/SpVZhwZoN7DzWXOD9Ag==,iv:keWs0nZQ/VG4if73h7cdpLon8vynnRoXszEvk1FsEGI=,tag:4t2AuqAM0Adj+P/PnrS5vw==,type:str]
+sops:
+  age:
+    - recipient: age10ey0lcup4zpjqcknpxw7enpsagn674nm634f2u75trfr5t62uq5qdjuxzv
+      enc: |
+        -----BEGIN AGE ENCRYPTED FILE-----
+        YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBua0t1S1FvQ0NGNlpyRHlq
+        a1R4ZnhhNEVzeW1yc0pMcnNhYS9QS3Z0OUhNClFnUHNJRURpeE9pNW5IaXE2U0l1
+        dW1NMk4rSzY0UWdTdmk0L3VTTkJFbTQKLS0tIEUzSDlhZGFGNUdwK0Y3bTQ1VlZE
+        MzE3K0ZkTFhPd012OFovMHE2RjgrUlUKUPdFaw7razbRKLnziqiqsUohNb9FMpB5
+        NGWSjyl+GMNXx2xLQ7eS8yH9E3pbm9p4Hg+zE7/qZ4dnw5yQBcKUdg==
+        -----END AGE ENCRYPTED FILE-----
+  lastmodified: "2025-12-16T01:44:46Z"
+  mac: ENC[AES256_GCM,data:akG75w2rrtkOckzn/VqZFqYkg3E5em4UzeADkvoajIIEjzIqgbWewgtwcsuS/nlKXzssfuXImM0wmBjKaA8wqYj+8HYjXzgsnura0yO8JXh1ERDvVKkGXnv90OpUsOk6lkXtlK0QaLpZ4gxMoBVcT8DVk6f9FNpvUn6RbEsufEY=,iv:1YA+q5xj4tAWcQnWpbQe5eYbglmuIN+rpNRpxtjKpNQ=,tag:6FJ3Sr+BlaGbeeiieVkdSw==,type:str]
+  encrypted_regex: ^(data|stringData)$
+  version: 3.11.0

@@ -5,12 +5,6 @@ consumed by Porch. The upstream copy only carries placeholder setters in
 `+porch-resources-setters.yaml+`; create a per-cluster clone in the
 downstream/state repository and override them there.
 
-NOTE: Secrets such as `ghcr-pull` and `github-token` now live in the
-`+kpt/system/replicator-resources+` package and replicate into
-`porch-system`. This package’s kpt pipeline includes a
-`delete-resources` step so those namespace-local secrets stay pruned
-after `+kpt pkg update+`.
-
 === Workflow
 
 [arabic]

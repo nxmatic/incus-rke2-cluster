@@ -5,17 +5,17 @@ metadata:
 upstream:
   type: git
   git:
-    repo: https://github.com/nxmatic/incus-rke2-cluster
-    directory: /kpt/system/porch
+    repo: https://github.com/nephio-project/catalog
+    directory: /nephio/core/porch
     ref: main
-  updateStrategy: force-delete-replace
+  updateStrategy: resource-merge
 upstreamLock:
   type: git
   git:
-    repo: https://github.com/nxmatic/incus-rke2-cluster
-    directory: /kpt/system/porch
+    repo: https://github.com/nephio-project/catalog
+    directory: /nephio/core/porch
     ref: main
-    commit: 40718db473d6539d2e2e3dc8ac297caaeeb79bd4
+    commit: 8d7ad7365fa803b8e942e98d7f9c9d4310c7f032
 info:
   description: porch
 pipeline:

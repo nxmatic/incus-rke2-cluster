@@ -74,65 +74,10 @@ common = '''
   case $CLUSTER_NAME in
     bioskop) CLUSTER_SUBNET=1 ;;
     alcide) CLUSTER_SUBNET=2 ;;
+    nikopiol) CLUSTER_SUBNET=3 ;;
     *) CLUSTER_SUBNET=254;;
   esac
   CLUSTER_SUBNET=${CLUSTER_SUBNET:-1}
-  
-  # Find secrets - try current directory first, then FLOX_ENV_DIRS
-  # This works whether this env is used standalone or included
-  SECRETS_DIR=""
-  if [ -d ".secrets.d" ]; then
-    SECRETS_DIR=".secrets.d"
-  elif [ -n "$FLOX_ENV_DIRS" ]; then
-    # Search through all environment directories in the composition
-    for dir in $FLOX_ENV_DIRS; do
-      if [ -d "$dir/.secrets.d" ]; then
-        SECRETS_DIR="$dir/.secrets.d"
-        break
-      fi
-    done
-  fi
-  
-  SECRETS_FILE=".secrets"
-
-  secret_from_yaml() {
-    set -x
-    local expr="$1" fallback="$2" value=""
-    value=$(yq -r eval "${expr}" "$SECRETS_FILE" 2>/dev/null || true)
-    if [ -z "$value" ] && [ -n "$fallback" ] && [ -f "$fallback" ]; then
-      value=$(cat "$fallback")
-    fi
-    printf '%s' "${value:-}"
-    set +x
-  }
-
-  TSKEY_CLIENT_ID=${TSKEY_CLIENT_ID:-$(secret_from_yaml '.tailscale.client.id' "${SECRETS_DIR:+$SECRETS_DIR/tskey-client-id}")}
-  TSKEY_CLIENT_TOKEN=${TSKEY_CLIENT_TOKEN:-$(secret_from_yaml '.tailscale.client.token' "${SECRETS_DIR:+$SECRETS_DIR/tskey-client-token}")}
-  TSKEY_API_ID=${TSKEY_API_ID:-$(secret_from_yaml '.tailscale.api.id' "${SECRETS_DIR:+$SECRETS_DIR/tskey-api-id}")}
-  TSKEY_API_TOKEN=${TSKEY_API_TOKEN:-$(secret_from_yaml '.tailscale.api.token' "${SECRETS_DIR:+$SECRETS_DIR/tskey-api-token}")}
-  CLUSTER_GITHUB_USERNAME=${CLUSTER_GITHUB_USERNAME:-$(secret_from_yaml '.github.username' '')}
-  CLUSTER_GITHUB_TOKEN=${CLUSTER_GITHUB_TOKEN:-$(secret_from_yaml '.github.token' "${SECRETS_DIR:+$SECRETS_DIR/cluster-github-token}")}
-
-  : "Expose GitHub PAT / Docker registry defaults for tooling"
-  : "Prefer pre-set environment variables (e.g., CI) over YAML values"
-  CLUSTER_GITHUB_USERNAME=${CLUSTER_GITHUB_USERNAME:-x-access-token}
-  CLUSTER_GITHUB_TOKEN=${CLUSTER_GITHUB_TOKEN:-}
-  CLUSTER_DOCKER_CONFIG_JSON=${CLUSTER_DOCKER_CONFIG_JSON:-}
-
-  : "Render a GHCR dockerconfig.json payload from the GitHub PAT (@codebase)"
-  if [ -z "$CLUSTER_DOCKER_CONFIG_JSON" ] && [ -n "$CLUSTER_GITHUB_TOKEN" ]; then
-    CLUSTER_GITHUB_AUTH=$(printf '%s' "${CLUSTER_GITHUB_USERNAME:-x-access-token}:${CLUSTER_GITHUB_TOKEN}" | base64 -w 0 | tr -d '\n')
-    set -x
-    CLUSTER_DOCKER_CONFIG_JSON=$( yq -n -o json -r \
-      '{ "auths": { "ghcr.io": { "username": env(CLUSTER_GITHUB_USERNAME), "password": env(CLUSTER_GITHUB_TOKEN), "auth": env(CLUSTER_GITHUB_AUTH) } } }' |
-      base64 -w 0 |
-      tr -d '\n' )
-    set +x
-  fi
-
-  GITHUB_PAT=${CLUSTER_GITHUB_TOKEN}
-  DOCKER_CONFIG_JSON=${DOCKER_CONFIG_JSON:-$CLUSTER_DOCKER_CONFIG_JSON}
-
   
   set +a
 '''

@@ -1,0 +1,20 @@
+== Replicator Resources kpt Package
+
+This package defines cluster-scoped Kubernetes resources that live in
+`kube-system` and are fanned out to workload namespaces via the mittwald
+kubernetes-replicator controller. It currently provisions the following
+secrets:
+
+* `ghcr-pull` – dockerconfigjson used by Porch / Tekton pullers
+* `github-token` – PAT for Porch catalog repositories
+
+=== Usage
+
+[arabic]
+. Override `setters.yaml` if you need to change the replication target namespaces
+  or the GitHub username (defaults to `x-access-token`).
+. Run `kpt fn render` to keep the generated `kustomization.yaml` up to date.
+. Commit the resulting, SOPS-encrypted manifests so Flux (with SOPS support)
+  can decrypt and apply them. The replicator controller will propagate the
+  secrets into every namespace listed in the
+  `replicator.v1.mittwald.de/replicate-to` annotation.
