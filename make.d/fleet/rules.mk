@@ -16,19 +16,16 @@ system.packages.names = $(notdir $(patsubst %/,%,$(dir $(wildcard $(system.packa
 
 .fleet.cluster.name := $(cluster.NAME)
 .fleet.cluster.dir := $(.fleet.git.subtree.dir)/clusters/$(.fleet.cluster.name)
+.fleet.cluster.packages.dir := $(.fleet.cluster.dir)/packages
+.fleet.cluster.packages.Kustomization.file := $(.fleet.cluster.packages.dir)/Kustomization
 .fleet.cluster.overlays.dir := $(.fleet.cluster.dir)/overlays
 .fleet.cluster.overlays.Kustomization.file := $(.fleet.cluster.overlays.dir)/Kustomization
 .fleet.cluster.Kustomization.file := $(.fleet.cluster.dir)/Kustomization
 .fleet.cluster.manifests.file := $(.fleet.cluster.dir)/manifests.yaml
 
-.fleet.packages.dir := $(.fleet.git.subtree.dir)/packages
-.fleet.packages.Kptfile := $(.fleet.packages.dir)/Kptfile
-.fleet.bases.dir := $(.fleet.packages.dir)
-.fleet.bases.Kustomization.file := $(.fleet.bases.dir)/Kustomization
-
 .fleet.packages.source.dir := $(top-dir)/kpt/catalog/system
-.fleet.packages.names = $(notdir $(patsubst %/,%,$(dir $(wildcard $(.fleet.packages.dir)/*/Kptfile))))
-.fleet.packages.rendered.kustomizations = $(foreach pkg,$(.fleet.packages.names),$(.fleet.packages.dir)/$(pkg)/Kustomization)
+.fleet.cluster.packages.names = $(notdir $(patsubst %/,%,$(dir $(wildcard $(.fleet.cluster.packages.dir)/*/Kptfile))))
+.fleet.cluster.packages.rendered.kustomizations = $(foreach pkg,$(.fleet.cluster.packages.names),$(.fleet.cluster.packages.dir)/$(pkg)/Kustomization)
 .fleet.package.aux_files := .gitattributes .krmignore
 
 define .fleet.require-bin
@@ -52,20 +49,21 @@ render@fleet:  ## Render Fleet packages via kpt fn render + kustomize (@codebase
 check-tools@fleet:
 	$(call .fleet.require-bin,kpt)
 	$(call .fleet.require-bin,kustomize)
-	: "[fleet] Rendering cluster $(.fleet.cluster.name) (packages: $(.fleet.packages.names))"
+	: "[fleet] Rendering cluster $(.fleet.cluster.name)"
 
 prepare@fleet: git.repo := https://github.com/nxmatic/incus-rke2-cluster.git
 prepare@fleet:
-	: "[fleet] Preparing shared packages kpt package for cluster $(.fleet.cluster.name)"
-	if [[ ! -d "$(.fleet.packages.dir)" ]]; then
-	  kpt pkg get "$(git.repo)/kpt/catalog/system" "$(.fleet.packages.dir)"
+	: "[fleet] Preparing cluster $(.fleet.cluster.name) packages via kpt pkg get"
+	mkdir -p "$(.fleet.cluster.dir)"
+	if [[ ! -d "$(.fleet.cluster.packages.dir)" ]]; then
+	  kpt pkg get "$(git.repo)/kpt/catalog/system" "$(.fleet.cluster.packages.dir)"
+	else
+	  : "[fleet] Cluster packages already exist; use 'kpt pkg update' to refresh"
 	fi
 	rm -f "$(.fleet.cluster.manifests.file)"
 	mkdir -p "$(.fleet.cluster.overlays.dir)"
 
 $(.fleet.cluster.manifests.file): $(.fleet.cluster.Kustomization.file)
-$(.fleet.cluster.manifests.file): $(.fleet.bases.Kustomization.file)
-$(.fleet.cluster.manifests.file): $(.fleet.cluster.overlays.Kustomization.file)
 $(.fleet.cluster.manifests.file):
 	kustomize build "$(.fleet.cluster.dir)" > "$@"
 
@@ -84,9 +82,9 @@ kind: Kustomization
 resources: $(call .yaml.rangeOf,$(1))
 endef
 
-define .bases.kustomize = 
-	: "[fleet] Writing shared bases Kustomization"
-	echo "$(call .Kustomization.file.content,$(.fleet.packages.names))" > "$(1)"
+define .packages.kustomize = 
+	: "[fleet] Writing packages Kustomization for cluster $(.fleet.cluster.name)"
+	echo "$(call .Kustomization.file.content,$(.fleet.cluster.packages.names))" > "$(1)"
 endef
 
 define .cluster.overlays.kustomize = 
@@ -94,7 +92,7 @@ define .cluster.overlays.kustomize =
 	echo "apiVersion: kustomize.config.k8s.io/v1beta1" > "$(1)"
 	echo "kind: Kustomization" >> "$(1)"
 	echo "resources:" >> "$(1)"
-	echo "  - ../../packages" >> "$(1)"
+	echo "  - ../packages" >> "$(1)"
 endef
 
 define .cluster.kustomize = 
@@ -102,19 +100,19 @@ define .cluster.kustomize =
 	echo "apiVersion: kustomize.config.k8s.io/v1beta1" > "$(1)"
 	echo "kind: Kustomization" >> "$(1)"
 	echo "resources:" >> "$(1)"
-	echo "  - ../../packages" >> "$(1)"
+	echo "  - packages" >> "$(1)"
 	echo "  - overlays" >> "$(1)"
 endef
 
-$(.fleet.bases.Kustomization.file): $(.fleet.packages.rendered.kustomizations)
-$(.fleet.bases.Kustomization.file): 
-	$(call .bases.kustomize,$@)
+$(.fleet.cluster.packages.Kustomization.file): $(.fleet.cluster.packages.rendered.kustomizations)
+$(.fleet.cluster.packages.Kustomization.file):
+	$(call .packages.kustomize,$@)
 
-$(.fleet.cluster.overlays.Kustomization.file): $(.fleet.bases.Kustomization.file)
+$(.fleet.cluster.overlays.Kustomization.file): $(.fleet.cluster.packages.Kustomization.file)
 $(.fleet.cluster.overlays.Kustomization.file):
 	$(call .cluster.overlays.kustomize,$@)
 
-$(.fleet.cluster.Kustomization.file): $(.fleet.bases.Kustomization.file) $(.fleet.cluster.overlays.Kustomization.file)
+$(.fleet.cluster.Kustomization.file): $(.fleet.cluster.packages.Kustomization.file) $(.fleet.cluster.overlays.Kustomization.file)
 $(.fleet.cluster.Kustomization.file):
 	$(call .cluster.kustomize,$@)
 
@@ -124,15 +122,15 @@ $(notdir $(wildcard $(1)/*.yaml))
 endef
 
 define .package.kustomize =
-	: "[fleet] Writing Kustomization for package '$(1)'"
+	: "[fleet] Writing Kustomization for package '$(notdir $(1))'"
 	echo "$(call .Kustomization.file.content,$(call .package.resources,$(1)))" > "$(2)"
 endef
 
-$(.fleet.packages.rendered.kustomizations): $(.fleet.packages.dir)/%/Kustomization: $(.fleet.packages.Kptfile)
-$(.fleet.packages.rendered.kustomizations):
-	: "[fleet] kpt fn render packages directory"
-	kpt fn render --truncate-output=false "$(.fleet.packages.dir)"
-	$(call .package.kustomize,$(@D),$(@))
+$(.fleet.cluster.packages.rendered.kustomizations): $(.fleet.cluster.packages.dir)/Kptfile
+$(.fleet.cluster.packages.rendered.kustomizations):
+	: "[fleet] Rendering all packages for cluster $(.fleet.cluster.name)"
+	kpt fn render --truncate-output=false "$(.fleet.cluster.packages.dir)"
+	$(foreach pkg,$(.fleet.cluster.packages.names),$(call .package.kustomize,$(.fleet.cluster.packages.dir)/$(pkg),$(.fleet.cluster.packages.dir)/$(pkg)/Kustomization)$(newline))
 
 # ----------------------------------------------------------------------------
 # Fleet subtree synchronization (@codebase)

@@ -1,0 +1,3 @@
+# Ensure these files are not ignored
+!render-helm-chart.yaml
+!flux-operator-setters.yaml

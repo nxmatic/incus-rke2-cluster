@@ -1,3 +1,2 @@
 # Ensure these files are not ignored
-!.gitattributes
 !setters.yaml
