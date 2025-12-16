@@ -123,14 +123,14 @@ $(.fleet.packages.rendered.kustomizations): $(.fleet.cluster.packages.dir)/%/Kus
 # Fleet subtree synchronization (@codebase)
 # ----------------------------------------------------------------------------
 
-.PHONY: fleet-remote fleet-finalize-merge fleet-check-clean fleet-pull fleet-push
+.PHONY: remote@fleet finalize-merge@fleet check-clean@fleet pull@fleet push@fleet
 
-fleet-remote:
+remote@fleet:
 	@if ! git remote get-url "$(.fleet.git.remote)" >/dev/null 2>&1; then
 		git remote add "$(.fleet.git.remote)" git@github.com:nxmatic/fleet-manifests.git
 	fi
 
-fleet-finalize-merge:
+finalize-merge@fleet:
 	@if git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; then
 		if git diff --name-only --diff-filter=U | grep -q .; then
 			echo "Merge in progress with unresolved conflicts; resolve before continuing." >&2
@@ -140,12 +140,12 @@ fleet-finalize-merge:
 		GIT_MERGE_AUTOEDIT=no git commit --no-edit --quiet
 	fi
 
-fleet-check-clean:
+check-clean@fleet:
 	@if ! git diff --quiet -- "$(.fleet.git.subtree.dir)"; then
 		echo "Uncommitted changes detected inside $(.fleet.git.subtree.dir)." >&2
 		exit 1
 	fi
-	untracked="$$(git ls-files --others --exclude-standard -- "$(.fleet.git.subtree.dir)")"
+	untracked="$$(git ls-files --others --exclude-standard -- "$(_.fleet.git.subtree.dir)")"
 	if [ -n "$$untracked" ]; then
 		echo "Untracked files detected inside $(.fleet.git.subtree.dir)." >&2
 		echo "Files:" >&2
@@ -153,13 +153,13 @@ fleet-check-clean:
 		exit 1
 	fi
 
-fleet-pull: fleet-remote fleet-finalize-merge fleet-check-clean
+pull@fleet: remote@fleet finalize-merge@fleet check-clean@fleet
 	git fetch --prune "$(.fleet.git.remote)" "$(.fleet.git.branch)"
 	git subtree pull --prefix="$(.fleet.git.subtree.dir)" "$(.fleet.git.remote)" "$(.fleet.git.branch)" --squash
 
-fleet-push: fleet-remote fleet-check-clean
-	@split_sha="$$(git subtree split --prefix="$(.fleet.git.subtree.dir)" HEAD)"
-	remote_sha="$$(git ls-remote --heads "$(.fleet.git.remote)" "$(.fleet.git.branch)" | awk '{print $$1}')" || true
+push@fleet: remote@fleet check-clean@fleet
+	@split_sha="$$(git subtree split --prefix="$(_.fleet.git.subtree.dir)" HEAD)"
+	remote_sha="$$(git ls-remote --heads "$(_.fleet.git.remote)" "$(_.fleet.git.branch)" | awk '{print $$1}')" || true
 	if [ -n "$$remote_sha" ] && [ "$$split_sha" = "$$remote_sha" ]; then
 		: "No new fleet revisions to push; skipping."
 	else
