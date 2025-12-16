@@ -82,3 +82,8 @@ write_files:
   - path: /usr/local/sbin/rke2-pre-start
     permissions: "0755"
     content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-pre-start.sh
+
+  # Generate RKE2 static manifests from environment variables (called by pre-start)
+  - path: /usr/local/sbin/rke2-manifests-install
+    permissions: "0755"
+    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-manifests-install.sh
