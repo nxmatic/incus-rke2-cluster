@@ -15,16 +15,20 @@ system.packages.names = $(notdir $(patsubst %/,%,$(dir $(wildcard $(system.packa
 .fleet.git.subtree.dir ?= $(top-dir)/fleet
 
 .fleet.cluster.name := $(cluster.NAME)
-.fleet.cluster.packages.dir := $(.fleet.git.subtree.dir)/clusters/$(.fleet.cluster.name)/packages
-.fleet.cluster.Kustomization.file := $(.fleet.cluster.packages.dir)/Kustomization
-.fleet.cluster.manifests.file := $(.fleet.git.subtree.dir)/clusters/$(.fleet.cluster.name)/manifests.yaml
+.fleet.cluster.dir := $(.fleet.git.subtree.dir)/clusters/$(.fleet.cluster.name)
+.fleet.cluster.overlays.dir := $(.fleet.cluster.dir)/overlays
+.fleet.cluster.overlays.Kustomization.file := $(.fleet.cluster.overlays.dir)/Kustomization
+.fleet.cluster.Kustomization.file := $(.fleet.cluster.dir)/Kustomization
+.fleet.cluster.manifests.file := $(.fleet.cluster.dir)/manifests.yaml
 
 .fleet.packages.dir := $(.fleet.git.subtree.dir)/packages
+.fleet.packages.Kptfile := $(.fleet.packages.dir)/Kptfile
+.fleet.bases.dir := $(.fleet.packages.dir)
+.fleet.bases.Kustomization.file := $(.fleet.bases.dir)/Kustomization
 
+.fleet.packages.source.dir := $(top-dir)/kpt/catalog/system
 .fleet.packages.names = $(notdir $(patsubst %/,%,$(dir $(wildcard $(.fleet.packages.dir)/*/Kptfile))))
-.fleet.packages.rendered.paths = $(foreach pkg,$(.fleet.packages.names),$(.fleet.cluster.packages.dir)/$(pkg))
-.fleet.packages.tstamps = $(foreach path,$(.fleet.packages.rendered.paths),$(path)/.tstamp)
-.fleet.packages.rendered.kustomizations = $(foreach pkg,$(.fleet.packages.names),$(.fleet.cluster.packages.dir)/$(pkg)/Kustomization)
+.fleet.packages.rendered.kustomizations = $(foreach pkg,$(.fleet.packages.names),$(.fleet.packages.dir)/$(pkg)/Kustomization)
 .fleet.package.aux_files := .gitattributes .krmignore
 
 define .fleet.require-bin
@@ -52,21 +56,18 @@ check-tools@fleet:
 
 prepare@fleet: git.repo := https://github.com/nxmatic/incus-rke2-cluster.git
 prepare@fleet:
-	: "[fleet] Preparing packages $(system.packages.names) for cluster $(.fleet.cluster.name)"
+	: "[fleet] Preparing shared packages kpt package for cluster $(.fleet.cluster.name)"
 	if [[ ! -d "$(.fleet.packages.dir)" ]]; then
-	  kpt pkg get "$(git.repo)/kpt/catalog/system" "$(.fleet.git.subtree.dir)"
-	  mv $(.fleet.git.subtree.dir)/system "$(.fleet.packages.dir)"
-	else
-	  kpt pkg update "$(.fleet.packages.dir)"
+	  kpt pkg get "$(git.repo)/kpt/catalog/system" "$(.fleet.packages.dir)"
 	fi
 	rm -f "$(.fleet.cluster.manifests.file)"
-	rm -rf "$(.fleet.cluster.packages.dir)"
-	mkdir -p "$(.fleet.cluster.packages.dir)"
+	mkdir -p "$(.fleet.cluster.overlays.dir)"
 
-$(.fleet.cluster.manifests.file): $(.fleet.cluster.Kustomization.file) 
-$(.fleet.cluster.manifests.file): $(.fleet.packages.tstamps)
+$(.fleet.cluster.manifests.file): $(.fleet.cluster.Kustomization.file)
+$(.fleet.cluster.manifests.file): $(.fleet.bases.Kustomization.file)
+$(.fleet.cluster.manifests.file): $(.fleet.cluster.overlays.Kustomization.file)
 $(.fleet.cluster.manifests.file):
-	kustomize build "$(.fleet.git.subtree.dir)/clusters/$(.fleet.cluster.name)" > "$@"
+	kustomize build "$(.fleet.cluster.dir)" > "$@"
 
 define .yaml.comma-join =
 $(subst $(space),$1,$(strip $2))
@@ -83,28 +84,39 @@ kind: Kustomization
 resources: $(call .yaml.rangeOf,$(1))
 endef
 
-define .cluster.kustomize = 
-	: "[fleet] Writing Kustomization for cluster $(.fleet.cluster.name)"
+define .bases.kustomize = 
+	: "[fleet] Writing shared bases Kustomization"
 	echo "$(call .Kustomization.file.content,$(.fleet.packages.names))" > "$(1)"
 endef
 
-$(.fleet.cluster.Kustomization.file): $(.fleet.packages.rendered.kustomizations)
-$(.fleet.cluster.Kustomization.file): 
+define .cluster.overlays.kustomize = 
+	: "[fleet] Writing overlays Kustomization for cluster $(.fleet.cluster.name)"
+	echo "apiVersion: kustomize.config.k8s.io/v1beta1" > "$(1)"
+	echo "kind: Kustomization" >> "$(1)"
+	echo "resources:" >> "$(1)"
+	echo "  - ../../packages" >> "$(1)"
+endef
+
+define .cluster.kustomize = 
+	: "[fleet] Writing cluster Kustomization for $(.fleet.cluster.name)"
+	echo "apiVersion: kustomize.config.k8s.io/v1beta1" > "$(1)"
+	echo "kind: Kustomization" >> "$(1)"
+	echo "resources:" >> "$(1)"
+	echo "  - ../../packages" >> "$(1)"
+	echo "  - overlays" >> "$(1)"
+endef
+
+$(.fleet.bases.Kustomization.file): $(.fleet.packages.rendered.kustomizations)
+$(.fleet.bases.Kustomization.file): 
+	$(call .bases.kustomize,$@)
+
+$(.fleet.cluster.overlays.Kustomization.file): $(.fleet.bases.Kustomization.file)
+$(.fleet.cluster.overlays.Kustomization.file):
+	$(call .cluster.overlays.kustomize,$@)
+
+$(.fleet.cluster.Kustomization.file): $(.fleet.bases.Kustomization.file) $(.fleet.cluster.overlays.Kustomization.file)
+$(.fleet.cluster.Kustomization.file):
 	$(call .cluster.kustomize,$@)
-
-$(.fleet.packages.tstamps): $(.fleet.cluster.packages.dir)/%/.tstamp: $(.fleet.packages.dir)/%
-	src="$(.fleet.packages.dir)/$*"
-	dst="$(@D)"
-	: "[fleet] kpt fn render  $${src} to $${dst}"
-	rm -fr "$${dst}"
-	kpt fn render --truncate-output=false "$${src}" -o "$${dst}"
-	for aux in $(.fleet.package.aux_files); do
-		if [ -f "$${src}/$$aux" ]; then
-			cp "$${src}/$$aux" "$${dst}/$$aux"
-		fi
-	done
-	touch "$@"
-
 
 define .package.resources =
 $(warning gathering resources for package $(1))
@@ -116,7 +128,10 @@ define .package.kustomize =
 	echo "$(call .Kustomization.file.content,$(call .package.resources,$(1)))" > "$(2)"
 endef
 
-$(.fleet.packages.rendered.kustomizations): $(.fleet.cluster.packages.dir)/%/Kustomization: $(.fleet.cluster.packages.dir)/%/.tstamp
+$(.fleet.packages.rendered.kustomizations): $(.fleet.packages.dir)/%/Kustomization: $(.fleet.packages.Kptfile)
+$(.fleet.packages.rendered.kustomizations):
+	: "[fleet] kpt fn render packages directory"
+	kpt fn render --truncate-output=false "$(.fleet.packages.dir)"
 	$(call .package.kustomize,$(@D),$(@))
 
 # ----------------------------------------------------------------------------
