@@ -1,0 +1,19 @@
+# Source: tekton-pipeline/templates/git-resolver-config-cm.yaml
+apiVersion: v1
+data:
+  api-token-secret-key: ""
+  api-token-secret-name: ""
+  api-token-secret-namespace: default
+  default-org: ""
+  default-revision: main
+  default-url: https://github.com/tektoncd/catalog.git
+  fetch-timeout: 1m
+  scm-type: github
+  server-url: ""
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/component: resolvers
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: tekton-pipelines
+  name: git-resolver-config
