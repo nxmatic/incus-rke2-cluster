@@ -88,17 +88,16 @@ $(shell printf '%s' "$(strip $(.incus.cluster_github_username)):$(strip $(.incus
 endef
 
 define .incus-ghcr-dockerconfig-json
-(shell $(YQ_BIN) -o=json -I 0 -n eval \
-	'{ "auths": { "ghcr.io": { "username": "$(.incus.cluster_github_username)", "password": "$(.incus.cluster_github_token)", "auth": "$(call .incus-github-basic-auth)" } } }' |
-	$(BASE64_BIN) |
-	tr -d '\n')
+$(shell $(YQ_BIN) -o=json -I 0 -n '{"auths": {"ghcr.io": {"username": "$(.incus.cluster_github_username)", "password": "$(.incus.cluster_github_token)", "auth": "$(call .incus-github-basic-auth)"}}}' \
+	| $(BASE64_BIN) | tr -d '\n')
 endef
+
 
 ifeq ($(origin .incus.docker_config_json),undefined)
 ifneq ($(strip $(CLUSTER_DOCKER_CONFIG_JSON)),)
 .incus.docker_config_json := $(strip $(CLUSTER_DOCKER_CONFIG_JSON))
 else
-.incus.docker_config_json := $(call incus-ghcr-dockerconfig-json)
+.incus.docker_config_json := $(call .incus-ghcr-dockerconfig-json)
 endif
 endif
 
@@ -133,6 +132,12 @@ export CLUSTER_MANIFESTS_FILE := $(CLUSTER_STATE_DIR)/rke2/clusters/$(cluster.NA
 export CLUSTER_GITHUB_TOKEN := $(.incus.cluster_github_token)
 export CLUSTER_GITHUB_USERNAME := $(.incus.cluster_github_username)
 export CLUSTER_DOCKER_CONFIG_JSON := $(.incus.docker_config_json)
+# Keep Tekton docker config in sync; fill empty/undefined with cluster dockerconfigjson
+ifeq ($(origin TEKTON_DOCKER_CONFIG_JSON),undefined)
+export TEKTON_DOCKER_CONFIG_JSON := $(CLUSTER_DOCKER_CONFIG_JSON)
+else ifeq ($(strip $(TEKTON_DOCKER_CONFIG_JSON)),)
+export TEKTON_DOCKER_CONFIG_JSON := $(CLUSTER_DOCKER_CONFIG_JSON)
+endif
 export NODE_PROFILE_NAME := $(network.NODE_PROFILE_NAME)
 export IMAGE_NAME := $(.incus.image_name)
 export CLUSTER_INET_MASTER := $(call cidr-to-host-ip,$(NODE_SUBNETS_NETWORK_0),$(call plus,10,0))

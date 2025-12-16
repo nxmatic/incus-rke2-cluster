@@ -29,7 +29,9 @@ mkdir -p /var/lib/rancher/rke2/server
 : Check server database for IP address changes
 db::check
 
-: Ensure rendered manifests land in the static manifests directory
+: Ensure rendered manifests land in the static manifests directory (includes ghcr/github secrets)
 if [[ -x /usr/local/sbin/rke2-manifests-install ]]; then
   /usr/local/sbin/rke2-manifests-install
+else
+  : "WARNING: rke2-manifests-install missing; skipping secret generation"
 fi

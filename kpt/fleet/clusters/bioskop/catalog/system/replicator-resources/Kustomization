@@ -1,6 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - 0-ghcr-secret.yaml
-  - 1-github-token.yaml
-  - setters.yaml
+- setters.yaml
+commonAnnotations:
+  kpt.dev/package-layer: system
+  kpt.dev/package-name: replicator-resources

@@ -1,4 +1,2 @@
-# Ensure these files are not ignored
-!.gitattributes
-!setters.yaml
-!Kustomization
+# Exclude Kptfiles from render output; function configs have local-config annotation
+Kptfile
