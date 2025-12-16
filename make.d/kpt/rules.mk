@@ -18,7 +18,7 @@ ifndef make.d/kpt/rules.mk
 .fleet.git.subtree.dir ?= kpt/fleet
 
 .fleet.cluster.name := $(cluster.NAME)
-.fleet.cluster.dir := $(.fleet.git.subtree.dir)/clusters/$(.fleet.cluster.name)
+.fleet.cluster.dir := $(.fleet.git.subtree.dir)/$(.fleet.cluster.name)
 .fleet.cluster.catalog.dir := $(.fleet.cluster.dir)/catalog
 .fleet.cluster.overlays.dir := $(.fleet.cluster.dir)/overlays
 .fleet.cluster.overlays.Kustomization.file := $(.fleet.cluster.overlays.dir)/Kustomization
