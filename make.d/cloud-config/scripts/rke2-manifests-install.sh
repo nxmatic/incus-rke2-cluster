@@ -19,7 +19,7 @@ if [[ -n "${CLUSTER_GITHUB_TOKEN:-}" ]]; then
   kubectl create secret docker-registry ghcr-pull \
     --namespace=kube-system \
     --docker-server=ghcr.io \
-    --docker-username="${CLUSTER_GITHUB_USER:-nxmatic}" \
+    --docker-username="${CLUSTER_GITHUB_USERNAME:-x-access-token}" \
     --docker-password="${CLUSTER_GITHUB_TOKEN}" \
     --dry-run=client -o yaml > "$MANIFESTS_DIR/0-ghcr-pull.yaml"
   
@@ -34,14 +34,14 @@ fi
 if [[ -n "${CLUSTER_GITHUB_TOKEN:-}" ]]; then
   kubectl create secret generic github-token \
     --namespace=kube-system \
-    --from-literal=username=x-access-token \
+    --from-literal=username="${CLUSTER_GITHUB_USERNAME:-x-access-token}" \
     --from-literal=password="${CLUSTER_GITHUB_TOKEN}" \
     --type=kubernetes.io/basic-auth \
     --dry-run=client -o yaml > "$MANIFESTS_DIR/1-github-token.yaml"
   
   : "Add annotations for porch git-auth and replication"
   yq eval -i '
-    .metadata.annotations."porch.kpt.dev/git-auth" = "ssh" |
+    .metadata.annotations."porch.kpt.dev/git-auth" = "https" |
     .metadata.annotations."replicator.v1.mittwald.de/replicate-to" = "porch-system,porch-fn-system,tekton-pipelines"
   ' "$MANIFESTS_DIR/1-github-token.yaml"
 else

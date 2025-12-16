@@ -11,15 +11,15 @@ data:
   # sops:encrypted
   cluster-ssh-private: ""
   cluster-ssh-public: "ssh-ed25519 AAAA... placeholder"
-  cluster-name: example
+  cluster-name: bioskop
   cluster-env: home
   cluster-id: "1"
-  node-vip-ip: 10.0.0.1
-  cluster-lb-pool-cidr: 10.0.1.0/24
-  cluster-vip-network-cidr: 10.0.2.0/24
-  node-gateway-ip: 10.0.0.254
-  home-lan-pool: 192.168.1.0/24
-  headscale-lb-ip: 192.168.1.10
-  cluster-state-repo: example-state
-  cluster-state-branch: main
-  cluster-state-directory: packagevariants/example
+  node-vip-ip: 10.80.15.10
+  cluster-lb-pool-cidr: 10.80.8.64/26
+  cluster-vip-network-cidr: 10.80.15.0/24
+  node-gateway-ip: 10.80.8.1
+  home-lan-pool: 192.168.1.192/27
+  headscale-lb-ip: 192.168.1.193
+  cluster-state-repo: bioskop-state
+  cluster-state-branch: rke2-subtree
+  cluster-state-directory: packagevariants/bioskop

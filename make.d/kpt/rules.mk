@@ -194,8 +194,8 @@ push@kpt: remote@kpt check-clean@kpt
 	elif [ -n "$$remote_sha" ] && [ "$$split_sha" = "$$remote_sha" ]; then
 		: "No new fleet revisions to push; skipping."
 	else
-		: "[kpt] Pushing fleet subtree split $$split_sha to $(.fleet.git.remote)/$(.fleet.git.branch)"
-		git push "$(.fleet.git.remote)" "$$split_sha:refs/heads/$(.fleet.git.branch)"
+		git subtree push --prefix="$(.fleet.git.subtree.dir)" \
+		  "$(.fleet.git.remote)" "$(.fleet.git.branch)"
 	fi
 
 endif # make.d/kpt/rules.mk guard

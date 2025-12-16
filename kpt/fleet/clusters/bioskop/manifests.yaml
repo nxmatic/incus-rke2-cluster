@@ -33021,19 +33021,19 @@ spec:
   deletionPolicy: delete
   downstream:
     package: ha/kube-vip
-    repo: example-state
+    repo: bioskop-state
   labels:
     nxmatic.dev/app: kube-vip
-    nxmatic.dev/cluster: example
+    nxmatic.dev/cluster: bioskop
     nxmatic.dev/component: ha
   packageContext:
     data:
       cluster-env: home
-      cluster-name: example
+      cluster-name: bioskop
   pipeline:
     mutators:
     - configMap:
-        cluster-vip-address: 10.0.0.1
+        cluster-vip-address: 10.80.15.10
         cluster-vip-interface: vmnet0
         kube-vip-namespace: kube-vip
         kube-vip-version: v0.8.7
@@ -33056,23 +33056,23 @@ spec:
   deletionPolicy: delete
   downstream:
     package: mesh/headscale
-    repo: example-state
+    repo: bioskop-state
   labels:
     nxmatic.dev/app: headscale
-    nxmatic.dev/cluster: example
+    nxmatic.dev/cluster: bioskop
     nxmatic.dev/component: mesh
   packageContext:
     data:
       cluster-env: home
-      cluster-name: example
+      cluster-name: bioskop
   pipeline:
     mutators:
     - configMap:
-        cluster-name: example
-        darwin-host: example
-        headscale-lb-ip: 192.168.1.10
-        home-lan-pool: 192.168.1.0/24
-        vip-network-cidr: 10.0.2.0/24
+        cluster-name: bioskop
+        darwin-host: bioskop
+        headscale-lb-ip: 192.168.1.193
+        home-lan-pool: 192.168.1.192/27
+        vip-network-cidr: 10.80.15.0/24
       image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
   upstream:
     package: mesh/headscale
@@ -33092,23 +33092,23 @@ spec:
   deletionPolicy: delete
   downstream:
     package: mesh/tailscale
-    repo: example-state
+    repo: bioskop-state
   labels:
     nxmatic.dev/app: tailscale
-    nxmatic.dev/cluster: example
+    nxmatic.dev/cluster: bioskop
     nxmatic.dev/component: mesh
   packageContext:
     data:
       cluster-env: home
-      cluster-name: example
+      cluster-name: bioskop
   pipeline:
     mutators:
     - configMap:
-        cluster-name: example-cluster
-        lb-pool-cidr: 10.0.1.0/24
+        cluster-name: bioskop-cluster
+        lb-pool-cidr: 10.80.8.64/26
         tailscale-namespace: tailscale-system
         tailscale-version: 1.82.0
-        vip-address: 10.0.0.1
+        vip-address: 10.80.15.10
       image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
   upstream:
     package: mesh/tailscale
@@ -33128,27 +33128,27 @@ spec:
   deletionPolicy: delete
   downstream:
     package: networking/cilium
-    repo: example-state
+    repo: bioskop-state
   labels:
     nxmatic.dev/app: cilium
-    nxmatic.dev/cluster: example
+    nxmatic.dev/cluster: bioskop
     nxmatic.dev/component: networking
   packageContext:
     data:
       cluster-env: home
-      cluster-name: example
+      cluster-name: bioskop
   pipeline:
     mutators:
     - configMap:
         bgp-local-asn: "65001"
         bgp-peer-asn: "65000"
         cluster-id: "1"
-        cluster-name: example-cluster
+        cluster-name: bioskop-cluster
         l2-interface-1: vmnet0
         l2-interface-2: lan0
-        lb-pool-cidr: 10.0.1.0/24
-        node-gateway-ip: 10.0.0.254
-        vip-pool-cidr: 10.0.2.0/24
+        lb-pool-cidr: 10.80.8.64/26
+        node-gateway-ip: 10.80.8.1
+        vip-pool-cidr: 10.80.15.0/24
       image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
   upstream:
     package: networking/cilium
@@ -33168,15 +33168,15 @@ spec:
   deletionPolicy: delete
   downstream:
     package: networking/envoy-gateway
-    repo: example-state
+    repo: bioskop-state
   labels:
     nxmatic.dev/app: envoy-gateway
-    nxmatic.dev/cluster: example
+    nxmatic.dev/cluster: bioskop
     nxmatic.dev/component: networking
   packageContext:
     data:
       cluster-env: home
-      cluster-name: example
+      cluster-name: bioskop
   pipeline:
     mutators:
     - configMap:
@@ -33201,15 +33201,15 @@ spec:
   deletionPolicy: delete
   downstream:
     package: runtime/flox-containerd-shim
-    repo: example-state
+    repo: bioskop-state
   labels:
     nxmatic.dev/app: flox-containerd-shim
-    nxmatic.dev/cluster: example
+    nxmatic.dev/cluster: bioskop
     nxmatic.dev/component: runtime
   packageContext:
     data:
       cluster-env: home
-      cluster-name: example
+      cluster-name: bioskop
   pipeline:
     mutators:
     - configMap:
@@ -33239,15 +33239,15 @@ spec:
   deletionPolicy: delete
   downstream:
     package: storage-openebs-zfs
-    repo: example-state
+    repo: bioskop-state
   labels:
     nxmatic.dev/app: openebs-zfs
-    nxmatic.dev/cluster: example
+    nxmatic.dev/cluster: bioskop
     nxmatic.dev/component: storage
   packageContext:
     data:
       cluster-env: home
-      cluster-name: example
+      cluster-name: bioskop
   pipeline:
     mutators:
     - configMap:
@@ -33285,15 +33285,15 @@ metadata:
     internal.kpt.dev/upstream-identifier: config.porch.kpt.dev|Repository|porch-system|bioskop-state
     kpt.dev/package-layer: system
     kpt.dev/package-name: porch-resources
-  name: example-state
+  name: bioskop-state
   namespace: porch-system
 spec:
   deployment: true
   description: Rendered Porch package state for bioskop cluster
   git:
-    branch: main
+    branch: rke2-subtree
     createBranch: true
-    directory: packagevariants/example
+    directory: packagevariants/bioskop
     repo: https://github.com/nxmatic/fleet.git
     secretRef:
       name: github-token
