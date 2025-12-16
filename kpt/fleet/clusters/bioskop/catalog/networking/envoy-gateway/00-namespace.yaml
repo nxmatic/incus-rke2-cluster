@@ -1,6 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata: # kpt-merge: /envoy-gateway-system
-  name: envoy-gateway-system # kpt-set: ${envoy-gateway-namespace}
-  annotations:
-    internal.kpt.dev/upstream-identifier: '|Namespace|default|envoy-gateway-system'

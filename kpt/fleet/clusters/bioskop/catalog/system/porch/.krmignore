@@ -1,3 +1,0 @@
-# Ensure these files are not ignored
-!porch-setters.yaml
-!Kustomization

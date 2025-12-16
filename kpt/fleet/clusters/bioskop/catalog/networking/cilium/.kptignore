@@ -1,3 +1,0 @@
-# Ignore non-Kubernetes configuration files
-README.md
-.kptignore

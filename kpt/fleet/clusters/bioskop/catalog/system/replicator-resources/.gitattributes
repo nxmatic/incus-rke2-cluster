@@ -1,2 +1,0 @@
-0-ghcr-secret.yaml filter=sops-yaml
-1-github-token.yaml filter=sops-yaml
