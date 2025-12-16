@@ -15,7 +15,7 @@ ifndef make.d/kpt/rules.mk
 
 .fleet.git.remote ?= fleet
 .fleet.git.branch ?= rke2-subtree
-.fleet.git.subtree.dir ?= $(top-dir)/kpt/fleet
+.fleet.git.subtree.dir ?= kpt/fleet
 
 .fleet.cluster.name := $(cluster.NAME)
 .fleet.cluster.dir := $(.fleet.git.subtree.dir)/clusters/$(.fleet.cluster.name)
@@ -171,7 +171,7 @@ check-clean@kpt:
 		echo "Uncommitted changes detected inside $(.fleet.git.subtree.dir)." >&2
 		exit 1
 	fi
-	untracked="$$(git ls-files --others --exclude-standard -- "$(_.fleet.git.subtree.dir)")"
+	untracked="$$(git ls-files --others --exclude-standard -- "$(.fleet.git.subtree.dir)")"
 	if [ -n "$$untracked" ]; then
 		echo "Untracked files detected inside $(.fleet.git.subtree.dir)." >&2
 		echo "Files:" >&2
@@ -184,12 +184,18 @@ pull@kpt: remote@kpt finalize-merge@kpt check-clean@kpt
 	git subtree pull --prefix="$(.fleet.git.subtree.dir)" "$(.fleet.git.remote)" "$(.fleet.git.branch)" --squash
 
 push@kpt: remote@kpt check-clean@kpt
-	@split_sha="$$(git subtree split --prefix="$(_.fleet.git.subtree.dir)" HEAD)"
-	remote_sha="$$(git ls-remote --heads "$(_.fleet.git.remote)" "$(_.fleet.git.branch)" | awk '{print $$1}')" || true
-	if [ -n "$$remote_sha" ] && [ "$$split_sha" = "$$remote_sha" ]; then
+	@split_sha="$$(git subtree split --prefix="$(.fleet.git.subtree.dir)" HEAD 2>/dev/null || \
+		git rev-parse --verify "$(.fleet.git.branch)" 2>/dev/null || true)"
+	remote_sha="$$(git ls-remote --heads "$(.fleet.git.remote)" "$(.fleet.git.branch)" | \
+		awk '{print $$1}')" || true
+	if [ -z "$$split_sha" ]; then
+		echo "No fleet subtree revisions found to push." >&2
+		exit 0
+	elif [ -n "$$remote_sha" ] && [ "$$split_sha" = "$$remote_sha" ]; then
 		: "No new fleet revisions to push; skipping."
 	else
-		git subtree push --prefix="$(.fleet.git.subtree.dir)" "$(.fleet.git.remote)" "$(.fleet.git.branch)"
+		: "[kpt] Pushing fleet subtree split $$split_sha to $(.fleet.git.remote)/$(.fleet.git.branch)"
+		git push "$(.fleet.git.remote)" "$$split_sha:refs/heads/$(.fleet.git.branch)"
 	fi
 
 endif # make.d/kpt/rules.mk guard
