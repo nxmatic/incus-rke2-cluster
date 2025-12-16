@@ -16,22 +16,17 @@ db::check() {
     inet+=( [last]="" )
   fi
   if [[ "${inet[current]}" != "${inet[last]}" ]]; then
-    : IP address changed: ${inet[last]} - ${inet[current]}, resetting RKE2 server DB
+    : "IP address changed: ${inet[last]} - ${inet[current]}, resetting RKE2 server DB"
     rm -rf /var/lib/rancher/rke2/server/db
     echo "${inet[current]}" > "$file"
   fi
 }
 
-: Create RKE2 folders
+: "Create RKE2 folders"
 mkdir -p /var/lib/rancher/rke2/agent
 mkdir -p /var/lib/rancher/rke2/server
 
-: Check server database for IP address changes
+: "Check server database for IP address changes"
 db::check
 
-: Ensure rendered manifests land in the static manifests directory (includes ghcr/github secrets)
-if [[ -x /usr/local/sbin/rke2-manifests-install ]]; then
-  /usr/local/sbin/rke2-manifests-install
-else
-  : "WARNING: rke2-manifests-install missing; skipping secret generation"
-fi
+# Manifests are now installed post-start via rke2-manifests-install.service

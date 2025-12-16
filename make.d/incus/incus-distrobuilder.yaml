@@ -87,6 +87,7 @@ packages:
         - nmap
         - net-tools
         - netcat-openbsd
+        - network-manager
         - open-iscsi
         - openssh-client
         - openssh-server
