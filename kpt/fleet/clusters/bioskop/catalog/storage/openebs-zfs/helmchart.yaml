@@ -1,8 +1,10 @@
 apiVersion: helm.cattle.io/v1
 kind: HelmChart
-metadata:
+metadata: # kpt-merge: openebs/openebs-zfs
   name: openebs-zfs
   namespace: openebs
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'helm.cattle.io|HelmChart|openebs|openebs-zfs'
 spec:
   chart: zfs-localpv
   repo: https://openebs.github.io/zfs-localpv

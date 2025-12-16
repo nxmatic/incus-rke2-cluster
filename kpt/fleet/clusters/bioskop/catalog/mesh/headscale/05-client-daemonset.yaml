@@ -1,13 +1,17 @@
 apiVersion: v1
 kind: ServiceAccount
-metadata:
+metadata: # kpt-merge: headscale/headscale-client
   name: headscale-client
   namespace: headscale
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ServiceAccount|headscale|headscale-client'
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
-metadata:
+metadata: # kpt-merge: /headscale-client
   name: headscale-client
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'rbac.authorization.k8s.io|ClusterRole|default|headscale-client'
 rules:
 - apiGroups: [""]
   resources: ["nodes"]
@@ -15,8 +19,10 @@ rules:
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
-metadata:
+metadata: # kpt-merge: /headscale-client
   name: headscale-client
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'rbac.authorization.k8s.io|ClusterRoleBinding|default|headscale-client'
 subjects:
 - kind: ServiceAccount
   name: headscale-client
@@ -28,11 +34,13 @@ roleRef:
 ---
 apiVersion: apps/v1
 kind: DaemonSet
-metadata:
+metadata: # kpt-merge: headscale/headscale-client
   name: headscale-client
   namespace: headscale
   labels:
     app: headscale-client
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'apps|DaemonSet|headscale|headscale-client'
 spec:
   selector:
     matchLabels:

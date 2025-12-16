@@ -1,10 +1,11 @@
 apiVersion: experimental.helm.sh/v1alpha1
 kind: RenderHelmChart
-metadata:
+metadata: # kpt-merge: /tekton-pipeline
   name: tekton-pipeline
   annotations:
     config.kubernetes.io/local-config: "true"
     experimental.helm.sh/chart-sum: sha256:9fd39e032d6099cdee258ad11faf510185844553886cb07ab8b954b9d9c9454a
+    internal.kpt.dev/upstream-identifier: 'experimental.helm.sh|RenderHelmChart|default|tekton-pipeline'
 helmCharts:
   - chartArgs:
       name: tekton-pipeline # kpt-set: ${chart-name}

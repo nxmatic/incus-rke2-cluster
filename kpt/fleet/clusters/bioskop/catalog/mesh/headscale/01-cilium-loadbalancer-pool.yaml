@@ -1,7 +1,9 @@
 apiVersion: cilium.io/v2alpha1
 kind: CiliumLoadBalancerIPPool
-metadata:
+metadata: # kpt-merge: /home-lan
   name: home-lan
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'cilium.io|CiliumLoadBalancerIPPool|default|home-lan'
 spec:
   blocks:
   - cidr: 192.168.1.192/27 # kpt-set: ${home-lan-pool}
@@ -11,8 +13,10 @@ spec:
 ---
 apiVersion: cilium.io/v2alpha1
 kind: CiliumL2AnnouncementPolicy
-metadata:
+metadata: # kpt-merge: /home-lan-policy
   name: home-lan-policy
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'cilium.io|CiliumL2AnnouncementPolicy|default|home-lan-policy'
 spec:
   interfaces:
   - ^lan0$

@@ -5,16 +5,4 @@ metadata:
   annotations:
     config.kubernetes.io/local-config: "true"
 info:
-  description: |
-    System layer for RKE2 cluster containing core infrastructure packages.
-    
-    Packages included:
-    - flux-instance: GitOps operator instance
-    - flux-operator: GitOps operator deployment  
-    - porch: Package Orchestration Service
-    - porch-resources: Porch resource definitions
-    - replicator: Fleet replication service
-    - replicator-resources: Replicator resource definitions
-    - tekton-pipelines: CI/CD pipeline framework
-    - traefik: Ingress controller
-    - cilium: eBPF-based networking
+  description: "System layer for RKE2 cluster containing core infrastructure packages.\n\nPackages included:\n- flux-instance: GitOps operator instance\n- flux-operator: GitOps operator deployment  \n- porch: Package Orchestration Service\n- porch-resources: Porch resource definitions\n- replicator: Fleet replication service\n- replicator-resources: Replicator resource definitions\n- tekton-pipelines: CI/CD pipeline framework\n- traefik: Ingress controller\n- cilium: eBPF-based networking\n"

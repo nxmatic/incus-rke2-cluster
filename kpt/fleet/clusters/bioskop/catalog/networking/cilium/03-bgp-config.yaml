@@ -1,7 +1,9 @@
 apiVersion: cilium.io/v2
 kind: CiliumBGPClusterConfig
-metadata:
+metadata: # kpt-merge: /bgp-cluster-config
   name: bgp-cluster-config
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'cilium.io|CiliumBGPClusterConfig|default|bgp-cluster-config'
 spec:
   nodeSelector:
     matchLabels:
@@ -18,8 +20,10 @@ spec:
 ---
 apiVersion: cilium.io/v2
 kind: CiliumBGPAdvertisement
-metadata:
+metadata: # kpt-merge: /control-plane-advertisement
   name: control-plane-advertisement
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'cilium.io|CiliumBGPAdvertisement|default|control-plane-advertisement'
 spec:
   advertisements:
   - advertisementType: "Service"

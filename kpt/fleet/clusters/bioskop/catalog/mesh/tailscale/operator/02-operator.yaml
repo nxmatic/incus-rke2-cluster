@@ -1,8 +1,10 @@
 apiVersion: helm.cattle.io/v1
 kind: HelmChart
-metadata:
+metadata: # kpt-merge: kube-system/tailscale-operator
   namespace: kube-system
   name: tailscale-operator
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'helm.cattle.io|HelmChart|kube-system|tailscale-operator'
 spec:
   repo: https://pkgs.tailscale.com/helmcharts
   chart: tailscale-operator

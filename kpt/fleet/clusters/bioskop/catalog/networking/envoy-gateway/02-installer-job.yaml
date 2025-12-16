@@ -1,8 +1,10 @@
 apiVersion: batch/v1
 kind: Job
-metadata:
+metadata: # kpt-merge: envoy-gateway-system/envoy-gateway-installer
   name: envoy-gateway-installer
   namespace: envoy-gateway-system # kpt-set: ${envoy-gateway-namespace}
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'batch|Job|envoy-gateway-system|envoy-gateway-installer'
 spec:
   ttlSecondsAfterFinished: 300
   template:
@@ -22,12 +24,12 @@ spec:
             --server-side \
             --force-conflicts \
             -f https://github.com/envoyproxy/gateway/releases/download/v1.4.2/install.yaml # kpt-set: -f https://github.com/envoyproxy/gateway/releases/download/${envoy-gateway-version}/install.yaml
-          
+
           echo "Waiting for Envoy Gateway deployment..."
           kubectl wait --timeout=300s \
             --namespace envoy-gateway-system \
             --for=condition=available \
             deployment/envoy-gateway
-          
+
           echo "Envoy Gateway installation complete!"
   backoffLimit: 3

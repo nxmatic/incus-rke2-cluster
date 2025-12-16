@@ -1,10 +1,11 @@
 apiVersion: tailscale.com/v1alpha1
 kind: Connector
-metadata:
+metadata: # kpt-merge: /controlplane
   name: controlplane
   # Connector is cluster-scoped, no namespace needed
   annotations:
     config.kubernetes.io/depends-on: helm.cattle.io/namespaces/kube-system/HelmChart/tailscale-operator
+    internal.kpt.dev/upstream-identifier: 'tailscale.com|Connector|default|controlplane'
 spec:
   # Single host route for the Kubernetes API virtual IP + wider LB pool for service IP reachability.
   # Using /32 avoids advertising unused VIP addresses.

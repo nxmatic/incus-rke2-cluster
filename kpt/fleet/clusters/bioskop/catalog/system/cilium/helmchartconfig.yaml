@@ -1,8 +1,10 @@
 apiVersion: helm.cattle.io/v1
 kind: HelmChartConfig
-metadata:
+metadata: # kpt-merge: kube-system/rke2-cilium
   name: rke2-cilium
   namespace: kube-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'helm.cattle.io|HelmChartConfig|kube-system|rke2-cilium'
 spec:
   valuesContent: |-
     bpf:

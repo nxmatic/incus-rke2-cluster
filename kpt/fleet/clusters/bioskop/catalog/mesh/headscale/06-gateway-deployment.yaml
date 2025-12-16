@@ -1,16 +1,20 @@
 apiVersion: v1
 kind: ServiceAccount
-metadata:
+metadata: # kpt-merge: headscale/headscale-gateway
   name: headscale-gateway
   namespace: headscale
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ServiceAccount|headscale|headscale-gateway'
 ---
 apiVersion: apps/v1
 kind: Deployment
-metadata:
+metadata: # kpt-merge: headscale/headscale-gateway
   name: headscale-gateway
   namespace: headscale
   labels:
     app: headscale-gateway
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'apps|Deployment|headscale|headscale-gateway'
 spec:
   replicas: 1
   selector:

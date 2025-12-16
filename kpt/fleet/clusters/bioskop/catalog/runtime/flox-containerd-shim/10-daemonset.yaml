@@ -1,11 +1,13 @@
 apiVersion: apps/v1
 kind: DaemonSet
-metadata:
+metadata: # kpt-merge: flox-runtime/flox-runtime-installer
   name: flox-runtime-installer
   namespace: flox-runtime # {"$kpt-set":"flox-namespace"}
   labels:
     app.kubernetes.io/name: flox-runtime-installer
     app.kubernetes.io/component: runtime-shim
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'apps|DaemonSet|flox-runtime|flox-runtime-installer'
 spec:
   selector:
     matchLabels:

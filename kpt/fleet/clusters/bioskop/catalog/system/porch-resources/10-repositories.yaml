@@ -1,8 +1,10 @@
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: Repository
-metadata:
+metadata: # kpt-merge: porch-system/bioskop-catalog
   name: bioskop-catalog
   namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|Repository|porch-system|bioskop-catalog'
 spec:
   description: Catalog of curated kpt packages tracked in incus-rke2-cluster
   type: git
@@ -16,9 +18,11 @@ spec:
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: Repository
-metadata:
+metadata: # kpt-merge: porch-system/bioskop-state
   name: bioskop-state # kpt-set: ${cluster-state-repo}
   namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|Repository|porch-system|bioskop-state'
 spec:
   description: Rendered Porch package state for bioskop cluster
   type: git

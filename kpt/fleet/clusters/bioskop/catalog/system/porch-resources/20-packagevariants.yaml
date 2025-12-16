@@ -1,8 +1,10 @@
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
-metadata:
+metadata: # kpt-merge: porch-system/storage-openebs-zfs
   name: storage-openebs-zfs
   namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|PackageVariant|porch-system|storage-openebs-zfs'
 spec:
   upstream:
     repo: bioskop-catalog
@@ -29,9 +31,11 @@ spec:
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
-metadata:
+metadata: # kpt-merge: porch-system/ha-kube-vip
   name: ha-kube-vip
   namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|PackageVariant|porch-system|ha-kube-vip'
 spec:
   upstream:
     repo: bioskop-catalog
@@ -60,9 +64,11 @@ spec:
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
-metadata:
+metadata: # kpt-merge: porch-system/networking-cilium
   name: networking-cilium
   namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|PackageVariant|porch-system|networking-cilium'
 spec:
   upstream:
     repo: bioskop-catalog
@@ -96,9 +102,11 @@ spec:
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
-metadata:
+metadata: # kpt-merge: porch-system/mesh-tailscale
   name: mesh-tailscale
   namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|PackageVariant|porch-system|mesh-tailscale'
 spec:
   upstream:
     repo: bioskop-catalog
@@ -128,9 +136,11 @@ spec:
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
-metadata:
+metadata: # kpt-merge: porch-system/mesh-headscale
   name: mesh-headscale
   namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|PackageVariant|porch-system|mesh-headscale'
 spec:
   upstream:
     repo: bioskop-catalog
@@ -160,9 +170,11 @@ spec:
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
-metadata:
+metadata: # kpt-merge: porch-system/networking-envoy-gateway
   name: networking-envoy-gateway
   namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|PackageVariant|porch-system|networking-envoy-gateway'
 spec:
   upstream:
     repo: bioskop-catalog
@@ -189,9 +201,11 @@ spec:
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
-metadata:
+metadata: # kpt-merge: porch-system/runtime-flox
   name: runtime-flox
   namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|PackageVariant|porch-system|runtime-flox'
 spec:
   upstream:
     repo: bioskop-catalog

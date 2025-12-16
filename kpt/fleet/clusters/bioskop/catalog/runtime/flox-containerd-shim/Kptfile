@@ -5,6 +5,7 @@ metadata:
   annotations:
     config.kubernetes.io/local-config: "true"
 info:
+  site: https://flox.dev/docs/k8s/install/self-managed/
   description: |
     Deploys the Flox Imageless Kubernetes runtime shim on labeled nodes and
     registers the corresponding RuntimeClass for pods to target. The installer
@@ -15,7 +16,6 @@ info:
     - imageless-kubernetes
     - runtime-class
     - containerd
-  site: https://flox.dev/docs/k8s/install/self-managed/
 pipeline:
   mutators:
     - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2

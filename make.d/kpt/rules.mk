@@ -24,6 +24,11 @@ kpt.catalog.system.packages = $(notdir $(patsubst %/,%,$(dir $(wildcard $(kpt.ca
 .fleet.cluster.Kustomization.file := $(.fleet.cluster.dir)/Kustomization
 .fleet.cluster.manifests.file := $(.fleet.cluster.dir)/manifests.yaml
 
+# Render staging directory to avoid mutating the checked-in catalog (@codebase)
+.fleet.cluster.render.dir := $(top-dir)/.local.d/var/kpt/$(.fleet.cluster.name)
+.fleet.cluster.render.catalog.dir := $(.fleet.cluster.render.dir)/catalog
+.fleet.cluster.render.overlays.dir := $(.fleet.cluster.render.dir)/overlays
+
 .fleet.cluster.catalog.names = $(notdir $(patsubst %/,%,$(dir $(wildcard $(.fleet.cluster.catalog.dir)/*/Kptfile))))
 .fleet.package.aux_files := .gitattributes .krmignore
 
@@ -41,27 +46,27 @@ endef
 .PHONY: update-kustomizations@kpt
 
 update-kustomizations@kpt:  ## Update Kustomization files in all catalog packages
-	@for layer in $(kpt.catalog.system.dir)/../*/; do \
-		[ -d "$$layer" ] || continue; \
-		for pkg in "$$layer"/*/; do \
-			[ -d "$$pkg" ] || continue; \
-			if [ -f "$$pkg/Kptfile" ]; then \
-				echo "[kpt] Updating Kustomization for package $$(basename $$pkg)"; \
-				resources="$$(cd $$pkg && find . -maxdepth 1 -name '*.yaml' ! -name 'Kustomization' ! -name '*-setters.yaml' ! -name 'render-*.yaml' ! -name 'helmchartconfig.yaml' -type f | sed 's|^\./||' | sort)"; \
-				if [ -n "$$resources" ]; then \
-					echo "apiVersion: kustomize.config.k8s.io/v1beta1" > "$$pkg/Kustomization"; \
-					echo "kind: Kustomization" >> "$$pkg/Kustomization"; \
-					echo "resources:" >> "$$pkg/Kustomization"; \
-					for res in $$resources; do \
-						echo "  - $$res" >> "$$pkg/Kustomization"; \
-					done; \
-				else \
-					echo "apiVersion: kustomize.config.k8s.io/v1beta1" > "$$pkg/Kustomization"; \
-					echo "kind: Kustomization" >> "$$pkg/Kustomization"; \
-					echo "resources: []" >> "$$pkg/Kustomization"; \
-				fi; \
-			fi; \
-		done; \
+	@for layer in $(kpt.catalog.system.dir)/../*/; do
+		[ -d "$$layer" ] || continue
+		for pkg in "$$layer"/*/; do
+			[ -d "$$pkg" ] || continue
+			if [ -f "$$pkg/Kptfile" ]; then
+				echo "[kpt] Updating Kustomization for package $$(basename $$pkg)"
+				resources="$$(cd $$pkg && find . -maxdepth 1 -name '*.yaml' ! -name 'Kustomization' ! -name '*-setters.yaml' ! -name 'render-*.yaml' ! -name 'helmchartconfig.yaml' -type f | sed 's|^\./||' | sort)"
+				if [ -n "$$resources" ]; then
+					echo "apiVersion: kustomize.config.k8s.io/v1beta1" > "$$pkg/Kustomization"
+					echo "kind: Kustomization" >> "$$pkg/Kustomization"
+					echo "resources:" >> "$$pkg/Kustomization"
+					for res in $$resources; do
+						echo "  - $$res" >> "$$pkg/Kustomization"
+					done
+				else
+					echo "apiVersion: kustomize.config.k8s.io/v1beta1" > "$$pkg/Kustomization"
+					echo "kind: Kustomization" >> "$$pkg/Kustomization"
+					echo "resources: []" >> "$$pkg/Kustomization"
+				fi
+			fi
+		done
 	done
 
 # ----------------------------------------------------------------------------
@@ -75,10 +80,13 @@ render@kpt: $(.fleet.cluster.manifests.file)  ## Render catalog via kpt, aggrega
 
 $(.fleet.cluster.manifests.file): $(.fleet.cluster.Kustomization.file)
 $(.fleet.cluster.manifests.file):
-	: "[kpt] Rendering catalog for cluster $(.fleet.cluster.name) via kpt fn render"
-	kpt fn render --truncate-output=false "$(.fleet.cluster.catalog.dir)"
-	: "[kpt] Building manifests for cluster $(.fleet.cluster.name) via kustomize build"
-	kustomize build "$(.fleet.cluster.dir)" > "$@"
+	: "[kpt] Staging catalog for cluster $(.fleet.cluster.name) into $(.fleet.cluster.render.dir)"
+	rm -rf "$(.fleet.cluster.render.dir)"
+	kpt pkg get "$(.fleet.cluster.dir)" "$(.fleet.cluster.render.dir)"
+	: "[kpt] Rendering catalog for cluster $(.fleet.cluster.name) via kpt fn render (staged)"
+	kpt fn render --truncate-output=false "$(.fleet.cluster.render.catalog.dir)"
+	: "[kpt] Building manifests for cluster $(.fleet.cluster.name) via kustomize build (staged)"
+	kustomize build "$(.fleet.cluster.render.dir)" > "$@"
 
 check-tools@kpt:
 	$(call .fleet.require-bin,kpt)
@@ -86,15 +94,16 @@ check-tools@kpt:
 	: "[kpt] Rendering cluster $(.fleet.cluster.name)"
 
 prepare@kpt:
-	: "[kpt] Preparing cluster $(.fleet.cluster.name) catalog via rsync"
+	: "[kpt] Preparing cluster $(.fleet.cluster.name) catalog via kpt pkg get/update"
 	mkdir -p "$(.fleet.cluster.dir)"
 	if [[ ! -d "$(.fleet.cluster.catalog.dir)" ]]; then
-	  rsync -avz "$(top-dir)/kpt/catalog/" "$(.fleet.cluster.catalog.dir)/"
+		kpt pkg get "$(realpath $(top-dir)).git/kpt/catalog" "$(.fleet.cluster.catalog.dir)"
 	else
-	  : "[kpt] Cluster catalog already exists; use 'rsync' to refresh"
+		kpt pkg update "$(.fleet.cluster.catalog.dir)@main"
 	fi
 	rm -f "$(.fleet.cluster.manifests.file)"
 	mkdir -p "$(.fleet.cluster.overlays.dir)"
+	mkdir -p "$(.fleet.cluster.render.dir)"
 
 define .yaml.comma-join =
 $(subst $(space),$1,$(strip $2))

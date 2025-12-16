@@ -1,7 +1,9 @@
 apiVersion: cilium.io/v2alpha1
 kind: CiliumLoadBalancerIPPool
-metadata:
+metadata: # kpt-merge: /load-balancers
   name: load-balancers
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'cilium.io|CiliumLoadBalancerIPPool|default|load-balancers'
 spec:
   blocks:
     - cidr: 10.80.8.64/26 # kpt-set: ${lb-pool-cidr}
@@ -14,8 +16,10 @@ spec:
 ---
 apiVersion: cilium.io/v2alpha1
 kind: CiliumLoadBalancerIPPool
-metadata:
+metadata: # kpt-merge: /virtual-addresses
   name: virtual-addresses
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'cilium.io|CiliumLoadBalancerIPPool|default|virtual-addresses'
 spec:
   blocks:
     - cidr: 10.80.15.0/24 # kpt-set: ${vip-pool-cidr}

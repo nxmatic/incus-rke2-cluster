@@ -1,10 +1,11 @@
 apiVersion: experimental.helm.sh/v1alpha1
 kind: RenderHelmChart
-metadata:
+metadata: # kpt-merge: /flux-instance
   name: flux-instance
   annotations:
     config.kubernetes.io/local-config: "true"
     experimental.helm.sh/chart-sum: sha256:a3426d80d458e4e102609031729aab1f3881613595aa8ab01321c02949a06d0f
+    internal.kpt.dev/upstream-identifier: 'experimental.helm.sh|RenderHelmChart|default|flux-instance'
 helmCharts:
   - chartArgs:
       name: flux-instance # kpt-set: ${chart-name}

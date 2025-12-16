@@ -1,7 +1,9 @@
 apiVersion: cilium.io/v2alpha1
 kind: CiliumL2AnnouncementPolicy
-metadata:
+metadata: # kpt-merge: /host
   name: host
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'cilium.io|CiliumL2AnnouncementPolicy|default|host'
 spec:
   serviceSelector:
     matchLabels: {}

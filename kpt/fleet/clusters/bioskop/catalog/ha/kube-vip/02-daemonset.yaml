@@ -1,10 +1,12 @@
 apiVersion: apps/v1
 kind: DaemonSet
-metadata:
+metadata: # kpt-merge: kube-vip/kube-vip-ds
   name: kube-vip-ds
   namespace: kube-vip # kpt-set: ${kube-vip-namespace}
   labels:
     app: kube-vip
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'apps|DaemonSet|kube-vip|kube-vip-ds'
 spec:
   selector:
     matchLabels:

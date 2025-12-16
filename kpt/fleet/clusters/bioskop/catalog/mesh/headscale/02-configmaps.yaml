@@ -1,8 +1,10 @@
 apiVersion: v1
 kind: ConfigMap
-metadata:
+metadata: # kpt-merge: headscale/headscale-config
   name: headscale-config
   namespace: headscale
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|headscale|headscale-config'
 data:
   config.yaml: |
     server_url: http://192.168.1.193:8080 # kpt-set: http://${headscale-lb-ip}:8080
@@ -61,9 +63,11 @@ data:
 ---
 apiVersion: v1
 kind: ConfigMap
-metadata:
+metadata: # kpt-merge: headscale/headscale-acl
   name: headscale-acl
   namespace: headscale
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|headscale|headscale-acl'
 data:
   acl.json: |
     {
@@ -94,9 +98,11 @@ data:
 ---
 apiVersion: v1
 kind: ConfigMap
-metadata:
+metadata: # kpt-merge: headscale/headscale-derp
   name: headscale-derp
   namespace: headscale
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|headscale|headscale-derp'
 data:
   derp.yaml: |
     regions:

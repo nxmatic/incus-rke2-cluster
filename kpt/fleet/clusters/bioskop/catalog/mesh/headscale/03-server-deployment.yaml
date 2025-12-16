@@ -1,10 +1,12 @@
 apiVersion: apps/v1
 kind: Deployment
-metadata:
+metadata: # kpt-merge: headscale/headscale
   name: headscale
   namespace: headscale
   labels:
     app: headscale
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'apps|Deployment|headscale|headscale'
 spec:
   replicas: 1
   selector:
@@ -80,7 +82,7 @@ spec:
 ---
 apiVersion: v1
 kind: Service
-metadata:
+metadata: # kpt-merge: headscale/headscale
   name: headscale
   namespace: headscale
   labels:
@@ -90,6 +92,7 @@ metadata:
     io.cilium/lb-ipam-ips: 192.168.1.193 # kpt-set: ${headscale-lb-ip}
     tailscale.com/expose: "true"
     tailscale.com/hostname: "alcide-headscale" # kpt-set: ${darwin-host}-headscale
+    internal.kpt.dev/upstream-identifier: '|Service|headscale|headscale'
 spec:
   type: LoadBalancer
   ports:
