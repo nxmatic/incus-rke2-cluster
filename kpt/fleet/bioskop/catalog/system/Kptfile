@@ -1,8 +1,0 @@
-apiVersion: kpt.dev/v1
-kind: Kptfile
-metadata:
-  name: system
-  annotations:
-    config.kubernetes.io/local-config: "true"
-info:
-  description: "System layer for RKE2 cluster containing core infrastructure packages.\n\nPackages included:\n- flux-instance: GitOps operator instance\n- flux-operator: GitOps operator deployment  \n- porch: Package Orchestration Service\n- porch-resources: Porch resource definitions\n- replicator: Fleet replication service\n- replicator-resources: Replicator resource definitions\n- tekton-pipelines: CI/CD pipeline framework\n- traefik: Ingress controller\n- cilium: eBPF-based networking\n"

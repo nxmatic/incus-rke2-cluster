@@ -1,8 +1,0 @@
-apiVersion: gateway.networking.k8s.io/v1
-kind: GatewayClass
-metadata: # kpt-merge: /envoy
-  name: envoy
-  annotations:
-    internal.kpt.dev/upstream-identifier: 'gateway.networking.k8s.io|GatewayClass|default|envoy'
-spec:
-  controllerName: gateway.envoyproxy.io/gatewayclass-controller
