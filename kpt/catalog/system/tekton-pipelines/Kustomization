@@ -79,3 +79,11 @@ resources:
 commonAnnotations:
   kpt.dev/package-layer: system
   kpt.dev/package-name: tekton-pipelines
+patches:
+- target:
+    kind: HorizontalPodAutoscaler
+    name: tekton-pipelines-webhook
+  patch: |-
+    - op: add
+      path: /metadata/namespace
+      value: tekton-pipelines
