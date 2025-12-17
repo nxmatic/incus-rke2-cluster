@@ -1,0 +1,236 @@
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata: # kpt-merge: porch-system/storage-openebs-zfs
+  name: storage-openebs-zfs
+  namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|PackageVariant|porch-system|storage-openebs-zfs'
+spec:
+  upstream:
+    repo: bioskop-catalog
+    package: storage-openebs-zfs
+  downstream:
+    repo: bioskop-state # kpt-set: ${cluster-state-repo}
+    package: storage-openebs-zfs
+  adoptionPolicy: adoptNone
+  deletionPolicy: delete
+  labels:
+    nxmatic.dev/cluster: bioskop # kpt-set: ${cluster-name}
+    nxmatic.dev/component: storage
+    nxmatic.dev/app: openebs-zfs
+  packageContext:
+    data:
+      cluster-name: bioskop # kpt-set: ${cluster-name}
+      cluster-env: home # kpt-set: ${cluster-env}
+  pipeline:
+    mutators:
+      - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+        configMap:
+          poolname: tank
+          kubelet-dir: /var/lib/rancher/rke2/server/tank
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata: # kpt-merge: porch-system/ha-kube-vip
+  name: ha-kube-vip
+  namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|PackageVariant|porch-system|ha-kube-vip'
+spec:
+  upstream:
+    repo: bioskop-catalog
+    package: ha/kube-vip
+  downstream:
+    repo: bioskop-state # kpt-set: ${cluster-state-repo}
+    package: ha/kube-vip
+  adoptionPolicy: adoptNone
+  deletionPolicy: delete
+  labels:
+    nxmatic.dev/cluster: bioskop # kpt-set: ${cluster-name}
+    nxmatic.dev/component: ha
+    nxmatic.dev/app: kube-vip
+  packageContext:
+    data:
+      cluster-name: bioskop # kpt-set: ${cluster-name}
+      cluster-env: home # kpt-set: ${cluster-env}
+  pipeline:
+    mutators:
+      - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+        configMap:
+          kube-vip-version: v0.8.7
+          cluster-vip-address: 10.80.15.1 # kpt-set: ${node-vip-ip}
+          cluster-vip-interface: vmnet0
+          kube-vip-namespace: kube-vip
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata: # kpt-merge: porch-system/networking-cilium
+  name: networking-cilium
+  namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|PackageVariant|porch-system|networking-cilium'
+spec:
+  upstream:
+    repo: bioskop-catalog
+    package: networking/cilium
+  downstream:
+    repo: bioskop-state # kpt-set: ${cluster-state-repo}
+    package: networking/cilium
+  adoptionPolicy: adoptNone
+  deletionPolicy: delete
+  labels:
+    nxmatic.dev/cluster: bioskop # kpt-set: ${cluster-name}
+    nxmatic.dev/component: networking
+    nxmatic.dev/app: cilium
+  packageContext:
+    data:
+      cluster-name: bioskop # kpt-set: ${cluster-name}
+      cluster-env: home # kpt-set: ${cluster-env}
+  pipeline:
+    mutators:
+      - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+        configMap:
+          cluster-name: bioskop-cluster # kpt-set: ${cluster-name}-cluster
+          cluster-id: "1" # kpt-set: ${cluster-id}
+          lb-pool-cidr: 10.80.8.128/26 # kpt-set: ${cluster-lb-pool-cidr}
+          vip-pool-cidr: 10.80.15.0/24 # kpt-set: ${cluster-vip-network-cidr}
+          l2-interface-1: vmnet0
+          l2-interface-2: lan0
+          bgp-local-asn: "65001"
+          bgp-peer-asn: "65000"
+          node-gateway-ip: 10.80.0.1 # kpt-set: ${node-gateway-ip}
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata: # kpt-merge: porch-system/mesh-tailscale
+  name: mesh-tailscale
+  namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|PackageVariant|porch-system|mesh-tailscale'
+spec:
+  upstream:
+    repo: bioskop-catalog
+    package: mesh/tailscale
+  downstream:
+    repo: bioskop-state # kpt-set: ${cluster-state-repo}
+    package: mesh/tailscale
+  adoptionPolicy: adoptNone
+  deletionPolicy: delete
+  labels:
+    nxmatic.dev/cluster: bioskop # kpt-set: ${cluster-name}
+    nxmatic.dev/component: mesh
+    nxmatic.dev/app: tailscale
+  packageContext:
+    data:
+      cluster-name: bioskop # kpt-set: ${cluster-name}
+      cluster-env: home # kpt-set: ${cluster-env}
+  pipeline:
+    mutators:
+      - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+        configMap:
+          tailscale-version: 1.82.0
+          cluster-name: bioskop-cluster # kpt-set: ${cluster-name}-cluster
+          vip-address: 10.80.15.1 # kpt-set: ${node-vip-ip}
+          lb-pool-cidr: 10.80.8.128/26 # kpt-set: ${cluster-lb-pool-cidr}
+          tailscale-namespace: tailscale-system
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata: # kpt-merge: porch-system/mesh-headscale
+  name: mesh-headscale
+  namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|PackageVariant|porch-system|mesh-headscale'
+spec:
+  upstream:
+    repo: bioskop-catalog
+    package: mesh/headscale
+  downstream:
+    repo: bioskop-state # kpt-set: ${cluster-state-repo}
+    package: mesh/headscale
+  adoptionPolicy: adoptNone
+  deletionPolicy: delete
+  labels:
+    nxmatic.dev/cluster: bioskop # kpt-set: ${cluster-name}
+    nxmatic.dev/component: mesh
+    nxmatic.dev/app: headscale
+  packageContext:
+    data:
+      cluster-name: bioskop # kpt-set: ${cluster-name}
+      cluster-env: home # kpt-set: ${cluster-env}
+  pipeline:
+    mutators:
+      - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+        configMap:
+          cluster-name: "bioskop" # kpt-set: ${cluster-name}
+          darwin-host: "bioskop" # kpt-set: ${cluster-name}
+          home-lan-pool: "192.168.1.192/27" # kpt-set: ${home-lan-pool}
+          headscale-lb-ip: "192.168.1.193" # kpt-set: ${headscale-lb-ip}
+          vip-network-cidr: "10.80.15.0/24" # kpt-set: ${cluster-vip-network-cidr}
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata: # kpt-merge: porch-system/networking-envoy-gateway
+  name: networking-envoy-gateway
+  namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|PackageVariant|porch-system|networking-envoy-gateway'
+spec:
+  upstream:
+    repo: bioskop-catalog
+    package: networking/envoy-gateway
+  downstream:
+    repo: bioskop-state # kpt-set: ${cluster-state-repo}
+    package: networking/envoy-gateway
+  adoptionPolicy: adoptNone
+  deletionPolicy: delete
+  labels:
+    nxmatic.dev/cluster: bioskop # kpt-set: ${cluster-name}
+    nxmatic.dev/component: networking
+    nxmatic.dev/app: envoy-gateway
+  packageContext:
+    data:
+      cluster-name: bioskop # kpt-set: ${cluster-name}
+      cluster-env: home # kpt-set: ${cluster-env}
+  pipeline:
+    mutators:
+      - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+        configMap:
+          envoy-gateway-version: v1.4.2
+          envoy-gateway-namespace: envoy-gateway-system
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata: # kpt-merge: porch-system/runtime-flox
+  name: runtime-flox
+  namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|PackageVariant|porch-system|runtime-flox'
+spec:
+  upstream:
+    repo: bioskop-catalog
+    package: runtime/flox-containerd-shim
+  downstream:
+    repo: bioskop-state # kpt-set: ${cluster-state-repo}
+    package: runtime/flox-containerd-shim
+  adoptionPolicy: adoptNone
+  deletionPolicy: delete
+  labels:
+    nxmatic.dev/cluster: bioskop # kpt-set: ${cluster-name}
+    nxmatic.dev/component: runtime
+    nxmatic.dev/app: flox-containerd-shim
+  packageContext:
+    data:
+      cluster-name: bioskop # kpt-set: ${cluster-name}
+      cluster-env: home # kpt-set: ${cluster-env}
+  pipeline:
+    mutators:
+      - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+        configMap:
+          flox-namespace: flox
+          node-label-key: flox.dev/enabled
+          node-label-value: "true"
+          runtime-class-name: flox
+          containerd-config-file: /var/lib/rancher/rke2/agent/etc/containerd/config.toml
+          containerd-address: /run/k3s/containerd/containerd.sock
+          apk-max-retries: "5"

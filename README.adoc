@@ -1,0 +1,57 @@
+= RKE2 Fleet Manifests (@codebase)
+
+This branch mirrors the `rke2/` rootlet of the monorepo. Everything here is organized so we can hydrate manifests upstream (via kpt + kustomize) before the control-plane nodes ever see them.
+
+== Layout
+
+* `packages/<package>/` — raw kpt packages mirrored from `incus-rke2-cluster/kpt/system/**`.
+* `clusters/<cluster>/packages/<package>/` — hydrated output from `kpt fn render`, each with an auto-generated `kustomization.yaml`.
+* `clusters/<cluster>/packages/kustomization.yaml` — aggregates rendered packages per cluster.
+* `clusters/<cluster>/overlays/` — patch layers that reference the rendered package contents.
+* `clusters/<cluster>/manifests.yaml` — deterministic YAML bundles consumed by Flux and `rke2-manifests-install`.
+
+== Workflows
+
+=== Sync upstream packages
+
+[source,shell]
+----
+# @codebase
+make sync-packages
+----
+
+Run this whenever the source packages change in `incus-rke2-cluster`.
+
+=== Render manifests for a cluster
+
+[source,shell]
+----
+# @codebase
+make render@fleet [FLEET_CLUSTER=bioskop] [FLEET_PACKAGES="porch flux-operator"]
+----
+
+`render@fleet` performs two phases:
+
+1. `kpt fn render` for every package (emitting into `clusters/<cluster>/packages/<package>`).
+2. `kustomize build clusters/<cluster>` to produce `clusters/<cluster>/manifests.yaml`.
+
+IMPORTANT: `kpt fn render` runs containerized functions (e.g., apply-setters, render-helm-chart). Ensure Docker, nerdctl, or Podman is running. Set `KPT_FN_RUNTIME` if you rely on a non-default runtime.
+
+Commit the generated manifests whenever you want to publish a new downstream snapshot.
+
+=== Clean outputs
+
+[source,shell]
+----
+# @codebase
+rm -rf clusters/<cluster>/packages
+rm -f clusters/<cluster>/manifests.yaml
+----
+
+Remove the rendered packages before re-running `make render@fleet` if you need to ensure a fresh output when debugging changes.
+
+== Next Steps
+
+* Expand `render@fleet` once we onboard more clusters.
+* Customize `overlays/<cluster>/<package>` with setters or patches per environment.
+* Add CI to verify `kustomize build overlays/<cluster>/<package>` matches committed YAML.

@@ -1,0 +1,95 @@
+# Source: flux-operator/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flux-operator
+  namespace: flux-system
+  labels:
+    helm.sh/chart: flux-operator-0.36.0
+    app.kubernetes.io/name: flux-operator
+    app.kubernetes.io/instance: flux-operator
+    app.kubernetes.io/version: "v0.36.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: flux-operator
+      app.kubernetes.io/instance: flux-operator
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+      labels:
+        helm.sh/chart: flux-operator-0.36.0
+        app.kubernetes.io/name: flux-operator
+        app.kubernetes.io/instance: flux-operator
+        app.kubernetes.io/version: "v0.36.0"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      priorityClassName: system-cluster-critical
+      serviceAccountName: flux-operator
+      containers:
+      - name: manager
+        args:
+        - --log-level=info
+        env:
+        - name: RUNTIME_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: REPORTING_INTERVAL
+          value: 5m
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+        image: "ghcr.io/controlplaneio-fluxcd/flux-operator:v0.36.0"
+        imagePullPolicy: "IfNotPresent"
+        ports:
+        - name: http-metrics
+          containerPort: 8080
+          protocol: TCP
+        - name: http
+          containerPort: 8081
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 2000m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 64Mi
+        volumeMounts:
+        - name: temp
+          mountPath: /tmp
+      volumes:
+      - name: temp
+        emptyDir: {}
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - linux
