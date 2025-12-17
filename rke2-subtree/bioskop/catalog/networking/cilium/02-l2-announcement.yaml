@@ -1,0 +1,17 @@
+apiVersion: cilium.io/v2alpha1
+kind: CiliumL2AnnouncementPolicy
+metadata: # kpt-merge: /host
+  name: host
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'cilium.io|CiliumL2AnnouncementPolicy|default|host'
+spec:
+  serviceSelector:
+    matchLabels: {}
+  loadBalancerIPs: true
+  interfaces:
+    - vmnet0 # kpt-set: ${l2-interface-1}
+    - lan0 # kpt-set: ${l2-interface-2}
+  nodeSelector:
+    matchExpressions:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists

@@ -48,7 +48,7 @@ $(RUN_INSTANCE_DIR)/%.yaml: $$($$*_CONFIG_TEMPLATE) | $(RUN_INSTANCE_DIR)/
 
 # Define config templates per component
 incus_CONFIG_TEMPLATE := incus-instance-config.yaml
-network_CONFIG_TEMPLATE := network-config.yaml
+netcfg_TEMPLATE := network-config.yaml
 cloud_CONFIG_TEMPLATE := cloud-config.common.yaml
 
 endif # network/network-deps.mk guard

@@ -76,7 +76,7 @@ check-runtime-state: ## Check current runtime state of cluster and nodes
 	echo "Network allocated: $(shell test -f $(CLUSTER_ENV_FILE) && echo "yes" || echo "no")"
 
 # Define newline for template substitution
-define newline
+define newline :=
 
 
 endef

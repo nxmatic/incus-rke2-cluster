@@ -7,7 +7,7 @@ include make.d/make.mk  # Ensure availability when file used standalone (@codeba
 #-----------------------------
 
 # Define per-target configuration using constructed macro names
-master_SPECIAL_FLAGS := --bootstrap
+master.SPECIAL_FLAGS := --bootstrap
 peer1_SPECIAL_FLAGS := --join-peer
 peer2_SPECIAL_FLAGS := --join-peer  
 peer3_SPECIAL_FLAGS := --join-peer

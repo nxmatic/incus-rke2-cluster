@@ -13,35 +13,35 @@ ifndef make.d/node/rules.mk
 # -----------------------------------------------------------------------------
 
 # Accept NAME override; default master
-.node.NAME ?= $(if $(name),$(name),master)
+.node.name ?= $(if $(name),$(name),master)
 
 # Node configuration lookup key for .node-config.* rules
-.node.config_key = .node-config.$(.node.NAME)
+.node.config_key = .node-config.$(.node.name)
 
 # Cluster configuration (inlined from cluster-templates.mk)
-.cluster.NAME ?= $(if $(LIMA_HOSTNAME),$(LIMA_HOSTNAME),bioskop)
-.cluster.TOKEN ?= $(.cluster.NAME)
+.cluster.name ?= $(if $(LIMA_HOSTNAME),$(LIMA_HOSTNAME),bioskop)
+.cluster.TOKEN ?= $(.cluster.name)
 .cluster.DOMAIN = cluster.local
 
 # Cluster-specific configurations
-ifeq ($(.cluster.NAME),bioskop)
-  .cluster.ID := 1
+ifeq ($(.cluster.name),bioskop)
+  .cluster.id := 1
   .cluster.POD_NETWORK_CIDR := 10.42.0.0/16
   .cluster.SERVICE_NETWORK_CIDR := 10.43.0.0/16
   .cluster.LIMA_LAN_INTERFACE := vmlan0
   .cluster.LIMA_VMNET_INTERFACE := vmwan0
   .cluster.STATE_REPO := https://github.com/nxmatic/fleet-manifests.git
   .cluster.STATE_BRANCH := rke2-subtree
-else ifeq ($(.cluster.NAME),alcide)
-  .cluster.ID := 2
+else ifeq ($(.cluster.name),alcide)
+  .cluster.id := 2
   .cluster.POD_NETWORK_CIDR := 10.44.0.0/16
   .cluster.SERVICE_NETWORK_CIDR := 10.45.0.0/16
   .cluster.LIMA_LAN_INTERFACE := vmlan0
   .cluster.LIMA_VMNET_INTERFACE := vmwan0
   .cluster.STATE_REPO := https://github.com/nxmatic/fleet-manifests.git
   .cluster.STATE_BRANCH := rke2-subtree
-else ifeq ($(.cluster.NAME),nikopol)
-  .cluster.ID := 2
+else ifeq ($(.cluster.name),nikopol)
+  .cluster.id := 2
   .cluster.POD_NETWORK_CIDR := 10.44.0.0/16
   .cluster.SERVICE_NETWORK_CIDR := 10.45.0.0/16
   .cluster.LIMA_LAN_INTERFACE := vmlan0
@@ -49,14 +49,14 @@ else ifeq ($(.cluster.NAME),nikopol)
   .cluster.STATE_REPO := https://github.com/nxmatic/fleet-manifests.git
   .cluster.STATE_BRANCH := rke2-subtree
 else
-  $(error [node] Unknown cluster: $(.cluster.NAME). Supported clusters: bioskop alcide nikopol)
+  $(error [node] Unknown cluster: $(.cluster.name). Supported clusters: bioskop alcide nikopol)
 endif
 
 # Public cluster API
-cluster.NAME := $(.cluster.NAME)
+cluster.name := $(.cluster.name)
 cluster.TOKEN := $(.cluster.TOKEN)
 cluster.DOMAIN := $(.cluster.DOMAIN)
-cluster.ID := $(.cluster.ID)
+cluster.id := $(.cluster.id)
 cluster.POD_NETWORK_CIDR := $(.cluster.POD_NETWORK_CIDR)
 cluster.SERVICE_NETWORK_CIDR := $(.cluster.SERVICE_NETWORK_CIDR)
 cluster.LIMA_LAN_INTERFACE := $(.cluster.LIMA_LAN_INTERFACE)
@@ -65,10 +65,10 @@ cluster.STATE_REPO := $(.cluster.STATE_REPO)
 cluster.STATE_BRANCH := $(.cluster.STATE_BRANCH)
 
 # Export cluster variables for environment/templates
-export CLUSTER_NAME := $(cluster.NAME)
+export CLUSTER_NAME := $(cluster.name)
 export CLUSTER_TOKEN := $(cluster.TOKEN)
 export CLUSTER_DOMAIN := $(cluster.DOMAIN)
-export CLUSTER_ID := $(cluster.ID)
+export CLUSTER_ID := $(cluster.id)
 export POD_NETWORK_CIDR := $(cluster.POD_NETWORK_CIDR)
 export SERVICE_NETWORK_CIDR := $(cluster.SERVICE_NETWORK_CIDR)
 export LIMA_LAN_INTERFACE := $(cluster.LIMA_LAN_INTERFACE)
@@ -94,35 +94,35 @@ $(word $(2),$(.node.CONFIG_$(1)))
 endef
 
 # Derive node role/type using metaprogramming lookup
-ifdef .node.CONFIG_$(.node.NAME)
-  .node.TYPE := $(call get-node-attr,$(.node.NAME),1)
-  .node.ROLE := $(call get-node-attr,$(.node.NAME),2)
-  .node.ID := $(call get-node-attr,$(.node.NAME),3)
+ifdef .node.CONFIG_$(.node.name)
+  .node.TYPE := $(call get-node-attr,$(.node.name),1)
+  .node.ROLE := $(call get-node-attr,$(.node.name),2)
+  .node.id := $(call get-node-attr,$(.node.name),3)
 else
-  $(error [node] Unknown node: $(.node.NAME). Supported nodes: master peer1 peer2 peer3 worker1 worker2)
+  $(error [node] Unknown node: $(.node.name). Supported nodes: master peer1 peer2 peer3 worker1 worker2)
 endif
 
 # Public node API
-node.NAME := $(.node.NAME)
+node.name := $(.node.name)
 node.TYPE := $(.node.TYPE)
 node.ROLE := $(.node.ROLE)
-node.ID := $(.node.ID)
+node.id := $(.node.id)
 
 # Export node variables for environment/templates
-export NODE_NAME := $(node.NAME)
+export NODE_NAME := $(node.name)
 export NODE_TYPE := $(node.TYPE)
 export NODE_ROLE := $(node.ROLE)
-export NODE_ID := $(node.ID)
+export NODE_ID := $(node.id)
 
 # Validation target for node layer
 .PHONY: test@node
 
 test@node:
 	: "[test@node] Validating node role/type derivation"
-	: "[ok] node.NAME=$(node.NAME)"
+	: "[ok] node.name=$(node.name)"
 	: "[ok] node.TYPE=$(node.TYPE)" 
 	: "[ok] node.ROLE=$(node.ROLE)"
-	: "[ok] node.ID=$(node.ID)"
+	: "[ok] node.id=$(node.id)"
 	: "[ok] .node.config_key=$(.node.config_key)"
 	: "[PASS] Node variables present"
 

@@ -58,10 +58,10 @@ ifndef make.d/cluster/rules.mk
 .PHONY: test@cluster
 test@cluster:
 	: "[test@cluster] Validating cluster configuration from node layer"
-	: "[ok] cluster.NAME=$(cluster.NAME)"
+	: "[ok] cluster.name=$(cluster.name)"
 	: "[ok] cluster.TOKEN=$(cluster.TOKEN)"
 	: "[ok] cluster.DOMAIN=$(cluster.DOMAIN)"
-	: "[ok] cluster.ID=$(cluster.ID)"
+	: "[ok] cluster.id=$(cluster.id)"
 	: "[ok] cluster.POD_NETWORK_CIDR=$(cluster.POD_NETWORK_CIDR)"
 	: "[ok] cluster.SERVICE_NETWORK_CIDR=$(cluster.SERVICE_NETWORK_CIDR)"
 	: "[PASS] All cluster variables present from node layer"

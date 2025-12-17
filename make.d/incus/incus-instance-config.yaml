@@ -100,10 +100,10 @@ devices:
     source: ${PWD}/.secrets
     path: /.secrets
     readonly: "true"
-  manifests.file:
+  manifests.dir:
     type: disk
-    source: ${CLUSTER_MANIFESTS_FILE}
-    path: /var/lib/rancher/rke2/server/manifests/cluster-manifests.yaml
+    source: ${CLUSTER_MANIFESTS_DIR}
+    path: /var/lib/rancher/rke2/server/manifests/system.d
   shared.dir:
     type: disk
     source: ${PWD}/${RUN_INSTANCE_DIR}/shared

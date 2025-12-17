@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: # kpt-merge: /flox-containerd-shim-setters
+  name: flox-containerd-shim-setters
+  annotations:
+    config.kubernetes.io/local-config: "true"
+    internal.kpt.dev/function-config: apply-setters
+    description.kpt.dev: Flox runtime shim setters; adjust labels and paths per cluster
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|default|flox-containerd-shim-setters'
+data:
+  flox-namespace: flox
+  node-label-key: flox.dev/enabled
+  node-label-value: "true"
+  runtime-class-name: flox
+  containerd-config-file: /var/lib/rancher/rke2/agent/etc/containerd/config.toml
+  containerd-address: /run/k3s/containerd/containerd.sock
+  apk-max-retries: "5"

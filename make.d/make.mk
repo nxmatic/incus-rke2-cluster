@@ -305,6 +305,13 @@ cache-dir              := $(var-dir)/cache
 manifest-dir           := $(var-dir)/manifest
 make-dir               := $(call top-dir.to,make.d)
 
+# RKE2 subtree directory
+rke2-subtree.dir        := $(call top-dir.to,rke2-subtree)
+rke2-subtree.git.remote ?= fleet
+rke2-subtree.git.branch ?= rke2-subtree
+rke2-subtree.git.subtree.dir ?= kpt/fleet
+
+
 .make.dirs := $(etc-dir) $(bin-dir) $(build-dir) $(tmp-dir) $(lib-dir) $(var-dir) $(run-dir) $(cache-dir) $(manifest-dir)
 .make.files := $(filter-out make.d/make.mk,$(subst $(top-dir)/,,$(wildcard $(make-dir)/*.mk)))
 

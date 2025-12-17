@@ -18,30 +18,26 @@ ifndef make.d/kpt/rules.mk
 
 # KPT catalog configuration (@codebase)
 
-.kpt.catalog.dir := $(top-dir)/kpt/catalog
-.kpt.catalog.system.dir := $(top-dir)/kpt/catalog/system
-.kpt.catalog.system.packages = $(notdir $(patsubst %/,%,$(dir $(wildcard $(.kpt.catalog.system.dir)/*/Kptfile))))
 
 # Fleet render configuration (@codebase)
 
-.fleet.git.remote ?= fleet
-.fleet.git.branch ?= rke2-subtree
-.fleet.git.subtree.dir ?= kpt/fleet
 
-.fleet.cluster.name := $(cluster.NAME)
-.fleet.cluster.dir := $(.fleet.git.subtree.dir)/$(.fleet.cluster.name)
-.fleet.cluster.catalog.dir := $(.fleet.cluster.dir)/catalog
-.fleet.cluster.overlays.dir := $(.fleet.cluster.dir)/overlays
-.fleet.cluster.overlays.Kustomization.file := $(.fleet.cluster.overlays.dir)/Kustomization
-.fleet.cluster.Kustomization.file := $(.fleet.cluster.dir)/Kustomization
-.fleet.cluster.render.dir := $(tmp-dir)/fleet/$(.fleet.cluster.name)
-.fleet.cluster.manifests.file := $(.fleet.cluster.dir)/manifests.yaml
-.fleet.cluster.manifests.d.dir := $(.fleet.cluster.dir)/manifests.d
+.kpt.name := $(cluster.name)
+.kpt.dir := $(rke2-subtree.dir)/$(.kpt.name)
+.kpt.catalog.dir := $(.kpt.dir)/catalog
+.kpt.overlays.dir := $(.kpt.dir)/overlays
+.kpt.overlays.Kustomization.file := $(.kpt.overlays.dir)/Kustomization
+.kpt.Kustomization.file := $(.kpt.dir)/Kustomization
+.kpt.render.dir := $(tmp-dir)/fleet/$(.kpt.name)
+.kpt.manifests.file := $(.kpt.dir)/manifests.yaml
+.kpt.manifests.dir := $(.kpt.dir)/manifests.d
 
-.fleet.cluster.catalog.names = $(notdir $(patsubst %/,%,$(dir $(wildcard $(.fleet.cluster.catalog.dir)/*/Kptfile))))
-.fleet.package.aux_files := .gitattributes .krmignore
+.kpt.catalog.names = $(notdir $(patsubst %/,%,$(dir $(wildcard $(.kpt.catalog.dir)/*/Kptfile))))
+.kpt.package.aux_files := .gitattributes .krmignore
 
-define .fleet.require-bin
+export CLUSTER_MANIFESTS_DIR := $(realpath $(.kpt.manifests.dir))
+# List of namespaces to extract from rendered manifests
+define .kpt.require-bin
 	if ! command -v $(1) >/dev/null 2>&1; then \
 		echo "[fleet] Missing required command $(1)"; \
 		exit 1; \
@@ -87,27 +83,27 @@ update-kustomizations@kpt: ## Update Kustomization files from rendered catalog p
 
 .PHONY: render@kpt check-tools@kpt prepare@kpt
 
-render@kpt: check-tools@kpt prepare@kpt $(.fleet.cluster.overlays.Kustomization.file) $(.fleet.cluster.Kustomization.file)
-render@kpt: $(.fleet.cluster.manifests.file)  ## Render catalog via kpt, aggregate via kustomize (@codebase)
+render@kpt: check-tools@kpt prepare@kpt $(.kpt.overlays.Kustomization.file) $(.kpt.Kustomization.file)
+render@kpt: $(.kpt.manifests.file)  ## Render catalog via kpt, aggregate via kustomize (@codebase)
 
-$(.fleet.cluster.render.dir):
-	$(call kpt.trace,Rendering catalog for cluster $(.fleet.cluster.name) via kpt fn render)
+$(.kpt.render.dir):
+	$(call kpt.trace,Rendering catalog for cluster $(.kpt.name) via kpt fn render)
 	rm -rf "$(@)"
-	kpt fn render --truncate-output=false "$(.fleet.cluster.catalog.dir)" -o "$(@)"
+	kpt fn render --truncate-output=false "$(.kpt.catalog.dir)" -o "$(@)"
 
-.FORCE: $(.fleet.cluster.render.dir)
+.FORCE: $(.kpt.render.dir)
 
-$(.fleet.cluster.manifests.file): $(.fleet.cluster.Kustomization.file)
-$(.fleet.cluster.manifests.file): $(.fleet.cluster.render.dir)
-$(.fleet.cluster.manifests.file):
+$(.kpt.manifests.file): $(.kpt.Kustomization.file)
+$(.kpt.manifests.file): $(.kpt.render.dir)
+$(.kpt.manifests.file):
 	$(call kpt.trace,Copying Kustomization files to rendered output)
-	rsync -a --include='*/' --include='Kustomization' --exclude='*' "$(.fleet.cluster.catalog.dir)/" "$(.fleet.cluster.render.dir)/"
-	$(call kpt.trace,Building manifests for cluster $(.fleet.cluster.name) via kustomize build)
-	kustomize build "$(.fleet.cluster.render.dir)" > "$@"
+	rsync -a --include='*/' --include='Kustomization' --exclude='*' "$(.kpt.catalog.dir)/" "$(.kpt.render.dir)/"
+	$(call kpt.trace,Building manifests for cluster $(.kpt.name) via kustomize build)
+	kustomize build "$(.kpt.render.dir)" > "$@"
 
 .PHONY: clean-render@kpt
 clean-render@kpt: ## Clean rendered temporary directory
-	rm -rf "$(.fleet.cluster.render.dir)"
+	rm -rf "$(.kpt.render.dir)"
 
 # ----------------------------------------------------------------------------
 # Resource categorization and reparenting (@codebase)
@@ -116,79 +112,88 @@ clean-render@kpt: ## Clean rendered temporary directory
 ## Reparent resources by scope: cluster/, namespaces/<ns>/, customresourcedefinitions/
 
 # yq expressions for resource selection (reusable for future patterns)
-define .fleet.yq.select.crd =
+define .kpt.yq.select.crd =
 select(.kind == "CustomResourceDefinition")
 endef
 
-define .fleet.yq.select.cluster =
+define .kpt.yq.select.cluster =
 select(.metadata.namespace == null or .metadata.namespace == "") |
 select(.kind != "CustomResourceDefinition" and .kind != "Namespace")
 endef
 
-define .fleet.yq.select.namespace =
+define .kpt.yq.select.namespace =
 select(.metadata.namespace != null and .metadata.namespace != "") |
 select(.kind != "Namespace")
 endef
 
-$(.fleet.cluster.manifests.d.dir): check-tools@kpt
-$(.fleet.cluster.manifests.d.dir): prepare@kpt
-$(.fleet.cluster.manifests.d.dir): $$(.fleet.cluster.manifests.file)
-$(.fleet.cluster.manifests.d.dir): # Prepare manifests directory
-	$(call kpt.trace,Preparing manifests directory)
-	rm -rf "$(@)"
-	mkdir -p "$(@)"
+.SECONDEXPANSION:
 
-# Create subdirectories for manifest categories
-.fleet.manifests.d.dirs := $(.fleet.cluster.manifests.d.dir)/customresourcedefinitions $(.fleet.cluster.manifests.d.dir)/namespaces
+split-manifests@kpt: $(.kpt.manifests.dir)
+split-manifests@kpt: ## Split rendered manifests into categorized directory structure
 
-$(.fleet.cluster.manifests.d.dir)/customresourcedefinitions: $(.fleet.cluster.manifests.d.dir)
-$(.fleet.cluster.manifests.d.dir)/customresourcedefinitions:
-	mkdir -p "$(@)"
+define .kpt.namespaces =
+$(shell yq eval -N -r 'select(.kind == "Namespace") | (.metadata.name|downcase)' "$(.kpt.manifests.file)" 2>/dev/null)
+endef
 
-$(.fleet.cluster.manifests.d.dir)/namespaces: $(.fleet.cluster.manifests.d.dir)
-$(.fleet.cluster.manifests.d.dir)/namespaces:
-	mkdir -p "$(@)"
+$(.kpt.manifests.dir): check-tools@kpt
+$(.kpt.manifests.dir): prepare@kpt
+$(.kpt.manifests.dir): $(.kpt.manifests.file)
+$(.kpt.manifests.dir): $(.kpt.manifests.dir)/
+$(.kpt.manifests.dir): manifest.file = $(realpath $(.kpt.manifests.file))
+$(.kpt.manifests.dir): manifest.dir = $(realpath $(.kpt.manifests.dir))
+$(.kpt.manifests.dir): $$(foreach ns,$$(.kpt.namespaces),$$(.kpt.manifests.dir)/$$(ns))
+$(.kpt.manifests.dir):
+	: "[kpt] Extracting CustomResourceDefinitions"
+	cd "$(manifest.dir)"
+	yq --split-exp='"crd-"+(.metadata.name|downcase)' \
+		eval-all 'select(.kind == "CustomResourceDefinition")' "$(manifest.file)" 2>/dev/null
+	: "[kpt] Generating namespaces.mk"
+	mkdir -p "$(.kpt.dir)/make.d"
+	{ \
+		echo "# Generated namespace extraction rules"; \
+		echo ""; \
+		for ns in $$(yq eval -N -r 'select(.kind == "Namespace") | (.metadata.name|downcase)' "$(manifest.file)" 2>/dev/null); do \
+			echo "$(.kpt.manifests.dir)/$$ns: $(.kpt.manifests.dir)/"; \
+			echo "	: 'Extracting namespace $$ns'"; \
+			echo "	mkdir -p \$$(@)"; \
+			echo "	cd \$$(@D)"; \
+			echo "	yq --split-exp='.metadata.name|downcase' \\"; \
+			echo "		eval-all 'select(.kind == \"Namespace\" and .apiVersion == \"v1\" and .metadata.name == \"$$ns\")' \\"; \
+			echo "		$(.kpt.manifests.file)"; \
+			echo ""; \
+			for res in $$(yq eval -N -r "select(.metadata.namespace == \"$$ns\") | (.kind | downcase) + \"-\" + (.metadata.name | downcase)" "$(manifest.file)" 2>/dev/null); do \
+				echo "$(.kpt.manifests.dir)/$$ns/$$res.yaml: $(.kpt.manifests.dir)/$$ns"; \
+				echo "	: 'Extracting $$res in namespace $$ns'"; \
+				echo "	cd \$$(@D)"; \
+				echo "	yq --split-exp='(.kind|downcase)+\"-\"+(.metadata.name|downcase)' \\"; \
+				echo "		eval-all 'select(.metadata.namespace == \"$$ns\")' \\"; \
+				echo "		$(.kpt.manifests.file)"; \
+				echo ""; \
+			done; \
+		done; \
+	} > "$(.kpt.dir)/make.d/namespaces.mk"
+	: "[kpt] Split rendered manifests into categorized directories"
 
-split-manifests@kpt: $(.fleet.cluster.manifests.d.dir)
-split-manifests@kpt: $(.fleet.manifests.d.dirs)
-split-manifests@kpt: # Split manifests file into organized directory structure
-	$(call kpt.trace,Extracting CustomResourceDefinitions)
-	yq eval -r 'select(.kind == "CustomResourceDefinition") | .metadata.name' "$(.fleet.cluster.manifests.file)" 2>/dev/null | grep -v '^$$' | grep -v '^---$$' | grep -v '^null$$' | sort -u | while read name; do \
-		yq eval "select(.kind == \"CustomResourceDefinition\" and .metadata.name == \"$$name\")" "$(.fleet.cluster.manifests.file)" > "$(.fleet.cluster.manifests.d.dir)/customresourcedefinitions/crd-$$name.yaml"; \
-	done || true
-	$(call kpt.trace,Extracting Namespace resources)
-	yq eval -r 'select(.kind == "Namespace") | .metadata.name' "$(.fleet.cluster.manifests.file)" 2>/dev/null | grep -v '^$$' | grep -v '^---$$' | grep -v '^null$$' | sort -u | while read name; do \
-		yq eval "select(.kind == \"Namespace\" and .metadata.name == \"$$name\")" "$(.fleet.cluster.manifests.file)" > "$(.fleet.cluster.manifests.d.dir)/Namespace-$$name.yaml"; \
-	done || true
-	$(call kpt.trace,Extracting cluster-scoped resources)
-	yq eval -r 'select(.metadata.namespace == null or .metadata.namespace == "") | select(.kind != "CustomResourceDefinition" and .kind != "Namespace") | .kind + "-" + .metadata.name' "$(.fleet.cluster.manifests.file)" 2>/dev/null | grep -v '^-' | grep -v '^$$' | grep -v '^---$$' | sort -u | while read key; do \
-		kind="$${key%%-*}"; name="$${key#*-}"; \
-		[ -n "$$name" ] && yq eval "select(.kind == \"$$kind\" and .metadata.name == \"$$name\")" "$(.fleet.cluster.manifests.file)" > "$(.fleet.cluster.manifests.d.dir)/$$key.yaml"; \
-	done || true
-	$(call kpt.trace,Extracting namespace-scoped resources)
-	yq eval -r 'select(.metadata.namespace != null and .metadata.namespace != "") | select(.kind != "Namespace") | .metadata.namespace + "/" + .kind + "-" + .metadata.name' "$(.fleet.cluster.manifests.file)" 2>/dev/null | grep -v '^$$' | grep -v '^---$$' | grep -v '^/' | sort -u | while read path; do \
-		ns="$${path%%/*}"; key="$${path#*/}"; \
-		mkdir -p "$(.fleet.cluster.manifests.d.dir)/namespaces/$$ns"; \
-		yq eval "select(.metadata.namespace == \"$$ns\" and .kind == \"$${key%%-*}\" and .metadata.name == \"$${key#*-}\")" "$(.fleet.cluster.manifests.file)" > "$(.fleet.cluster.manifests.d.dir)/namespaces/$$path.yaml"; \
-	done || true
-	$(call kpt.trace,Manifest splitting complete)
+-include $(.kpt.dir)/make.d/namespaces.mk
+
+# ----------------------------------------------------------------------------
 
 check-tools@kpt: # Ensure required CLI tools are available
-	$(call .fleet.require-bin,kpt)
-	$(call .fleet.require-bin,kustomize)
-	$(call .fleet.require-bin,yq)
-	$(call kpt.trace,Rendering cluster $(.fleet.cluster.name))
+	$(call .kpt.require-bin,kpt)
+	$(call .kpt.require-bin,kustomize)
+	$(call .kpt.require-bin,yq)
+	$(call kpt.trace,Rendering cluster $(.kpt.name))
 
 prepare@kpt: # Fetch or update the cluster catalog
-	$(call kpt.trace,Preparing cluster $(.fleet.cluster.name) catalog via kpt pkg get/update)
-	mkdir -p "$(.fleet.cluster.dir)"
-	if [[ ! -d "$(.fleet.cluster.catalog.dir)" ]]; then \
-		kpt pkg get "$(realpath $(top-dir)).git/kpt/catalog" "$(.fleet.cluster.catalog.dir)"; \
+	$(call kpt.trace,Preparing cluster $(.kpt.name) catalog via kpt pkg get/update)
+	mkdir -p "$(.kpt.dir)"
+	if [[ ! -d "$(.kpt.catalog.dir)" ]]; then \
+		kpt pkg get "$(realpath $(top-dir)).git/kpt/catalog" "$(.kpt.catalog.dir)"; \
 	else \
-		kpt pkg update "$(.fleet.cluster.catalog.dir)@main"; \
+		kpt pkg update "$(.kpt.catalog.dir)@main"; \
 	fi
-	rm -f "$(.fleet.cluster.manifests.file)"
-	mkdir -p "$(.fleet.cluster.overlays.dir)"
+	rm -f "$(.kpt.manifests.file)"
+	mkdir -p "$(.kpt.overlays.dir)"
 
 define .yaml.comma-join =
 $(subst $(space),$1,$(strip $2))
@@ -206,7 +211,7 @@ resources: $(call .yaml.rangeOf,$(1))
 endef
 
 define .cluster.overlays.kustomize = 
-	: "[kpt] Writing overlays Kustomization for cluster $(.fleet.cluster.name)"
+	: "[kpt] Writing overlays Kustomization for cluster $(.kpt.name)"
 	echo "apiVersion: kustomize.config.k8s.io/v1beta1" > "$(1)"
 	echo "kind: Kustomization" >> "$(1)"
 	echo "resources:" >> "$(1)"
@@ -214,7 +219,7 @@ define .cluster.overlays.kustomize =
 endef
 
 define .cluster.kustomize = 
-	: "[kpt] Writing cluster Kustomization for $(.fleet.cluster.name)"
+	: "[kpt] Writing cluster Kustomization for $(.kpt.name)"
 	echo "apiVersion: kustomize.config.k8s.io/v1beta1" > "$(1)"
 	echo "kind: Kustomization" >> "$(1)"
 	echo "resources:" >> "$(1)"
@@ -222,11 +227,11 @@ define .cluster.kustomize =
 	echo "  - overlays" >> "$(1)"
 endef
 
-$(.fleet.cluster.overlays.Kustomization.file):
+$(.kpt.overlays.Kustomization.file):
 	$(call .cluster.overlays.kustomize,$@)
 
-$(.fleet.cluster.Kustomization.file): $(.fleet.cluster.overlays.Kustomization.file)
-$(.fleet.cluster.Kustomization.file):
+$(.kpt.Kustomization.file): $(.kpt.overlays.Kustomization.file)
+$(.kpt.Kustomization.file):
 	$(call .cluster.kustomize,$@)
 
 # Catalog packages and Kustomizations are now managed in the fetched catalog directory
@@ -238,8 +243,8 @@ $(.fleet.cluster.Kustomization.file):
 .PHONY: remote@kpt finalize-merge@kpt check-clean@kpt pull@kpt push@kpt
 
 remote@kpt:
-	@if ! git remote get-url "$(.fleet.git.remote)" >/dev/null 2>&1; then
-		git remote add "$(.fleet.git.remote)" git@github.com:nxmatic/fleet-manifests.git
+	@if ! git remote get-url "$(rke2-subtree.git.remote)" >/dev/null 2>&1; then
+		git remote add "$(rke2-subtree.git.remote)" git@github.com:nxmatic/fleet-manifests.git
 	fi
 
 finalize-merge@kpt:
@@ -253,26 +258,26 @@ finalize-merge@kpt:
 	fi
 
 check-clean@kpt:
-	@if ! git diff --quiet -- "$(.fleet.git.subtree.dir)"; then
-		echo "Uncommitted changes detected inside $(.fleet.git.subtree.dir)." >&2
+	@if ! git diff --quiet -- "$(rke2-subtree.git.subtree.dir)"; then
+		echo "Uncommitted changes detected inside $(rke2-subtree.git.subtree.dir)." >&2
 		exit 1
 	fi
-	untracked="$$(git ls-files --others --exclude-standard -- "$(.fleet.git.subtree.dir)")"
+	untracked="$$(git ls-files --others --exclude-standard -- "$(rke2-subtree.git.subtree.dir)")"
 	if [ -n "$$untracked" ]; then
-		echo "Untracked files detected inside $(.fleet.git.subtree.dir)." >&2
+		echo "Untracked files detected inside $(rke2-subtree.git.subtree.dir)." >&2
 		echo "Files:" >&2
 		echo "$$untracked" >&2
 		exit 1
 	fi
 
 pull@kpt: remote@kpt finalize-merge@kpt check-clean@kpt
-	git fetch --prune "$(.fleet.git.remote)" "$(.fleet.git.branch)"
-	git subtree pull --prefix="$(.fleet.git.subtree.dir)" "$(.fleet.git.remote)" "$(.fleet.git.branch)" --squash
+	git fetch --prune "$(rke2-subtree.git.remote)" "$(rke2-subtree.git.branch)"
+	git subtree pull --prefix="$(rke2-subtree.git.subtree.dir)" "$(rke2-subtree.git.remote)" "$(rke2-subtree.git.branch)" --squash
 
 push@kpt: remote@kpt check-clean@kpt
-	@split_sha="$$(git subtree split --prefix="$(.fleet.git.subtree.dir)" HEAD 2>/dev/null || \
-		git rev-parse --verify "$(.fleet.git.branch)" 2>/dev/null || true)"
-	remote_sha="$$(git ls-remote --heads "$(.fleet.git.remote)" "$(.fleet.git.branch)" | \
+	@split_sha="$$(git subtree split --prefix="$(rke2-subtree.git.subtree.dir)" HEAD 2>/dev/null || \
+		git rev-parse --verify "$(rke2-subtree.git.branch)" 2>/dev/null || true)"
+	remote_sha="$$(git ls-remote --heads "$(rke2-subtree.git.remote)" "$(rke2-subtree.git.branch)" | \
 		awk '{print $$1}')" || true
 	if [ -z "$$split_sha" ]; then
 		echo "No fleet subtree revisions found to push." >&2
@@ -280,8 +285,8 @@ push@kpt: remote@kpt check-clean@kpt
 	elif [ -n "$$remote_sha" ] && [ "$$split_sha" = "$$remote_sha" ]; then
 		: "No new fleet revisions to push; skipping."
 	else
-		git subtree push --prefix="$(.fleet.git.subtree.dir)" \
-		  "$(.fleet.git.remote)" "$(.fleet.git.branch)"
+		git subtree push --prefix="$(rke2-subtree.git.subtree.dir)" \
+		  "$(rke2-subtree.git.remote)" "$(rke2-subtree.git.branch)"
 	fi
 
 endif # make.d/kpt/rules.mk guard
