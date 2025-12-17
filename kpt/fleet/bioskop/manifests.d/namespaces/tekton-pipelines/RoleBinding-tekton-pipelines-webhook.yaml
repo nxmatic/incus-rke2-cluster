@@ -1,0 +1,20 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
+  labels:
+    app.kubernetes.io/component: webhook
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: tekton-pipelines
+  name: tekton-pipelines-webhook
+  namespace: tekton-pipelines
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tekton-pipelines-webhook
+subjects:
+  - kind: ServiceAccount
+    name: tekton-pipelines-webhook
+    namespace: tekton-pipelines

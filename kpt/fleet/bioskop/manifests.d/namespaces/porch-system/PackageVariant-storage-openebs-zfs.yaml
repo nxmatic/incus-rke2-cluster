@@ -1,0 +1,32 @@
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: config.porch.kpt.dev|PackageVariant|porch-system|storage-openebs-zfs
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch-resources
+  name: storage-openebs-zfs
+  namespace: porch-system
+spec:
+  adoptionPolicy: adoptNone
+  deletionPolicy: delete
+  downstream:
+    package: storage-openebs-zfs
+    repo: bioskop-state
+  labels:
+    nxmatic.dev/app: openebs-zfs
+    nxmatic.dev/cluster: bioskop
+    nxmatic.dev/component: storage
+  packageContext:
+    data:
+      cluster-env: home
+      cluster-name: bioskop
+  pipeline:
+    mutators:
+      - configMap:
+          kubelet-dir: /var/lib/rancher/rke2/server/tank
+          poolname: tank
+        image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+  upstream:
+    package: storage-openebs-zfs
+    repo: bioskop-catalog

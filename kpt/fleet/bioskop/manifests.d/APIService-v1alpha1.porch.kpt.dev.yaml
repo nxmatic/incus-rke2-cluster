@@ -1,0 +1,17 @@
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: apiregistration.k8s.io|APIService|default|v1alpha1.porch.kpt.dev
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
+  name: v1alpha1.porch.kpt.dev
+spec:
+  group: porch.kpt.dev
+  groupPriorityMinimum: 1000
+  insecureSkipTLSVerify: true
+  service:
+    name: api
+    namespace: porch-system
+  version: v1alpha1
+  versionPriority: 15

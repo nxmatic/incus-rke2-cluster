@@ -36,7 +36,7 @@ ifndef make.d/kpt/rules.mk
 .fleet.cluster.Kustomization.file := $(.fleet.cluster.dir)/Kustomization
 .fleet.cluster.render.dir := $(tmp-dir)/fleet/$(.fleet.cluster.name)
 .fleet.cluster.manifests.file := $(.fleet.cluster.dir)/manifests.yaml
-.fleet.cluster.resources.dir := $(.fleet.cluster.dir)/resources
+.fleet.cluster.manifests.d.dir := $(.fleet.cluster.dir)/manifests.d
 
 .fleet.cluster.catalog.names = $(notdir $(patsubst %/,%,$(dir $(wildcard $(.fleet.cluster.catalog.dir)/*/Kptfile))))
 .fleet.package.aux_files := .gitattributes .krmignore
@@ -130,48 +130,48 @@ select(.metadata.namespace != null and .metadata.namespace != "") |
 select(.kind != "Namespace")
 endef
 
-$(.fleet.cluster.resources.dir): check-tools@kpt
-$(.fleet.cluster.resources.dir): prepare@kpt
-$(.fleet.cluster.resources.dir): $$(.fleet.cluster.manifests.file)
-$(.fleet.cluster.resources.dir): # Prepare resources directory
-	$(call kpt.trace,Preparing resources directory)
+$(.fleet.cluster.manifests.d.dir): check-tools@kpt
+$(.fleet.cluster.manifests.d.dir): prepare@kpt
+$(.fleet.cluster.manifests.d.dir): $$(.fleet.cluster.manifests.file)
+$(.fleet.cluster.manifests.d.dir): # Prepare manifests directory
+	$(call kpt.trace,Preparing manifests directory)
 	rm -rf "$(@)"
 	mkdir -p "$(@)"
 
-# Create subdirectories for resource categories
-.fleet.resources.dirs := $(.fleet.cluster.resources.dir)/customresourcedefinitions $(.fleet.cluster.resources.dir)/namespaces
+# Create subdirectories for manifest categories
+.fleet.manifests.d.dirs := $(.fleet.cluster.manifests.d.dir)/customresourcedefinitions $(.fleet.cluster.manifests.d.dir)/namespaces
 
-$(.fleet.cluster.resources.dir)/customresourcedefinitions: $(.fleet.cluster.resources.dir)
-$(.fleet.cluster.resources.dir)/customresourcedefinitions:
+$(.fleet.cluster.manifests.d.dir)/customresourcedefinitions: $(.fleet.cluster.manifests.d.dir)
+$(.fleet.cluster.manifests.d.dir)/customresourcedefinitions:
 	mkdir -p "$(@)"
 
-$(.fleet.cluster.resources.dir)/namespaces: $(.fleet.cluster.resources.dir)
-$(.fleet.cluster.resources.dir)/namespaces:
+$(.fleet.cluster.manifests.d.dir)/namespaces: $(.fleet.cluster.manifests.d.dir)
+$(.fleet.cluster.manifests.d.dir)/namespaces:
 	mkdir -p "$(@)"
 
-extract@kpt: $(.fleet.cluster.resources.dir)
-extract@kpt: $(.fleet.resources.dirs)
-extract@kpt: # Extract and organize all resources by scope and type
+split-manifests@kpt: $(.fleet.cluster.manifests.d.dir)
+split-manifests@kpt: $(.fleet.manifests.d.dirs)
+split-manifests@kpt: # Split manifests file into organized directory structure
 	$(call kpt.trace,Extracting CustomResourceDefinitions)
 	yq eval -r 'select(.kind == "CustomResourceDefinition") | .metadata.name' "$(.fleet.cluster.manifests.file)" 2>/dev/null | grep -v '^$$' | grep -v '^---$$' | grep -v '^null$$' | sort -u | while read name; do \
-		yq eval "select(.kind == \"CustomResourceDefinition\" and .metadata.name == \"$$name\")" "$(.fleet.cluster.manifests.file)" > "$(.fleet.cluster.resources.dir)/customresourcedefinitions/crd-$$name.yaml"; \
+		yq eval "select(.kind == \"CustomResourceDefinition\" and .metadata.name == \"$$name\")" "$(.fleet.cluster.manifests.file)" > "$(.fleet.cluster.manifests.d.dir)/customresourcedefinitions/crd-$$name.yaml"; \
 	done || true
 	$(call kpt.trace,Extracting Namespace resources)
 	yq eval -r 'select(.kind == "Namespace") | .metadata.name' "$(.fleet.cluster.manifests.file)" 2>/dev/null | grep -v '^$$' | grep -v '^---$$' | grep -v '^null$$' | sort -u | while read name; do \
-		yq eval "select(.kind == \"Namespace\" and .metadata.name == \"$$name\")" "$(.fleet.cluster.manifests.file)" > "$(.fleet.cluster.resources.dir)/Namespace-$$name.yaml"; \
+		yq eval "select(.kind == \"Namespace\" and .metadata.name == \"$$name\")" "$(.fleet.cluster.manifests.file)" > "$(.fleet.cluster.manifests.d.dir)/Namespace-$$name.yaml"; \
 	done || true
 	$(call kpt.trace,Extracting cluster-scoped resources)
 	yq eval -r 'select(.metadata.namespace == null or .metadata.namespace == "") | select(.kind != "CustomResourceDefinition" and .kind != "Namespace") | .kind + "-" + .metadata.name' "$(.fleet.cluster.manifests.file)" 2>/dev/null | grep -v '^-' | grep -v '^$$' | grep -v '^---$$' | sort -u | while read key; do \
 		kind="$${key%%-*}"; name="$${key#*-}"; \
-		[ -n "$$name" ] && yq eval "select(.kind == \"$$kind\" and .metadata.name == \"$$name\")" "$(.fleet.cluster.manifests.file)" > "$(.fleet.cluster.resources.dir)/$$key.yaml"; \
+		[ -n "$$name" ] && yq eval "select(.kind == \"$$kind\" and .metadata.name == \"$$name\")" "$(.fleet.cluster.manifests.file)" > "$(.fleet.cluster.manifests.d.dir)/$$key.yaml"; \
 	done || true
 	$(call kpt.trace,Extracting namespace-scoped resources)
 	yq eval -r 'select(.metadata.namespace != null and .metadata.namespace != "") | select(.kind != "Namespace") | .metadata.namespace + "/" + .kind + "-" + .metadata.name' "$(.fleet.cluster.manifests.file)" 2>/dev/null | grep -v '^$$' | grep -v '^---$$' | grep -v '^/' | sort -u | while read path; do \
 		ns="$${path%%/*}"; key="$${path#*/}"; \
-		mkdir -p "$(.fleet.cluster.resources.dir)/namespaces/$$ns"; \
-		yq eval "select(.metadata.namespace == \"$$ns\" and .kind == \"$${key%%-*}\" and .metadata.name == \"$${key#*-}\")" "$(.fleet.cluster.manifests.file)" > "$(.fleet.cluster.resources.dir)/namespaces/$$path.yaml"; \
+		mkdir -p "$(.fleet.cluster.manifests.d.dir)/namespaces/$$ns"; \
+		yq eval "select(.metadata.namespace == \"$$ns\" and .kind == \"$${key%%-*}\" and .metadata.name == \"$${key#*-}\")" "$(.fleet.cluster.manifests.file)" > "$(.fleet.cluster.manifests.d.dir)/namespaces/$$path.yaml"; \
 	done || true
-	$(call kpt.trace,Resource extraction complete)
+	$(call kpt.trace,Manifest splitting complete)
 
 check-tools@kpt: # Ensure required CLI tools are available
 	$(call .fleet.require-bin,kpt)

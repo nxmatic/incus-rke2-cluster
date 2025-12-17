@@ -26,7 +26,7 @@ spec:
     mutators:
       - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
         configMap:
-          poolname: tank
+          poolname: tank # kpt-set: ${openebs-zfs-pool-name}
           kubelet-dir: /var/lib/rancher/rke2/server/tank
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1

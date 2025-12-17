@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Namespace|default|porch-system'
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch
+  name: porch-system

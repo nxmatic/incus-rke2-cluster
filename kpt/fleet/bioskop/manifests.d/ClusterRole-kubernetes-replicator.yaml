@@ -1,0 +1,49 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: replicator
+  labels:
+    app.kubernetes.io/instance: kubernetes-replicator
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: kubernetes-replicator
+    app.kubernetes.io/version: v2.12.2
+    helm.sh/chart: kubernetes-replicator-2.12.2
+  name: kubernetes-replicator
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+    verbs:
+      - get
+      - watch
+      - list
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+      - configmaps
+      - serviceaccounts
+    verbs:
+      - get
+      - watch
+      - list
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - roles
+      - rolebindings
+    verbs:
+      - get
+      - watch
+      - list
+      - create
+      - update
+      - patch
+      - delete
