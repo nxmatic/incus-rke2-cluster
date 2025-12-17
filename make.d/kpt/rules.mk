@@ -1,4 +1,15 @@
 # kpt/rules.mk - KPT package catalog and fleet manifests management (@codebase)
+
+# Trace system for kpt operations (@codebase)
+ifeq ($(true),$(.trace.kpt))
+override kpt.trace = $(warning [kpt] $(1) $(if $(2),($(foreach var,$(2),$(var)=$($(var)))),(no vars)))
+kpt.is-trace := $(true)
+kpt.if-trace = $(1)
+$(call kpt.trace,enabling kpt-level trace)
+else
+kpt.is-trace := $(false)
+kpt.if-trace = $(2)
+endif
 # Self-guarding include so the layer can be pulled in multiple times safely.
 
 ifndef make.d/kpt/rules.mk
@@ -23,13 +34,15 @@ ifndef make.d/kpt/rules.mk
 .fleet.cluster.overlays.dir := $(.fleet.cluster.dir)/overlays
 .fleet.cluster.overlays.Kustomization.file := $(.fleet.cluster.overlays.dir)/Kustomization
 .fleet.cluster.Kustomization.file := $(.fleet.cluster.dir)/Kustomization
+.fleet.cluster.render.dir := $(tmp-dir)/fleet/$(.fleet.cluster.name)
 .fleet.cluster.manifests.file := $(.fleet.cluster.dir)/manifests.yaml
+.fleet.cluster.resources.dir := $(.fleet.cluster.dir)/resources
 
 .fleet.cluster.catalog.names = $(notdir $(patsubst %/,%,$(dir $(wildcard $(.fleet.cluster.catalog.dir)/*/Kptfile))))
 .fleet.package.aux_files := .gitattributes .krmignore
 
 define .fleet.require-bin
-	@if ! command -v $(1) >/dev/null 2>&1; then
+	if ! command -v $(1) >/dev/null 2>&1; then
 		: "[fleet] Missing required command $(1)"
 		exit 1
 	fi
@@ -77,24 +90,89 @@ update-kustomizations@kpt: ## Update Kustomization files from rendered catalog p
 render@kpt: check-tools@kpt prepare@kpt $(.fleet.cluster.overlays.Kustomization.file) $(.fleet.cluster.Kustomization.file)
 render@kpt: $(.fleet.cluster.manifests.file)  ## Render catalog via kpt, aggregate via kustomize (@codebase)
 
-$(.fleet.cluster.manifests.file): $(.fleet.cluster.Kustomization.file)
-$(.fleet.cluster.manifests.file): render.dir := $(tmp-dir)/fleet/$(.fleet.cluster.name)
-$(.fleet.cluster.manifests.file):
-	: "[kpt] Rendering catalog for cluster $(.fleet.cluster.name) via kpt fn render"
-	rm -rf "$(render.dir)"
-	kpt fn render --truncate-output=false "$(.fleet.cluster.catalog.dir)" -o "$(render.dir)"
-	: "[kpt] Copying Kustomization files to rendered output"
-	rsync -a --include='*/' --include='Kustomization' --exclude='*' "$(.fleet.cluster.catalog.dir)/" "$(render.dir)/"
-	: "[kpt] Building manifests for cluster $(.fleet.cluster.name) via kustomize build"
-	kustomize build "$(render.dir)" > "$@"
+$(.fleet.cluster.render.dir):
+	$(call kpt.trace,Rendering catalog for cluster $(.fleet.cluster.name) via kpt fn render)
+	rm -rf "$(@)"
+	kpt fn render --truncate-output=false "$(.fleet.cluster.catalog.dir)" -o "$(@)"
 
-check-tools@kpt:
+.FORCE: $(.fleet.cluster.render.dir)
+
+$(.fleet.cluster.manifests.file): $(.fleet.cluster.Kustomization.file)
+$(.fleet.cluster.manifests.file): $(.fleet.cluster.render.dir)
+$(.fleet.cluster.manifests.file):
+	$(call kpt.trace,Copying Kustomization files to rendered output)
+	rsync -a --include='*/' --include='Kustomization' --exclude='*' "$(.fleet.cluster.catalog.dir)/" "$(.fleet.cluster.render.dir)/"
+	$(call kpt.trace,Building manifests for cluster $(.fleet.cluster.name) via kustomize build)
+	kustomize build "$(.fleet.cluster.render.dir)" > "$@"
+
+# ----------------------------------------------------------------------------
+# Resource categorization and reparenting (@codebase)
+# ----------------------------------------------------------------------------
+
+## Reparent resources by scope: cluster/, namespaces/<ns>/, customresourcedefinitions/
+
+# yq expressions for resource selection (reusable for future patterns)
+define .fleet.yq.select.crd =
+select(.kind == "CustomResourceDefinition")
+endef
+
+define .fleet.yq.select.cluster =
+select(.metadata.namespace == null or .metadata.namespace == "") |
+select(.kind != "CustomResourceDefinition" and .kind != "Namespace")
+endef
+
+define .fleet.yq.select.namespace =
+select(.metadata.namespace != null and .metadata.namespace != "") |
+select(.kind != "Namespace")
+endef
+
+$(.fleet.cluster.resources.dir): check-tools@kpt
+$(.fleet.cluster.resources.dir): prepare@kpt
+$(.fleet.cluster.resources.dir): $$(.fleet.cluster.manifests.file)
+$(.fleet.cluster.resources.dir): # Prepare resources directory
+	$(call kpt.trace,Preparing resources directory)
+	rm -rf "$(@)"
+	mkdir -p "$(@)"
+
+# Create subdirectories for resource categories
+.fleet.resources.dirs := $(.fleet.cluster.resources.dir)/customresourcedefinitions $(.fleet.cluster.resources.dir)/namespaces
+
+$(.fleet.cluster.resources.dir)/customresourcedefinitions: $(.fleet.cluster.resources.dir)
+$(.fleet.cluster.resources.dir)/customresourcedefinitions:
+	mkdir -p "$(@)"
+
+$(.fleet.cluster.resources.dir)/namespaces: $(.fleet.cluster.resources.dir)
+$(.fleet.cluster.resources.dir)/namespaces:
+	mkdir -p "$(@)"
+
+reparent@kpt: $(.fleet.cluster.resources.dir)
+reparent@kpt: $(.fleet.resources.dirs)
+reparent@kpt: # Reparent all resources by iterative subtraction
+	$(call kpt.trace,Extracting CustomResourceDefinitions)
+	yq eval -r 'select(.kind == "CustomResourceDefinition") | .metadata.name' "$(.fleet.cluster.manifests.file)" 2>/dev/null | grep -v '^$$' | grep -v '^---$$' | grep -v '^null$$' | sort -u | while read name; do \
+		yq eval "select(.kind == \"CustomResourceDefinition\" and .metadata.name == \"$$name\")" "$(.fleet.cluster.manifests.file)" > "$(.fleet.cluster.resources.dir)/customresourcedefinitions/crd-$$name.yaml"; \
+	done
+	$(call kpt.trace,Extracting cluster-scoped resources)
+	yq eval -r 'select(.metadata.namespace == null or .metadata.namespace == "") | select(.kind != "CustomResourceDefinition" and .kind != "Namespace") | .kind + "-" + .metadata.name' "$(.fleet.cluster.manifests.file)" 2>/dev/null | grep -v '^-' | grep -v '^$$' | grep -v '^---$$' | sort -u | while read key; do \
+		kind="$${key%%-*}"; name="$${key#*-}"; \
+		[ -n "$$name" ] && yq eval "select(.kind == \"$$kind\" and .metadata.name == \"$$name\")" "$(.fleet.cluster.manifests.file)" > "$(.fleet.cluster.resources.dir)/$$key.yaml"; \
+	done
+	$(call kpt.trace,Extracting namespace-scoped resources)
+	yq eval -r 'select(.metadata.namespace != null and .metadata.namespace != "") | select(.kind != "Namespace") | .metadata.namespace + "/" + .kind + "-" + .metadata.name' "$(.fleet.cluster.manifests.file)" 2>/dev/null | grep -v '^$$' | grep -v '^---$$' | grep -v '^/' | sort -u | while read path; do \
+		ns="$${path%%/*}"; key="$${path#*/}"; \
+		mkdir -p "$(.fleet.cluster.resources.dir)/namespaces/$$ns"; \
+		yq eval "select(.metadata.namespace == \"$$ns\" and .kind == \"$${key%%-*}\" and .metadata.name == \"$${key#*-}\")" "$(.fleet.cluster.manifests.file)" > "$(.fleet.cluster.resources.dir)/namespaces/$$path.yaml"; \
+	done
+	$(call kpt.trace,Reparenting complete)
+
+check-tools@kpt: # Ensure required CLI tools are available
 	$(call .fleet.require-bin,kpt)
 	$(call .fleet.require-bin,kustomize)
-	: "[kpt] Rendering cluster $(.fleet.cluster.name)"
+	$(call .fleet.require-bin,yq)
+	$(call kpt.trace,Rendering cluster $(.fleet.cluster.name))
 
-prepare@kpt:
-	: "[kpt] Preparing cluster $(.fleet.cluster.name) catalog via kpt pkg get/update"
+prepare@kpt: # Fetch or update the cluster catalog
+	$(call kpt.trace,Preparing cluster $(.fleet.cluster.name) catalog via kpt pkg get/update)
 	mkdir -p "$(.fleet.cluster.dir)"
 	if [[ ! -d "$(.fleet.cluster.catalog.dir)" ]]; then
 		kpt pkg get "$(realpath $(top-dir)).git/kpt/catalog" "$(.fleet.cluster.catalog.dir)"

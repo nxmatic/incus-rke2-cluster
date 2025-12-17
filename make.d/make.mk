@@ -21,6 +21,7 @@ make.if-dry-run = $(if $(make.is-dry-run),$(1),$(2))
 .trace.targets := $(if $(filter targets,$(.trace.modes)),$(true),$(false))
 .trace.incus := $(if $(filter incus,$(.trace.modes)),$(true),$(false))
 .trace.network := $(if $(filter network,$(.trace.modes)),$(true),$(false))
+.trace.kpt := $(if $(filter kpt,$(.trace.modes)),$(true),$(false))
 
 # Backward compatibility: still honor MAKETRACE environment variable
 .trace.make := $(if $(filter enabled,$(MAKETRACE)),$(true),$(.trace.make))
