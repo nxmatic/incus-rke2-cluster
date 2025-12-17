@@ -3,12 +3,14 @@ kind: PackageVariant
 metadata:
   name: storage-openebs-zfs
   namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|PackageVariant|porch-system|storage-openebs-zfs'
 spec:
   upstream:
-    repo: bioskop-catalog
+    repo: ${cluster-name}-catalog # kpt-set: ${cluster-name}-catalog
     package: storage-openebs-zfs
   downstream:
-    repo: bioskop-state # kpt-set: ${cluster-state-repo}
+    repo: ${cluster-name}-state # kpt-set: ${cluster-name}-state
     package: storage-openebs-zfs
   adoptionPolicy: adoptNone
   deletionPolicy: delete
@@ -24,7 +26,7 @@ spec:
     mutators:
       - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
         configMap:
-          poolname: tank
+          poolname: tank # kpt-set: ${openebs-zfs-pool-name}
           kubelet-dir: /var/lib/rancher/rke2/server/tank
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
@@ -32,12 +34,14 @@ kind: PackageVariant
 metadata:
   name: ha-kube-vip
   namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|PackageVariant|porch-system|ha-kube-vip'
 spec:
   upstream:
-    repo: bioskop-catalog
+    repo: ${cluster-name}-catalog # kpt-set: ${cluster-name}-catalog
     package: ha/kube-vip
   downstream:
-    repo: bioskop-state # kpt-set: ${cluster-state-repo}
+    repo: ${cluster-name}-state # kpt-set: ${cluster-name}-state
     package: ha/kube-vip
   adoptionPolicy: adoptNone
   deletionPolicy: delete
@@ -53,9 +57,9 @@ spec:
     mutators:
       - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
         configMap:
-          kube-vip-version: v0.8.7
-          cluster-vip-address: 10.80.15.1 # kpt-set: ${node-vip-ip}
-          cluster-vip-interface: vmnet0
+          kube-vip-version: v0.8.7 # kpt-set: ${kube-vip-version}
+          cluster-vip-address: 10.80.15.10 # kpt-set: ${node-vip-ip}
+          cluster-vip-interface: rke2-vip0
           kube-vip-namespace: kube-vip
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
@@ -63,12 +67,14 @@ kind: PackageVariant
 metadata:
   name: networking-cilium
   namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|PackageVariant|porch-system|networking-cilium'
 spec:
   upstream:
-    repo: bioskop-catalog
+    repo: ${cluster-name}-catalog # kpt-set: ${cluster-name}-catalog
     package: networking/cilium
   downstream:
-    repo: bioskop-state # kpt-set: ${cluster-state-repo}
+    repo: ${cluster-name}-state # kpt-set: ${cluster-name}-state
     package: networking/cilium
   adoptionPolicy: adoptNone
   deletionPolicy: delete
@@ -86,25 +92,27 @@ spec:
         configMap:
           cluster-name: bioskop-cluster # kpt-set: ${cluster-name}-cluster
           cluster-id: "1" # kpt-set: ${cluster-id}
-          lb-pool-cidr: 10.80.8.128/26 # kpt-set: ${cluster-lb-pool-cidr}
+          lb-pool-cidr: 10.80.8.64/26 # kpt-set: ${cluster-lb-pool-cidr}
           vip-pool-cidr: 10.80.15.0/24 # kpt-set: ${cluster-vip-network-cidr}
           l2-interface-1: vmnet0
           l2-interface-2: lan0
           bgp-local-asn: "65001"
           bgp-peer-asn: "65000"
-          node-gateway-ip: 10.80.0.1 # kpt-set: ${node-gateway-ip}
+          node-gateway-ip: 10.80.8.1 # kpt-set: ${node-gateway-ip}
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
 metadata:
   name: mesh-tailscale
   namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|PackageVariant|porch-system|mesh-tailscale'
 spec:
   upstream:
-    repo: bioskop-catalog
+    repo: ${cluster-name}-catalog # kpt-set: ${cluster-name}-catalog
     package: mesh/tailscale
   downstream:
-    repo: bioskop-state # kpt-set: ${cluster-state-repo}
+    repo: ${cluster-name}-state # kpt-set: ${cluster-name}-state
     package: mesh/tailscale
   adoptionPolicy: adoptNone
   deletionPolicy: delete
@@ -122,8 +130,8 @@ spec:
         configMap:
           tailscale-version: 1.82.0
           cluster-name: bioskop-cluster # kpt-set: ${cluster-name}-cluster
-          vip-address: 10.80.15.1 # kpt-set: ${node-vip-ip}
-          lb-pool-cidr: 10.80.8.128/26 # kpt-set: ${cluster-lb-pool-cidr}
+          vip-address: 10.80.15.10 # kpt-set: ${node-vip-ip}
+          lb-pool-cidr: 10.80.8.64/26 # kpt-set: ${cluster-lb-pool-cidr}
           tailscale-namespace: tailscale-system
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
@@ -131,12 +139,14 @@ kind: PackageVariant
 metadata:
   name: mesh-headscale
   namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|PackageVariant|porch-system|mesh-headscale'
 spec:
   upstream:
-    repo: bioskop-catalog
+    repo: ${cluster-name}-catalog # kpt-set: ${cluster-name}-catalog
     package: mesh/headscale
   downstream:
-    repo: bioskop-state # kpt-set: ${cluster-state-repo}
+    repo: ${cluster-name}-state # kpt-set: ${cluster-name}-state
     package: mesh/headscale
   adoptionPolicy: adoptNone
   deletionPolicy: delete
@@ -163,12 +173,14 @@ kind: PackageVariant
 metadata:
   name: networking-envoy-gateway
   namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|PackageVariant|porch-system|networking-envoy-gateway'
 spec:
   upstream:
-    repo: bioskop-catalog
+    repo: ${cluster-name}-catalog # kpt-set: ${cluster-name}-catalog
     package: networking/envoy-gateway
   downstream:
-    repo: bioskop-state # kpt-set: ${cluster-state-repo}
+    repo: ${cluster-name}-state # kpt-set: ${cluster-name}-state
     package: networking/envoy-gateway
   adoptionPolicy: adoptNone
   deletionPolicy: delete
@@ -192,12 +204,14 @@ kind: PackageVariant
 metadata:
   name: runtime-flox
   namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|PackageVariant|porch-system|runtime-flox'
 spec:
   upstream:
-    repo: bioskop-catalog
+    repo: ${cluster-name}-catalog # kpt-set: ${cluster-name}-catalog
     package: runtime/flox-containerd-shim
   downstream:
-    repo: bioskop-state # kpt-set: ${cluster-state-repo}
+    repo: ${cluster-name}-state # kpt-set: ${cluster-name}-state
     package: runtime/flox-containerd-shim
   adoptionPolicy: adoptNone
   deletionPolicy: delete

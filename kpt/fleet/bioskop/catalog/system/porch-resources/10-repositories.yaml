@@ -1,36 +1,36 @@
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: Repository
-metadata: # kpt-merge: porch-system/bioskop-catalog
-  name: bioskop-catalog
+metadata: # kpt-merge: porch-system/${cluster-name}-catalog
+  name: ${cluster-name}-catalog # kpt-set: ${cluster-name}-catalog
   namespace: porch-system
   annotations:
-    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|Repository|porch-system|bioskop-catalog'
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|Repository|porch-system|${cluster-name}-catalog'
 spec:
   description: Catalog of curated kpt packages tracked in incus-rke2-cluster
   type: git
   git:
-    repo: https://github.com/nxmatic/incus-rke2-cluster.git
-    branch: develop
-    directory: modules/nixos/incus-rke2-cluster/kpt/catalog
+    repo: ${cluster-repo}.git # kpt-set: ${cluster-repo}.git
+    branch: ${cluster-branch} # kpt-set: ${cluster-branch}
+    directory: ${cluster-directory} # kpt-set: ${cluster-directory}
     secretRef:
-      name: github-token
+      name: github-token # kpt-set: ${github-secret}
   deployment: true
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: Repository
-metadata: # kpt-merge: porch-system/bioskop-state
-  name: bioskop-state # kpt-set: ${cluster-state-repo}
+metadata: # kpt-merge: porch-system/${cluster-name}-state
+  name: ${cluster-name}-state # kpt-set: ${cluster-name}-state
   namespace: porch-system
   annotations:
-    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|Repository|porch-system|bioskop-state'
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|Repository|porch-system|${cluster-name}-state'
 spec:
   description: Rendered Porch package state for bioskop cluster
   type: git
   git:
-    repo: https://github.com/nxmatic/fleet.git
-    branch: rke2-subtree # kpt-set: ${cluster-state-branch}
-    directory: packagevariants/bioskop # kpt-set: ${cluster-state-directory}
+    repo: ${cluster-state-repo}.git # kpt-set: ${cluster-state-repo}.git
+    branch: ${cluster-state-branch} # kpt-set: ${cluster-state-branch}
+    directory: ${cluster-state-directory} # kpt-set: ${cluster-state-directory}
     createBranch: true
     secretRef:
-      name: github-token
+      name: github-token # kpt-set: ${github-secret}
   deployment: true

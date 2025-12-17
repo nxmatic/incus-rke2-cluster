@@ -1,32 +1,32 @@
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: Repository
 metadata:
-  name: bioskop-catalog
+  name: ${cluster-name}-catalog # kpt-set: ${cluster-name}-catalog
   namespace: porch-system
 spec:
   description: Catalog of curated kpt packages tracked in incus-rke2-cluster
   type: git
   git:
-    repo: https://github.com/nxmatic/incus-rke2-cluster.git
-    branch: develop
-    directory: modules/nixos/incus-rke2-cluster/kpt/catalog
+    repo: /var/lib/git/nxmatic/incus-rke2-cluster.git # kpt-set: ${cluster-repo}.git
+    branch: main # kpt-set: ${cluster-branch}
+    directory: kpt/catalog # kpt-set: ${cluster-directory}
     secretRef:
-      name: github-token
+      name: github-token # kpt-set: ${github-secret}
   deployment: true
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: Repository
 metadata:
-  name: bioskop-state # kpt-set: ${cluster-state-repo}
+  name: ${cluster-name}-state # kpt-set: ${cluster-name}-state
   namespace: porch-system
 spec:
   description: Rendered Porch package state for bioskop cluster
   type: git
   git:
-    repo: https://github.com/nxmatic/fleet.git
-    branch: rke2-subtree # kpt-set: ${cluster-state-branch}
-    directory: packagevariants/bioskop # kpt-set: ${cluster-state-directory}
+    repo: /var/lib/git/nxmatic/incus-rke2-cluster.git # kpt-set: ${cluster-state-repo}.git
+    branch: main # kpt-set: ${cluster-state-branch}
+    directory: kpt/fleet/bioskop # kpt-set: ${cluster-state-directory}/${cluster-name}
     createBranch: true
     secretRef:
-      name: github-token
+      name: github-token # kpt-set: ${github-secret}
   deployment: true

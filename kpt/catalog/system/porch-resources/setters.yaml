@@ -9,8 +9,6 @@ metadata:
     internal.kpt.dev/upstream-identifier: '|ConfigMap|default|porch-resources-setters'
 data:
   # sops:encrypted
-  cluster-ssh-private: ""
-  cluster-ssh-public: "ssh-ed25519 AAAA... placeholder"
   cluster-name: bioskop
   cluster-env: home
   cluster-id: "1"
@@ -20,6 +18,10 @@ data:
   node-gateway-ip: 10.80.8.1
   home-lan-pool: 192.168.1.192/27
   headscale-lb-ip: 192.168.1.193
-  cluster-state-repo: bioskop-state
-  cluster-state-branch: rke2-subtree
-  cluster-state-directory: packagevariants/bioskop
+  cluster-repo: /var/lib/git/nxmatic/incus-rke2-cluster
+  cluster-branch: main
+  cluster-directory: kpt/catalog
+  cluster-state-repo: /var/lib/git/nxmatic/incus-rke2-cluster
+  cluster-state-branch: main
+  cluster-state-directory: kpt/fleet/bioskop
+  github-secret: github-token

@@ -20,6 +20,10 @@ data:
   node-gateway-ip: 10.80.8.1
   home-lan-pool: 192.168.1.192/27
   headscale-lb-ip: 192.168.1.193
-  cluster-state-repo: bioskop-state
+  cluster-repo: /var/lib/git/nxmatic/incus-rke2-cluster
+  cluster-branch: main
+  cluster-directory: kpt/catalog
+  cluster-state-repo: /var/lib/git/nxmatic/incus-rke2-cluster
   cluster-state-branch: rke2-subtree
-  cluster-state-directory: packagevariants/bioskop
+  cluster-state-directory: kpt/fleet
+  github-secret: github-token
