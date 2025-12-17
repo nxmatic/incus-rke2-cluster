@@ -36,15 +36,15 @@ ifndef make.d/kpt/rules.mk
 .fleet.cluster.Kustomization.file := $(.fleet.cluster.dir)/Kustomization
 .fleet.cluster.render.dir := $(tmp-dir)/fleet/$(.fleet.cluster.name)
 .fleet.cluster.manifests.file := $(.fleet.cluster.dir)/manifests.yaml
-.fleet.cluster.resources.dir := $(.fleet.cluster.dir)/resources
+.fleet.cluster.resources.dir := $(.fleet.cluster.dir)
 
 .fleet.cluster.catalog.names = $(notdir $(patsubst %/,%,$(dir $(wildcard $(.fleet.cluster.catalog.dir)/*/Kptfile))))
 .fleet.package.aux_files := .gitattributes .krmignore
 
 define .fleet.require-bin
-	if ! command -v $(1) >/dev/null 2>&1; then
-		: "[fleet] Missing required command $(1)"
-		exit 1
+	if ! command -v $(1) >/dev/null 2>&1; then \
+		echo "[fleet] Missing required command $(1)"; \
+		exit 1; \
 	fi
 endef
 
@@ -174,10 +174,10 @@ check-tools@kpt: # Ensure required CLI tools are available
 prepare@kpt: # Fetch or update the cluster catalog
 	$(call kpt.trace,Preparing cluster $(.fleet.cluster.name) catalog via kpt pkg get/update)
 	mkdir -p "$(.fleet.cluster.dir)"
-	if [[ ! -d "$(.fleet.cluster.catalog.dir)" ]]; then
-		kpt pkg get "$(realpath $(top-dir)).git/kpt/catalog" "$(.fleet.cluster.catalog.dir)"
-	else
-		kpt pkg update "$(.fleet.cluster.catalog.dir)@main"
+	if [[ ! -d "$(.fleet.cluster.catalog.dir)" ]]; then \
+		kpt pkg get "$(realpath $(top-dir)).git/kpt/catalog" "$(.fleet.cluster.catalog.dir)"; \
+	else \
+		kpt pkg update "$(.fleet.cluster.catalog.dir)@main"; \
 	fi
 	rm -f "$(.fleet.cluster.manifests.file)"
 	mkdir -p "$(.fleet.cluster.overlays.dir)"

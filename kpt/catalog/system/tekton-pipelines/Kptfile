@@ -10,3 +10,5 @@ pipeline:
       configPath: tekton-setters.yaml
     - image: ghcr.io/krm-functions/render-helm-chart
       configPath: render-helm-chart.yaml
+    - image: ghcr.io/kptdev/krm-functions-catalog/set-namespace:v0.4.1
+      configPath: set-namespace-config.yaml
