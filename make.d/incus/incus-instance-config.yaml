@@ -102,7 +102,7 @@ devices:
     readonly: "true"
   manifests.dir:
     type: disk
-    source: ${CLUSTER_MANIFESTS_DIR}
+    source: ${CLUSTER_MANIFESTS_DIR}/system
     path: /var/lib/rancher/rke2/server/manifests/system.d
   shared.dir:
     type: disk

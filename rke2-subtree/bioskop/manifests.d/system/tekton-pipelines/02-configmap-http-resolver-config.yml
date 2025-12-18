@@ -1,0 +1,15 @@
+---
+apiVersion: v1
+data:
+  fetch-timeout: 1m
+kind: ConfigMap
+metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: tekton-pipelines
+  labels:
+    app.kubernetes.io/component: resolvers
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: tekton-pipelines
+  name: http-resolver-config
+  namespace: tekton-pipelines

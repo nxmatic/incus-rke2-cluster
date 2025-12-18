@@ -1,0 +1,118 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: apps|Deployment|headscale|headscale-gateway
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  labels:
+    app: headscale-gateway
+  name: headscale-gateway
+  namespace: headscale
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: headscale-gateway
+  template:
+    metadata:
+      annotations:
+        kpt.dev/package-layer: mesh
+        kpt.dev/package-name: headscale
+      labels:
+        app: headscale-gateway
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - command:
+            - sh
+            - -c
+            - |
+              set -e
+              sysctl -w net.ipv4.ip_forward=1
+              sysctl -w net.ipv6.conf.all.forwarding=1 || true
+
+              echo "Starting tailscaled router..."
+              tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock &
+              TAILSCALED_PID=$$!
+
+              until [ -S /var/run/tailscale/tailscaled.sock ]; do sleep 1; done
+
+              HEADSCALE_URL="http://headscale.headscale.svc.cluster.local:8080"
+
+              tailscale up \
+                --login-server=$$HEADSCALE_URL \
+                --authkey=file:/var/secrets/authkey \
+                --hostname=$${DARWIN_HOST}-gateway \
+                --advertise-routes=$${VIP_NETWORK_CIDR} \
+                --accept-dns=false \
+                --ssh \
+                --reset
+
+              tailscale set --advertise-routes=$${VIP_NETWORK_CIDR}
+
+              wait $$TAILSCALED_PID
+          env:
+            - name: DARWIN_HOST
+              value: example-host
+            - name: VIP_NETWORK_CIDR
+              value: 10.0.15.0/24
+            - name: TS_AUTHKEY
+              valueFrom:
+                secretKeyRef:
+                  key: authkey
+                  name: headscale-client-auth
+          image: tailscale/tailscale:v1.76.6
+          name: tailscale-gateway
+          resources:
+            limits:
+              cpu: 200m
+              ephemeral-storage: 500Mi
+              memory: 256Mi
+            requests:
+              cpu: 50m
+              ephemeral-storage: 100Mi
+              memory: 64Mi
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
+                - NET_RAW
+            privileged: true
+          volumeMounts:
+            - mountPath: /dev/net/tun
+              name: dev-net-tun
+            - mountPath: /var/lib/tailscale
+              name: tailscale-state
+            - mountPath: /var/run/tailscale
+              name: tailscale-socket
+            - mountPath: /var/secrets
+              name: authkey
+              readOnly: true
+      dnsPolicy: ClusterFirstWithHostNet
+      hostNetwork: true
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+      serviceAccountName: headscale-gateway
+      tolerations:
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/control-plane
+          operator: Exists
+      volumes:
+        - hostPath:
+            path: /dev/net/tun
+            type: CharDevice
+          name: dev-net-tun
+        - hostPath:
+            path: /var/lib/tailscale
+            type: DirectoryOrCreate
+          name: tailscale-state
+        - emptyDir: {}
+          name: tailscale-socket
+        - name: authkey
+          secret:
+            items:
+              - key: authkey
+                path: authkey
+            secretName: headscale-client-auth

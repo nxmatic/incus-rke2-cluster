@@ -5,13 +5,13 @@ metadata:
   annotations:
     config.kubernetes.io/local-config: "true"
 info:
+  site: https://gateway.envoyproxy.io/
   description: Envoy Gateway installation for RKE2 clusters
   keywords:
     - envoy
     - gateway
     - ingress
     - gateway-api
-  site: https://gateway.envoyproxy.io/
 pipeline:
   mutators:
     - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2

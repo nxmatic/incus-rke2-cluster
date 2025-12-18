@@ -1,0 +1,40 @@
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: config.porch.kpt.dev|PackageVariant|porch-system|networking-cilium
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch-resources
+  name: networking-cilium
+  namespace: porch-system
+spec:
+  adoptionPolicy: adoptNone
+  deletionPolicy: delete
+  downstream:
+    package: networking/cilium
+    repo: bioskop-state
+  labels:
+    nxmatic.dev/app: cilium
+    nxmatic.dev/cluster: bioskop
+    nxmatic.dev/component: networking
+  packageContext:
+    data:
+      cluster-env: home
+      cluster-name: bioskop
+  pipeline:
+    mutators:
+      - configMap:
+          bgp-local-asn: "65001"
+          bgp-peer-asn: "65000"
+          cluster-id: "1"
+          cluster-name: bioskop-cluster
+          l2-interface-1: vmnet0
+          l2-interface-2: lan0
+          lb-pool-cidr: 10.80.8.64/26
+          node-gateway-ip: 10.80.8.1
+          vip-pool-cidr: 10.80.15.0/24
+        image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+  upstream:
+    package: networking/cilium
+    repo: bioskop-catalog

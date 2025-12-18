@@ -1,0 +1,20 @@
+---
+apiVersion: cilium.io/v2
+kind: CiliumBGPAdvertisement
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: cilium.io|CiliumBGPAdvertisement|default|control-plane-advertisement
+    kpt.dev/package-layer: networking
+    kpt.dev/package-name: cilium
+  name: control-plane-advertisement
+spec:
+  advertisements:
+    - advertisementType: Service
+      selector:
+        matchLabels:
+          io.cilium/lb-ipam: load-balancers
+      service:
+        addresses:
+          - ExternalIP
+          - LoadBalancerIP
+    - advertisementType: PodCIDR

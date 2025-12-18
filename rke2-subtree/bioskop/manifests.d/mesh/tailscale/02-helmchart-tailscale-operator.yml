@@ -1,0 +1,23 @@
+---
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: helm.cattle.io|HelmChart|kube-system|tailscale-operator
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: tailscale
+  name: tailscale-operator
+  namespace: kube-system
+spec:
+  chart: tailscale-operator
+  createNamespace: true
+  repo: https://pkgs.tailscale.com/helmcharts
+  targetNamespace: tailscale-system
+  valuesContent: |-
+    oauth:
+      clientId: kT715erNJB21CNTRL # sops:encrypted
+      clientSecret: tskey-client-kT715erNJB21CNTRL-BQPzAaha7Keq7CRE3NkXKezuo7yJCTfqE # sops:encrypted
+    operatorConfig:
+      hostname: "bioskop-cluster-tailscale-operator" # kpt-set: ${cluster-name}-tailscale-operator
+      debug: true
+  version: 1.82.0

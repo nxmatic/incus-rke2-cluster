@@ -17,7 +17,7 @@ upstreamLock:
     repo: /private/var/lib/git/nxmatic/incus-rke2-cluster
     directory: /kpt/catalog
     ref: main
-    commit: 597190a0471b4fbfdbddc7d5adc73501c4fcd49b
+    commit: b2b2becea2ea8557178b32013ae478a9349a4d7d
 info:
   site: https://github.com/nxmatic/incus-rke2-cluster
   description: |

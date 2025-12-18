@@ -16,10 +16,6 @@ $(call register-config-targets,$(.plantuml.svg_files))
 diagrams@plantuml: $(.plantuml.svg_files) ## Regenerate committed PlantUML SVGs under docs/images
 	: "[plantuml] Diagrams are up to date (sources: docs/*.puml)"
 
-$(.plantuml.images_dir)/:
-	: "[plantuml] Ensuring images directory exists"
-	mkdir -p $@
-
 $(.plantuml.svg_files): $(.plantuml.images_dir)/%.svg: $(.plantuml.dir)/%.puml | $(.plantuml.images_dir)/
 	: "[plantuml] Rendering $(@F)"
 	flox activate --dir $(.plantuml.dir) -- 

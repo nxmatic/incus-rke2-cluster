@@ -1,0 +1,36 @@
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: config.porch.kpt.dev|PackageVariant|porch-system|mesh-headscale
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: porch-resources
+  name: mesh-headscale
+  namespace: porch-system
+spec:
+  adoptionPolicy: adoptNone
+  deletionPolicy: delete
+  downstream:
+    package: mesh/headscale
+    repo: bioskop-state
+  labels:
+    nxmatic.dev/app: headscale
+    nxmatic.dev/cluster: bioskop
+    nxmatic.dev/component: mesh
+  packageContext:
+    data:
+      cluster-env: home
+      cluster-name: bioskop
+  pipeline:
+    mutators:
+      - configMap:
+          cluster-name: bioskop
+          darwin-host: bioskop
+          headscale-lb-ip: 192.168.1.193
+          home-lan-pool: 192.168.1.192/27
+          vip-network-cidr: 10.80.15.0/24
+        image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+  upstream:
+    package: mesh/headscale
+    repo: bioskop-catalog

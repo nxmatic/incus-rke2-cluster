@@ -68,7 +68,15 @@ spec:
               name: webhook-certs
             - name: api-server-certs
               mountPath: /tmp/certs
+            - name: git-bin
+              mountPath: /usr/bin/git
+              subPath: git
+            - name: git-bin
+              mountPath: /usr/bin/git-remote-https
+              subPath: git-remote-https
           env:
+            - name: PATH
+              value: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
             # Uncomment to enable trace-reporting to jaeger
             #- name: OTEL
             #  value: otel://jaeger-oltp:4317
@@ -79,15 +87,7 @@ spec:
             - name: GOOGLE_API_GO_EXPERIMENTAL_DISABLE_NEW_AUTH_LIB
               value: "true"
           args:
-            - --function-runner=function-runner:9445
-            - --cache-directory=/cache
-            - --cert-dir=/tmp/certs
-            - --secure-port=4443
-            - --repo-sync-frequency=3m
-            - --repo-operation-retry-attempts=3
-            - --max-request-body-size=6291456 # Keep this in sync with function-runner's corresponding argument
-          #adding livenessProbes and readinessProbes for porch server
-          livenessProbe:
+          env:
             httpGet:
               path: /healthz
               port: 4443

@@ -1,0 +1,24 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kpt.dev/package-layer: system
+    kpt.dev/package-name: flux-operator
+  labels:
+    app.kubernetes.io/instance: flux-operator
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: flux-operator
+    app.kubernetes.io/version: v0.36.0
+    helm.sh/chart: flux-operator-0.36.0
+  name: flux-operator
+  namespace: flux-system
+spec:
+  ports:
+    - name: http
+      port: 8080
+      protocol: TCP
+      targetPort: http-metrics
+  selector:
+    app.kubernetes.io/instance: flux-operator
+    app.kubernetes.io/name: flux-operator

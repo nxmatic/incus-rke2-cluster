@@ -27,6 +27,9 @@ $(strip $(call incus-secret-from-yaml,$(1)))
 endef
 
 .incus.dir ?= $(rke2-subtree.dir)/$(cluster.name)/incus
+.incus.local_build_dir ?= /tmp/incus-build/$(strip $(cluster.name))
+	
+# should be kept outside of ZFS
 .incus.image.dir ?= $(.incus.dir)
 .incus.instance.dir ?= $(.incus.dir)/$(node.name)
 .incus.nocloud_dir ?= $(.incus.instance.dir)/nocloud
@@ -105,7 +108,7 @@ endif
 # Instance naming defaults (image alias)
 .incus.image.name ?= control-node
 
-# Cluster inet address discovery helpers (IP extraction via yq)
+# Cluster inet address discovery helpers (IP unwrapping via yq)
 .incus.inet_yq_expr ?= .[].state.network.vmnet0.addresses[] | select(.family == "inet") | .address
 
 # =============================================================================
@@ -176,11 +179,6 @@ $(.incus.cluster_env.file):
 # Distrobuilder build context resolution (@codebase)
 .incus.build.mode = $(.incus.exec.mode)
 .incus.distrobuilder_workdir = $(if $(filter remote,$(.incus.build.mode)),$(.incus.remote_repo_root)/modules/nixos/incus-rke2-cluster,$(abspath $(top-dir)))
-# Local build directory in VM (not virtiofs) for better filesystem compatibility
-.incus.local_build_dir := $(shell mktemp -u -d --suffix=rke2)
-# Absolute path used in build command; local mode uses repository-relative path directly
-# Remote mode: prepend full subdirectory path from repo root to reach cluster workspace
-# Configuration files (local paths only)
 .incus.distrobuilder.file_abs = $(.incus.distrobuilder.file)
 
 # =============================================================================
@@ -457,13 +455,11 @@ $(.incus.image.build.files)&: $(.incus.distrobuilder.file) | $(.incus.dir)/ veri
 	echo "[+] Building image locally using native filesystem (not virtiofs)"
 	sudo mkdir -p $(.incus.dir)
 	echo "[+] Building filesystem first, then packing into Incus image"
-	sudo env -i PATH="$$PATH" DEBIAN_FRONTEND=noninteractive  \
-		distrobuilder build-dir $(.incus.distrobuilder.file_abs) "$(.incus.local_build_dir)" --debug --disable-overlay --cleanup
+	sudo distrobuilder build-dir $(.incus.distrobuilder.file_abs) "$(.incus.local_build_dir)" --disable-overlay
 	echo "[+] Creating temporary config for packing (without debootstrap options)"
-	sed '/options:/,/variant: "buildd"/d' $(.incus.distrobuilder.file_abs) > "$(.incus.local_build_dir)-pack.yaml"
+	# sed '/options:/,/variant: "buildd"/d' $(.incus.distrobuilder.file_abs) > "/tmp/${cluster.name}-pack.yaml"
 	echo "[+] Packing filesystem into Incus image format"
-	sudo env -i PATH="$$PATH" HOME="$$HOME" USER="$$USER" DEBIAN_FRONTEND=noninteractive \
-		distrobuilder pack-incus "$(.incus.local_build_dir)-pack.yaml" "$(.incus.local_build_dir)" $(.incus.dir) --debug
+	sudo distrobuilder pack-incus "/tmp/${cluster.name}-pack.yaml" "$(.incus.local_build_dir)" $(.incus.dir) --debug
 
 # Helper phony target for remote build delegation
 .PHONY: build-image-local@incus

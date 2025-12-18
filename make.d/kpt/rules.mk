@@ -1,4 +1,10 @@
-# kpt/rules.mk - KPT package catalog and fleet manifests management (@codebase)
+# kpt/rules.mk - KPT package catalog and manifests management (@codebase)
+
+# Self-guarding include so the layer can be pulled in multiple times safely.
+
+ifndef make.d/kpt/rules.mk
+
+-include make.d/make.mk
 
 # Trace system for kpt operations (@codebase)
 ifeq ($(true),$(.trace.kpt))
@@ -10,33 +16,22 @@ else
 kpt.is-trace := $(false)
 kpt.if-trace = $(2)
 endif
-# Self-guarding include so the layer can be pulled in multiple times safely.
-
-ifndef make.d/kpt/rules.mk
-
--include make.d/make.mk
 
 # KPT catalog configuration (@codebase)
 
-
-# Fleet render configuration (@codebase)
-
-
-.kpt.name := $(cluster.name)
-.kpt.dir := $(rke2-subtree.dir)/$(.kpt.name)
+.kpt.dir := $(rke2-subtree.dir)/$(cluster.name)
 .kpt.catalog.dir := $(.kpt.dir)/catalog
 .kpt.overlays.dir := $(.kpt.dir)/overlays
 .kpt.overlays.Kustomization.file := $(.kpt.overlays.dir)/Kustomization
 .kpt.Kustomization.file := $(.kpt.dir)/Kustomization
-.kpt.render.dir := $(tmp-dir)/fleet/$(.kpt.name)
+.kpt.render.dir := $(tmp-dir)/catalog/$(cluster.name)
 .kpt.manifests.file := $(.kpt.dir)/manifests.yaml
 .kpt.manifests.dir := $(.kpt.dir)/manifests.d
 
-.kpt.catalog.names = $(notdir $(patsubst %/,%,$(dir $(wildcard $(.kpt.catalog.dir)/*/Kptfile))))
 .kpt.package.aux_files := .gitattributes .krmignore
 
 export CLUSTER_MANIFESTS_DIR := $(realpath $(.kpt.manifests.dir))
-# List of namespaces to extract from rendered manifests
+
 define .kpt.require-bin
 	if ! command -v $(1) >/dev/null 2>&1; then \
 		echo "[fleet] Missing required command $(1)"; \
@@ -54,7 +49,6 @@ update-kustomizations@kpt: check-tools@kpt
 update-kustomizations@kpt: render.dir := $(tmp-dir)/catalog
 update-kustomizations@kpt: ## Update Kustomization files from rendered catalog packages
 	: "[kpt] Staging and rendering catalog to generate Kustomizations"
-	rm -fr "$(render.dir)"
 	kpt fn render --truncate-output=false "$(.kpt.catalog.dir)" -o "$(render.dir)"
 	: "[kpt] Generating Kustomizations from rendered packages"
 	for layer in "$(render.dir)"/*/; do
@@ -86,95 +80,60 @@ update-kustomizations@kpt: ## Update Kustomization files from rendered catalog p
 render@kpt: check-tools@kpt prepare@kpt $(.kpt.overlays.Kustomization.file) $(.kpt.Kustomization.file)
 render@kpt: $(.kpt.manifests.file)  ## Render catalog via kpt, aggregate via kustomize (@codebase)
 
+$(.kpt.render.dir): clean-render@kpt
 $(.kpt.render.dir):
-	$(call kpt.trace,Rendering catalog for cluster $(.kpt.name) via kpt fn render)
-	rm -rf "$(@)"
+	$(call kpt.trace,Rendering catalog for cluster $(cluster.name) via kpt fn render)
 	kpt fn render --truncate-output=false "$(.kpt.catalog.dir)" -o "$(@)"
 
 .FORCE: $(.kpt.render.dir)
 
+$(.kpt.manifests.file): check-tools@kpt
+$(.kpt.manifests.file): prepare@kpt
 $(.kpt.manifests.file): $(.kpt.Kustomization.file)
 $(.kpt.manifests.file): $(.kpt.render.dir)
 $(.kpt.manifests.file):
 	$(call kpt.trace,Copying Kustomization files to rendered output)
 	rsync -a --include='*/' --include='Kustomization' --exclude='*' "$(.kpt.catalog.dir)/" "$(.kpt.render.dir)/"
-	$(call kpt.trace,Building manifests for cluster $(.kpt.name) via kustomize build)
+	$(call kpt.trace,Building manifests for cluster $(cluster.name) via kustomize build)
 	kustomize build "$(.kpt.render.dir)" > "$@"
 
-.PHONY: clean-render@kpt
-clean-render@kpt: ## Clean rendered temporary directory
-	rm -rf "$(.kpt.render.dir)"
 
 # ----------------------------------------------------------------------------
 # Resource categorization and reparenting (@codebase)
 # ----------------------------------------------------------------------------
 
-## Reparent resources by scope: cluster/, namespaces/<ns>/, customresourcedefinitions/
-
-# yq expressions for resource selection (reusable for future patterns)
-define .kpt.yq.select.crd =
-select(.kind == "CustomResourceDefinition")
-endef
-
-define .kpt.yq.select.cluster =
-select(.metadata.namespace == null or .metadata.namespace == "") |
-select(.kind != "CustomResourceDefinition" and .kind != "Namespace")
-endef
-
-define .kpt.yq.select.namespace =
-select(.metadata.namespace != null and .metadata.namespace != "") |
-select(.kind != "Namespace")
-endef
-
-.SECONDEXPANSION:
-
-split-manifests@kpt: $(.kpt.manifests.dir)
-split-manifests@kpt: ## Split rendered manifests into categorized directory structure
-
-define .kpt.namespaces =
-$(shell yq eval -N -r 'select(.kind == "Namespace") | (.metadata.name|downcase)' "$(.kpt.manifests.file)" 2>/dev/null)
-endef
-
-$(.kpt.manifests.dir): check-tools@kpt
-$(.kpt.manifests.dir): prepare@kpt
 $(.kpt.manifests.dir): $(.kpt.manifests.file)
 $(.kpt.manifests.dir): $(.kpt.manifests.dir)/
-$(.kpt.manifests.dir): manifest.file = $(realpath $(.kpt.manifests.file))
-$(.kpt.manifests.dir): manifest.dir = $(realpath $(.kpt.manifests.dir))
-$(.kpt.manifests.dir): $$(foreach ns,$$(.kpt.namespaces),$$(.kpt.manifests.dir)/$$(ns))
-$(.kpt.manifests.dir):
-	: "[kpt] Extracting CustomResourceDefinitions"
-	cd "$(manifest.dir)"
-	yq --split-exp='"crd-"+(.metadata.name|downcase)' \
-		eval-all 'select(.kind == "CustomResourceDefinition")' "$(manifest.file)" 2>/dev/null
-	: "[kpt] Generating namespaces.mk"
-	mkdir -p "$(.kpt.dir)/make.d"
-	{ \
-		echo "# Generated namespace extraction rules"; \
-		echo ""; \
-		for ns in $$(yq eval -N -r 'select(.kind == "Namespace") | (.metadata.name|downcase)' "$(manifest.file)" 2>/dev/null); do \
-			echo "$(.kpt.manifests.dir)/$$ns: $(.kpt.manifests.dir)/"; \
-			echo "	: 'Extracting namespace $$ns'"; \
-			echo "	mkdir -p \$$(@)"; \
-			echo "	cd \$$(@D)"; \
-			echo "	yq --split-exp='.metadata.name|downcase' \\"; \
-			echo "		eval-all 'select(.kind == \"Namespace\" and .apiVersion == \"v1\" and .metadata.name == \"$$ns\")' \\"; \
-			echo "		$(.kpt.manifests.file)"; \
-			echo ""; \
-			for res in $$(yq eval -N -r "select(.metadata.namespace == \"$$ns\") | (.kind | downcase) + \"-\" + (.metadata.name | downcase)" "$(manifest.file)" 2>/dev/null); do \
-				echo "$(.kpt.manifests.dir)/$$ns/$$res.yaml: $(.kpt.manifests.dir)/$$ns"; \
-				echo "	: 'Extracting $$res in namespace $$ns'"; \
-				echo "	cd \$$(@D)"; \
-				echo "	yq --split-exp='(.kind|downcase)+\"-\"+(.metadata.name|downcase)' \\"; \
-				echo "		eval-all 'select(.metadata.namespace == \"$$ns\")' \\"; \
-				echo "		$(.kpt.manifests.file)"; \
-				echo ""; \
-			done; \
-		done; \
-	} > "$(.kpt.dir)/make.d/namespaces.mk"
-	: "[kpt] Split rendered manifests into categorized directories"
+$(.kpt.manifests.dir): manifests.file = ../manifests.yaml
+$(.kpt.manifests.dir): 
+	cd $(.kpt.manifests.dir)
+	yq --split-exp='$(call .kpt.toFilePath,00)' \
+		eval-all 'select(.kind == "CustomResourceDefinition")' \
+		"$(manifests.file)"
+	: 'Extracting cluster-scoped resources for package $(pkg)'
+	yq --split-exp='$(call .kpt.toFilePath,01)' \
+		eval-all 'select(.kind != "CustomResourceDefinition" and
+					     (.metadata.namespace == null or .metadata.namespace == ""))' \
+		"$(manifests.file)"
+	: 'Extracting namespace-scoped resources for package $(pkg)'
+	yq --split-exp='$(call .kpt.toFilePath,02)' \
+		eval-all 'select(.metadata.namespace != null and .metadata.namespace != "")' \
+		"$(manifests.file)"
 
--include $(.kpt.dir)/make.d/namespaces.mk
+define .kpt.toFilePath =
+((.metadata.annotations["kpt.dev/package-layer"] // "default") + "/" + (.metadata.annotations["kpt.dev/package-name"] // "unknown") + "/" + "$(strip $(1))-" + (.kind | downcase) + "-" + (.metadata.name | downcase) + ".yml")
+endef
+
+define .kpt.isOwnedByPackage =
+.metadata.annotations."kpt.dev/package-name" == "$(pkg)"
+endef
+
+unwrap@kpt: $(.kpt.manifests.dir)
+unwrap@kpt: ## Unwrap rendered manifests into categorized directory structure
+	: "[kpt] Unwrapped rendered manifests into categorized directories"
+
+clean-manifests@kpt: ## Clean categorized manifests directory
+	rm -fr $(.kpt.manifests.dir)
 
 # ----------------------------------------------------------------------------
 
@@ -182,18 +141,25 @@ check-tools@kpt: # Ensure required CLI tools are available
 	$(call .kpt.require-bin,kpt)
 	$(call .kpt.require-bin,kustomize)
 	$(call .kpt.require-bin,yq)
-	$(call kpt.trace,Rendering cluster $(.kpt.name))
+	$(call kpt.trace,Rendering cluster $(cluster.name))
 
+prepare@kpt: $(.kpt.dir)/
+prepare@kpt: $(.kpt.overlays.dir)/
+prepare@kpt: clean-render@kpt update@kpt
 prepare@kpt: # Fetch or update the cluster catalog
-	$(call kpt.trace,Preparing cluster $(.kpt.name) catalog via kpt pkg get/update)
-	mkdir -p "$(.kpt.dir)"
+	: "[kpt] Catalog updated from upstream"
+
+.PHONY: clean-render@kpt
+clean-render@kpt: ## Clean rendered temporary directory
+	rm -rf "$(.kpt.render.dir)"
+
+update@kpt: ## Update cluster catalog via kpt pkg get/update
+	$(call kpt.trace,Updating cluster $(cluster.name) catalog via kpt pkg get/update)
 	if [[ ! -d "$(.kpt.catalog.dir)" ]]; then \
 		kpt pkg get "$(realpath $(top-dir)).git/kpt/catalog" "$(.kpt.catalog.dir)"; \
 	else \
 		kpt pkg update "$(.kpt.catalog.dir)@main"; \
 	fi
-	rm -f "$(.kpt.manifests.file)"
-	mkdir -p "$(.kpt.overlays.dir)"
 
 define .yaml.comma-join =
 $(subst $(space),$1,$(strip $2))
@@ -211,7 +177,7 @@ resources: $(call .yaml.rangeOf,$(1))
 endef
 
 define .cluster.overlays.kustomize = 
-	: "[kpt] Writing overlays Kustomization for cluster $(.kpt.name)"
+	: "[kpt] Writing overlays Kustomization for cluster $(cluster.name)"
 	echo "apiVersion: kustomize.config.k8s.io/v1beta1" > "$(1)"
 	echo "kind: Kustomization" >> "$(1)"
 	echo "resources:" >> "$(1)"
@@ -219,7 +185,7 @@ define .cluster.overlays.kustomize =
 endef
 
 define .cluster.kustomize = 
-	: "[kpt] Writing cluster Kustomization for $(.kpt.name)"
+	: "[kpt] Writing cluster Kustomization for $(cluster.name)"
 	echo "apiVersion: kustomize.config.k8s.io/v1beta1" > "$(1)"
 	echo "kind: Kustomization" >> "$(1)"
 	echo "resources:" >> "$(1)"
