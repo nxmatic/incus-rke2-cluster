@@ -22,6 +22,11 @@ resources:
 - 9-porch-controller-packagevariantsets-clusterrolebinding.yaml
 - package-context.yaml
 - porch-setters.yaml
+patches:
+- path: patch-porch-server-git.yaml
+  target:
+    kind: Deployment
+    name: porch-server
 commonAnnotations:
   kpt.dev/package-layer: system
   kpt.dev/package-name: porch

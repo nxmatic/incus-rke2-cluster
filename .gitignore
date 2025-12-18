@@ -205,3 +205,4 @@ modules.xml
 # End of https://www.toptal.com/developers/gitignore/api/intellij+iml
 rke2-subtree/bioskop/incus/incus.tar.xz
 rke2-subtree/bioskop/incus/rootfs.squashfs
+rke2-subtree/bioskop/incus

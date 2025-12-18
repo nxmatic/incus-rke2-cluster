@@ -18,6 +18,7 @@ helmCharts:
       skipTests: true
       values:
         valuesInline:
+          replicaCount: 0 # kpt-set: ${replicator-replica-count}
           rbac:
             create: true
           podAnnotations:

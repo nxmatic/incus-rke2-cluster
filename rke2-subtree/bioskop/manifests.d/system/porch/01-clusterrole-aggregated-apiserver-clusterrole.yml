@@ -86,3 +86,9 @@ rules:
       - get
       - watch
       - list
+  - apiGroups:
+      - authorization.k8s.io
+    resources:
+      - subjectaccessreviews
+    verbs:
+      - create

@@ -46,6 +46,23 @@ spec:
           emptyDir: {}
         - name: api-server-certs
           emptyDir: {}
+        - name: git-bin
+          emptyDir: {}
+      initContainers:
+        - name: install-git
+          image: alpine:latest
+          command:
+            - sh
+            - -c
+            - |
+              apk add --no-cache git ca-certificates openssh-client
+              cp -r /usr/bin/git* /git-bin/
+              cp /usr/bin/ssh* /git-bin/ || true
+          volumeMounts:
+            - name: git-bin
+              mountPath: /git-bin
+          securityContext:
+            runAsUser: 0
       containers:
         - name: porch-server
           # Update image to the image of your porch apiserver build.
@@ -86,8 +103,7 @@ spec:
               value: /etc/webhook/certs
             - name: GOOGLE_API_GO_EXPERIMENTAL_DISABLE_NEW_AUTH_LIB
               value: "true"
-          args:
-          env:
+          livenessProbe:
             httpGet:
               path: /healthz
               port: 4443

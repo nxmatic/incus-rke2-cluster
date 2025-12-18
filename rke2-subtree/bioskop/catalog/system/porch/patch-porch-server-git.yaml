@@ -1,9 +1,10 @@
 apiVersion: apps/v1
 kind: Deployment
-metadata:
+metadata: # kpt-merge: porch-system/porch-server
   name: porch-server
   namespace: porch-system
   annotations:
+    config.kubernetes.io/local-config: "true"
     internal.kpt.dev/upstream-identifier: 'apps|Deployment|porch-system|porch-server'
 spec:
   template:

@@ -25,6 +25,7 @@ endif
 .kpt.overlays.Kustomization.file := $(.kpt.overlays.dir)/Kustomization
 .kpt.Kustomization.file := $(.kpt.dir)/Kustomization
 .kpt.render.dir := $(tmp-dir)/catalog/$(cluster.name)
+.kpt.local.render.dir := $(rke2-subtree.dir)/$(cluster.name)/.local.d
 .kpt.manifests.file := $(.kpt.dir)/manifests.yaml
 .kpt.manifests.dir := $(.kpt.dir)/manifests.d
 
@@ -153,12 +154,28 @@ prepare@kpt: # Fetch or update the cluster catalog
 clean-render@kpt: ## Clean rendered temporary directory
 	rm -rf "$(.kpt.render.dir)"
 
+.PHONY: render-pkg@kpt
+render-pkg@kpt: ## Development target: render a specific package to .local.d for inspection. Usage: make render-pkg@kpt PKG=system/porch
+	@: "[kpt] Rendering package $(PKG) to .local.d for inspection"
+	@mkdir -p "$(.kpt.local.render.dir)"
+	kpt fn render "$(rke2-subtree.dir)/$(cluster.name)/catalog/$(PKG)" -o "$(.kpt.local.render.dir)/$(PKG)" --truncate-output=false
+
+.PHONY: clean-local-render@kpt
+clean-local-render@kpt: ## Clean local development render directory
+	rm -rf "$(.kpt.local.render.dir)"
+
 update@kpt: ## Update cluster catalog via kpt pkg get/update
 	$(call kpt.trace,Updating cluster $(cluster.name) catalog via kpt pkg get/update)
-	if [[ ! -d "$(.kpt.catalog.dir)" ]]; then \
-		kpt pkg get "$(realpath $(top-dir)).git/kpt/catalog" "$(.kpt.catalog.dir)"; \
+	@if git diff --quiet -- kpt/catalog rke2-subtree/bioskop/catalog && git diff --cached --quiet -- kpt/catalog rke2-subtree/bioskop/catalog; then \
+		if [[ ! -d "$(.kpt.catalog.dir)" ]]; then \
+			kpt pkg get "$(realpath $(top-dir)).git/kpt/catalog" "$(.kpt.catalog.dir)"; \
+		else \
+			kpt pkg update "$(.kpt.catalog.dir)@main" --strategy resource-merge; \
+		fi; \
 	else \
-		kpt pkg update "$(.kpt.catalog.dir)@main"; \
+		echo "[kpt] ERROR: kpt/catalog or rke2-subtree/bioskop/catalog has uncommitted changes"; \
+		echo "[kpt] Commit or discard changes before running update@kpt"; \
+		exit 1; \
 	fi
 
 define .yaml.comma-join =
