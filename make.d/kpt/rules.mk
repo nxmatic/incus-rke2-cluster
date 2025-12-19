@@ -34,9 +34,9 @@ endif
 export CLUSTER_MANIFESTS_DIR := $(realpath $(.kpt.manifests.dir))
 
 define .kpt.require-bin
-	if ! command -v $(1) >/dev/null 2>&1; then \
-		echo "[fleet] Missing required command $(1)"; \
-		exit 1; \
+	if ! command -v $(1) >/dev/null 2>&1; then
+		echo "[fleet] Missing required command $(1)";
+		exit 1;
 	fi
 endef
 
@@ -166,16 +166,18 @@ clean-local-render@kpt: ## Clean local development render directory
 
 update@kpt: ## Update cluster catalog via kpt pkg get/update
 	$(call kpt.trace,Updating cluster $(cluster.name) catalog via kpt pkg get/update)
-	@if git diff --quiet -- kpt/catalog rke2-subtree/bioskop/catalog && git diff --cached --quiet -- kpt/catalog rke2-subtree/bioskop/catalog; then \
-		if [[ ! -d "$(.kpt.catalog.dir)" ]]; then \
-			kpt pkg get "$(realpath $(top-dir)).git/kpt/catalog" "$(.kpt.catalog.dir)"; \
-		else \
-			kpt pkg update "$(.kpt.catalog.dir)@main" --strategy resource-merge; \
-		fi; \
-	else \
-		echo "[kpt] ERROR: kpt/catalog or rke2-subtree/bioskop/catalog has uncommitted changes"; \
-		echo "[kpt] Commit or discard changes before running update@kpt"; \
-		exit 1; \
+	if git diff --quiet -- kpt/catalog rke2-subtree/bioskop/catalog &&
+	   git diff --cached --quiet -- kpt/catalog rke2-subtree/bioskop/catalog &&
+	   ! git ls-files --others --exclude-standard -- kpt/catalog rke2-subtree/bioskop/catalog | grep -q .; then
+		if [[ ! -d "$(.kpt.catalog.dir)" ]]; then
+			kpt pkg get "$(realpath $(top-dir)).git/kpt/catalog" "$(.kpt.catalog.dir)"
+		else
+			kpt pkg update "$(.kpt.catalog.dir)@main" --strategy resource-merge
+		fi
+	else
+		echo "[kpt] ERROR: kpt/catalog or rke2-subtree/bioskop/catalog has uncommitted changes"
+		echo "[kpt] Commit or discard changes before running update@kpt"
+		exit 1
 	fi
 
 define .yaml.comma-join =
