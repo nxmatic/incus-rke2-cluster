@@ -22,15 +22,9 @@ spec:
         app: porch-server
     spec:
       containers:
-        - args:
-            - --function-runner=function-runner:9445
-            - --cache-directory=/cache
-            - --cert-dir=/tmp/certs
-            - --secure-port=4443
-            - --repo-sync-frequency=3m
-            - --repo-operation-retry-attempts=3
-            - --max-request-body-size=6291456
-          env:
+        - env:
+            - name: PATH
+              value: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
             - name: OTEL_SERVICE_NAME
               value: porch-server
             - name: CERT_STORAGE_DIR
@@ -71,14 +65,37 @@ spec:
             runAsNonRoot: true
             runAsUser: 65532
           volumeMounts:
+            - mountPath: /usr/bin/git
+              name: git-bin
+              subPath: git
+            - mountPath: /usr/bin/git-remote-https
+              name: git-bin
+              subPath: git-remote-https
             - mountPath: /cache
               name: cache-volume
             - mountPath: /etc/webhook/certs
               name: webhook-certs
             - mountPath: /tmp/certs
               name: api-server-certs
+      initContainers:
+        - command:
+            - sh
+            - -c
+            - |
+              apk add --no-cache git ca-certificates openssh-client
+              cp -r /usr/bin/git* /git-bin/
+              cp /usr/bin/ssh* /git-bin/ || true
+          image: alpine:latest
+          name: install-git
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - mountPath: /git-bin
+              name: git-bin
       serviceAccountName: porch-server
       volumes:
+        - emptyDir: {}
+          name: git-bin
         - emptyDir: {}
           name: cache-volume
         - emptyDir: {}
