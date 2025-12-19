@@ -15,4 +15,4 @@ info:
 pipeline:
   mutators:
     - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
-      configPath: kube-vip-setters.yaml
+      configPath: setters.yaml

@@ -8,14 +8,14 @@
 
 [source,yaml]
 ----
-/etc/systemd/system/rke2-traefik-config.service ➜ ${CLUSTER_STATE_DIR}/kpt/system/traefik
+/etc/systemd/system/rke2-traefik-config.service ➜ ${CLUSTER_STATE_DIR}/system/traefik
 ----
 
 *Assessment*: *Bootstrap-critical, now sourced from kpt*
 
 * *Reason*: Cluster still needs ingress before Porch/Flux render loops
 start
-* *Change*: Manifest moved into `+kpt/system/traefik+` and is
+* *Change*: Manifest moved into `+system/traefik+` and is
 applied by `+rke2-traefik-config.service+`
 * *Benefit*: Values now live in git, can be reviewed/versioned like
 other packages without inflating NoCloud user-data
@@ -68,7 +68,7 @@ before the service runs, preserving the bootstrap order
 ** ✅ Can update routes/config without container restart
 * *Migration Strategy*:
 [arabic]
-. Create `+kpt/catalog/mesh/tailscale/+` package
+. Create `+catalog/mesh/tailscale/+` package
 . Extract namespace, HelmChart, and Connector resources
 . Use kpt setters for: cluster-name, oauth-client-id,
 oauth-client-secret, vip-cidr, lb-cidr
@@ -92,7 +92,7 @@ oauth-client-secret, vip-cidr, lb-cidr
 
 [source,yaml]
 ----
-/etc/systemd/system/rke2-cilium-config.service ➜ ${CLUSTER_STATE_DIR}/kpt/system/cilium
+/etc/systemd/system/rke2-cilium-config.service ➜ ${CLUSTER_STATE_DIR}/system/cilium
 ----
 
 *Assessment*: *Still core bootstrap, but now mirrored via kpt*
@@ -100,7 +100,7 @@ oauth-client-secret, vip-cidr, lb-cidr
 * *Reason*: CNI must reconcile before anything else; service order
 enforces this
 * *Change*: The HelmChartConfig left NoCloud and lives in
-`+kpt/system/cilium+` (with setters for cluster name/id)
+`+system/cilium+` (with setters for cluster name/id)
 * *Benefit*: Declarative history + ability to reuse the same package
 across clusters while passing setters via `+rke2-kpt-deploy+`
 * *Risk*: CRITICAL if package absent; systemd unit will fail fast so
@@ -110,17 +110,17 @@ the bootstrap slice runs here
 
 ==== Previously Migrated (Now in kpt)
 
-✅ *Headscale* - Migrated to `+kpt/catalog/mesh/headscale/+`
+✅ *Headscale* - Migrated to `+catalog/mesh/headscale/+`
 
-|Traefik Config |master.base |✅ Done (kpt/system/traefik) |High
+|Traefik Config |master.base |✅ Done (system/traefik) |High
 ✅ *Envoy Gateway* - Migrated to
-|Cilium CNI Config |master.cilium |✅ Done (kpt/system/cilium)
-`+kpt/catalog/networking/envoy-gateway/+`
+|Cilium CNI Config |master.cilium |✅ Done (system/cilium)
+`+catalog/networking/envoy-gateway/+`
 
-✅ *Kube-VIP* - Migrated to `+kpt/catalog/ha/kube-vip/+`
+✅ *Kube-VIP* - Migrated to `+catalog/ha/kube-vip/+`
 
 ✅ *Cilium Advanced Features* - Migrated to
-`+kpt/catalog/networking/cilium/+`
+`+catalog/networking/cilium/+`
 
 === Migration Recommendation Summary
 
@@ -155,7 +155,7 @@ pool)
 
 [source,text]
 ----
-kpt/catalog/mesh/tailscale/
+catalog/mesh/tailscale/
 ├── Kptfile (setters: version, cluster-name, vip, lb-cidr)
 ├── 00-namespace.yaml
 ├── 01-operator-helmchart.yaml
@@ -222,14 +222,14 @@ Tailscale) *Value*: High (better secret management, version control)
 [width="99%",cols="22%,16%,23%,16%,10%,13%",options="header",]
 |===
 |Component |Location |Can Migrate? |Priority |Risk |Status
-|Traefik Config |master.base |✅ Done (kpt/system/traefik) |High |CRITICAL |Applied by rke2-traefik-config.service
+|Traefik Config |master.base |✅ Done (system/traefik) |High |CRITICAL |Applied by rke2-traefik-config.service
 
 |OpenEBS ZFS |master.base |⚠️ Maybe |Low |HIGH |Defer (Phase 5)
 
 |Tailscale Operator |master.base |✅ Yes |High |LOW-MED |*Recommended
 (Phase 4)*
 
-|Cilium CNI Config |master.cilium |✅ Done (kpt/system/cilium) |High |CRITICAL |Applied by rke2-cilium-config.service
+|Cilium CNI Config |master.cilium |✅ Done (system/cilium) |High |CRITICAL |Applied by rke2-cilium-config.service
 
 |Headscale |master.headscale |✅ Yes |- |- |✅ Migrated (Phase 1)
 

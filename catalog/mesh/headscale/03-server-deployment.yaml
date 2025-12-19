@@ -1,0 +1,106 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: headscale
+  namespace: headscale
+  labels:
+    app: headscale
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: headscale
+  template:
+    metadata:
+      labels:
+        app: headscale
+    spec:
+      automountServiceAccountToken: false
+      nodeSelector:
+        "cluster-name.cluster/node-role": master # kpt-set: "${cluster-name}.cluster/node-role": master
+      containers:
+      - name: headscale
+        image: headscale/headscale:0.27.0
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        - name: metrics
+          containerPort: 9090
+          protocol: TCP
+        volumeMounts:
+        - name: config
+          mountPath: /etc/headscale/config.yaml
+          subPath: config.yaml
+        - name: acl
+          mountPath: /etc/headscale/acl.json
+          subPath: acl.json
+        - name: derp
+          mountPath: /etc/headscale/derp.yaml
+          subPath: derp.yaml
+        - name: data
+          mountPath: /var/lib/headscale
+        - name: run
+          mountPath: /var/run/headscale
+        command:
+        - headscale
+        - serve
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+      volumes:
+      - name: config
+        configMap:
+          name: headscale-config
+      - name: acl
+        configMap:
+          name: headscale-acl
+      - name: derp
+        configMap:
+          name: headscale-derp
+      - name: data
+        emptyDir: {}
+      - name: run
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: headscale
+  namespace: headscale
+  labels:
+    app: headscale
+    io.cilium/lb-ipam: home-lan
+  annotations:
+    io.cilium/lb-ipam-ips: ${headscale-lb-ip} # kpt-set: ${headscale-lb-ip}
+    tailscale.com/expose: "true"
+    tailscale.com/hostname: ${cluster-name}-headscale # kpt-set: ${cluster-name}-headscale
+spec:
+  type: LoadBalancer
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  - name: metrics
+    port: 9090
+    targetPort: 9090
+    protocol: TCP
+  selector:
+    app: headscale

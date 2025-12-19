@@ -28,9 +28,9 @@ image::c4-cluster-container.svg[title="Bioskop container view",alt="Bioskop cont
 === GitOps + Package Automation
 
 * link:porch-adoption-plan.adoc[Porch adoption plan] covers the aggregated API and controllers that own the `Repository`, `PackageVariant`, and `PackageRevision` CRDs. Porch clones the catalog sources from this repo and publishes rendered revisions into the GitOps repo so other controllers can consume them.
-* link:../kpt/system/flux-operator/README.adoc[Flux operator] installs the Flux source/kustomize/notification controllers that watch the rendered repo (for example `fleet-manifests`) and apply both system packages and application overlays back onto the RKE2 nodes.
-* link:../kpt/system/flux-instance/README.adoc[Flux instance] defines the `FluxInstance` custom resource that directs those controllers at the rendered `fleet-manifests` branch/path for each cluster.
-* link:../kpt/system/tekton-pipelines/README.adoc[Tekton pipelines] come online ahead of Flux via `rke2-tekton-pipelines.service`, providing a pipeline engine whose controllers use the `TEKTON_*` credentials to clone or push Git content before Flux reconciles the same commit.
+* link:../system/flux-operator/README.adoc[Flux operator] installs the Flux source/kustomize/notification controllers that watch the rendered repo (for example `fleet-manifests`) and apply both system packages and application overlays back onto the RKE2 nodes.
+* link:../system/flux-instance/README.adoc[Flux instance] defines the `FluxInstance` custom resource that directs those controllers at the rendered `fleet-manifests` branch/path for each cluster.
+* link:../system/tekton-pipelines/README.adoc[Tekton pipelines] come online ahead of Flux via `rke2-tekton-pipelines.service`, providing a pipeline engine whose controllers use the `TEKTON_*` credentials to clone or push Git content before Flux reconciles the same commit.
 
 == Deployment Diagram (C4 Level 3)
 

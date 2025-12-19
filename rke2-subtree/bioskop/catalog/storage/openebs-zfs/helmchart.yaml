@@ -12,5 +12,7 @@ spec:
   targetNamespace: openebs
   createNamespace: true
   valuesContent: |-
+    zfs:
+      bin: zfs-bin # kpt-set: ${zfs-bin}
     zfsNode:
-      kubeletDir: /var/lib/rancher/rke2/server/tank # kpt-set: ${kubelet-dir}
+      kubeletDir: kubelet-dir # kpt-set: ${kubelet-dir}

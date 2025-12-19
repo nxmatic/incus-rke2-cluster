@@ -1,0 +1,2976 @@
+#cloud-config
+# Common cloud-init configuration for all RKE2 nodes (masters and agents)
+
+# Kube-vip overlay for highly available Kubernetes API server VIP
+# Provides HA VIP management independent of Cilium LoadBalancer IPAM
+# @codebase
+hostname: master-control-node
+manage_resolv_conf: true
+resolv_conf:
+  searchdomains:
+    - mammoth-skate.ts.net
+# -----------------------------------------------------------------------------
+# Network configuration now provided via separate NoCloud network-config file (@codebase)
+# The standalone network-config.yaml template generates the network-config seed file
+# mounted at /var/lib/cloud/seed/nocloud/network-config. Since cloud-init doesn't
+# properly honor the 'renderer: networkd' directive, we use bootcmd to install the
+# netplan file before systemd-networkd starts.
+# -----------------------------------------------------------------------------
+bootcmd:
+  # Install NoCloud network-config as netplan file before cloud-init processes network
+  # This must run in bootcmd because write_files happens too late (after network config)
+  - [test, -f, /var/lib/cloud/seed/nocloud/network-config]
+  - [cp, /var/lib/cloud/seed/nocloud/network-config, /etc/netplan/01-nocloud.yaml]
+  - [chmod, '600', /etc/netplan/01-nocloud.yaml]
+  # Disable dhcpcd for vmnet0 - systemd-networkd will handle it
+  - [sh, -c, "echo 'denyinterfaces vmnet0' >> /etc/dhcpcd.conf"]
+write_files:
+  # =============================================================================
+  # SYSTEM CONFIGURATION FILES
+  # =============================================================================
+
+  # Disable cloud-init network configuration to prevent conflicts with netplan/systemd-networkd
+  # This prevents cloud-init from generating /etc/network/interfaces.d/50-cloud-init
+  # which would start dhcpcd and conflict with systemd-networkd DHCP
+  - path: /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+    permissions: "0644"
+    content: |
+      network: {config: disabled}
+  # systemd-networkd drop-in to set cluster-prefixed hostname for LAN DHCP
+  # This ensures LAN DHCP registrations are unique per cluster (bioskop vs alcide)
+  # while keeping the actual system hostname unchanged
+  # Drop-in must match netplan-generated config name: 10-netplan-lan0.network
+  - path: /etc/systemd/network/10-netplan-lan0.network.d/10-hostname.conf
+    permissions: "0644"
+    content: |
+      [DHCP]
+      SendHostname=yes
+      Hostname=bioskop-master-control-node
+  # systemd-networkd drop-in to prevent vmnet0 DHCP from installing routes/DNS
+  - path: /etc/systemd/network/10-netplan-lan0.network.d/90-no-default.conf
+    permissions: "0644"
+    content: |
+      [Network]
+      DHCP=ipv4
+      IPv6AcceptRA=no
+      LinkLocalAddressing=ipv4
+      LLMNR=yes
+
+      [DHCP]
+      UseDNS=yes
+  # systemd-networkd drop-in to prevent vmnet0 DHCP from installing routes/DNS
+  - path: /etc/systemd/network/10-netplan-vmnet0.network.d/90-no-default.conf
+    permissions: "0644"
+    content: |
+      [Network]
+      IPv6AcceptRA=no
+      LinkLocalAddressing=ipv4
+
+      [DHCP]
+      UseRoutes=no
+      UseDNS=no
+  # systemd-resolved drop-in to disable LLMNR/mDNS advertising on LAN interfaces
+  - path: /etc/systemd/resolved.conf.d/10-disable-llmnr-mdns.conf
+    permissions: "0644"
+    content: |
+      [Resolve]
+      LLMNR=no
+      MulticastDNS=no
+  # Disable IPv6 globally so nodes stay IPv4-only end-to-end (@codebase)
+  - path: /etc/sysctl.d/99-disable-ipv6.conf
+    permissions: "0644"
+    content: |
+      net.ipv6.conf.all.disable_ipv6 = 1
+      net.ipv6.conf.default.disable_ipv6 = 1
+      net.ipv6.conf.lo.disable_ipv6 = 1
+      net.ipv6.conf.lan0.disable_ipv6 = 1
+      net.ipv6.conf.vmnet0.disable_ipv6 = 1
+      net.ipv6.conf.all.accept_ra = 0
+      net.ipv6.conf.default.accept_ra = 0
+  # Network configuration script using flox environment and yq
+  - path: /usr/local/sbin/rke2-network-config
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-network-config.sh
+  - path: /etc/systemd/system/rke2-network-config.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=RKE2 Network Configuration Service
+      After=systemd-networkd.service cloud-init.service
+      Wants=systemd-networkd.service
+      Before=rke2-install.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-network-config
+      RemainAfterExit=yes
+      StandardOutput=journal
+      StandardError=journal
+
+      [Install]
+      WantedBy=multi-user.target
+  # Docker CLI shim to route invocations to nerdctl for kpt functions
+  - path: /usr/local/bin/docker
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/docker.sh
+  - path: /etc/rancher/rke2/config.yaml.d/tls-san.yaml
+    content: |
+      tls-san:
+        - localhost
+        - gateway
+        - 0.0.0.0
+        - 127.0.0.1
+        - 10.80.7.1 # cluster VIP gateway
+        - 10.80.0.1 # node gateway
+        # Note: VIP gateway removed - not a client endpoint
+        # IPv6 addresses removed for IPv4-only configuration
+  # Enable etcd metrics exposure
+  - path: /etc/rancher/rke2/config.yaml.d/etcd-metrics.yaml
+    content: |
+      etcd-expose-metrics: true
+  # Central dual-stack network CIDRs (applies to ALL nodes, control-plane & agents)
+  # Formerly only in server layer; moved here so kubelet / components on every node
+  # have consistent view.
+  - path: /etc/rancher/rke2/config.yaml.d/network-cidrs.yaml
+    content: |
+      cluster-cidr: 10.42.0.0/16
+      service-cidr: 10.43.0.0/16
+      kube-controller-manager-arg:
+        - node-cidr-mask-size-ipv4=24
+  # IPv4-only node IP configuration to prevent dual-stack auto-detection
+  # Static DHCP lease ensures this matches the actual assigned IP
+  - path: /etc/rancher/rke2/config.yaml.d/node-ip.yaml
+    content: |
+      node-ip: 10.80.0.10
+  # Set systemd as cgroup driver
+  - path: /var/lib/rancher/rke2/agent/etc/kubelet.conf.d/01-cgroup-override.conf
+    # =============================================================================
+    # KUBELET CONFIGURATION FILES
+    # =============================================================================
+
+    content: |
+      apiVersion: kubelet.config.k8s.io/v1beta1
+      kind: KubeletConfiguration
+      cgroupDriver: systemd
+  # Disable aggressive image garbage collection
+  - path: /var/lib/rancher/rke2/agent/etc/kubelet.conf.d/00-disable-gc.conf
+    content: |
+      apiVersion: kubelet.config.k8s.io/v1beta1
+      kind: KubeletConfiguration
+      kubelet-arg:
+        imageGCHighThresholdPercent: 100
+        imageGCLowThresholdPercent: 99
+  # ZFS snapshotter configuration for containerd
+  - path: /var/lib/rancher/rke2/agent/etc/containerd/config-v3.toml
+    # =============================================================================
+    # CONTAINERD CONFIGURATION
+    # =============================================================================
+
+    permissions: "0644"
+    content: |
+      {{ template "base" . }}
+
+      [plugins."io.containerd.grpc.v1.cri".containerd]
+        snapshotter = "zfs"
+
+      [plugins."io.containerd.snapshotter.v1.zfs"]
+        root_path = "/var/lib/rancher/rke2/agent/containerd/io.containerd.snapshotter.v1.zfs"
+
+      [debug]
+        level = "debug"
+  # Pre-installation script for environment setup
+  - path: /usr/local/sbin/rke2-install-pre
+    # =============================================================================
+    # FLOX ENVIRONMENT SETUP SCRIPTS
+    # =============================================================================
+
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-install-pre.sh
+  - path: /usr/local/sbin/rke2-install
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-install.sh
+  - path: /usr/local/sbin/rke2-install-post
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-install-post.sh
+  - path: /etc/systemd/system/rke2-server.service.d/kubeconfig.conf
+    content: |
+      [Service]
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-tools-configuration-directories'
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-vip-kubeconfig'
+  - path: /etc/systemd/system/rke2-agent.service.d/kubeconfig.conf
+    content: |
+      [Service]
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-tools-configuration-directories'
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-vip-kubeconfig'
+  # =============================================================================
+  # ENVIRONMENT CONFIGURATION FILES
+  # =============================================================================
+
+  # Simplified RKE2 environment configuration (variables now in flox profile)
+  - path: /var/lib/rancher/rke2/.envrc
+    # Control plane specific systemd drop-in for Cilium operator scaling
+    # - path: /etc/systemd/system/rke2-server.service.d/cilium-operator-scaling.conf
+    #   content: |
+    #     [Service]
+    #     ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-cilium-operator-scaling'
+
+    permissions: "0644"
+    content: |
+      #!/usr/bin/env bash
+      log_status "Loading RKE2 flox environment"
+
+      # Variables are now defined in flox profile-common.sh
+      # Just activate flox environment
+      [[ "${FLOX_ENV_PROJECT}" != "${PWD}" ]] &&
+        use flox
+  # Root user zsh configuration
+  - path: /root/.zshrc
+    # =============================================================================
+    # SHELL CONFIGURATION FILES
+    # =============================================================================
+
+    permissions: "0644"
+    content: |
+      #!/usr/bin/env zsh
+
+      : "Define useful functions"
+      journalctl:unit:follow() {
+        local unit="$1"
+        journalctl --unit $unit --follow --no-tail |
+          tee /.logs.d/${unit}.log
+      }
+
+      : "Configure completions"
+      autoload -Uz compinit &&
+        compinit
+      command -v kubectl >/dev/null &&
+        source <( kubectl completion zsh ) 2>/dev/null || true
+      command -v helm >/dev/null &&
+        source <( helm completion zsh ) 2>/dev/null || true
+
+      : "Load direnv hook"
+      source <( direnv hook zsh )
+  # Bash completion for kubectl and helm
+  - path: /etc/bash_completion.d/kube
+    permissions: "0644"
+    content: |
+      #!/usr/bin/env -S bash
+      source <( flox activate --dir /var/lib/rancher/rke2 )
+
+      source <( kubectl completion bash ) 2>/dev/null || true
+      source <( helm completion bash ) 2>/dev/null || true
+  # =============================================================================
+  # UTILITY SCRIPTS
+  # =============================================================================
+  - path: /usr/local/sbin/rke2-route-cleanup
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-route-cleanup.sh
+  - path: /usr/local/sbin/rke2-network-wait
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-network-wait.sh
+  - path: /usr/local/sbin/rke2-network-debug
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-network-debug.sh
+  - path: /usr/local/sbin/rke2-remount-shared
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-remount-shared.sh
+  - path: /usr/local/sbin/rke2-activate
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-activate.sh
+  - path: /usr/local/sbin/rke2-enable-containerd-zfs-mount
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-enable-containerd-zfs-mount.sh
+  - path: /usr/local/sbin/rke2-cilium-operator-scaling
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-cilium-operator-scaling.sh
+  - path: /usr/local/sbin/rke2-tools-configuration-directories
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-tools-configuration-directories.sh
+  - path: /usr/local/sbin/rke2-vip-kubeconfig
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-vip-kubeconfig.sh
+  - path: /usr/local/sbin/rke2-cilium-check
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-cilium-check.sh
+  - path: /etc/systemd/system/rke2-network-debug.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=RKE2 Network Debug Logger
+      After=systemd-networkd.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/bin/bash -c 'echo "=== Network Debug at $(date) ==="; ip addr show; echo "=== Routes ==="; ip route show; echo "=== NetworkD Status ==="; systemctl status systemd-networkd --no-pager; echo "=== NetworkCTL List ==="; networkctl list'
+      RemainAfterExit=true
+      StandardOutput=journal+console
+      StandardError=journal+console
+
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/systemd/system/rke2-network-wait.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=RKE2 Network Wait Service
+      After=systemd-networkd.service
+      Before=rke2-server.service rke2-agent.service
+      Wants=systemd-networkd.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-network-wait
+      RemainAfterExit=true
+      StandardOutput=journal+console
+      StandardError=journal+console
+      SuccessExitStatus=0 1
+
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/systemd/system/rke2-route-cleanup.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=RKE2 Route Cleanup Service - Remove DHCP default routes
+      After=network-online.target systemd-networkd.service
+      Wants=network-online.target systemd-networkd.service
+      Before=rke2-server.service rke2-agent.service
+      StartLimitIntervalSec=30
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-route-cleanup
+      RemainAfterExit=true
+      StandardOutput=journal+console
+      StandardError=journal+console
+      Restart=on-failure
+      RestartSec=5
+      StartLimitBurst=3
+
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/systemd/system/zfs-early-umount.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Early ZFS umount all datasets
+      After=zfs-mount.service
+      Before=basic.target
+      DefaultDependencies=no
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/sbin/zfs umount -a
+
+      [Install]
+      WantedBy=basic.target
+  - path: /etc/systemd/system/rke2-remount-shared.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Remount RKE2 required volumes as shared
+      Before=rke2-server.service
+      DefaultDependencies=no
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-remount-shared
+      RemainAfterExit=true
+
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/systemd/system/rke2-install.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Run RKE2 Installation Script
+      After=network-online.target systemd-networkd.service
+      Wants=network-online.target systemd-networkd.service
+      ConditionPathExists=!/etc/systemd/system/rke2-server.service
+      ConditionPathExists=!/etc/systemd/system/rke2-agent.service
+
+      [Service]
+      Type=oneshot
+      ExecStartPre=/usr/local/sbin/rke2-install-pre
+      ExecStart=/usr/local/sbin/rke2-install
+      ExecStartPost=/usr/local/sbin/rke2-install-post
+      RemainAfterExit=true
+      StandardOutput=journal
+      StandardError=journal
+
+      [Install]
+      WantedBy=multi-user.target
+  # Core RKE2 server configuration (shared across all control plane nodes)
+  - path: /etc/rancher/rke2/config.yaml.d/core.yaml
+    # =============================================================================
+    # SHARED RKE2 CONTROL PLANE CONFIGURATION
+    # =============================================================================
+
+    content: |
+      write-kubeconfig-mode: "0640"
+      bind-address: "0.0.0.0"
+      cni:
+        - cilium
+      ingress-controller: traefik
+  # Dedicated token fragment
+  - path: /etc/rancher/rke2/config.yaml.d/token.yaml
+    content: |
+      token: bioskop
+  # Dedicated advertise-address fragment
+  - path: /etc/rancher/rke2/config.yaml.d/advertise-address.yaml
+    content: |
+      advertise-address: 10.80.0.10
+  # Deterministic node labels for scheduling / selectors
+  - path: /etc/rancher/rke2/config.yaml.d/node-labels.yaml
+    content: |
+      node-label:
+        - bioskop.cluster/node-role=master
+        - bioskop.cluster/node-type=server
+  # Disable default controllers we don't want (consistent across cluster)
+  - path: /etc/rancher/rke2/config.yaml.d/disable.yaml
+    content: |
+      disable:
+        - rke2-snapshot-controller
+        - rke2-snapshot-controller-crd
+        - rke2-snapshot-validation-webhook
+        - rke2-ingress-nginx
+  # Main RKE2 server service override (consistent restart behavior)
+  - path: /etc/systemd/system/rke2-server.service.d/override.conf
+    # =============================================================================
+    # SHARED SYSTEMD SERVICE OVERRIDES
+    # =============================================================================
+
+    content: |
+      [Service]
+      Restart=always
+      RestartSec=10s
+      [Install]
+      WantedBy=multi-user.target
+  # Pre-start configuration for all control plane nodes
+  - path: /etc/systemd/system/rke2-server.service.d/pre-start.conf
+    content: |
+      [Unit]
+      Requires=rke2-remount-shared.service rke2-install.service
+      Wants=rke2-remount-shared.service
+      After=rke2-remount-shared.service rke2-install.service
+      [Service]
+      EnvironmentFile=/etc/rancher/rke2/environment
+      ExecStartPre=/bin/sh -xc '/usr/local/sbin/rke2-server-pre-start'
+      ExecStartPre=/bin/sh -xc '/usr/local/sbin/rke2-server-contribs-install'
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-server-post-start'
+  # Post-start configuration for all control plane nodes (but no Cilium check)
+  - path: /etc/systemd/system/rke2-server.service.d/post-start.conf
+    content: |
+      [Service]
+      # Wait for Kubernetes API to be ready before considering service started
+      EnvironmentFile=/etc/rancher/rke2/environment
+      ExecStartPost=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && until kubectl get --raw /readyz &>/dev/null; do echo "Waiting for API server..."; sleep 5; done && echo "API server is ready"'
+      # Note: Cilium check is only run on master node via post-start-master.conf
+  # Control plane pre-start script (shared logic for all server nodes)
+  - path: /usr/local/sbin/rke2-server-pre-start
+    # =============================================================================
+    # SHARED CONTROL PLANE SCRIPTS
+    # =============================================================================
+
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-server-pre-start.sh
+  # Control plane post-start script (shared logic for all server nodes)
+  - path: /usr/local/sbin/rke2-server-post-start
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-server-post-start.sh
+  # Generate RKE2 static manifests from environment variables (called by pre-start)
+  - path: /usr/local/sbin/rke2-server-contribs-install
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-server-contribs-install.sh
+  # Master ETCD config
+  - path: /etc/rancher/rke2/config.yaml.d/etcd.yaml
+    content: |
+      etcd-expose-metrics: true
+      node-name: master-control-node
+      with-node-id: false
+  # Cluster init
+  - path: /etc/rancher/rke2/config.yaml.d/cluster-init.yaml
+    content: |
+      cluster-init: true
+  # Cilium validation execution (script itself is in common.yaml, available on all nodes)
+  - path: /etc/systemd/system/rke2-server.service.d/post-start-master.conf
+    content: |
+      [Service]
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-cilium-check'
+runcmd:
+  - [sysctl, -p, /etc/sysctl.d/99-disable-ipv6.conf]
+  - [systemctl, daemon-reload]
+  - [systemctl, enable, rke2-network-config.service, rke2-network-debug.service, rke2-network-wait.service, rke2-route-cleanup.service, zfs-early-umount.service, rke2-remount-shared.service, rke2-install.service]
+  # Start network configuration service immediately
+  - [systemctl, start, rke2-network-config.service]
+  - /usr/local/sbin/rke2-activate
+  - systemctl daemon-reload
+  - systemctl daemon-reload
+  - systemctl enable rke2-cluster-repo-sync.service
+  - systemctl start rke2-cluster-repo-sync.service
+# Original deployment (now in kpt package):
+# Original Kube-VIP DaemonSet (now in kpt package):
+#  - path: /var/lib/rancher/rke2/server/manifests/kube-vip.yaml
+#    content: DaemonSet with VIP ${CLUSTER_VIP_GATEWAY_IP} on vmnet0
+#
+# Original NodePort backup (now in kpt package):
+#  - path: /var/lib/rancher/rke2/server/manifests/control-plane-nodeport.yaml
+
+#cloud-config
+# Common cloud-init configuration for all RKE2 nodes (masters and agents)
+
+# Kube-vip overlay for highly available Kubernetes API server VIP
+# Provides HA VIP management independent of Cilium LoadBalancer IPAM
+# @codebase
+hostname: master-control-node
+manage_resolv_conf: true
+resolv_conf:
+  searchdomains:
+    - mammoth-skate.ts.net
+# -----------------------------------------------------------------------------
+# Network configuration now provided via separate NoCloud network-config file (@codebase)
+# The standalone network-config.yaml template generates the network-config seed file
+# mounted at /var/lib/cloud/seed/nocloud/network-config. Since cloud-init doesn't
+# properly honor the 'renderer: networkd' directive, we use bootcmd to install the
+# netplan file before systemd-networkd starts.
+# -----------------------------------------------------------------------------
+bootcmd:
+  # Install NoCloud network-config as netplan file before cloud-init processes network
+  # This must run in bootcmd because write_files happens too late (after network config)
+  - [test, -f, /var/lib/cloud/seed/nocloud/network-config]
+  - [cp, /var/lib/cloud/seed/nocloud/network-config, /etc/netplan/01-nocloud.yaml]
+  - [chmod, '600', /etc/netplan/01-nocloud.yaml]
+  # Disable dhcpcd for vmnet0 - systemd-networkd will handle it
+  - [sh, -c, "echo 'denyinterfaces vmnet0' >> /etc/dhcpcd.conf"]
+write_files:
+  # =============================================================================
+  # SYSTEM CONFIGURATION FILES
+  # =============================================================================
+
+  # Disable cloud-init network configuration to prevent conflicts with netplan/systemd-networkd
+  # This prevents cloud-init from generating /etc/network/interfaces.d/50-cloud-init
+  # which would start dhcpcd and conflict with systemd-networkd DHCP
+  - path: /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+    permissions: "0644"
+    content: |
+      network: {config: disabled}
+  # systemd-networkd drop-in to set cluster-prefixed hostname for LAN DHCP
+  # This ensures LAN DHCP registrations are unique per cluster (bioskop vs alcide)
+  # while keeping the actual system hostname unchanged
+  # Drop-in must match netplan-generated config name: 10-netplan-lan0.network
+  - path: /etc/systemd/network/10-netplan-lan0.network.d/10-hostname.conf
+    permissions: "0644"
+    content: |
+      [DHCP]
+      SendHostname=yes
+      Hostname=bioskop-master-control-node
+  # systemd-networkd drop-in to prevent vmnet0 DHCP from installing routes/DNS
+  - path: /etc/systemd/network/10-netplan-lan0.network.d/90-no-default.conf
+    permissions: "0644"
+    content: |
+      [Network]
+      DHCP=ipv4
+      IPv6AcceptRA=no
+      LinkLocalAddressing=ipv4
+      LLMNR=yes
+
+      [DHCP]
+      UseDNS=yes
+  # systemd-networkd drop-in to prevent vmnet0 DHCP from installing routes/DNS
+  - path: /etc/systemd/network/10-netplan-vmnet0.network.d/90-no-default.conf
+    permissions: "0644"
+    content: |
+      [Network]
+      IPv6AcceptRA=no
+      LinkLocalAddressing=ipv4
+
+      [DHCP]
+      UseRoutes=no
+      UseDNS=no
+  # systemd-resolved drop-in to disable LLMNR/mDNS advertising on LAN interfaces
+  - path: /etc/systemd/resolved.conf.d/10-disable-llmnr-mdns.conf
+    permissions: "0644"
+    content: |
+      [Resolve]
+      LLMNR=no
+      MulticastDNS=no
+  # Disable IPv6 globally so nodes stay IPv4-only end-to-end (@codebase)
+  - path: /etc/sysctl.d/99-disable-ipv6.conf
+    permissions: "0644"
+    content: |
+      net.ipv6.conf.all.disable_ipv6 = 1
+      net.ipv6.conf.default.disable_ipv6 = 1
+      net.ipv6.conf.lo.disable_ipv6 = 1
+      net.ipv6.conf.lan0.disable_ipv6 = 1
+      net.ipv6.conf.vmnet0.disable_ipv6 = 1
+      net.ipv6.conf.all.accept_ra = 0
+      net.ipv6.conf.default.accept_ra = 0
+  # Network configuration script using flox environment and yq
+  - path: /usr/local/sbin/rke2-network-config
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-network-config.sh
+  - path: /etc/systemd/system/rke2-network-config.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=RKE2 Network Configuration Service
+      After=systemd-networkd.service cloud-init.service
+      Wants=systemd-networkd.service
+      Before=rke2-install.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-network-config
+      RemainAfterExit=yes
+      StandardOutput=journal
+      StandardError=journal
+
+      [Install]
+      WantedBy=multi-user.target
+  # Docker CLI shim to route invocations to nerdctl for kpt functions
+  - path: /usr/local/bin/docker
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/docker.sh
+  - path: /etc/rancher/rke2/config.yaml.d/tls-san.yaml
+    content: |
+      tls-san:
+        - localhost
+        - gateway
+        - 0.0.0.0
+        - 127.0.0.1
+        - 10.80.7.1 # cluster VIP gateway
+        - 10.80.0.1 # node gateway
+        # Note: VIP gateway removed - not a client endpoint
+        # IPv6 addresses removed for IPv4-only configuration
+  # Enable etcd metrics exposure
+  - path: /etc/rancher/rke2/config.yaml.d/etcd-metrics.yaml
+    content: |
+      etcd-expose-metrics: true
+  # Central dual-stack network CIDRs (applies to ALL nodes, control-plane & agents)
+  # Formerly only in server layer; moved here so kubelet / components on every node
+  # have consistent view.
+  - path: /etc/rancher/rke2/config.yaml.d/network-cidrs.yaml
+    content: |
+      cluster-cidr: 10.42.0.0/16
+      service-cidr: 10.43.0.0/16
+      kube-controller-manager-arg:
+        - node-cidr-mask-size-ipv4=24
+  # IPv4-only node IP configuration to prevent dual-stack auto-detection
+  # Static DHCP lease ensures this matches the actual assigned IP
+  - path: /etc/rancher/rke2/config.yaml.d/node-ip.yaml
+    content: |
+      node-ip: 10.80.0.10
+  # Set systemd as cgroup driver
+  - path: /var/lib/rancher/rke2/agent/etc/kubelet.conf.d/01-cgroup-override.conf
+    # =============================================================================
+    # KUBELET CONFIGURATION FILES
+    # =============================================================================
+
+    content: |
+      apiVersion: kubelet.config.k8s.io/v1beta1
+      kind: KubeletConfiguration
+      cgroupDriver: systemd
+  # Disable aggressive image garbage collection
+  - path: /var/lib/rancher/rke2/agent/etc/kubelet.conf.d/00-disable-gc.conf
+    content: |
+      apiVersion: kubelet.config.k8s.io/v1beta1
+      kind: KubeletConfiguration
+      kubelet-arg:
+        imageGCHighThresholdPercent: 100
+        imageGCLowThresholdPercent: 99
+  # ZFS snapshotter configuration for containerd
+  - path: /var/lib/rancher/rke2/agent/etc/containerd/config-v3.toml
+    # =============================================================================
+    # CONTAINERD CONFIGURATION
+    # =============================================================================
+
+    permissions: "0644"
+    content: |
+      {{ template "base" . }}
+
+      [plugins."io.containerd.grpc.v1.cri".containerd]
+        snapshotter = "zfs"
+
+      [plugins."io.containerd.snapshotter.v1.zfs"]
+        root_path = "/var/lib/rancher/rke2/agent/containerd/io.containerd.snapshotter.v1.zfs"
+
+      [debug]
+        level = "debug"
+  # Pre-installation script for environment setup
+  - path: /usr/local/sbin/rke2-install-pre
+    # =============================================================================
+    # FLOX ENVIRONMENT SETUP SCRIPTS
+    # =============================================================================
+
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-install-pre.sh
+  - path: /usr/local/sbin/rke2-install
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-install.sh
+  - path: /usr/local/sbin/rke2-install-post
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-install-post.sh
+  - path: /etc/systemd/system/rke2-server.service.d/kubeconfig.conf
+    content: |
+      [Service]
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-tools-configuration-directories'
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-vip-kubeconfig'
+  - path: /etc/systemd/system/rke2-agent.service.d/kubeconfig.conf
+    content: |
+      [Service]
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-tools-configuration-directories'
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-vip-kubeconfig'
+  # =============================================================================
+  # ENVIRONMENT CONFIGURATION FILES
+  # =============================================================================
+
+  # Simplified RKE2 environment configuration (variables now in flox profile)
+  - path: /var/lib/rancher/rke2/.envrc
+    # Control plane specific systemd drop-in for Cilium operator scaling
+    # - path: /etc/systemd/system/rke2-server.service.d/cilium-operator-scaling.conf
+    #   content: |
+    #     [Service]
+    #     ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-cilium-operator-scaling'
+
+    permissions: "0644"
+    content: |
+      #!/usr/bin/env bash
+      log_status "Loading RKE2 flox environment"
+
+      # Variables are now defined in flox profile-common.sh
+      # Just activate flox environment
+      [[ "${FLOX_ENV_PROJECT}" != "${PWD}" ]] &&
+        use flox
+  # Root user zsh configuration
+  - path: /root/.zshrc
+    # =============================================================================
+    # SHELL CONFIGURATION FILES
+    # =============================================================================
+
+    permissions: "0644"
+    content: |
+      #!/usr/bin/env zsh
+
+      : "Define useful functions"
+      journalctl:unit:follow() {
+        local unit="$1"
+        journalctl --unit $unit --follow --no-tail |
+          tee /.logs.d/${unit}.log
+      }
+
+      : "Configure completions"
+      autoload -Uz compinit &&
+        compinit
+      command -v kubectl >/dev/null &&
+        source <( kubectl completion zsh ) 2>/dev/null || true
+      command -v helm >/dev/null &&
+        source <( helm completion zsh ) 2>/dev/null || true
+
+      : "Load direnv hook"
+      source <( direnv hook zsh )
+  # Bash completion for kubectl and helm
+  - path: /etc/bash_completion.d/kube
+    permissions: "0644"
+    content: |
+      #!/usr/bin/env -S bash
+      source <( flox activate --dir /var/lib/rancher/rke2 )
+
+      source <( kubectl completion bash ) 2>/dev/null || true
+      source <( helm completion bash ) 2>/dev/null || true
+  # =============================================================================
+  # UTILITY SCRIPTS
+  # =============================================================================
+  - path: /usr/local/sbin/rke2-route-cleanup
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-route-cleanup.sh
+  - path: /usr/local/sbin/rke2-network-wait
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-network-wait.sh
+  - path: /usr/local/sbin/rke2-network-debug
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-network-debug.sh
+  - path: /usr/local/sbin/rke2-remount-shared
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-remount-shared.sh
+  - path: /usr/local/sbin/rke2-activate
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-activate.sh
+  - path: /usr/local/sbin/rke2-enable-containerd-zfs-mount
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-enable-containerd-zfs-mount.sh
+  - path: /usr/local/sbin/rke2-cilium-operator-scaling
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-cilium-operator-scaling.sh
+  - path: /usr/local/sbin/rke2-tools-configuration-directories
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-tools-configuration-directories.sh
+  - path: /usr/local/sbin/rke2-vip-kubeconfig
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-vip-kubeconfig.sh
+  - path: /usr/local/sbin/rke2-cilium-check
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-cilium-check.sh
+  - path: /etc/systemd/system/rke2-network-debug.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=RKE2 Network Debug Logger
+      After=systemd-networkd.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/bin/bash -c 'echo "=== Network Debug at $(date) ==="; ip addr show; echo "=== Routes ==="; ip route show; echo "=== NetworkD Status ==="; systemctl status systemd-networkd --no-pager; echo "=== NetworkCTL List ==="; networkctl list'
+      RemainAfterExit=true
+      StandardOutput=journal+console
+      StandardError=journal+console
+
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/systemd/system/rke2-network-wait.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=RKE2 Network Wait Service
+      After=systemd-networkd.service
+      Before=rke2-server.service rke2-agent.service
+      Wants=systemd-networkd.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-network-wait
+      RemainAfterExit=true
+      StandardOutput=journal+console
+      StandardError=journal+console
+      SuccessExitStatus=0 1
+
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/systemd/system/rke2-route-cleanup.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=RKE2 Route Cleanup Service - Remove DHCP default routes
+      After=network-online.target systemd-networkd.service
+      Wants=network-online.target systemd-networkd.service
+      Before=rke2-server.service rke2-agent.service
+      StartLimitIntervalSec=30
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-route-cleanup
+      RemainAfterExit=true
+      StandardOutput=journal+console
+      StandardError=journal+console
+      Restart=on-failure
+      RestartSec=5
+      StartLimitBurst=3
+
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/systemd/system/zfs-early-umount.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Early ZFS umount all datasets
+      After=zfs-mount.service
+      Before=basic.target
+      DefaultDependencies=no
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/sbin/zfs umount -a
+
+      [Install]
+      WantedBy=basic.target
+  - path: /etc/systemd/system/rke2-remount-shared.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Remount RKE2 required volumes as shared
+      Before=rke2-server.service
+      DefaultDependencies=no
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-remount-shared
+      RemainAfterExit=true
+
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/systemd/system/rke2-install.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Run RKE2 Installation Script
+      After=network-online.target systemd-networkd.service
+      Wants=network-online.target systemd-networkd.service
+      ConditionPathExists=!/etc/systemd/system/rke2-server.service
+      ConditionPathExists=!/etc/systemd/system/rke2-agent.service
+
+      [Service]
+      Type=oneshot
+      ExecStartPre=/usr/local/sbin/rke2-install-pre
+      ExecStart=/usr/local/sbin/rke2-install
+      ExecStartPost=/usr/local/sbin/rke2-install-post
+      RemainAfterExit=true
+      StandardOutput=journal
+      StandardError=journal
+
+      [Install]
+      WantedBy=multi-user.target
+  # Core RKE2 server configuration (shared across all control plane nodes)
+  - path: /etc/rancher/rke2/config.yaml.d/core.yaml
+    # =============================================================================
+    # SHARED RKE2 CONTROL PLANE CONFIGURATION
+    # =============================================================================
+
+    content: |
+      write-kubeconfig-mode: "0640"
+      bind-address: "0.0.0.0"
+      cni:
+        - cilium
+      ingress-controller: traefik
+  # Dedicated token fragment
+  - path: /etc/rancher/rke2/config.yaml.d/token.yaml
+    content: |
+      token: bioskop
+  # Dedicated advertise-address fragment
+  - path: /etc/rancher/rke2/config.yaml.d/advertise-address.yaml
+    content: |
+      advertise-address: 10.80.0.10
+  # Deterministic node labels for scheduling / selectors
+  - path: /etc/rancher/rke2/config.yaml.d/node-labels.yaml
+    content: |
+      node-label:
+        - bioskop.cluster/node-role=master
+        - bioskop.cluster/node-type=server
+  # Disable default controllers we don't want (consistent across cluster)
+  - path: /etc/rancher/rke2/config.yaml.d/disable.yaml
+    content: |
+      disable:
+        - rke2-snapshot-controller
+        - rke2-snapshot-controller-crd
+        - rke2-snapshot-validation-webhook
+        - rke2-ingress-nginx
+  # Main RKE2 server service override (consistent restart behavior)
+  - path: /etc/systemd/system/rke2-server.service.d/override.conf
+    # =============================================================================
+    # SHARED SYSTEMD SERVICE OVERRIDES
+    # =============================================================================
+
+    content: |
+      [Service]
+      Restart=always
+      RestartSec=10s
+      [Install]
+      WantedBy=multi-user.target
+  # Pre-start configuration for all control plane nodes
+  - path: /etc/systemd/system/rke2-server.service.d/pre-start.conf
+    content: |
+      [Unit]
+      Requires=rke2-remount-shared.service rke2-install.service
+      Wants=rke2-remount-shared.service
+      After=rke2-remount-shared.service rke2-install.service
+      [Service]
+      EnvironmentFile=/etc/rancher/rke2/environment
+      ExecStartPre=/bin/sh -xc '/usr/local/sbin/rke2-server-pre-start'
+      ExecStartPre=/bin/sh -xc '/usr/local/sbin/rke2-server-contribs-install'
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-server-post-start'
+  # Post-start configuration for all control plane nodes (but no Cilium check)
+  - path: /etc/systemd/system/rke2-server.service.d/post-start.conf
+    content: |
+      [Service]
+      # Wait for Kubernetes API to be ready before considering service started
+      EnvironmentFile=/etc/rancher/rke2/environment
+      ExecStartPost=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && until kubectl get --raw /readyz &>/dev/null; do echo "Waiting for API server..."; sleep 5; done && echo "API server is ready"'
+      # Note: Cilium check is only run on master node via post-start-master.conf
+  # Control plane pre-start script (shared logic for all server nodes)
+  - path: /usr/local/sbin/rke2-server-pre-start
+    # =============================================================================
+    # SHARED CONTROL PLANE SCRIPTS
+    # =============================================================================
+
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-server-pre-start.sh
+  # Control plane post-start script (shared logic for all server nodes)
+  - path: /usr/local/sbin/rke2-server-post-start
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-server-post-start.sh
+  # Generate RKE2 static manifests from environment variables (called by pre-start)
+  - path: /usr/local/sbin/rke2-server-contribs-install
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-server-contribs-install.sh
+  # Master ETCD config
+  - path: /etc/rancher/rke2/config.yaml.d/etcd.yaml
+    content: |
+      etcd-expose-metrics: true
+      node-name: master-control-node
+      with-node-id: false
+  # Cluster init
+  - path: /etc/rancher/rke2/config.yaml.d/cluster-init.yaml
+    content: |
+      cluster-init: true
+  # Cilium validation execution (script itself is in common.yaml, available on all nodes)
+  - path: /etc/systemd/system/rke2-server.service.d/post-start-master.conf
+    content: |
+      [Service]
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-cilium-check'
+runcmd:
+  - [sysctl, -p, /etc/sysctl.d/99-disable-ipv6.conf]
+  - [systemctl, daemon-reload]
+  - [systemctl, enable, rke2-network-config.service, rke2-network-debug.service, rke2-network-wait.service, rke2-route-cleanup.service, zfs-early-umount.service, rke2-remount-shared.service, rke2-install.service]
+  # Start network configuration service immediately
+  - [systemctl, start, rke2-network-config.service]
+  - /usr/local/sbin/rke2-activate
+  - systemctl daemon-reload
+  - systemctl daemon-reload
+  - systemctl enable rke2-cluster-repo-sync.service
+  - systemctl start rke2-cluster-repo-sync.service
+# Original deployment (now in kpt package):
+# Original Kube-VIP DaemonSet (now in kpt package):
+#  - path: /var/lib/rancher/rke2/server/manifests/kube-vip.yaml
+#    content: DaemonSet with VIP ${CLUSTER_VIP_GATEWAY_IP} on vmnet0
+#
+# Original NodePort backup (now in kpt package):
+#  - path: /var/lib/rancher/rke2/server/manifests/control-plane-nodeport.yaml
+
+#cloud-config
+# Common cloud-init configuration for all RKE2 nodes (masters and agents)
+
+# Kube-vip overlay for highly available Kubernetes API server VIP
+# Provides HA VIP management independent of Cilium LoadBalancer IPAM
+# @codebase
+hostname: master-control-node
+manage_resolv_conf: true
+resolv_conf:
+  searchdomains:
+    - mammoth-skate.ts.net
+# -----------------------------------------------------------------------------
+# Network configuration now provided via separate NoCloud network-config file (@codebase)
+# The standalone network-config.yaml template generates the network-config seed file
+# mounted at /var/lib/cloud/seed/nocloud/network-config. Since cloud-init doesn't
+# properly honor the 'renderer: networkd' directive, we use bootcmd to install the
+# netplan file before systemd-networkd starts.
+# -----------------------------------------------------------------------------
+bootcmd:
+  # Install NoCloud network-config as netplan file before cloud-init processes network
+  # This must run in bootcmd because write_files happens too late (after network config)
+  - [test, -f, /var/lib/cloud/seed/nocloud/network-config]
+  - [cp, /var/lib/cloud/seed/nocloud/network-config, /etc/netplan/01-nocloud.yaml]
+  - [chmod, '600', /etc/netplan/01-nocloud.yaml]
+  # Disable dhcpcd for vmnet0 - systemd-networkd will handle it
+  - [sh, -c, "echo 'denyinterfaces vmnet0' >> /etc/dhcpcd.conf"]
+write_files:
+  # =============================================================================
+  # SYSTEM CONFIGURATION FILES
+  # =============================================================================
+
+  # Disable cloud-init network configuration to prevent conflicts with netplan/systemd-networkd
+  # This prevents cloud-init from generating /etc/network/interfaces.d/50-cloud-init
+  # which would start dhcpcd and conflict with systemd-networkd DHCP
+  - path: /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+    permissions: "0644"
+    content: |
+      network: {config: disabled}
+  # systemd-networkd drop-in to set cluster-prefixed hostname for LAN DHCP
+  # This ensures LAN DHCP registrations are unique per cluster (bioskop vs alcide)
+  # while keeping the actual system hostname unchanged
+  # Drop-in must match netplan-generated config name: 10-netplan-lan0.network
+  - path: /etc/systemd/network/10-netplan-lan0.network.d/10-hostname.conf
+    permissions: "0644"
+    content: |
+      [DHCP]
+      SendHostname=yes
+      Hostname=bioskop-master-control-node
+  # systemd-networkd drop-in to prevent vmnet0 DHCP from installing routes/DNS
+  - path: /etc/systemd/network/10-netplan-lan0.network.d/90-no-default.conf
+    permissions: "0644"
+    content: |
+      [Network]
+      DHCP=ipv4
+      IPv6AcceptRA=no
+      LinkLocalAddressing=ipv4
+      LLMNR=yes
+
+      [DHCP]
+      UseDNS=yes
+  # systemd-networkd drop-in to prevent vmnet0 DHCP from installing routes/DNS
+  - path: /etc/systemd/network/10-netplan-vmnet0.network.d/90-no-default.conf
+    permissions: "0644"
+    content: |
+      [Network]
+      IPv6AcceptRA=no
+      LinkLocalAddressing=ipv4
+
+      [DHCP]
+      UseRoutes=no
+      UseDNS=no
+  # systemd-resolved drop-in to disable LLMNR/mDNS advertising on LAN interfaces
+  - path: /etc/systemd/resolved.conf.d/10-disable-llmnr-mdns.conf
+    permissions: "0644"
+    content: |
+      [Resolve]
+      LLMNR=no
+      MulticastDNS=no
+  # Disable IPv6 globally so nodes stay IPv4-only end-to-end (@codebase)
+  - path: /etc/sysctl.d/99-disable-ipv6.conf
+    permissions: "0644"
+    content: |
+      net.ipv6.conf.all.disable_ipv6 = 1
+      net.ipv6.conf.default.disable_ipv6 = 1
+      net.ipv6.conf.lo.disable_ipv6 = 1
+      net.ipv6.conf.lan0.disable_ipv6 = 1
+      net.ipv6.conf.vmnet0.disable_ipv6 = 1
+      net.ipv6.conf.all.accept_ra = 0
+      net.ipv6.conf.default.accept_ra = 0
+  # Network configuration script using flox environment and yq
+  - path: /usr/local/sbin/rke2-network-config
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-network-config.sh
+  - path: /etc/systemd/system/rke2-network-config.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=RKE2 Network Configuration Service
+      After=systemd-networkd.service cloud-init.service
+      Wants=systemd-networkd.service
+      Before=rke2-install.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-network-config
+      RemainAfterExit=yes
+      StandardOutput=journal
+      StandardError=journal
+
+      [Install]
+      WantedBy=multi-user.target
+  # Docker CLI shim to route invocations to nerdctl for kpt functions
+  - path: /usr/local/bin/docker
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/docker.sh
+  - path: /etc/rancher/rke2/config.yaml.d/tls-san.yaml
+    content: |
+      tls-san:
+        - localhost
+        - gateway
+        - 0.0.0.0
+        - 127.0.0.1
+        - 10.80.7.1 # cluster VIP gateway
+        - 10.80.0.1 # node gateway
+        # Note: VIP gateway removed - not a client endpoint
+        # IPv6 addresses removed for IPv4-only configuration
+  # Enable etcd metrics exposure
+  - path: /etc/rancher/rke2/config.yaml.d/etcd-metrics.yaml
+    content: |
+      etcd-expose-metrics: true
+  # Central dual-stack network CIDRs (applies to ALL nodes, control-plane & agents)
+  # Formerly only in server layer; moved here so kubelet / components on every node
+  # have consistent view.
+  - path: /etc/rancher/rke2/config.yaml.d/network-cidrs.yaml
+    content: |
+      cluster-cidr: 10.42.0.0/16
+      service-cidr: 10.43.0.0/16
+      kube-controller-manager-arg:
+        - node-cidr-mask-size-ipv4=24
+  # IPv4-only node IP configuration to prevent dual-stack auto-detection
+  # Static DHCP lease ensures this matches the actual assigned IP
+  - path: /etc/rancher/rke2/config.yaml.d/node-ip.yaml
+    content: |
+      node-ip: 10.80.0.10
+  # Set systemd as cgroup driver
+  - path: /var/lib/rancher/rke2/agent/etc/kubelet.conf.d/01-cgroup-override.conf
+    # =============================================================================
+    # KUBELET CONFIGURATION FILES
+    # =============================================================================
+
+    content: |
+      apiVersion: kubelet.config.k8s.io/v1beta1
+      kind: KubeletConfiguration
+      cgroupDriver: systemd
+  # Disable aggressive image garbage collection
+  - path: /var/lib/rancher/rke2/agent/etc/kubelet.conf.d/00-disable-gc.conf
+    content: |
+      apiVersion: kubelet.config.k8s.io/v1beta1
+      kind: KubeletConfiguration
+      kubelet-arg:
+        imageGCHighThresholdPercent: 100
+        imageGCLowThresholdPercent: 99
+  # ZFS snapshotter configuration for containerd
+  - path: /var/lib/rancher/rke2/agent/etc/containerd/config-v3.toml
+    # =============================================================================
+    # CONTAINERD CONFIGURATION
+    # =============================================================================
+
+    permissions: "0644"
+    content: |
+      {{ template "base" . }}
+
+      [plugins."io.containerd.grpc.v1.cri".containerd]
+        snapshotter = "zfs"
+
+      [plugins."io.containerd.snapshotter.v1.zfs"]
+        root_path = "/var/lib/rancher/rke2/agent/containerd/io.containerd.snapshotter.v1.zfs"
+
+      [debug]
+        level = "debug"
+  # Pre-installation script for environment setup
+  - path: /usr/local/sbin/rke2-install-pre
+    # =============================================================================
+    # FLOX ENVIRONMENT SETUP SCRIPTS
+    # =============================================================================
+
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-install-pre.sh
+  - path: /usr/local/sbin/rke2-install
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-install.sh
+  - path: /usr/local/sbin/rke2-install-post
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-install-post.sh
+  - path: /etc/systemd/system/rke2-server.service.d/kubeconfig.conf
+    content: |
+      [Service]
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-tools-configuration-directories'
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-vip-kubeconfig'
+  - path: /etc/systemd/system/rke2-agent.service.d/kubeconfig.conf
+    content: |
+      [Service]
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-tools-configuration-directories'
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-vip-kubeconfig'
+  # =============================================================================
+  # ENVIRONMENT CONFIGURATION FILES
+  # =============================================================================
+
+  # Simplified RKE2 environment configuration (variables now in flox profile)
+  - path: /var/lib/rancher/rke2/.envrc
+    # Control plane specific systemd drop-in for Cilium operator scaling
+    # - path: /etc/systemd/system/rke2-server.service.d/cilium-operator-scaling.conf
+    #   content: |
+    #     [Service]
+    #     ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-cilium-operator-scaling'
+
+    permissions: "0644"
+    content: |
+      #!/usr/bin/env bash
+      log_status "Loading RKE2 flox environment"
+
+      # Variables are now defined in flox profile-common.sh
+      # Just activate flox environment
+      [[ "${FLOX_ENV_PROJECT}" != "${PWD}" ]] &&
+        use flox
+  # Root user zsh configuration
+  - path: /root/.zshrc
+    # =============================================================================
+    # SHELL CONFIGURATION FILES
+    # =============================================================================
+
+    permissions: "0644"
+    content: |
+      #!/usr/bin/env zsh
+
+      : "Define useful functions"
+      journalctl:unit:follow() {
+        local unit="$1"
+        journalctl --unit $unit --follow --no-tail |
+          tee /.logs.d/${unit}.log
+      }
+
+      : "Configure completions"
+      autoload -Uz compinit &&
+        compinit
+      command -v kubectl >/dev/null &&
+        source <( kubectl completion zsh ) 2>/dev/null || true
+      command -v helm >/dev/null &&
+        source <( helm completion zsh ) 2>/dev/null || true
+
+      : "Load direnv hook"
+      source <( direnv hook zsh )
+  # Bash completion for kubectl and helm
+  - path: /etc/bash_completion.d/kube
+    permissions: "0644"
+    content: |
+      #!/usr/bin/env -S bash
+      source <( flox activate --dir /var/lib/rancher/rke2 )
+
+      source <( kubectl completion bash ) 2>/dev/null || true
+      source <( helm completion bash ) 2>/dev/null || true
+  # =============================================================================
+  # UTILITY SCRIPTS
+  # =============================================================================
+  - path: /usr/local/sbin/rke2-route-cleanup
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-route-cleanup.sh
+  - path: /usr/local/sbin/rke2-network-wait
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-network-wait.sh
+  - path: /usr/local/sbin/rke2-network-debug
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-network-debug.sh
+  - path: /usr/local/sbin/rke2-remount-shared
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-remount-shared.sh
+  - path: /usr/local/sbin/rke2-activate
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-activate.sh
+  - path: /usr/local/sbin/rke2-enable-containerd-zfs-mount
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-enable-containerd-zfs-mount.sh
+  - path: /usr/local/sbin/rke2-cilium-operator-scaling
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-cilium-operator-scaling.sh
+  - path: /usr/local/sbin/rke2-tools-configuration-directories
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-tools-configuration-directories.sh
+  - path: /usr/local/sbin/rke2-vip-kubeconfig
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-vip-kubeconfig.sh
+  - path: /usr/local/sbin/rke2-cilium-check
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-cilium-check.sh
+  - path: /etc/systemd/system/rke2-network-debug.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=RKE2 Network Debug Logger
+      After=systemd-networkd.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/bin/bash -c 'echo "=== Network Debug at $(date) ==="; ip addr show; echo "=== Routes ==="; ip route show; echo "=== NetworkD Status ==="; systemctl status systemd-networkd --no-pager; echo "=== NetworkCTL List ==="; networkctl list'
+      RemainAfterExit=true
+      StandardOutput=journal+console
+      StandardError=journal+console
+
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/systemd/system/rke2-network-wait.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=RKE2 Network Wait Service
+      After=systemd-networkd.service
+      Before=rke2-server.service rke2-agent.service
+      Wants=systemd-networkd.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-network-wait
+      RemainAfterExit=true
+      StandardOutput=journal+console
+      StandardError=journal+console
+      SuccessExitStatus=0 1
+
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/systemd/system/rke2-route-cleanup.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=RKE2 Route Cleanup Service - Remove DHCP default routes
+      After=network-online.target systemd-networkd.service
+      Wants=network-online.target systemd-networkd.service
+      Before=rke2-server.service rke2-agent.service
+      StartLimitIntervalSec=30
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-route-cleanup
+      RemainAfterExit=true
+      StandardOutput=journal+console
+      StandardError=journal+console
+      Restart=on-failure
+      RestartSec=5
+      StartLimitBurst=3
+
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/systemd/system/zfs-early-umount.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Early ZFS umount all datasets
+      After=zfs-mount.service
+      Before=basic.target
+      DefaultDependencies=no
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/sbin/zfs umount -a
+
+      [Install]
+      WantedBy=basic.target
+  - path: /etc/systemd/system/rke2-remount-shared.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Remount RKE2 required volumes as shared
+      Before=rke2-server.service
+      DefaultDependencies=no
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-remount-shared
+      RemainAfterExit=true
+
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/systemd/system/rke2-install.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Run RKE2 Installation Script
+      After=network-online.target systemd-networkd.service
+      Wants=network-online.target systemd-networkd.service
+      ConditionPathExists=!/etc/systemd/system/rke2-server.service
+      ConditionPathExists=!/etc/systemd/system/rke2-agent.service
+
+      [Service]
+      Type=oneshot
+      ExecStartPre=/usr/local/sbin/rke2-install-pre
+      ExecStart=/usr/local/sbin/rke2-install
+      ExecStartPost=/usr/local/sbin/rke2-install-post
+      RemainAfterExit=true
+      StandardOutput=journal
+      StandardError=journal
+
+      [Install]
+      WantedBy=multi-user.target
+  # Core RKE2 server configuration (shared across all control plane nodes)
+  - path: /etc/rancher/rke2/config.yaml.d/core.yaml
+    # =============================================================================
+    # SHARED RKE2 CONTROL PLANE CONFIGURATION
+    # =============================================================================
+
+    content: |
+      write-kubeconfig-mode: "0640"
+      bind-address: "0.0.0.0"
+      cni:
+        - cilium
+      ingress-controller: traefik
+  # Dedicated token fragment
+  - path: /etc/rancher/rke2/config.yaml.d/token.yaml
+    content: |
+      token: bioskop
+  # Dedicated advertise-address fragment
+  - path: /etc/rancher/rke2/config.yaml.d/advertise-address.yaml
+    content: |
+      advertise-address: 10.80.0.10
+  # Deterministic node labels for scheduling / selectors
+  - path: /etc/rancher/rke2/config.yaml.d/node-labels.yaml
+    content: |
+      node-label:
+        - bioskop.cluster/node-role=master
+        - bioskop.cluster/node-type=server
+  # Disable default controllers we don't want (consistent across cluster)
+  - path: /etc/rancher/rke2/config.yaml.d/disable.yaml
+    content: |
+      disable:
+        - rke2-snapshot-controller
+        - rke2-snapshot-controller-crd
+        - rke2-snapshot-validation-webhook
+        - rke2-ingress-nginx
+  # Main RKE2 server service override (consistent restart behavior)
+  - path: /etc/systemd/system/rke2-server.service.d/override.conf
+    # =============================================================================
+    # SHARED SYSTEMD SERVICE OVERRIDES
+    # =============================================================================
+
+    content: |
+      [Service]
+      Restart=always
+      RestartSec=10s
+      [Install]
+      WantedBy=multi-user.target
+  # Pre-start configuration for all control plane nodes
+  - path: /etc/systemd/system/rke2-server.service.d/pre-start.conf
+    content: |
+      [Unit]
+      Requires=rke2-remount-shared.service rke2-install.service
+      Wants=rke2-remount-shared.service
+      After=rke2-remount-shared.service rke2-install.service
+      [Service]
+      EnvironmentFile=/etc/rancher/rke2/environment
+      ExecStartPre=/bin/sh -xc '/usr/local/sbin/rke2-server-pre-start'
+      ExecStartPre=/bin/sh -xc '/usr/local/sbin/rke2-server-contribs-install'
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-server-post-start'
+  # Post-start configuration for all control plane nodes (but no Cilium check)
+  - path: /etc/systemd/system/rke2-server.service.d/post-start.conf
+    content: |
+      [Service]
+      # Wait for Kubernetes API to be ready before considering service started
+      EnvironmentFile=/etc/rancher/rke2/environment
+      ExecStartPost=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && until kubectl get --raw /readyz &>/dev/null; do echo "Waiting for API server..."; sleep 5; done && echo "API server is ready"'
+      # Note: Cilium check is only run on master node via post-start-master.conf
+  # Control plane pre-start script (shared logic for all server nodes)
+  - path: /usr/local/sbin/rke2-server-pre-start
+    # =============================================================================
+    # SHARED CONTROL PLANE SCRIPTS
+    # =============================================================================
+
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-server-pre-start.sh
+  # Control plane post-start script (shared logic for all server nodes)
+  - path: /usr/local/sbin/rke2-server-post-start
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-server-post-start.sh
+  # Generate RKE2 static manifests from environment variables (called by pre-start)
+  - path: /usr/local/sbin/rke2-server-contribs-install
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-server-contribs-install.sh
+  # Master ETCD config
+  - path: /etc/rancher/rke2/config.yaml.d/etcd.yaml
+    content: |
+      etcd-expose-metrics: true
+      node-name: master-control-node
+      with-node-id: false
+  # Cluster init
+  - path: /etc/rancher/rke2/config.yaml.d/cluster-init.yaml
+    content: |
+      cluster-init: true
+  # Cilium validation execution (script itself is in common.yaml, available on all nodes)
+  - path: /etc/systemd/system/rke2-server.service.d/post-start-master.conf
+    content: |
+      [Service]
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-cilium-check'
+runcmd:
+  - [sysctl, -p, /etc/sysctl.d/99-disable-ipv6.conf]
+  - [systemctl, daemon-reload]
+  - [systemctl, enable, rke2-network-config.service, rke2-network-debug.service, rke2-network-wait.service, rke2-route-cleanup.service, zfs-early-umount.service, rke2-remount-shared.service, rke2-install.service]
+  # Start network configuration service immediately
+  - [systemctl, start, rke2-network-config.service]
+  - /usr/local/sbin/rke2-activate
+  - systemctl daemon-reload
+  - systemctl daemon-reload
+  - systemctl enable rke2-cluster-repo-sync.service
+  - systemctl start rke2-cluster-repo-sync.service
+# Original deployment (now in kpt package):
+# Original Kube-VIP DaemonSet (now in kpt package):
+#  - path: /var/lib/rancher/rke2/server/manifests/kube-vip.yaml
+#    content: DaemonSet with VIP ${CLUSTER_VIP_GATEWAY_IP} on vmnet0
+#
+# Original NodePort backup (now in kpt package):
+#  - path: /var/lib/rancher/rke2/server/manifests/control-plane-nodeport.yaml
+
+#cloud-config
+# Common cloud-init configuration for all RKE2 nodes (masters and agents)
+
+# Kube-vip overlay for highly available Kubernetes API server VIP
+# Provides HA VIP management independent of Cilium LoadBalancer IPAM
+# @codebase
+hostname: master-control-node
+manage_resolv_conf: true
+resolv_conf:
+  searchdomains:
+    - mammoth-skate.ts.net
+# -----------------------------------------------------------------------------
+# Network configuration now provided via separate NoCloud network-config file (@codebase)
+# The standalone network-config.yaml template generates the network-config seed file
+# mounted at /var/lib/cloud/seed/nocloud/network-config. Since cloud-init doesn't
+# properly honor the 'renderer: networkd' directive, we use bootcmd to install the
+# netplan file before systemd-networkd starts.
+# -----------------------------------------------------------------------------
+bootcmd:
+  # Install NoCloud network-config as netplan file before cloud-init processes network
+  # This must run in bootcmd because write_files happens too late (after network config)
+  - [test, -f, /var/lib/cloud/seed/nocloud/network-config]
+  - [cp, /var/lib/cloud/seed/nocloud/network-config, /etc/netplan/01-nocloud.yaml]
+  - [chmod, '600', /etc/netplan/01-nocloud.yaml]
+  # Disable dhcpcd for vmnet0 - systemd-networkd will handle it
+  - [sh, -c, "echo 'denyinterfaces vmnet0' >> /etc/dhcpcd.conf"]
+write_files:
+  # =============================================================================
+  # SYSTEM CONFIGURATION FILES
+  # =============================================================================
+
+  # Disable cloud-init network configuration to prevent conflicts with netplan/systemd-networkd
+  # This prevents cloud-init from generating /etc/network/interfaces.d/50-cloud-init
+  # which would start dhcpcd and conflict with systemd-networkd DHCP
+  - path: /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+    permissions: "0644"
+    content: |
+      network: {config: disabled}
+  # systemd-networkd drop-in to set cluster-prefixed hostname for LAN DHCP
+  # This ensures LAN DHCP registrations are unique per cluster (bioskop vs alcide)
+  # while keeping the actual system hostname unchanged
+  # Drop-in must match netplan-generated config name: 10-netplan-lan0.network
+  - path: /etc/systemd/network/10-netplan-lan0.network.d/10-hostname.conf
+    permissions: "0644"
+    content: |
+      [DHCP]
+      SendHostname=yes
+      Hostname=bioskop-master-control-node
+  # systemd-networkd drop-in to prevent vmnet0 DHCP from installing routes/DNS
+  - path: /etc/systemd/network/10-netplan-lan0.network.d/90-no-default.conf
+    permissions: "0644"
+    content: |
+      [Network]
+      DHCP=ipv4
+      IPv6AcceptRA=no
+      LinkLocalAddressing=ipv4
+      LLMNR=yes
+
+      [DHCP]
+      UseDNS=yes
+  # systemd-networkd drop-in to prevent vmnet0 DHCP from installing routes/DNS
+  - path: /etc/systemd/network/10-netplan-vmnet0.network.d/90-no-default.conf
+    permissions: "0644"
+    content: |
+      [Network]
+      IPv6AcceptRA=no
+      LinkLocalAddressing=ipv4
+
+      [DHCP]
+      UseRoutes=no
+      UseDNS=no
+  # systemd-resolved drop-in to disable LLMNR/mDNS advertising on LAN interfaces
+  - path: /etc/systemd/resolved.conf.d/10-disable-llmnr-mdns.conf
+    permissions: "0644"
+    content: |
+      [Resolve]
+      LLMNR=no
+      MulticastDNS=no
+  # Disable IPv6 globally so nodes stay IPv4-only end-to-end (@codebase)
+  - path: /etc/sysctl.d/99-disable-ipv6.conf
+    permissions: "0644"
+    content: |
+      net.ipv6.conf.all.disable_ipv6 = 1
+      net.ipv6.conf.default.disable_ipv6 = 1
+      net.ipv6.conf.lo.disable_ipv6 = 1
+      net.ipv6.conf.lan0.disable_ipv6 = 1
+      net.ipv6.conf.vmnet0.disable_ipv6 = 1
+      net.ipv6.conf.all.accept_ra = 0
+      net.ipv6.conf.default.accept_ra = 0
+  # Network configuration script using flox environment and yq
+  - path: /usr/local/sbin/rke2-network-config
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-network-config.sh
+  - path: /etc/systemd/system/rke2-network-config.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=RKE2 Network Configuration Service
+      After=systemd-networkd.service cloud-init.service
+      Wants=systemd-networkd.service
+      Before=rke2-install.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-network-config
+      RemainAfterExit=yes
+      StandardOutput=journal
+      StandardError=journal
+
+      [Install]
+      WantedBy=multi-user.target
+  # Docker CLI shim to route invocations to nerdctl for kpt functions
+  - path: /usr/local/bin/docker
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/docker.sh
+  - path: /etc/rancher/rke2/config.yaml.d/tls-san.yaml
+    content: |
+      tls-san:
+        - localhost
+        - gateway
+        - 0.0.0.0
+        - 127.0.0.1
+        - 10.80.7.1 # cluster VIP gateway
+        - 10.80.0.1 # node gateway
+        # Note: VIP gateway removed - not a client endpoint
+        # IPv6 addresses removed for IPv4-only configuration
+  # Enable etcd metrics exposure
+  - path: /etc/rancher/rke2/config.yaml.d/etcd-metrics.yaml
+    content: |
+      etcd-expose-metrics: true
+  # Central dual-stack network CIDRs (applies to ALL nodes, control-plane & agents)
+  # Formerly only in server layer; moved here so kubelet / components on every node
+  # have consistent view.
+  - path: /etc/rancher/rke2/config.yaml.d/network-cidrs.yaml
+    content: |
+      cluster-cidr: 10.42.0.0/16
+      service-cidr: 10.43.0.0/16
+      kube-controller-manager-arg:
+        - node-cidr-mask-size-ipv4=24
+  # IPv4-only node IP configuration to prevent dual-stack auto-detection
+  # Static DHCP lease ensures this matches the actual assigned IP
+  - path: /etc/rancher/rke2/config.yaml.d/node-ip.yaml
+    content: |
+      node-ip: 10.80.0.10
+  # Set systemd as cgroup driver
+  - path: /var/lib/rancher/rke2/agent/etc/kubelet.conf.d/01-cgroup-override.conf
+    # =============================================================================
+    # KUBELET CONFIGURATION FILES
+    # =============================================================================
+
+    content: |
+      apiVersion: kubelet.config.k8s.io/v1beta1
+      kind: KubeletConfiguration
+      cgroupDriver: systemd
+  # Disable aggressive image garbage collection
+  - path: /var/lib/rancher/rke2/agent/etc/kubelet.conf.d/00-disable-gc.conf
+    content: |
+      apiVersion: kubelet.config.k8s.io/v1beta1
+      kind: KubeletConfiguration
+      kubelet-arg:
+        imageGCHighThresholdPercent: 100
+        imageGCLowThresholdPercent: 99
+  # ZFS snapshotter configuration for containerd
+  - path: /var/lib/rancher/rke2/agent/etc/containerd/config-v3.toml
+    # =============================================================================
+    # CONTAINERD CONFIGURATION
+    # =============================================================================
+
+    permissions: "0644"
+    content: |
+      {{ template "base" . }}
+
+      [plugins."io.containerd.grpc.v1.cri".containerd]
+        snapshotter = "zfs"
+
+      [plugins."io.containerd.snapshotter.v1.zfs"]
+        root_path = "/var/lib/rancher/rke2/agent/containerd/io.containerd.snapshotter.v1.zfs"
+
+      [debug]
+        level = "debug"
+  # Pre-installation script for environment setup
+  - path: /usr/local/sbin/rke2-install-pre
+    # =============================================================================
+    # FLOX ENVIRONMENT SETUP SCRIPTS
+    # =============================================================================
+
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-install-pre.sh
+  - path: /usr/local/sbin/rke2-install
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-install.sh
+  - path: /usr/local/sbin/rke2-install-post
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-install-post.sh
+  - path: /etc/systemd/system/rke2-server.service.d/kubeconfig.conf
+    content: |
+      [Service]
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-tools-configuration-directories'
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-vip-kubeconfig'
+  - path: /etc/systemd/system/rke2-agent.service.d/kubeconfig.conf
+    content: |
+      [Service]
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-tools-configuration-directories'
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-vip-kubeconfig'
+  # =============================================================================
+  # ENVIRONMENT CONFIGURATION FILES
+  # =============================================================================
+
+  # Simplified RKE2 environment configuration (variables now in flox profile)
+  - path: /var/lib/rancher/rke2/.envrc
+    # Control plane specific systemd drop-in for Cilium operator scaling
+    # - path: /etc/systemd/system/rke2-server.service.d/cilium-operator-scaling.conf
+    #   content: |
+    #     [Service]
+    #     ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-cilium-operator-scaling'
+
+    permissions: "0644"
+    content: |
+      #!/usr/bin/env bash
+      log_status "Loading RKE2 flox environment"
+
+      # Variables are now defined in flox profile-common.sh
+      # Just activate flox environment
+      [[ "${FLOX_ENV_PROJECT}" != "${PWD}" ]] &&
+        use flox
+  # Root user zsh configuration
+  - path: /root/.zshrc
+    # =============================================================================
+    # SHELL CONFIGURATION FILES
+    # =============================================================================
+
+    permissions: "0644"
+    content: |
+      #!/usr/bin/env zsh
+
+      : "Define useful functions"
+      journalctl:unit:follow() {
+        local unit="$1"
+        journalctl --unit $unit --follow --no-tail |
+          tee /.logs.d/${unit}.log
+      }
+
+      : "Configure completions"
+      autoload -Uz compinit &&
+        compinit
+      command -v kubectl >/dev/null &&
+        source <( kubectl completion zsh ) 2>/dev/null || true
+      command -v helm >/dev/null &&
+        source <( helm completion zsh ) 2>/dev/null || true
+
+      : "Load direnv hook"
+      source <( direnv hook zsh )
+  # Bash completion for kubectl and helm
+  - path: /etc/bash_completion.d/kube
+    permissions: "0644"
+    content: |
+      #!/usr/bin/env -S bash
+      source <( flox activate --dir /var/lib/rancher/rke2 )
+
+      source <( kubectl completion bash ) 2>/dev/null || true
+      source <( helm completion bash ) 2>/dev/null || true
+  # =============================================================================
+  # UTILITY SCRIPTS
+  # =============================================================================
+  - path: /usr/local/sbin/rke2-route-cleanup
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-route-cleanup.sh
+  - path: /usr/local/sbin/rke2-network-wait
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-network-wait.sh
+  - path: /usr/local/sbin/rke2-network-debug
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-network-debug.sh
+  - path: /usr/local/sbin/rke2-remount-shared
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-remount-shared.sh
+  - path: /usr/local/sbin/rke2-activate
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-activate.sh
+  - path: /usr/local/sbin/rke2-enable-containerd-zfs-mount
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-enable-containerd-zfs-mount.sh
+  - path: /usr/local/sbin/rke2-cilium-operator-scaling
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-cilium-operator-scaling.sh
+  - path: /usr/local/sbin/rke2-tools-configuration-directories
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-tools-configuration-directories.sh
+  - path: /usr/local/sbin/rke2-vip-kubeconfig
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-vip-kubeconfig.sh
+  - path: /usr/local/sbin/rke2-cilium-check
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-cilium-check.sh
+  - path: /etc/systemd/system/rke2-network-debug.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=RKE2 Network Debug Logger
+      After=systemd-networkd.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/bin/bash -c 'echo "=== Network Debug at $(date) ==="; ip addr show; echo "=== Routes ==="; ip route show; echo "=== NetworkD Status ==="; systemctl status systemd-networkd --no-pager; echo "=== NetworkCTL List ==="; networkctl list'
+      RemainAfterExit=true
+      StandardOutput=journal+console
+      StandardError=journal+console
+
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/systemd/system/rke2-network-wait.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=RKE2 Network Wait Service
+      After=systemd-networkd.service
+      Before=rke2-server.service rke2-agent.service
+      Wants=systemd-networkd.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-network-wait
+      RemainAfterExit=true
+      StandardOutput=journal+console
+      StandardError=journal+console
+      SuccessExitStatus=0 1
+
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/systemd/system/rke2-route-cleanup.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=RKE2 Route Cleanup Service - Remove DHCP default routes
+      After=network-online.target systemd-networkd.service
+      Wants=network-online.target systemd-networkd.service
+      Before=rke2-server.service rke2-agent.service
+      StartLimitIntervalSec=30
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-route-cleanup
+      RemainAfterExit=true
+      StandardOutput=journal+console
+      StandardError=journal+console
+      Restart=on-failure
+      RestartSec=5
+      StartLimitBurst=3
+
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/systemd/system/zfs-early-umount.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Early ZFS umount all datasets
+      After=zfs-mount.service
+      Before=basic.target
+      DefaultDependencies=no
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/sbin/zfs umount -a
+
+      [Install]
+      WantedBy=basic.target
+  - path: /etc/systemd/system/rke2-remount-shared.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Remount RKE2 required volumes as shared
+      Before=rke2-server.service
+      DefaultDependencies=no
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-remount-shared
+      RemainAfterExit=true
+
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/systemd/system/rke2-install.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Run RKE2 Installation Script
+      After=network-online.target systemd-networkd.service
+      Wants=network-online.target systemd-networkd.service
+      ConditionPathExists=!/etc/systemd/system/rke2-server.service
+      ConditionPathExists=!/etc/systemd/system/rke2-agent.service
+
+      [Service]
+      Type=oneshot
+      ExecStartPre=/usr/local/sbin/rke2-install-pre
+      ExecStart=/usr/local/sbin/rke2-install
+      ExecStartPost=/usr/local/sbin/rke2-install-post
+      RemainAfterExit=true
+      StandardOutput=journal
+      StandardError=journal
+
+      [Install]
+      WantedBy=multi-user.target
+  # Core RKE2 server configuration (shared across all control plane nodes)
+  - path: /etc/rancher/rke2/config.yaml.d/core.yaml
+    # =============================================================================
+    # SHARED RKE2 CONTROL PLANE CONFIGURATION
+    # =============================================================================
+
+    content: |
+      write-kubeconfig-mode: "0640"
+      bind-address: "0.0.0.0"
+      cni:
+        - cilium
+      ingress-controller: traefik
+  # Dedicated token fragment
+  - path: /etc/rancher/rke2/config.yaml.d/token.yaml
+    content: |
+      token: bioskop
+  # Dedicated advertise-address fragment
+  - path: /etc/rancher/rke2/config.yaml.d/advertise-address.yaml
+    content: |
+      advertise-address: 10.80.0.10
+  # Deterministic node labels for scheduling / selectors
+  - path: /etc/rancher/rke2/config.yaml.d/node-labels.yaml
+    content: |
+      node-label:
+        - bioskop.cluster/node-role=master
+        - bioskop.cluster/node-type=server
+  # Disable default controllers we don't want (consistent across cluster)
+  - path: /etc/rancher/rke2/config.yaml.d/disable.yaml
+    content: |
+      disable:
+        - rke2-snapshot-controller
+        - rke2-snapshot-controller-crd
+        - rke2-snapshot-validation-webhook
+        - rke2-ingress-nginx
+  # Main RKE2 server service override (consistent restart behavior)
+  - path: /etc/systemd/system/rke2-server.service.d/override.conf
+    # =============================================================================
+    # SHARED SYSTEMD SERVICE OVERRIDES
+    # =============================================================================
+
+    content: |
+      [Service]
+      Restart=always
+      RestartSec=10s
+      [Install]
+      WantedBy=multi-user.target
+  # Pre-start configuration for all control plane nodes
+  - path: /etc/systemd/system/rke2-server.service.d/pre-start.conf
+    content: |
+      [Unit]
+      Requires=rke2-remount-shared.service rke2-install.service
+      Wants=rke2-remount-shared.service
+      After=rke2-remount-shared.service rke2-install.service
+      [Service]
+      EnvironmentFile=/etc/rancher/rke2/environment
+      ExecStartPre=/bin/sh -xc '/usr/local/sbin/rke2-server-pre-start'
+      ExecStartPre=/bin/sh -xc '/usr/local/sbin/rke2-server-contribs-install'
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-server-post-start'
+  # Post-start configuration for all control plane nodes (but no Cilium check)
+  - path: /etc/systemd/system/rke2-server.service.d/post-start.conf
+    content: |
+      [Service]
+      # Wait for Kubernetes API to be ready before considering service started
+      EnvironmentFile=/etc/rancher/rke2/environment
+      ExecStartPost=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && until kubectl get --raw /readyz &>/dev/null; do echo "Waiting for API server..."; sleep 5; done && echo "API server is ready"'
+      # Note: Cilium check is only run on master node via post-start-master.conf
+  # Control plane pre-start script (shared logic for all server nodes)
+  - path: /usr/local/sbin/rke2-server-pre-start
+    # =============================================================================
+    # SHARED CONTROL PLANE SCRIPTS
+    # =============================================================================
+
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-server-pre-start.sh
+  # Control plane post-start script (shared logic for all server nodes)
+  - path: /usr/local/sbin/rke2-server-post-start
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-server-post-start.sh
+  # Generate RKE2 static manifests from environment variables (called by pre-start)
+  - path: /usr/local/sbin/rke2-server-contribs-install
+    permissions: "0755"
+    content_from_file: make.d/cloud-config/scripts/rke2-server-contribs-install.sh
+  # Master ETCD config
+  - path: /etc/rancher/rke2/config.yaml.d/etcd.yaml
+    content: |
+      etcd-expose-metrics: true
+      node-name: master-control-node
+      with-node-id: false
+  # Cluster init
+  - path: /etc/rancher/rke2/config.yaml.d/cluster-init.yaml
+    content: |
+      cluster-init: true
+  # Cilium validation execution (script itself is in common.yaml, available on all nodes)
+  - path: /etc/systemd/system/rke2-server.service.d/post-start-master.conf
+    content: |
+      [Service]
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-cilium-check'
+runcmd:
+  - [sysctl, -p, /etc/sysctl.d/99-disable-ipv6.conf]
+  - [systemctl, daemon-reload]
+  - [systemctl, enable, rke2-network-config.service, rke2-network-debug.service, rke2-network-wait.service, rke2-route-cleanup.service, zfs-early-umount.service, rke2-remount-shared.service, rke2-install.service]
+  # Start network configuration service immediately
+  - [systemctl, start, rke2-network-config.service]
+  - /usr/local/sbin/rke2-activate
+  - systemctl daemon-reload
+  - systemctl daemon-reload
+  - systemctl enable rke2-cluster-repo-sync.service
+  - systemctl start rke2-cluster-repo-sync.service
+# Original deployment (now in kpt package):
+# Original Kube-VIP DaemonSet (now in kpt package):
+#  - path: /var/lib/rancher/rke2/server/manifests/kube-vip.yaml
+#    content: DaemonSet with VIP ${CLUSTER_VIP_GATEWAY_IP} on vmnet0
+#
+# Original NodePort backup (now in kpt package):
+#  - path: /var/lib/rancher/rke2/server/manifests/control-plane-nodeport.yaml
+
+#cloud-config
+# Common cloud-init configuration for all RKE2 nodes (masters and agents)
+
+# Kube-vip overlay for highly available Kubernetes API server VIP
+# Provides HA VIP management independent of Cilium LoadBalancer IPAM
+# @codebase
+hostname: master-control-node
+manage_resolv_conf: true
+resolv_conf:
+  searchdomains:
+    - mammoth-skate.ts.net
+# -----------------------------------------------------------------------------
+# Network configuration now provided via separate NoCloud network-config file (@codebase)
+# The standalone network-config.yaml template generates the network-config seed file
+# mounted at /var/lib/cloud/seed/nocloud/network-config. Since cloud-init doesn't
+# properly honor the 'renderer: networkd' directive, we use bootcmd to install the
+# netplan file before systemd-networkd starts.
+# -----------------------------------------------------------------------------
+bootcmd:
+  # Install NoCloud network-config as netplan file before cloud-init processes network
+  # This must run in bootcmd because write_files happens too late (after network config)
+  - [test, -f, /var/lib/cloud/seed/nocloud/network-config]
+  - [cp, /var/lib/cloud/seed/nocloud/network-config, /etc/netplan/01-nocloud.yaml]
+  - [chmod, '600', /etc/netplan/01-nocloud.yaml]
+  # Disable dhcpcd for vmnet0 - systemd-networkd will handle it
+  - [sh, -c, "echo 'denyinterfaces vmnet0' >> /etc/dhcpcd.conf"]
+write_files:
+  # =============================================================================
+  # SYSTEM CONFIGURATION FILES
+  # =============================================================================
+
+  # Disable cloud-init network configuration to prevent conflicts with netplan/systemd-networkd
+  # This prevents cloud-init from generating /etc/network/interfaces.d/50-cloud-init
+  # which would start dhcpcd and conflict with systemd-networkd DHCP
+  - path: /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+    permissions: "0644"
+    content: |
+      network: {config: disabled}
+  # systemd-networkd drop-in to set cluster-prefixed hostname for LAN DHCP
+  # This ensures LAN DHCP registrations are unique per cluster (bioskop vs alcide)
+  # while keeping the actual system hostname unchanged
+  # Drop-in must match netplan-generated config name: 10-netplan-lan0.network
+  - path: /etc/systemd/network/10-netplan-lan0.network.d/10-hostname.conf
+    permissions: "0644"
+    content: |
+      [DHCP]
+      SendHostname=yes
+      Hostname=bioskop-master-control-node
+  # systemd-networkd drop-in to prevent vmnet0 DHCP from installing routes/DNS
+  - path: /etc/systemd/network/10-netplan-lan0.network.d/90-no-default.conf
+    permissions: "0644"
+    content: |
+      [Network]
+      DHCP=ipv4
+      IPv6AcceptRA=no
+      LinkLocalAddressing=ipv4
+      LLMNR=yes
+
+      [DHCP]
+      UseDNS=yes
+  # systemd-networkd drop-in to prevent vmnet0 DHCP from installing routes/DNS
+  - path: /etc/systemd/network/10-netplan-vmnet0.network.d/90-no-default.conf
+    permissions: "0644"
+    content: |
+      [Network]
+      IPv6AcceptRA=no
+      LinkLocalAddressing=ipv4
+
+      [DHCP]
+      UseRoutes=no
+      UseDNS=no
+  # systemd-resolved drop-in to disable LLMNR/mDNS advertising on LAN interfaces
+  - path: /etc/systemd/resolved.conf.d/10-disable-llmnr-mdns.conf
+    permissions: "0644"
+    content: |
+      [Resolve]
+      LLMNR=no
+      MulticastDNS=no
+  # Disable IPv6 globally so nodes stay IPv4-only end-to-end (@codebase)
+  - path: /etc/sysctl.d/99-disable-ipv6.conf
+    permissions: "0644"
+    content: |
+      net.ipv6.conf.all.disable_ipv6 = 1
+      net.ipv6.conf.default.disable_ipv6 = 1
+      net.ipv6.conf.lo.disable_ipv6 = 1
+      net.ipv6.conf.lan0.disable_ipv6 = 1
+      net.ipv6.conf.vmnet0.disable_ipv6 = 1
+      net.ipv6.conf.all.accept_ra = 0
+      net.ipv6.conf.default.accept_ra = 0
+  # Network configuration script using flox environment and yq
+  - path: /usr/local/sbin/rke2-network-config
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exuo pipefail
+
+      # Log all operations
+      exec > >(logger -t rke2-network-config) 2>&1
+
+      : "Load flox environment for yq and other tools"
+      source <( flox activate --dir /var/lib/cloud/seed/nocloud )
+
+      : "=== Stopping dhcpcd for vmnet0 (systemd-networkd will manage it) ==="
+      # Kill dhcpcd processes for vmnet0 to prevent route conflicts
+      pkill -f 'dhcpcd.*vmnet0' || true
+      sleep 1
+
+      : "=== Process List Before Network Config ==="
+      ps -ef
+
+      : "=== Applying netplan configuration ==="
+      ip link set dev lan0 down || true
+      ip link set dev vmnet0 down || true
+
+      netplan apply
+
+      : "=== Restarting systemd-networkd to ensure UseRoutes settings take effect ==="
+      systemctl restart systemd-networkd
+      sleep 3
+
+      : "=== Verifying dhcpcd is not managing vmnet0 ==="
+      if ps aux | grep -v grep | grep 'dhcpcd.*vmnet0'; then
+        echo "[!] Warning: dhcpcd still managing vmnet0, killing again..."
+        pkill -f 'dhcpcd.*vmnet0' || true
+      else
+        echo "[i] dhcpcd not managing vmnet0 (correct)"
+      fi
+
+      : "=== Final Network Status ==="
+      ip addr show
+      ip route show
+      systemctl status systemd-networkd --no-pager
+
+      : "=== Process List After Network Config ==="
+      ps -ef
+  - path: /etc/systemd/system/rke2-network-config.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=RKE2 Network Configuration Service
+      After=systemd-networkd.service cloud-init.service
+      Wants=systemd-networkd.service
+      Before=rke2-install.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-network-config
+      RemainAfterExit=yes
+      StandardOutput=journal
+      StandardError=journal
+
+      [Install]
+      WantedBy=multi-user.target
+  # Docker CLI shim to route invocations to nerdctl for kpt functions
+  - path: /usr/local/bin/docker
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -euo pipefail
+
+      if [[ "${1:-}" == "version" ]]; then
+        echo "20.10.0"
+        exit 0
+      fi
+
+      exec nerdctl "$@"
+  - path: /etc/rancher/rke2/config.yaml.d/tls-san.yaml
+    content: |
+      tls-san:
+        - localhost
+        - gateway
+        - 0.0.0.0
+        - 127.0.0.1
+        - 10.80.7.1 # cluster VIP gateway
+        - 10.80.0.1 # node gateway
+        # Note: VIP gateway removed - not a client endpoint
+        # IPv6 addresses removed for IPv4-only configuration
+  # Enable etcd metrics exposure
+  - path: /etc/rancher/rke2/config.yaml.d/etcd-metrics.yaml
+    content: |
+      etcd-expose-metrics: true
+  # Central dual-stack network CIDRs (applies to ALL nodes, control-plane & agents)
+  # Formerly only in server layer; moved here so kubelet / components on every node
+  # have consistent view.
+  - path: /etc/rancher/rke2/config.yaml.d/network-cidrs.yaml
+    content: |
+      cluster-cidr: 10.42.0.0/16
+      service-cidr: 10.43.0.0/16
+      kube-controller-manager-arg:
+        - node-cidr-mask-size-ipv4=24
+  # IPv4-only node IP configuration to prevent dual-stack auto-detection
+  # Static DHCP lease ensures this matches the actual assigned IP
+  - path: /etc/rancher/rke2/config.yaml.d/node-ip.yaml
+    content: |
+      node-ip: 10.80.0.10
+  # Set systemd as cgroup driver
+  - path: /var/lib/rancher/rke2/agent/etc/kubelet.conf.d/01-cgroup-override.conf
+    # =============================================================================
+    # KUBELET CONFIGURATION FILES
+    # =============================================================================
+
+    content: |
+      apiVersion: kubelet.config.k8s.io/v1beta1
+      kind: KubeletConfiguration
+      cgroupDriver: systemd
+  # Disable aggressive image garbage collection
+  - path: /var/lib/rancher/rke2/agent/etc/kubelet.conf.d/00-disable-gc.conf
+    content: |
+      apiVersion: kubelet.config.k8s.io/v1beta1
+      kind: KubeletConfiguration
+      kubelet-arg:
+        imageGCHighThresholdPercent: 100
+        imageGCLowThresholdPercent: 99
+  # ZFS snapshotter configuration for containerd
+  - path: /var/lib/rancher/rke2/agent/etc/containerd/config-v3.toml
+    # =============================================================================
+    # CONTAINERD CONFIGURATION
+    # =============================================================================
+
+    permissions: "0644"
+    content: |
+      {{ template "base" . }}
+
+      [plugins."io.containerd.grpc.v1.cri".containerd]
+        snapshotter = "zfs"
+
+      [plugins."io.containerd.snapshotter.v1.zfs"]
+        root_path = "/var/lib/rancher/rke2/agent/containerd/io.containerd.snapshotter.v1.zfs"
+
+      [debug]
+        level = "debug"
+  # Pre-installation script for environment setup
+  - path: /usr/local/sbin/rke2-install-pre
+    # =============================================================================
+    # FLOX ENVIRONMENT SETUP SCRIPTS
+    # =============================================================================
+
+    permissions: "0755"
+    content: "#!/usr/bin/env -S bash -exu -o pipefail\n\n: \"Generate /etc/rancher/rke2/environment from init process early\"\nmkdir -p /etc/rancher/rke2\ncat <<EoE > /etc/rancher/rke2/environment\n$( cat /proc/1/environ | tr '\\0' '\\n' )\nEoE\n\nLIBRARY_DIR=\"/var/lib/rancher/rke2\"\n: \"Configure direnv to use flox\"\ndirenv:config:generate() {\n  mkdir -p \"/root/.config/direnv/lib\"\n  curl -o \\\n    \"/root/.config/direnv/lib/flox.sh\" \\\n    \"https://raw.githubusercontent.com/flox/flox-direnv/v1.1.0/direnv.rc\"\n  cat <<EoConfig | cut -c 3- > \"/root/.config/direnv/direnv.toml\"\n  [whitelist]\n  prefix= [ \"/home\", \"/root\", \"/var/lib/cloud/seed/nocloud\", \"/var/lib/rancher/rke2\", ]\nEoConfig\n}\ndirenv:config:generate\n\n: \"Preload the nocloud environment\"\nnocloud:env:generate() {\n  local FLOX_ENV_DIR=\"/var/lib/cloud/seed/nocloud\"\n  echo \"${FLOX_ENV_DIR}\"\n  [[ -d \"${FLOX_ENV_DIR}/.flox\" ]] && return 0\n  mkdir -p \"${FLOX_ENV_DIR}\"\n  flox init \\\n    --dir=\"${FLOX_ENV_DIR}\"\n  flox install \\\n    --dir=\"${FLOX_ENV_DIR}\" \\\n    dasel git gh yq-go\n}\n\nsource <( flox activate --dir=\"$( nocloud:env:generate )\" )\n\ncat > /var/lib/cloud/seed/nocloud/.envrc <<'EoEnvrc'\n  log_status \"Loading nocloud environment variables\"\n\n  # Variables are loaded directly in flox profile-common.sh\n  # Just activate flox environment\n  [[ \"$FLOX_ENV_PROJECT\" != \"$PWD\" ]] &&\n    use flox\nEoEnvrc\ndasel -r toml -w yaml \\\n  < \"${FLOX_ENV_PROJECT}/.flox/env/manifest.toml\" |\n  yq eval '.profile = { \"common\": \"source ${FLOX_ENV_PROJECT}/.flox/env/profile-common.sh\" }' - |\n  dasel --pretty -r yaml -w toml | tee /tmp/manifest.toml.$ &&\n  mv /tmp/manifest.toml.$ \\\n    \"${FLOX_ENV_PROJECT}/.flox/env/manifest.toml\"\ncat <<'EoFloxCommonProfile' | cut -c 3- | tee \"${FLOX_ENV_PROJECT}/.flox/env/profile-common.sh\"\n  : \"Backfill secrets from /srv/secrets if not already set (local yq wrapper)\"\n\n  shell:indirect() {\n    local var=\"$1\" value=\"\"\n\n    set +u\n    if [[ -n \"${BASH_VERSION:-}\" ]]; then\n      value=\"${!var-}\"\n    elif [[ -n \"${ZSH_VERSION:-}\" ]]; then\n      # shellcheck disable=SC2296\n      value=\"${(P)var:-}\"\n    else\n      echo \"ERROR: Unsupported shell for secret loading\" >&2\n      set -u\n      return 1\n    fi\n    set -u\n\n    printf '%s\\n' \"${value}\"\n  }\n\n  secret:value() {\n    local var=\"$1\" key=\"$2\" val\n\n    val=\"$( shell:indirect \"${var}\" )\"\n\n    if [[ -z \"$val\" ]]; then\n      val=$( \"${FLOX_ENV}/bin/yq\" -r \"${key}\" /srv/secrets 2>/dev/null )\n    fi\n    \n    [[ -z \"$val\" ]] && return  \n    export \"$var=$val\"\n  }\n  \n  set -a\n\n   : \"Source RKE2 environment file if available\"\n  [[ -f /etc/rancher/rke2/environment ]] && source /etc/rancher/rke2/environment\n\n  : \"Load RKE2-specific dynamic environment variables\"\n  ARCH=\"$(dpkg --print-architecture)\"\n\n  secret:value CLUSTER_GITHUB_USERNAME '.github.username'\n  secret:value CLUSTER_GITHUB_TOKEN '.github.token'\n  secret:value CLUSTER_DOCKER_CONFIG_JSON '.docker.configJson'\t\n  secret:value TEKTON_GIT_USERNAME '.tekton.git.username'\n  secret:value TEKTON_GIT_PASSWORD '.tekton.git.password'\n  secret:value TEKTON_DOCKER_CONFIG_JSON '.tekton.docker.configJson'\n  secret:value TEKTON_DOCKER_REGISTRY_URL '.tekton.docker.registryUrl'\t\n  secret:value TSKEY_CLIENT_ID '.tailscale.client.id'\n  secret:value TSKEY_CLIENT_TOKEN '.tailscale.client.token'\n  secret:value TSKEY_API_ID '.tailscale.api.id'\n  secret:value TSKEY_API_TOKEN '.tailscale.api.token'\t  \n  \n  # Convenience alias for tools expecting the conventional PAT variable\n  [[ -n \"${CLUSTER_GITHUB_TOKEN:-}\" ]] && export GITHUB_PAT=\"${CLUSTER_GITHUB_TOKEN}\"\t\n\n  unset shell_indirect\n  unset secret:value\n\n\n  : \"Determine default gateway IP for cluster networking\"\n  CLUSTER_GATEWAY=$( ip route show default 2>/dev/null | \n                      awk '/default via/ { print $3; exit }' || \n                      true )\n\n  set +a\nEoFloxCommonProfile\n\n: Refresh flox environment \nrm -f \"${FLOX_ENV_PROJECT}/.flox/env/manifest.lock\"\nflox activate --dir \"${FLOX_ENV_PROJECT}\"\\\n\n: \"Load flox common profile for the secrets\"\nsource \"${FLOX_ENV_PROJECT}/.flox/env/profile-common.sh\"\n\n: \"GitHub authentication setup\"\ngh auth login --with-token <<EoF\n${CLUSTER_GITHUB_TOKEN}\nEoF\ngh auth setup-git --hostname \"${CLUSTER_GITHUB_HOST:-github.com}\"\\\n\n: \"Initialize the flox environment for RKE2\"\n[[ ! -d /var/lib/rancher/rke2/.flox ]] &&\n  flox init --dir=/var/lib/rancher/rke2\n\nflox install \\\n  --dir=/var/lib/rancher/rke2 \\\n  ceph-client cilium-cli etcdctl helmfile \\\n  kubernetes-helm kubectl # override\n\n: \"Install kpt v1 in isolated group to avoid dependency conflicts\"\nflox install \\\n  --dir=/var/lib/rancher/rke2 \\\n  kpt\n\n: \"Include cloud environment in RKE2 flox environment and configure groups\"\ndasel -r toml -w yaml \\\n  < /var/lib/rancher/rke2/.flox/env/manifest.toml |\n  yq eval '.include = {\"environments\": [{\"dir\": \"/var/lib/cloud/seed/nocloud\"}]}' - |\n  yq eval '.install += {\"zfs\": {\"pkg-path\": \"zfs\", \"pkg-group\": \"linux\", \"systems\": [\"aarch64-linux\"]}}' - |\n  yq eval '.install += {\"nerdctl\": {\"pkg-path\": \"nerdctl\", \"version\": \"1.7.5\", \"pkg-group\": \"containerd-tools\", \"systems\": [\"aarch64-linux\"]}}' - |\n  yq eval '.install += {\"krew\": {\"pkg-path\": \"krew\", \"pkg-group\": \"kubectl-tools\"}}' - |\n  yq eval '.install += {\"kubectl-ai\": {\"pkg-path\": \"kubectl-ai\", \"pkg-group\": \"kubectl-plugins\"}}' - |\n  yq eval '.install += {\"kubectl-ktop\": {\"pkg-path\": \"kubectl-ktop\", \"pkg-group\": \"kubectl-plugins\"}}' - |\n  yq eval '.install += {\"kubectl-neat\": {\"pkg-path\": \"kubectl-neat\", \"pkg-group\": \"kubectl-plugins\"}}' - |\n  yq eval '.install += {\"kubectl-tree\": {\"pkg-path\": \"kubectl-tree\", \"pkg-group\": \"kubectl-plugins\"}}' - |\n  yq eval '.install += {\"kubectl-graph\": {\"pkg-path\": \"kubectl-graph\", \"pkg-group\": \"kubectl-plugins\"}}' - |\n  yq eval '.install += {\"kubectl-doctor\": {\"pkg-path\": \"kubectl-doctor\", \"pkg-group\": \"kubectl-plugins\"}}' - |\n  yq eval '.install += {\"kubectl-explore\": {\"pkg-path\": \"kubectl-explore\", \"pkg-group\": \"kubectl-plugins\"}}' - |\n  yq eval '.install += {\"kubectl-rook-ceph\": {\"pkg-path\": \"kubectl-rook-ceph\", \"pkg-group\": \"kubectl-plugins\"}}' - |\n  yq eval '.install += {\"kubectl-view-secret\": {\"pkg-path\": \"kubectl-view-secret\", \"pkg-group\": \"kubectl-plugins\"}}' - |\n  yq eval '.install += {\"tubekit\": {\"pkg-path\": \"tubekit\", \"pkg-group\": \"kubectl-tools\"}}' - |\n  yq eval '.install += {\"yq-go\": {\"pkg-path\": \"yq-go\", \"pkg-group\": \"yaml-tools\"}}' - |\n  yq eval '.install += {\"kpt\": {\"pkg-path\": \"kpt\", \"version\": \"1.0.0-beta.55\", \"pkg-group\": \"kpt-tools\"}}' - |\n  yq eval '.profile = {\"common\": \"source /var/lib/rancher/rke2/.flox/env/profile-common.sh\"}' - |\n  dasel --pretty -r yaml -w toml | tee /tmp/manifest.toml.$ &&\n  mv /tmp/manifest.toml.$ \\\n    /var/lib/rancher/rke2/.flox/env/manifest.toml\n  cat <<'EoFloxCommonProfile' | cut -c 3- | tee /var/lib/rancher/rke2/.flox/env/profile-common.sh\n  : \"Load nocloud environment from the common profile\"\n  source \"/var/lib/cloud/seed/nocloud/.flox/env/profile-common.sh\" \n \n  set -a\n  : \"Load RKE2-specific dynamic environment variables\"\n  ARCH=\"$(dpkg --print-architecture)\"\n  [[ -r /etc/rancher/rke2/rke2.yaml ]] &&\n    KUBECONFIG=\"/etc/rancher/rke2/rke2.yaml\"\n\n  : \"Default cache for kubectl/kpt\"\n  KUBECACHEDIR=\"${KUBECACHEDIR:-${FLOX_RUNTIME_DIR:-/run/user/0}/kube-cache}\"\n  mkdir -p \"${KUBECACHEDIR}\"\n\n  : \"Set KREW_ROOT if not already set\"\n  KREW_ROOT=\"${KREW_ROOT:-/var/lib/rancher/rke2/krew}\"\n\n  : \"Update PATH with RKE2 tools\"\n  PATH=\"/var/lib/rancher/rke2/bin:$PATH:${KREW_ROOT}/bin\"\n\n  set +a\nEoFloxCommonProfile\n\n: \"Load the RKE2 envrc\"\nsource <( flox activate --dir /var/lib/rancher/rke2 )\n\n: \"Initialize krew and install plugins\"\nKREW_ROOT=\"/var/lib/rancher/rke2/krew\"\nmkdir -p \"$KREW_ROOT\"\n\n: \"Install krew plugins using krew directly\"\nfor plugin in ctx ns; do\n  krew install \"$plugin\" || true\ndone\n"
+  - path: /usr/local/sbin/rke2-install
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+
+      source <( flox activate --dir /var/lib/rancher/rke2 )
+
+      : "Install the RKE2 server or agent binaries"
+      curl -sfL https://get.rke2.io | env DEBUG=1 sh -
+
+      : "Patch containerd to use systemd cgroup driver"
+      if [ -f "$CONTAINERD_CONFIG_FILE" ]; then
+        sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' "$CONTAINERD_CONFIG_FILE"
+      fi
+
+      : "Enable shared mount service"
+      systemctl daemon-reload
+      systemctl enable rke2-remount-shared
+  - path: /usr/local/sbin/rke2-install-post
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+      : "Post RKE2 install script - placeholder for post install actions"
+  - path: /etc/systemd/system/rke2-server.service.d/kubeconfig.conf
+    content: |
+      [Service]
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-tools-configuration-directories'
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-vip-kubeconfig'
+  - path: /etc/systemd/system/rke2-agent.service.d/kubeconfig.conf
+    content: |
+      [Service]
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-tools-configuration-directories'
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-vip-kubeconfig'
+  # =============================================================================
+  # ENVIRONMENT CONFIGURATION FILES
+  # =============================================================================
+
+  # Simplified RKE2 environment configuration (variables now in flox profile)
+  - path: /var/lib/rancher/rke2/.envrc
+    # Control plane specific systemd drop-in for Cilium operator scaling
+    # - path: /etc/systemd/system/rke2-server.service.d/cilium-operator-scaling.conf
+    #   content: |
+    #     [Service]
+    #     ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-cilium-operator-scaling'
+
+    permissions: "0644"
+    content: |
+      #!/usr/bin/env bash
+      log_status "Loading RKE2 flox environment"
+
+      # Variables are now defined in flox profile-common.sh
+      # Just activate flox environment
+      [[ "${FLOX_ENV_PROJECT}" != "${PWD}" ]] &&
+        use flox
+  # Root user zsh configuration
+  - path: /root/.zshrc
+    # =============================================================================
+    # SHELL CONFIGURATION FILES
+    # =============================================================================
+
+    permissions: "0644"
+    content: |
+      #!/usr/bin/env zsh
+
+      : "Define useful functions"
+      journalctl:unit:follow() {
+        local unit="$1"
+        journalctl --unit $unit --follow --no-tail |
+          tee /.logs.d/${unit}.log
+      }
+
+      : "Configure completions"
+      autoload -Uz compinit &&
+        compinit
+      command -v kubectl >/dev/null &&
+        source <( kubectl completion zsh ) 2>/dev/null || true
+      command -v helm >/dev/null &&
+        source <( helm completion zsh ) 2>/dev/null || true
+
+      : "Load direnv hook"
+      source <( direnv hook zsh )
+  # Bash completion for kubectl and helm
+  - path: /etc/bash_completion.d/kube
+    permissions: "0644"
+    content: |
+      #!/usr/bin/env -S bash
+      source <( flox activate --dir /var/lib/rancher/rke2 )
+
+      source <( kubectl completion bash ) 2>/dev/null || true
+      source <( helm completion bash ) 2>/dev/null || true
+  # =============================================================================
+  # UTILITY SCRIPTS
+  # =============================================================================
+  - path: /usr/local/sbin/rke2-route-cleanup
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+
+      # Log all operations
+      exec > >(logger -t rke2-route-cleanup) 2>&1
+
+      echo "=== RKE2 Route Cleanup at $(date) ==="
+
+      echo "=== Routes Before Cleanup ==="
+      ip route show || true
+
+      # Remove default route from vmnet0 if it exists
+      # vmnet0 should NEVER have a default route - it's cluster-internal only
+      if ip route show default dev vmnet0 >/dev/null 2>&1; then
+        echo "[+] Removing unwanted default route from vmnet0 (cluster-internal interface)"
+        ip route del default dev vmnet0 || true
+      else
+        echo "[i] No default route on vmnet0 (correct)"
+      fi
+
+      # Verify lan0 has the default route
+      if ! ip route show default dev lan0 >/dev/null 2>&1; then
+        echo "[!] Warning: No default route via lan0 found (should be primary internet gateway)"
+        echo "[+] Current routes:"
+        ip route show
+      else
+        echo "[i] Default route via lan0 is properly configured (primary internet)"
+      fi
+
+      echo "=== Routes After Cleanup ==="
+      ip route show || true
+
+      echo "=== Route Cleanup Complete at $(date) ==="
+  - path: /usr/local/sbin/rke2-network-wait
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+
+      # Log all operations
+      exec > >(logger -t rke2-network-wait) 2>&1
+
+      : "=== RKE2 Network Wait at $(date) ==="
+
+      # Wait for networkd to be active
+      while ! systemctl is-active systemd-networkd >/dev/null 2>&1; do
+        : "[.] Waiting for systemd-networkd..."
+        sleep 2
+      done
+
+      # Wait for interfaces to be configured
+      for iface in vmnet0 lan0; do
+        : "[+] Waiting for interface $iface..."
+        timeout=30
+        while [ $timeout -gt 0 ]; do
+          if ip link show "$iface" >/dev/null 2>&1 && \
+             networkctl status "$iface" | grep -q "State: configured\|routable" 2>/dev/null; then
+            : "[i] Interface $iface is ready"
+            break
+          fi
+          : "[.] Waiting for $iface (timeout: $timeout)..."
+          sleep 1
+          timeout=$((timeout - 1))
+        done
+
+        if [ $timeout -eq 0 ]; then
+          : "[!] Warning: Interface $iface not ready after 30 seconds"
+        fi
+      done
+
+      # Brief additional wait for routes to stabilize
+      : "[+] Allowing routes to stabilize..."
+      sleep 3
+
+      : "=== Final Network Status ==="
+      ip addr show || true
+      : "=== Final Routes ==="
+      ip route show || true
+
+      : "=== Network Wait Complete at $(date) ==="
+  - path: /usr/local/sbin/rke2-network-debug
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+
+      echo "=== RKE2 Network Debug at $(date) ==="
+
+      echo "=== Interface Status ==="
+      ip addr show || true
+
+      echo "=== Route Table ==="
+      ip route show || true
+
+      echo "=== NetworkD Status ==="
+      systemctl status systemd-networkd --no-pager || true
+
+      echo "=== NetworkD Configuration ==="
+      networkctl list || true
+      networkctl status vmnet0 || true
+
+      echo "=== Wait-Online Status ==="
+      systemctl status systemd-networkd-wait-online --no-pager || true
+
+      echo "=== Boot Analysis ==="
+      systemd-analyze blame | head -10 || true
+
+      echo "=== Network Wait Analysis ==="
+      systemd-analyze critical-chain systemd-networkd-wait-online.service || true
+
+      echo "=== End Debug at $(date) ==="
+  - path: /usr/local/sbin/rke2-remount-shared
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+      mount --make-shared /
+      mount --make-shared -t bpf bpf /sys/fs/bpf
+      mount --make-shared /run
+  - path: /usr/local/sbin/rke2-activate
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+
+      : "Configure system-wide DNS"
+      ln -fs /run/systemd/resolve/resolv.conf /etc/resolv.conf
+
+      : "Start and wait for the RKE2 installation to complete"
+      systemctl enable --now rke2-install
+
+      : "Load the RKE2 environment"
+      source <( flox activate --dir /var/lib/rancher/rke2 )
+
+      : "Load the RKE2 environment and generate the named units"
+      /usr/local/sbin/rke2-enable-containerd-zfs-mount
+
+      : "Enable and start the RKE2 service"
+      systemctl --no-block --now \
+        enable rke2-${NODE_TYPE}
+  - path: /usr/local/sbin/rke2-enable-containerd-zfs-mount
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+
+      : "Load the RKE2 environment"
+      source <( flox activate --dir /var/lib/rancher/rke2 )
+
+      : "Generate systemd mount unit for containerd zfs snapshotter"
+      UNIT=var-lib-rancher-rke2-agent-containerd-io.containerd.snapshotter.v1.zfs.mount
+      cat <<EOF > /etc/systemd/system/$UNIT
+      [Unit]
+      Description=Mount containerd zfs snapshotter directory for RKE2 (ZFS dataset)
+      DefaultDependencies=no
+      Before=cloud-init.service
+      Before=rke2-${NODE_TYPE}.service
+
+      [Mount]
+      What=tank/rke2/control-nodes/${NODE_NAME}/containerd
+      Where=/var/lib/rancher/rke2/agent/containerd/io.containerd.snapshotter.v1.zfs
+      Type=zfs
+      Options=defaults
+
+      [Install]
+      WantedBy=multi-user.target
+      RequiredBy=rke2-${NODE_TYPE}.service
+      EOF
+
+      : "Enable the mount unit"
+      systemctl daemon-reload
+      systemctl enable "$UNIT"
+  - path: /usr/local/sbin/rke2-cilium-operator-scaling
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+
+      source <( flox activate --dir /var/lib/rancher/rke2 )
+
+      : "Wait for at least one node to be ready"
+      kubectl wait --for=condition=Ready \
+        nodes --all --timeout=300s || exit 0
+
+      : "Wait for Cilium DaemonSet to exist"
+      kubectl wait \
+        --for=jsonpath='{.metadata.name}'=cilium \
+        daemonset/cilium -n kube-system \
+        --timeout=300s || exit 0
+
+      : "Wait for Cilium operator deployment to exist"
+      kubectl wait \
+        --for=jsonpath='{.metadata.name}'=cilium-operator \
+        deployment/cilium-operator -n kube-system \
+        --timeout=300s || exit 0
+
+      : "Wait for Cilium DaemonSet to have at least one ready pod"
+      kubectl wait \
+        --for=jsonpath='{.status.numberReady}'=1 \
+        daemonset/cilium -n kube-system \
+        --timeout=300s || exit 0
+
+      : "Dynamic Cilium Operator Scaling"
+      count=$(kubectl get nodes -l node-role.kubernetes.io/control-plane --no-headers | wc -l)
+      case $count in
+      1)
+        replicas=1;;
+      2)
+        replicas=2;;
+      *)
+        replicas=3;;
+      esac
+
+      : "Scaling cilium-operator to $replicas replicas for $count control plane nodes"
+      kubectl scale deployment cilium-operator \
+        -n kube-system --replicas=$replicas
+
+      : "Wait for cilium-operator rollout to complete"
+      kubectl rollout status \
+        deployment/cilium-operator -n kube-system \
+        --timeout=1s || true
+  - path: /usr/local/sbin/rke2-tools-configuration-directories
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+
+      : "Create directories for tool configurations"
+      mkdir -p /var/lib/rancher/rke2/helm/plugins
+      mkdir -p /etc/rancher/rke2/helm
+      mkdir -p /var/cache/rancher/rke2/helm/repository
+      mkdir -p /var/lib/rancher/rke2/krew
+  - path: /usr/local/sbin/rke2-vip-kubeconfig
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+
+      source <( flox activate --dir /var/lib/rancher/rke2 )
+
+      : "Create working copy of kubeconfig"
+      KUBECONFIG="/.kubeconfig.d/rke2-${CLUSTER_NAME}.yaml"
+
+      mkdir -p $( dirname "$KUBECONFIG" )
+      cp /etc/rancher/rke2/rke2.yaml "$KUBECONFIG"
+      chmod 644 "$KUBECONFIG"
+
+      : "Apply modifications to working copy"
+      yq --inplace --from-file=<(cat <<EoE
+      .clusters[0].cluster.name = "${CLUSTER_NAME}" |
+      .clusters[0].cluster.server = "https://${CLUSTER_VIP_GATEWAY_IP}:6443" |
+      .clusters[0].name = "${CLUSTER_NAME}" |
+      .contexts[0].context.cluster = "${CLUSTER_NAME}" |
+      .contexts[0].context.namespace = "kube-system" |
+      .contexts[0].context.user = "${CLUSTER_NAME}" |
+      .contexts[0].name = "${CLUSTER_NAME}" |
+      .users[0].name = "${CLUSTER_NAME}" |
+      .current-context = "${CLUSTER_NAME}"
+      EoE
+      ) "$KUBECONFIG"
+  - path: /usr/local/sbin/rke2-cilium-check
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -xu -o pipefail
+      source <( flox activate --dir /var/lib/rancher/rke2 )
+      kubectl wait --for=condition=Ready nodes --all --timeout=300s || true
+      kubectl wait --for=condition=Ready pods -l k8s-app=cilium -n kube-system --timeout=300s || true
+      kubectl wait --for=condition=Available deployment/cilium-operator -n kube-system --timeout=300s || true
+      cilium status --wait --wait-duration=300s || true
+      kubectl get ciliumloadbalancerippool -o wide || true
+      kubectl get svc control-plane-lb -n kube-system -o wide || true
+      kubectl get endpoints control-plane-lb -n kube-system -o wide || true
+      kubectl get ciliumBGPClusterConfig -o wide || true
+      kubectl get ciliumBGPAdvertisement -o wide || true
+      kubectl get ciliumL2AnnouncementPolicy -o wide || true
+  - path: /etc/systemd/system/rke2-network-debug.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=RKE2 Network Debug Logger
+      After=systemd-networkd.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/bin/bash -c 'echo "=== Network Debug at $(date) ==="; ip addr show; echo "=== Routes ==="; ip route show; echo "=== NetworkD Status ==="; systemctl status systemd-networkd --no-pager; echo "=== NetworkCTL List ==="; networkctl list'
+      RemainAfterExit=true
+      StandardOutput=journal+console
+      StandardError=journal+console
+
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/systemd/system/rke2-network-wait.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=RKE2 Network Wait Service
+      After=systemd-networkd.service
+      Before=rke2-server.service rke2-agent.service
+      Wants=systemd-networkd.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-network-wait
+      RemainAfterExit=true
+      StandardOutput=journal+console
+      StandardError=journal+console
+      SuccessExitStatus=0 1
+
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/systemd/system/rke2-route-cleanup.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=RKE2 Route Cleanup Service - Remove DHCP default routes
+      After=network-online.target systemd-networkd.service
+      Wants=network-online.target systemd-networkd.service
+      Before=rke2-server.service rke2-agent.service
+      StartLimitIntervalSec=30
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-route-cleanup
+      RemainAfterExit=true
+      StandardOutput=journal+console
+      StandardError=journal+console
+      Restart=on-failure
+      RestartSec=5
+      StartLimitBurst=3
+
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/systemd/system/zfs-early-umount.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Early ZFS umount all datasets
+      After=zfs-mount.service
+      Before=basic.target
+      DefaultDependencies=no
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/sbin/zfs umount -a
+
+      [Install]
+      WantedBy=basic.target
+  - path: /etc/systemd/system/rke2-remount-shared.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Remount RKE2 required volumes as shared
+      Before=rke2-server.service
+      DefaultDependencies=no
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/rke2-remount-shared
+      RemainAfterExit=true
+
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/systemd/system/rke2-install.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Run RKE2 Installation Script
+      After=network-online.target systemd-networkd.service
+      Wants=network-online.target systemd-networkd.service
+      ConditionPathExists=!/etc/systemd/system/rke2-server.service
+      ConditionPathExists=!/etc/systemd/system/rke2-agent.service
+
+      [Service]
+      Type=oneshot
+      ExecStartPre=/usr/local/sbin/rke2-install-pre
+      ExecStart=/usr/local/sbin/rke2-install
+      ExecStartPost=/usr/local/sbin/rke2-install-post
+      RemainAfterExit=true
+      StandardOutput=journal
+      StandardError=journal
+
+      [Install]
+      WantedBy=multi-user.target
+  # Core RKE2 server configuration (shared across all control plane nodes)
+  - path: /etc/rancher/rke2/config.yaml.d/core.yaml
+    # =============================================================================
+    # SHARED RKE2 CONTROL PLANE CONFIGURATION
+    # =============================================================================
+
+    content: |
+      write-kubeconfig-mode: "0640"
+      bind-address: "0.0.0.0"
+      cni:
+        - cilium
+      ingress-controller: traefik
+  # Dedicated token fragment
+  - path: /etc/rancher/rke2/config.yaml.d/token.yaml
+    content: |
+      token: bioskop
+  # Dedicated advertise-address fragment
+  - path: /etc/rancher/rke2/config.yaml.d/advertise-address.yaml
+    content: |
+      advertise-address: 10.80.0.10
+  # Deterministic node labels for scheduling / selectors
+  - path: /etc/rancher/rke2/config.yaml.d/node-labels.yaml
+    content: |
+      node-label:
+        - bioskop.cluster/node-role=master
+        - bioskop.cluster/node-type=server
+  # Disable default controllers we don't want (consistent across cluster)
+  - path: /etc/rancher/rke2/config.yaml.d/disable.yaml
+    content: |
+      disable:
+        - rke2-snapshot-controller
+        - rke2-snapshot-controller-crd
+        - rke2-snapshot-validation-webhook
+        - rke2-ingress-nginx
+  # Main RKE2 server service override (consistent restart behavior)
+  - path: /etc/systemd/system/rke2-server.service.d/override.conf
+    # =============================================================================
+    # SHARED SYSTEMD SERVICE OVERRIDES
+    # =============================================================================
+
+    content: |
+      [Service]
+      Restart=always
+      RestartSec=10s
+      [Install]
+      WantedBy=multi-user.target
+  # Pre-start configuration for all control plane nodes
+  - path: /etc/systemd/system/rke2-server.service.d/pre-start.conf
+    content: |
+      [Unit]
+      Requires=rke2-remount-shared.service rke2-install.service
+      Wants=rke2-remount-shared.service
+      After=rke2-remount-shared.service rke2-install.service
+      [Service]
+      EnvironmentFile=/etc/rancher/rke2/environment
+      ExecStartPre=/bin/sh -xc '/usr/local/sbin/rke2-server-pre-start'
+      ExecStartPre=/bin/sh -xc '/usr/local/sbin/rke2-server-contribs-install'
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-server-post-start'
+  # Post-start configuration for all control plane nodes (but no Cilium check)
+  - path: /etc/systemd/system/rke2-server.service.d/post-start.conf
+    content: |
+      [Service]
+      # Wait for Kubernetes API to be ready before considering service started
+      EnvironmentFile=/etc/rancher/rke2/environment
+      ExecStartPost=/bin/bash -c 'source <(flox activate --dir /var/lib/rancher/rke2) && until kubectl get --raw /readyz &>/dev/null; do echo "Waiting for API server..."; sleep 5; done && echo "API server is ready"'
+      # Note: Cilium check is only run on master node via post-start-master.conf
+  # Control plane pre-start script (shared logic for all server nodes)
+  - path: /usr/local/sbin/rke2-server-pre-start
+    # =============================================================================
+    # SHARED CONTROL PLANE SCRIPTS
+    # =============================================================================
+
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env -S bash -exu -o pipefail
+
+      source <( flox activate --dir /var/lib/rancher/rke2 )
+
+      if [[ -f /etc/rancher/rke2/environment ]]; then
+        # shellcheck disable=SC1091
+        source /etc/rancher/rke2/environment
+      fi
+
+      db::check() {
+        local -A inet=( [current]="$(nmcli -g IP4.ADDRESS device show vmnet0)" )
+        local file="/var/lib/rancher/rke2/server/last-ip"
+        if [[ -r "$file" ]]; then
+          inet+=( [last]="$(cat "$file")" )
+        else
+          inet+=( [last]="" )
+        fi
+        if [[ "${inet[current]}" != "${inet[last]}" ]]; then
+          : "IP address changed: ${inet[last]} - ${inet[current]}, resetting RKE2 server DB"
+          rm -rf /var/lib/rancher/rke2/server/db
+          echo "${inet[current]}" > "$file"
+        fi
+      }
+
+      : "Check server database for IP address changes"
+      db::check
+
+      # Manifests are now installed post-start via rke2-server-contribs-install.service
+  # Control plane post-start script (shared logic for all server nodes)
+  - path: /usr/local/sbin/rke2-server-post-start
+    permissions: "0755"
+    content: "#!/usr/bin/env -S bash -exu -o pipefail\n\nsource <(flox activate --dir /var/lib/rancher/rke2)\n\n: \"Wait for server is ready\"\nuntil kubectl get --raw /readyz &>/dev/null; do\n : \"Waiting for API server...\"; sleep 5; \ndone\n\n: \"Restrict rke2 kubeconfig permissions\"\nchmod g-w /etc/rancher/rke2/rke2.yaml"
+  # Generate RKE2 static manifests from environment variables (called by pre-start)
+  - path: /usr/local/sbin/rke2-server-contribs-install
+    permissions: "0755"
+    content: |-
+      #!/usr/bin/env -S bash -exu -o pipefail
+
+      : "Load RKE2 flox environment for kubectl"
+      source <( flox activate --dir /var/lib/rancher/rke2 )
+
+      : "RKE2 static manifests directory"
+      MANIFESTS_SRV_DIR="/srv/rke2-contribs"
+      MANIFESTS_RKE2_DIR="/var/lib/rancher/rke2/server/manifests/contribs.d"
+
+      for layer in cicd ha gitops networking runtime storage; do
+      	mkdir -p "${MANIFESTS_RKE2_DIR}/${layer}"
+      	mount -o bind \
+      		"${MANIFESTS_SRV_DIR}/${layer}" \
+      		"${MANIFESTS_RKE2_DIR}/${layer}"
+      done
+
+      : "Generate GHCR docker registry secret from CLUSTER_GITHUB_TOKEN (replicator work-around)"
+      if [[ -n "${CLUSTER_GITHUB_TOKEN:-}" ]]; then
+        for ns in kube-system porch-system porch-fn-system tekton-pipelines; do
+          kubectl create secret docker-registry ghcr-pull \
+            --namespace="$ns" \
+            --docker-server=ghcr.io \
+            --docker-username="${CLUSTER_GITHUB_USERNAME:-x-access-token}" \
+            --docker-password="${CLUSTER_GITHUB_TOKEN}" \
+            --dry-run=client -o yaml > "${MANIFESTS_RKE2_DIR}/0-ghcr-pull-${ns}.yaml"
+
+          # Porch and other workloads rely on the image pull secret without replicator; annotate for porch if present.
+          yq eval -i '.metadata.annotations."porch.kpt.dev/git-auth" = "https"' \
+            "${MANIFESTS_RKE2_DIR}/0-ghcr-pull-${ns}.yaml"
+        done
+      else
+        : "WARNING: CLUSTER_GITHUB_TOKEN not set, skipping ghcr-pull generation"
+      fi
+
+      : "Generate GitHub git credentials secret from CLUSTER_GITHUB_TOKEN (replicator work-around)"
+      if [[ -n "${CLUSTER_GITHUB_TOKEN:-}" ]]; then
+        for ns in kube-system porch-system porch-fn-system tekton-pipelines; do
+          kubectl create secret generic github-token \
+            --namespace="$ns" \
+            --from-literal=username="${CLUSTER_GITHUB_USERNAME:-x-access-token}" \
+            --from-literal=password="${CLUSTER_GITHUB_TOKEN}" \
+            --type=kubernetes.io/basic-auth \
+            --dry-run=client -o yaml > "${MANIFESTS_RKE2_DIR}/1-github-token-${ns}.yaml"
+
+          # Porch git auth annotation still needed for porch-system; harmless elsewhere.
+          yq eval -i '.metadata.annotations."porch.kpt.dev/git-auth" = "https"' \
+            "${MANIFESTS_RKE2_DIR}/1-github-token-${ns}.yaml"
+        done
+      else
+        : "WARNING: CLUSTER_GITHUB_TOKEN not set, skipping github-token generation"
+      fi
+
+      : "Mounted contribs in server manifests"
+      tree "$MANIFESTS_RKE2_DIR"
+  # Master ETCD config
+  - path: /etc/rancher/rke2/config.yaml.d/etcd.yaml
+    content: |
+      etcd-expose-metrics: true
+      node-name: master-control-node
+      with-node-id: false
+  # Cluster init
+  - path: /etc/rancher/rke2/config.yaml.d/cluster-init.yaml
+    content: |
+      cluster-init: true
+  # Cilium validation execution (script itself is in common.yaml, available on all nodes)
+  - path: /etc/systemd/system/rke2-server.service.d/post-start-master.conf
+    content: |
+      [Service]
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-cilium-check'
+runcmd:
+  - [sysctl, -p, /etc/sysctl.d/99-disable-ipv6.conf]
+  - [systemctl, daemon-reload]
+  - [systemctl, enable, rke2-network-config.service, rke2-network-debug.service, rke2-network-wait.service, rke2-route-cleanup.service, zfs-early-umount.service, rke2-remount-shared.service, rke2-install.service]
+  # Start network configuration service immediately
+  - [systemctl, start, rke2-network-config.service]
+  - /usr/local/sbin/rke2-activate
+  - systemctl daemon-reload
+  - systemctl daemon-reload
+  - systemctl enable rke2-cluster-repo-sync.service
+  - systemctl start rke2-cluster-repo-sync.service
+# Original deployment (now in kpt package):
+# Original Kube-VIP DaemonSet (now in kpt package):
+#  - path: /var/lib/rancher/rke2/server/manifests/kube-vip.yaml
+#    content: DaemonSet with VIP ${CLUSTER_VIP_GATEWAY_IP} on vmnet0
+#
+# Original NodePort backup (now in kpt package):
+#  - path: /var/lib/rancher/rke2/server/manifests/control-plane-nodeport.yaml

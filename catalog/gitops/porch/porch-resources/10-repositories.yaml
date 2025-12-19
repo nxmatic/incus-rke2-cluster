@@ -1,0 +1,32 @@
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: Repository
+metadata:
+  name: ${cluster-name}-catalog # kpt-set: ${cluster-name}-catalog
+  namespace: porch-system
+spec:
+  description: Catalog of curated kpt packages tracked in incus-rke2-cluster
+  type: git
+  git:
+    repo: https://github.com/nxmatic/incus-rke2-cluster.git
+    branch: main
+    directory: catalog
+    secretRef:
+      ${github-secret} # kpt-set: ${github-secret}
+  deployment: true
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: Repository
+metadata:
+  name: cluster-name-state # kpt-set: ${cluster-name}-state
+  namespace: porch-system
+spec:
+  description: Rendered Porch package state for cluster-name cluster # kpt-set: Rendered Porch package state for ${cluster-name} cluster
+  type: git
+  git:
+    repo: https://github.com/nxmatic/incus-rke2-cluster.git
+    branch: main
+    directory: rke2-subtree/cluster-name/catalog # kpt-set: rke2-subtree/${cluster-name}/catalog
+    createBranch: true
+    secretRef:
+      ${github-secret} # kpt-set: ${github-secret}
+  deployment: true

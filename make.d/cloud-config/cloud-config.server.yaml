@@ -63,7 +63,10 @@ write_files:
       Wants=rke2-remount-shared.service
       After=rke2-remount-shared.service rke2-install.service
       [Service]
-      ExecStartPre=/bin/sh -xc '/usr/local/sbin/rke2-pre-start'
+      EnvironmentFile=/etc/rancher/rke2/environment
+      ExecStartPre=/bin/sh -xc '/usr/local/sbin/rke2-server-pre-start'
+      ExecStartPre=/bin/sh -xc '/usr/local/sbin/rke2-server-contribs-install'
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-server-post-start'
 
   # Post-start configuration for all control plane nodes (but no Cilium check)
   - path: /etc/systemd/system/rke2-server.service.d/post-start.conf
@@ -79,32 +82,19 @@ write_files:
   # =============================================================================
 
   # Control plane pre-start script (shared logic for all server nodes)
-  - path: /usr/local/sbin/rke2-pre-start
+  - path: /usr/local/sbin/rke2-server-pre-start
     permissions: "0755"
-    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-pre-start.sh
+    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-server-pre-start.sh
+
+  # Control plane post-start script (shared logic for all server nodes)
+  - path: /usr/local/sbin/rke2-server-post-start
+    permissions: "0755"
+    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-server-post-start.sh    
 
   # Generate RKE2 static manifests from environment variables (called by pre-start)
-  - path: /usr/local/sbin/rke2-manifests-install
+  - path: /usr/local/sbin/rke2-server-contribs-install
     permissions: "0755"
-    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-manifests-install.sh
-
-  # One-shot service to install static manifests after rke2-server is up
-  - path: /etc/systemd/system/rke2-manifests-install.service
-    content: |
-      [Unit]
-      Description=Install RKE2 static manifests
-      After=rke2-server.service
-      Requires=rke2-server.service
-      ConditionPathExists=/usr/local/sbin/rke2-manifests-install
-
-      [Service]
-      Type=oneshot
-      ExecStart=/usr/local/sbin/rke2-manifests-install
-
-      [Install]
-      WantedBy=multi-user.target
+    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-server-contribs-install.sh
 
 runcmd:
   - systemctl daemon-reload
-  - systemctl enable rke2-manifests-install.service
-  - systemctl start rke2-manifests-install.service

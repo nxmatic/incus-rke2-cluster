@@ -204,6 +204,9 @@ write_files:
   - path: /usr/local/sbin/rke2-install
     permissions: "0755"
     content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-install.sh
+  - path: /usr/local/sbin/rke2-install-post
+    permissions: "0755"
+    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-install-post.sh
   - path: /etc/systemd/system/rke2-server.service.d/kubeconfig.conf
     content: |
       [Service]
@@ -412,6 +415,7 @@ write_files:
       Type=oneshot
       ExecStartPre=/usr/local/sbin/rke2-install-pre
       ExecStart=/usr/local/sbin/rke2-install
+      ExecStartPost=/usr/local/sbin/rke2-install-post
       RemainAfterExit=true
       StandardOutput=journal
       StandardError=journal

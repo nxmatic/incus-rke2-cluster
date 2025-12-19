@@ -7,7 +7,7 @@
 
 == Context
 
-- kpt packages live under `kpt/catalog` in this repository with a root `Kptfile` describing the stack.
+- kpt packages live under `catalog` in this repository with a root `Kptfile` describing the stack.
 - Systemd services on the master node currently run `rke2-kpt-deploy`, mutate setters, and execute `kpt live apply` for each package.
 - Goal: host Porch (kpt-as-a-service) inside the existing RKE2 control plane, manage package revisions through Porch APIs, and let a GitOps agent deploy published revisions. This replaces ad-hoc systemd jobs and makes the package lifecycle observable and versioned.
 
@@ -31,7 +31,7 @@
 
 === Repository Objects
 
-All cluster-specific Porch manifests live under `modules/nixos/incus-rke2-cluster/kpt/system/porch` so they can be applied together and versioned alongside the catalog.
+All cluster-specific Porch manifests live under `modules/nixos/incus-rke2-cluster/system/porch` so they can be applied together and versioned alongside the catalog.
 
 . **Catalog repository** – read-only blueprint source that maps to this workspace path.
 // @codebase
@@ -47,7 +47,7 @@ spec:
   git:
     repo: git@github.com:nxmatic/incus-rke2-cluster.git
     branch: develop
-    directory: modules/nixos/incus-rke2-cluster/kpt/catalog
+    directory: modules/nixos/incus-rke2-cluster/catalog
     secretRef:
       name: github-token
   deployment: false

@@ -1,0 +1,15 @@
+apiVersion: cilium.io/v2alpha1
+kind: CiliumL2AnnouncementPolicy
+metadata:
+  name: host
+spec:
+  serviceSelector:
+    matchLabels: {}
+  loadBalancerIPs: true
+  interfaces:
+    - ${l2-interface-1} # kpt-set: ${l2-interface-1}
+    - lan0 # kpt-set: ${l2-interface-2}
+  nodeSelector:
+    matchExpressions:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists

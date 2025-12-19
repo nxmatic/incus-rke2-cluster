@@ -1,0 +1,21 @@
+apiVersion: cilium.io/v2alpha1
+kind: CiliumLoadBalancerIPPool
+metadata:
+  name: load-balancers
+spec:
+  blocks:
+    ${lb-pool-cidr} # kpt-set: ${lb-pool-cidr}
+      # LoadBalancer pool inside /26 (128/26): usable hosts 129-190
+  serviceSelector:
+    matchExpressions:
+      # Default pool backs services that do not request a custom pool label
+      - key: io.cilium/lb-ipam
+        operator: DoesNotExist
+---
+apiVersion: cilium.io/v2alpha1
+kind: CiliumLoadBalancerIPPool
+metadata:
+  name: virtual-addresses
+spec:
+  blocks:
+    ${vip-pool-cidr} # kpt-set: ${vip-pool-cidr}

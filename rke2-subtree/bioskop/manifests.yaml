@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Namespace
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: '|Namespace|default|envoy-gateway-system'
+    internal.kpt.dev/upstream-identifier: '|Namespace|default|${envoy-gateway-namespace}'
     kpt.dev/package-layer: networking
     kpt.dev/package-name: envoy-gateway
   name: envoy-gateway-system
@@ -22,6 +22,18 @@ apiVersion: v1
 kind: Namespace
 metadata:
   annotations:
+    internal.kpt.dev/upstream-identifier: '|Namespace|default|flux-system'
+    kpt.dev/package-layer: gitops
+    kpt.dev/package-name: flux-operator
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: flux-system
+  name: flux-system
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
     internal.kpt.dev/upstream-identifier: '|Namespace|default|headscale'
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headscale
@@ -31,7 +43,7 @@ apiVersion: v1
 kind: Namespace
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: '|Namespace|default|kube-vip'
+    internal.kpt.dev/upstream-identifier: '|Namespace|default|${kube-vip-namespace}'
     kpt.dev/package-layer: ha
     kpt.dev/package-name: kube-vip
   labels:
@@ -52,7 +64,7 @@ kind: Namespace
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: '|Namespace|default|porch-fn-system'
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: porch-fn-system
 ---
@@ -61,7 +73,7 @@ kind: Namespace
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: '|Namespace|default|porch-system'
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: porch-system
 ---
@@ -69,16 +81,14 @@ apiVersion: v1
 kind: Namespace
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: '|Namespace|default|tailscale-system'
-    kpt.dev/package-layer: mesh
-    kpt.dev/package-name: tailscale
+    internal.kpt.dev/upstream-identifier: '|Namespace|default|${tailscale-namespace}'
   name: tailscale-system
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/part-of: tekton-pipelines
@@ -93,10 +103,11 @@ metadata:
     internal.kpt.dev/upstream-identifier: storage.k8s.io|StorageClass|default|openebs-zfs
     kpt.dev/package-layer: storage
     kpt.dev/package-name: openebs-zfs
+    storageclass.kubernetes.io/is-default-class: "true"
   name: openebs-zfs
 parameters:
   fstype: zfs
-  poolname: tank
+  zfs.poolname: tank
 provisioner: zfs.csi.openebs.io
 reclaimPolicy: Delete
 volumeBindingMode: WaitForFirstConsumer
@@ -105,7 +116,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
@@ -979,7 +990,7 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: flux-operator
   labels:
     app.kubernetes.io/instance: flux-operator
@@ -1597,7 +1608,7 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: flux-operator
   labels:
     app.kubernetes.io/instance: flux-operator
@@ -1902,7 +1913,7 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.1
     internal.kpt.dev/upstream-identifier: apiextensions.k8s.io|CustomResourceDefinition|default|packagerevs.config.porch.kpt.dev
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: packagerevs.config.porch.kpt.dev
 spec:
@@ -1954,7 +1965,7 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
     internal.kpt.dev/upstream-identifier: apiextensions.k8s.io|CustomResourceDefinition|default|packagevariants.config.porch.kpt.dev
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: packagevariants.config.porch.kpt.dev
 spec:
@@ -2514,7 +2525,7 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
     internal.kpt.dev/upstream-identifier: apiextensions.k8s.io|CustomResourceDefinition|default|packagevariantsets.config.porch.kpt.dev
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: packagevariantsets.config.porch.kpt.dev
 spec:
@@ -3463,7 +3474,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
@@ -9060,7 +9071,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
@@ -10711,7 +10722,7 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
     internal.kpt.dev/upstream-identifier: apiextensions.k8s.io|CustomResourceDefinition|default|repositories.config.porch.kpt.dev
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: repositories.config.porch.kpt.dev
 spec:
@@ -10950,7 +10961,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     resolution.tekton.dev/release: devel
@@ -11266,7 +11277,7 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: flux-operator
   labels:
     app.kubernetes.io/instance: flux-operator
@@ -11636,7 +11647,7 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
     helm.sh/resource-policy: keep
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: flux-operator
   labels:
     app.kubernetes.io/instance: flux-operator
@@ -12051,7 +12062,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
@@ -13196,7 +13207,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
@@ -20519,7 +20530,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
@@ -28153,7 +28164,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
@@ -28294,7 +28305,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: '|ServiceAccount|envoy-gateway-system|envoy-gateway-installer'
+    internal.kpt.dev/upstream-identifier: '|ServiceAccount|${envoy-gateway-namespace}|envoy-gateway-installer'
     kpt.dev/package-layer: networking
     kpt.dev/package-name: envoy-gateway
   name: envoy-gateway-installer
@@ -28315,7 +28326,7 @@ automountServiceAccountToken: true
 kind: ServiceAccount
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: flux-operator
   labels:
     app.kubernetes.io/instance: flux-operator
@@ -28361,7 +28372,7 @@ automountServiceAccountToken: true
 kind: ServiceAccount
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: replication
     kpt.dev/package-name: replicator
   labels:
     app.kubernetes.io/instance: kubernetes-replicator
@@ -28376,7 +28387,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: '|ServiceAccount|kube-vip|kube-vip'
+    internal.kpt.dev/upstream-identifier: '|ServiceAccount|${kube-vip-namespace}|kube-vip'
     kpt.dev/package-layer: ha
     kpt.dev/package-name: kube-vip
   name: kube-vip
@@ -28390,7 +28401,7 @@ metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: '|ServiceAccount|porch-fn-system|default'
     kpt.dev/inventory-policy: adopt
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: default
   namespace: porch-fn-system
@@ -28402,7 +28413,7 @@ kind: ServiceAccount
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: '|ServiceAccount|porch-system|porch-controllers'
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: porch-controllers
   namespace: porch-system
@@ -28414,7 +28425,7 @@ kind: ServiceAccount
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: '|ServiceAccount|porch-system|porch-fn-runner'
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: porch-fn-runner
   namespace: porch-system
@@ -28426,7 +28437,7 @@ kind: ServiceAccount
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: '|ServiceAccount|porch-system|porch-server'
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: porch-server
   namespace: porch-system
@@ -28435,7 +28446,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: controller
@@ -28449,7 +28460,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: events
@@ -28462,7 +28473,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: controller
@@ -28475,7 +28486,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
@@ -28488,7 +28499,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: webhook
@@ -28542,7 +28553,7 @@ kind: Role
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|Role|porch-fn-system|porch-function-executor
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: porch-function-executor
   namespace: porch-fn-system
@@ -28584,7 +28595,7 @@ kind: Role
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|Role|porch-system|aggregated-apiserver-role
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: aggregated-apiserver-role
   namespace: porch-system
@@ -28606,7 +28617,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: controller
@@ -28639,7 +28650,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: events
@@ -28672,7 +28683,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
@@ -28693,7 +28704,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
@@ -28718,7 +28729,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
@@ -28754,7 +28765,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: webhook
@@ -28803,7 +28814,7 @@ kind: ClusterRole
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRole|default|aggregated-apiserver-clusterrole
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: aggregated-apiserver-clusterrole
 rules:
@@ -28896,7 +28907,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: flux-operator
   labels:
     app.kubernetes.io/instance: flux-operator
@@ -28924,7 +28935,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: flux-operator
   labels:
     app.kubernetes.io/instance: flux-operator
@@ -28968,7 +28979,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: replication
     kpt.dev/package-name: replicator
   labels:
     app.kubernetes.io/instance: kubernetes-replicator
@@ -29019,7 +29030,7 @@ kind: ClusterRole
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRole|default|porch-controllers
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: porch-controllers
 rules:
@@ -29048,7 +29059,7 @@ kind: ClusterRole
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRole|default|porch-controllers-packagevariants
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: porch-controllers-packagevariants
 rules:
@@ -29105,7 +29116,7 @@ kind: ClusterRole
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRole|default|porch-controllers-packagevariantsets
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: porch-controllers-packagevariantsets
 rules:
@@ -29199,7 +29210,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
@@ -29232,7 +29243,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
@@ -29259,7 +29270,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: events
@@ -29284,7 +29295,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: controller
@@ -29380,7 +29391,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: controller
@@ -29437,7 +29448,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
@@ -29479,7 +29490,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: webhook
@@ -29581,7 +29592,7 @@ kind: RoleBinding
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|RoleBinding|kube-system|porch-auth-reader
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: porch-auth-reader
   namespace: kube-system
@@ -29599,7 +29610,7 @@ kind: RoleBinding
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|RoleBinding|porch-fn-system|porch-function-executor
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: porch-function-executor
   namespace: porch-fn-system
@@ -29617,7 +29628,7 @@ kind: RoleBinding
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|RoleBinding|porch-system|sample-apiserver-rolebinding
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: sample-apiserver-rolebinding
   namespace: porch-system
@@ -29634,7 +29645,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: events
@@ -29655,7 +29666,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: controller
@@ -29676,7 +29687,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: controller
@@ -29697,7 +29708,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: events
@@ -29718,7 +29729,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
@@ -29738,7 +29749,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
@@ -29759,7 +29770,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: webhook
@@ -29780,7 +29791,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: webhook
@@ -29818,7 +29829,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: flux-operator
   labels:
     app.kubernetes.io/instance: flux-operator
@@ -29857,7 +29868,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: replication
     kpt.dev/package-name: replicator
   labels:
     app.kubernetes.io/instance: kubernetes-replicator
@@ -29880,7 +29891,7 @@ kind: ClusterRoleBinding
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRoleBinding|default|porch-system:porch-controllers-packagevariants
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: porch-system:porch-controllers-packagevariants
 roleRef:
@@ -29897,7 +29908,7 @@ kind: ClusterRoleBinding
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRoleBinding|default|porch-system:porch-controllers-packagevariantsets
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: porch-system:porch-controllers-packagevariantsets
 roleRef:
@@ -29914,7 +29925,7 @@ kind: ClusterRoleBinding
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRoleBinding|default|porch:system:auth-delegator
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: porch:system:auth-delegator
 roleRef:
@@ -29931,7 +29942,7 @@ kind: ClusterRoleBinding
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRoleBinding|default|sample-apiserver-clusterrolebinding
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: sample-apiserver-clusterrolebinding
 roleRef:
@@ -29964,7 +29975,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: events
@@ -29984,7 +29995,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: controller
@@ -30004,7 +30015,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: controller
@@ -30024,7 +30035,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
@@ -30044,7 +30055,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: webhook
@@ -30206,9 +30217,252 @@ kind: ConfigMap
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: '|ConfigMap|porch-system|pod-cache-config'
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: pod-cache-config
+  namespace: porch-system
+---
+apiVersion: v1
+data:
+  DB_DRIVER: pgx
+  DB_HOST: porch-postgresql
+  DB_NAME: porch
+  DB_PORT: "5432"
+kind: ConfigMap
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|porch-system|porch-db-config'
+    kpt.dev/package-layer: gitops
+    kpt.dev/package-name: porch
+  labels:
+    app.kubernetes.io/instance: porch
+    app.kubernetes.io/name: postgresql
+  name: porch-db-config
+  namespace: porch-system
+---
+apiVersion: v1
+data:
+  porch-db.sql: |
+    /*
+    Copyright 2024-2025 The kpt and Nephio Authors
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+         http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+    */
+    CREATE TABLE IF NOT EXISTS repositories (
+        k8s_name_space  TEXT NOT NULL CHECK (k8s_name_space != ''),
+        k8s_name        TEXT NOT NULL CHECK (k8s_name != ''),
+        directory       TEXT NOT NULL,
+        default_ws_name TEXT NOT NULL,
+        meta            TEXT NOT NULL,
+        spec            TEXT NOT NULL,
+        updated         TIMESTAMP,
+        updatedby       TEXT,
+        deployment      BOOLEAN,
+        PRIMARY KEY (k8s_name_space, k8s_name)
+    );
+
+    CREATE OR REPLACE FUNCTION check_immutable_repositories_columns() RETURNS trigger
+        LANGUAGE plpgsql AS
+    $BODY$
+    BEGIN
+        IF NEW.directory != OLD.directory OR NEW.default_ws_name != OLD.default_ws_name THEN
+            RAISE EXCEPTION 'create or update not allowed on immutable columns "directory" and "default_ws_name"';
+        END IF;
+        RETURN NEW;
+    END;
+    $BODY$;
+
+    CREATE OR REPLACE TRIGGER immutable_repositories_columns
+       BEFORE UPDATE ON repositories FOR EACH ROW
+       EXECUTE PROCEDURE check_immutable_repositories_columns();
+
+    CREATE TABLE IF NOT EXISTS packages (
+        k8s_name_space TEXT NOT NULL CHECK (k8s_name_space != ''),
+        k8s_name       TEXT NOT NULL CHECK (k8s_name != ''),
+        repo_k8s_name  TEXT NOT NULL,
+        package_path   TEXT NOT NULL,
+        meta           TEXT NOT NULL,
+        spec           TEXT NOT NULL,
+        updated        TIMESTAMP NOT NULL,
+        updatedby      TEXT NOT NULL,
+        PRIMARY KEY (k8s_name_space, k8s_name),
+        CONSTRAINT fk_repository
+            FOREIGN KEY (k8s_name_space, repo_k8s_name)
+            REFERENCES repositories (k8s_name_space, k8s_name)
+            ON DELETE CASCADE
+    );
+
+    CREATE OR REPLACE FUNCTION check_immutable_packages_columns() RETURNS trigger
+        LANGUAGE plpgsql AS
+    $BODY$
+    BEGIN
+        IF NEW.repo_k8s_name != OLD.repo_k8s_name OR NEW.package_path != OLD.package_path THEN
+            RAISE EXCEPTION 'create or create or update not allowed on immutable columns "repo_k8s_name" and "package_path"';
+        END IF;
+        RETURN NEW;
+    END;
+    $BODY$;
+
+    CREATE OR REPLACE TRIGGER immutable_packages_columns
+       BEFORE UPDATE ON packages FOR EACH ROW
+       EXECUTE PROCEDURE check_immutable_packages_columns();
+
+    CREATE TABLE IF NOT EXISTS package_revisions (
+        k8s_name_space   TEXT NOT NULL CHECK (k8s_name_space != ''),
+        k8s_name         TEXT NOT NULL CHECK (k8s_name != ''),
+        package_k8s_name TEXT NOT NULL,
+        revision         INTEGER NOT NULL,
+        meta             TEXT NOT NULL,
+        spec             TEXT NOT NULL,
+        updated          TIMESTAMP NOT NULL,
+        updatedby        TEXT NOT NULL,
+        lifecycle        TEXT CHECK (lifecycle IN ('Draft', 'Proposed', 'Published', 'DeletionProposed')) NOT NULL,
+        ext_pr_id        TEXT NOT NULL,
+        latest           BOOLEAN NOT NULL DEFAULT FALSE,
+        tasks            TEXT NOT NULL,
+        PRIMARY KEY (k8s_name_space, k8s_name),
+        CONSTRAINT fk_package
+            FOREIGN KEY (k8s_name_space, package_k8s_name)
+            REFERENCES packages (k8s_name_space, k8s_name)
+            ON DELETE CASCADE
+    );
+
+    CREATE OR REPLACE FUNCTION check_package_revisions_columns() RETURNS trigger
+        LANGUAGE plpgsql AS
+    $BODY$
+    DECLARE
+        lifecycle_draft             CONSTANT VARCHAR(5)  := 'Draft';
+        lifecycle_proposed          CONSTANT VARCHAR(8)  := 'Proposed';
+        lifecycle_published         CONSTANT VARCHAR(9)  := 'Published';
+        lifecycle_deletion_proposed CONSTANT VARCHAR(16) := 'DeletionProposed';
+
+        count_revisions INTEGER;
+        latest_revision INTEGER;
+    BEGIN
+        IF NEW.package_k8s_name != OLD.package_k8s_name THEN
+            RAISE EXCEPTION 'create or update not allowed on immutable column "package_k8s_name"';
+        END IF;
+
+        IF NEW.revision < -1 OR OLD.revision < -1 THEN
+            RAISE EXCEPTION 'create or update not allowed on column "revision", revisions of less than -1 are not allowed';
+        END IF;
+
+        -- Package revisions in external repositories with uncontrolled revisions must always be 'Published' and cannot have lifecycle changes
+        IF NEW.revision = -1 OR OLD.revision = -1 THEN
+            IF NOT (NEW.lifecycle = lifecycle_published OR NEW.lifecycle = lifecycle_deletion_proposed) OR NOT (OLD.lifecycle = lifecycle_published OR OLD.lifecycle = lifecycle_deletion_proposed) THEN
+                RAISE EXCEPTION 'create or update not allowed on column "lifecycle", lifecycle of % illegal, package revision has revision -1', NEW.lifecycle;
+            ELSE
+                return NEW;
+            END IF;
+        END IF;
+
+        -- Package revisions with revision 0 are draft package revisions
+        IF NEW.revision = 0 THEN
+            IF OLD.revision != 0 THEN
+                RAISE EXCEPTION 'create or update not allowed on column "revision", update of revision from % to zero is illegal', OLD.revision;
+            END IF;
+
+            IF NOT (NEW.lifecycle = lifecycle_draft OR NEW.lifecycle = lifecycle_proposed) OR NOT (OLD.lifecycle = lifecycle_draft OR OLD.lifecycle = lifecycle_proposed) THEN
+                RAISE EXCEPTION 'create or update not allowed on column "revision", revision value of 0 is only allowed on when lifecycle is Draft or Proposed';
+            END IF;
+
+            return NEW;
+        END IF;
+
+        IF NEW.lifecycle = lifecycle_draft THEN
+            RAISE EXCEPTION 'create or update not allowed on column "revision", revision of % on drafts is illegal', NEW.revision;
+        END IF;
+
+        IF NEW.revision = OLD.revision THEN
+            IF NEW.lifecycle = OLD.lifecycle THEN
+                return NEW;
+            END IF;
+
+            IF NEW.lifecycle = lifecycle_published OR NEW.lifecycle = lifecycle_deletion_proposed THEN
+                return NEW;
+            END IF;
+
+            RAISE EXCEPTION 'create or update not allowed on column "lifecycle", change from % to % is illegal', OLD.lifecycle, NEW.lifecycle;
+        END IF;
+
+        IF OLD.revision != 0 THEN
+            RAISE EXCEPTION 'create or update not allowed on column "revision", update of revision from % to % is illegal', OLD.revision, NEW.revision;
+        END IF;
+
+        IF OLD.lifecycle != lifecycle_proposed THEN
+            RAISE EXCEPTION 'create or update not allowed on column "revision", lifecycle % is not Proposed', OLD.lifecycle;
+        END IF;
+
+        count_revisions := (SELECT COUNT(revision) FROM package_revisions WHERE k8s_name_space = NEW.k8s_name_space AND package_k8s_name = NEW.package_k8s_name AND revision = NEW.revision);
+        IF count_revisions > 0 THEN
+           RAISE EXCEPTION 'create or update not allowed on column "revision", revision % already exists', NEW.revision;
+        END IF;
+
+        latest_revision := (SELECT MAX(revision) FROM package_revisions WHERE k8s_name_space = NEW.k8s_name_space AND package_k8s_name = NEW.package_k8s_name AND revision > 0);
+
+        IF NEW.lifecycle = lifecycle_published AND NEW.revision > 0 AND (latest_revision IS NULL OR NEW.revision >= latest_revision) THEN
+            UPDATE package_revisions SET latest = FALSE WHERE k8s_name_space = NEW.k8s_name_space AND package_k8s_name = NEW.package_k8s_name AND latest;
+            NEW.latest = TRUE;
+        END IF;
+
+        RETURN NEW;
+    END;
+    $BODY$;
+
+    CREATE OR REPLACE TRIGGER package_revisions_columns
+       BEFORE INSERT OR UPDATE ON package_revisions FOR EACH ROW
+       EXECUTE PROCEDURE check_package_revisions_columns();
+
+    CREATE OR REPLACE FUNCTION check_package_revisions_delete() RETURNS trigger
+        LANGUAGE plpgsql AS
+    $BODY$
+    DECLARE
+        lifecycle_published         CONSTANT VARCHAR(9)  := 'Published';
+        lifecycle_deletion_proposed CONSTANT VARCHAR(16) := 'DeletionProposed';
+
+        latest_revision INTEGER;
+    BEGIN
+        latest_revision := (SELECT MAX(revision) FROM package_revisions WHERE k8s_name_space = OLD.k8s_name_space AND package_k8s_name = OLD.package_k8s_name AND revision > 0);
+        IF latest_revision IS NOT NULL THEN
+            UPDATE package_revisions SET latest = TRUE WHERE k8s_name_space = OLD.k8s_name_space AND package_k8s_name = OLD.package_k8s_name AND revision = latest_revision AND (lifecycle = lifecycle_published OR lifecycle = lifecycle_deletion_proposed);
+        END IF;
+        RETURN OLD;
+    END;
+    $BODY$;
+
+    CREATE OR REPLACE TRIGGER package_revisions_delete
+       AFTER DELETE ON package_revisions FOR EACH ROW
+       EXECUTE PROCEDURE check_package_revisions_delete();
+
+    CREATE TABLE IF NOT EXISTS resources (
+        k8s_name_space TEXT NOT NULL CHECK (k8s_name_space != ''),
+        k8s_name       TEXT NOT NULL CHECK (k8s_name != ''),
+        revision       INTEGER NOT NULL,
+        resource_key   TEXT NOT NULL CHECK (resource_key != ''),
+        resource_value TEXT NOT NULL,
+        PRIMARY KEY (k8s_name_space, k8s_name, resource_key),
+        CONSTRAINT fk_package_rev
+            FOREIGN KEY (k8s_name_space, k8s_name)
+            REFERENCES package_revisions (k8s_name_space, k8s_name)
+            ON DELETE CASCADE
+    );
+kind: ConfigMap
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|porch-system|porch-db-schema'
+    kpt.dev/package-layer: gitops
+    kpt.dev/package-name: porch
+  name: porch-db-schema
   namespace: porch-system
 ---
 apiVersion: v1
@@ -30218,7 +30472,7 @@ data:
 kind: ConfigMap
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
@@ -30236,7 +30490,7 @@ data:
 kind: ConfigMap
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
@@ -30394,7 +30648,7 @@ data:
 kind: ConfigMap
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
@@ -30433,7 +30687,7 @@ data:
 kind: ConfigMap
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
@@ -30475,7 +30729,7 @@ data:
 kind: ConfigMap
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
@@ -30517,7 +30771,7 @@ data:
 kind: ConfigMap
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
@@ -30559,7 +30813,7 @@ data:
 kind: ConfigMap
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
@@ -30602,7 +30856,7 @@ data:
 kind: ConfigMap
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
@@ -30642,7 +30896,7 @@ data:
 kind: ConfigMap
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
@@ -30693,7 +30947,7 @@ data:
 kind: ConfigMap
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
@@ -30706,7 +30960,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
@@ -30745,7 +30999,7 @@ data:
 kind: ConfigMap
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
@@ -30781,7 +31035,7 @@ data:
 kind: ConfigMap
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
@@ -30799,7 +31053,7 @@ data:
 kind: ConfigMap
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
@@ -30835,7 +31089,7 @@ data:
 kind: ConfigMap
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
@@ -30857,7 +31111,7 @@ data:
 kind: ConfigMap
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
@@ -30872,7 +31126,7 @@ data:
 kind: ConfigMap
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
@@ -30891,7 +31145,7 @@ data:
 kind: ConfigMap
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
@@ -30906,7 +31160,7 @@ data:
 kind: ConfigMap
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/instance: default
@@ -30921,7 +31175,7 @@ data:
 kind: ConfigMap
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
@@ -30939,7 +31193,7 @@ data:
 kind: ConfigMap
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
@@ -30949,10 +31203,27 @@ metadata:
   namespace: tekton-pipelines
 ---
 apiVersion: v1
+data:
+  DB_PASSWORD: cG9yY2g=
+  DB_USER: cG9yY2g=
 kind: Secret
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    internal.kpt.dev/upstream-identifier: '|Secret|porch-system|porch-db-secret'
+    kpt.dev/package-layer: gitops
+    kpt.dev/package-name: porch
+  labels:
+    app.kubernetes.io/instance: porch
+    app.kubernetes.io/name: postgresql
+  name: porch-db-secret
+  namespace: porch-system
+type: Opaque
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: webhook
@@ -30966,7 +31237,7 @@ apiVersion: v1
 kind: Service
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: flux-operator
   labels:
     app.kubernetes.io/instance: flux-operator
@@ -30991,11 +31262,11 @@ kind: Service
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: '|Service|headscale|headscale'
-    io.cilium/lb-ipam-ips: 192.168.100.193
+    io.cilium/lb-ipam-ips: 10.80.56.65
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headscale
     tailscale.com/expose: "true"
-    tailscale.com/hostname: example-host-headscale
+    tailscale.com/hostname: sample-headscale
   labels:
     app: headscale
     io.cilium/lb-ipam: home-lan
@@ -31044,7 +31315,7 @@ kind: Service
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: '|Service|porch-system|api'
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: api
   namespace: porch-system
@@ -31066,7 +31337,7 @@ kind: Service
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: '|Service|porch-system|function-runner'
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: function-runner
   namespace: porch-system
@@ -31082,7 +31353,56 @@ apiVersion: v1
 kind: Service
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    internal.kpt.dev/upstream-identifier: '|Service|porch-system|porch-postgresql'
+    kpt.dev/package-layer: gitops
+    kpt.dev/package-name: porch
+  labels:
+    app.kubernetes.io/component: primary
+    app.kubernetes.io/instance: porch
+    app.kubernetes.io/name: postgresql
+  name: porch-postgresql
+  namespace: porch-system
+spec:
+  ports:
+  - name: postgresql
+    port: 5432
+    targetPort: tcp-postgresql
+  selector:
+    app.kubernetes.io/component: primary
+    app.kubernetes.io/instance: porch
+    app.kubernetes.io/name: postgresql
+  sessionAffinity: None
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Service|porch-system|porch-postgresql-lb'
+    kpt.dev/package-layer: gitops
+    kpt.dev/package-name: porch
+  labels:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/part-of: porch
+  name: porch-postgresql-lb
+  namespace: porch-system
+spec:
+  ports:
+  - name: postgresql
+    nodePort: 30002
+    port: 5432
+    targetPort: 5432
+  selector:
+    app.kubernetes.io/component: primary
+    app.kubernetes.io/instance: porch
+    app.kubernetes.io/name: postgresql
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app: tekton-events-controller
@@ -31116,7 +31436,7 @@ apiVersion: v1
 kind: Service
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app: tekton-pipelines-controller
@@ -31150,7 +31470,7 @@ apiVersion: v1
 kind: Service
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app: tekton-pipelines-remote-resolvers
@@ -31184,7 +31504,7 @@ apiVersion: v1
 kind: Service
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app: tekton-pipelines-webhook
@@ -31221,7 +31541,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: flux-operator
   labels:
     app.kubernetes.io/instance: flux-operator
@@ -31239,7 +31559,7 @@ spec:
   template:
     metadata:
       annotations:
-        kpt.dev/package-layer: system
+        kpt.dev/package-layer: gitops
         kpt.dev/package-name: flux-operator
         prometheus.io/path: /metrics
         prometheus.io/port: "8080"
@@ -31311,7 +31631,6 @@ spec:
         volumeMounts:
         - mountPath: /tmp
           name: temp
-      priorityClassName: system-cluster-critical
       serviceAccountName: flux-operator
       volumes:
       - emptyDir: {}
@@ -31341,6 +31660,7 @@ spec:
       labels:
         app: headscale
     spec:
+      automountServiceAccountToken: false
       containers:
       - command:
         - headscale
@@ -31388,7 +31708,7 @@ spec:
         - mountPath: /var/run/headscale
           name: run
       nodeSelector:
-        bioskop.cluster/node-role: master
+        cluster-name.cluster/node-role: '"sample.cluster/node-role": master'
       volumes:
       - configMap:
           name: headscale-config
@@ -31460,9 +31780,9 @@ spec:
           wait $$TAILSCALED_PID
         env:
         - name: DARWIN_HOST
-          value: example-host
+          value: sample
         - name: VIP_NETWORK_CIDR
-          value: 10.0.15.0/24
+          value: ${cluster-vip-network-cidr}
         - name: TS_AUTHKEY
           valueFrom:
             secretKeyRef:
@@ -31526,7 +31846,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: replication
     kpt.dev/package-name: replicator
   labels:
     app.kubernetes.io/instance: kubernetes-replicator
@@ -31546,9 +31866,8 @@ spec:
   template:
     metadata:
       annotations:
-        kpt.dev/package-layer: system
+        kpt.dev/package-layer: replication
         kpt.dev/package-name: replicator
-        reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
       labels:
         app.kubernetes.io/instance: kubernetes-replicator
         app.kubernetes.io/name: kubernetes-replicator
@@ -31586,13 +31905,7 @@ spec:
           periodSeconds: 10
           successThreshold: 1
           timeoutSeconds: 1
-        resources:
-          limits:
-            cpu: 200m
-            memory: 256Mi
-          requests:
-            cpu: 15m
-            memory: 64Mi
+        resources: {}
         securityContext: {}
       securityContext: {}
       serviceAccountName: kubernetes-replicator
@@ -31602,7 +31915,7 @@ kind: Deployment
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: apps|Deployment|porch-system|function-runner
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: function-runner
   namespace: porch-system
@@ -31614,7 +31927,7 @@ spec:
   template:
     metadata:
       annotations:
-        kpt.dev/package-layer: system
+        kpt.dev/package-layer: gitops
         kpt.dev/package-name: porch
       labels:
         app: function-runner
@@ -31659,7 +31972,7 @@ kind: Deployment
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: apps|Deployment|porch-system|porch-controllers
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   labels:
     k8s-app: porch-controllers
@@ -31673,7 +31986,7 @@ spec:
   template:
     metadata:
       annotations:
-        kpt.dev/package-layer: system
+        kpt.dev/package-layer: gitops
         kpt.dev/package-name: porch
       labels:
         k8s-app: porch-controllers
@@ -31714,7 +32027,7 @@ kind: Deployment
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: apps|Deployment|porch-system|porch-server
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: porch-server
   namespace: porch-system
@@ -31726,7 +32039,7 @@ spec:
   template:
     metadata:
       annotations:
-        kpt.dev/package-layer: system
+        kpt.dev/package-layer: gitops
         kpt.dev/package-name: porch
       labels:
         app: porch-server
@@ -31744,6 +32057,36 @@ spec:
         env:
         - name: PATH
           value: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+        - name: DB_DRIVER
+          valueFrom:
+            configMapKeyRef:
+              key: DB_DRIVER
+              name: porch-db-config
+        - name: DB_HOST
+          valueFrom:
+            configMapKeyRef:
+              key: DB_HOST
+              name: porch-db-config
+        - name: DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              key: DB_PORT
+              name: porch-db-config
+        - name: DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              key: DB_NAME
+              name: porch-db-config
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              key: DB_USER
+              name: porch-db-secret
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: DB_PASSWORD
+              name: porch-db-secret
         - name: OTEL_SERVICE_NAME
           value: porch-server
         - name: CERT_STORAGE_DIR
@@ -31826,7 +32169,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: events
@@ -31849,7 +32192,7 @@ spec:
   template:
     metadata:
       annotations:
-        kpt.dev/package-layer: system
+        kpt.dev/package-layer: cicd
         kpt.dev/package-name: tekton-pipelines
       labels:
         app: tekton-events-controller
@@ -31945,7 +32288,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: controller
@@ -31969,7 +32312,7 @@ spec:
     metadata:
       annotations:
         fake: value
-        kpt.dev/package-layer: system
+        kpt.dev/package-layer: cicd
         kpt.dev/package-name: tekton-pipelines
       labels:
         app: tekton-pipelines-controller
@@ -32101,7 +32444,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: resolvers
@@ -32124,7 +32467,7 @@ spec:
   template:
     metadata:
       annotations:
-        kpt.dev/package-layer: system
+        kpt.dev/package-layer: cicd
         kpt.dev/package-name: tekton-pipelines
       labels:
         app: tekton-pipelines-resolvers
@@ -32226,7 +32569,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: webhook
@@ -32248,7 +32591,7 @@ spec:
   template:
     metadata:
       annotations:
-        kpt.dev/package-layer: system
+        kpt.dev/package-layer: cicd
         kpt.dev/package-name: tekton-pipelines
       labels:
         app: tekton-pipelines-webhook
@@ -32361,12 +32704,176 @@ spec:
       serviceAccountName: tekton-pipelines-webhook
       tolerations: null
 ---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: apps|StatefulSet|porch-system|porch-postgresql
+    kpt.dev/package-layer: gitops
+    kpt.dev/package-name: porch
+  labels:
+    app.kubernetes.io/component: primary
+    app.kubernetes.io/instance: porch
+    app.kubernetes.io/name: postgresql
+  name: porch-postgresql
+  namespace: porch-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: primary
+      app.kubernetes.io/instance: porch
+      app.kubernetes.io/name: postgresql
+  serviceName: porch-postgresql
+  template:
+    metadata:
+      annotations:
+        kpt.dev/package-layer: gitops
+        kpt.dev/package-name: porch
+      labels:
+        app.kubernetes.io/component: primary
+        app.kubernetes.io/instance: porch
+        app.kubernetes.io/name: postgresql
+      name: porch-postgresql
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: primary
+                  app.kubernetes.io/instance: porch
+                  app.kubernetes.io/name: postgresql
+              topologyKey: kubernetes.io/hostname
+            weight: 1
+      automountServiceAccountToken: false
+      containers:
+      - env:
+        - name: BITNAMI_DEBUG
+          value: "false"
+        - name: POSTGRESQL_VOLUME_DIR
+          value: /bitnami/postgresql
+        - name: PGDATA
+          value: /bitnami/postgresql/data
+        - name: POSTGRESQL_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              key: DB_NAME
+              name: porch-db-config
+        - name: POSTGRESQL_PORT_NUMBER
+          valueFrom:
+            configMapKeyRef:
+              key: DB_PORT
+              name: porch-db-config
+        - name: POSTGRESQL_USERNAME
+          valueFrom:
+            secretKeyRef:
+              key: DB_USER
+              name: porch-db-secret
+        - name: POSTGRESQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: DB_PASSWORD
+              name: porch-db-secret
+        - name: POSTGRESQL_ENABLE_LDAP
+          value: "no"
+        - name: POSTGRESQL_ENABLE_TLS
+          value: "no"
+        - name: POSTGRESQL_LOG_HOSTNAME
+          value: "false"
+        - name: POSTGRESQL_LOG_CONNECTIONS
+          value: "false"
+        - name: POSTGRESQL_LOG_DISCONNECTIONS
+          value: "false"
+        - name: POSTGRESQL_PGAUDIT_LOG_CATALOG
+          value: "off"
+        - name: POSTGRESQL_CLIENT_MIN_MESSAGES
+          value: error
+        - name: POSTGRESQL_SHARED_PRELOAD_LIBRARIES
+          value: pgaudit
+        image: docker.io/bitnamilegacy/postgresql:17.6.0-debian-12-r4
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 6
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          successThreshold: 1
+          tcpSocket:
+            port: 5432
+          timeoutSeconds: 5
+        name: postgresql
+        ports:
+        - containerPort: 5432
+          name: tcp-postgresql
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - -e
+            - |
+              exec pg_isready -U "$POSTGRESQL_USERNAME" -d "dbname=$POSTGRESQL_DATABASE" -h 127.0.0.1 -p "$POSTGRESQL_PORT_NUMBER"
+              [ -f /opt/bitnami/postgresql/tmp/.initialized ] || [ -f /bitnami/postgresql/.initialized ]
+          failureThreshold: 6
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        resources:
+          limits:
+            cpu: 500m
+            ephemeral-storage: 1Gi
+            memory: 512Mi
+          requests:
+            cpu: 250m
+            ephemeral-storage: 500Mi
+            memory: 256Mi
+        securityContext:
+          runAsUser: 1001
+        startupProbe:
+          failureThreshold: 30
+          periodSeconds: 10
+          tcpSocket:
+            port: 5432
+        volumeMounts:
+        - mountPath: /dev/shm
+          name: dshm
+        - mountPath: /bitnami/postgresql
+          name: data
+        - mountPath: /docker-entrypoint-initdb.d
+          name: initdb
+          readOnly: true
+      hostIPC: false
+      hostNetwork: false
+      securityContext:
+        fsGroup: 1001
+      volumes:
+      - emptyDir:
+          medium: Memory
+        name: dshm
+      - configMap:
+          name: porch-db-schema
+        name: initdb
+  updateStrategy:
+    rollingUpdate: {}
+    type: RollingUpdate
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 5Gi
+---
 apiVersion: apiregistration.k8s.io/v1
 kind: APIService
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: apiregistration.k8s.io|APIService|default|v1alpha1.porch.kpt.dev
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch
   name: v1alpha1.porch.kpt.dev
 spec:
@@ -32627,9 +33134,9 @@ spec:
           wait $$TAILSCALED_PID
         env:
         - name: DARWIN_HOST
-          value: example-host
+          value: sample
         - name: CLUSTER_NAME
-          value: example-cluster
+          value: sample
         - name: NODE_NAME
           valueFrom:
             fieldRef:
@@ -32732,7 +33239,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: apps|DaemonSet|kube-vip|kube-vip-ds
+    internal.kpt.dev/upstream-identifier: apps|DaemonSet|${kube-vip-namespace}|kube-vip-ds
     kpt.dev/package-layer: ha
     kpt.dev/package-name: kube-vip
   labels:
@@ -32771,7 +33278,7 @@ spec:
         - name: port
           value: "6443"
         - name: vip_interface
-          value: eth0
+          value: vmnet0
         - name: vip_cidr
           value: "32"
         - name: dns_mode
@@ -32791,7 +33298,7 @@ spec:
         - name: vip_retryperiod
           value: "1"
         - name: address
-          value: 10.0.15.1
+          value: 10.80.63.10
         image: ghcr.io/kube-vip/kube-vip:v0.8.7
         imagePullPolicy: Always
         name: kube-vip
@@ -32820,7 +33327,7 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: webhook
@@ -32851,7 +33358,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: batch|Job|envoy-gateway-system|envoy-gateway-installer
+    internal.kpt.dev/upstream-identifier: batch|Job|${envoy-gateway-namespace}|envoy-gateway-installer
     kpt.dev/package-layer: networking
     kpt.dev/package-name: envoy-gateway
   name: envoy-gateway-installer
@@ -32980,7 +33487,7 @@ metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: cilium.io|CiliumBGPAdvertisement|default|control-plane-advertisement
     kpt.dev/package-layer: networking
-    kpt.dev/package-name: cilium
+    kpt.dev/package-name: cilium-advanced
   name: control-plane-advertisement
 spec:
   advertisements:
@@ -33000,7 +33507,7 @@ metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: cilium.io|CiliumBGPClusterConfig|default|bgp-cluster-config
     kpt.dev/package-layer: networking
-    kpt.dev/package-name: cilium
+    kpt.dev/package-name: cilium-advanced
   name: bgp-cluster-config
 spec:
   bgpInstances:
@@ -33009,7 +33516,7 @@ spec:
     peers:
     - name: gateway-peer
       peerASN: 65020
-      peerAddress: 10.0.0.1
+      peerAddress: node-gateway-ip
       peerConfigRef:
         name: cilium-peer
   nodeSelector:
@@ -33042,7 +33549,7 @@ metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: cilium.io|CiliumL2AnnouncementPolicy|default|host
     kpt.dev/package-layer: networking
-    kpt.dev/package-name: cilium
+    kpt.dev/package-name: cilium-advanced
   name: host
 spec:
   interfaces:
@@ -33066,7 +33573,7 @@ metadata:
   name: home-lan
 spec:
   blocks:
-  - cidr: 192.168.100.192/27
+  - cidr: 10.80.56.64/26
   serviceSelector:
     matchLabels:
       io.cilium/lb-ipam: home-lan
@@ -33077,11 +33584,10 @@ metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: cilium.io|CiliumLoadBalancerIPPool|default|load-balancers
     kpt.dev/package-layer: networking
-    kpt.dev/package-name: cilium
+    kpt.dev/package-name: cilium-advanced
   name: load-balancers
 spec:
-  blocks:
-  - cidr: 10.0.8.0/24
+  blocks: lb-pool-cidr
   serviceSelector:
     matchExpressions:
     - key: io.cilium/lb-ipam
@@ -33093,18 +33599,17 @@ metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: cilium.io|CiliumLoadBalancerIPPool|default|virtual-addresses
     kpt.dev/package-layer: networking
-    kpt.dev/package-name: cilium
+    kpt.dev/package-name: cilium-advanced
   name: virtual-addresses
 spec:
-  blocks:
-  - cidr: 10.0.15.0/24
+  blocks: vip-pool-cidr
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: config.porch.kpt.dev|PackageVariant|porch-system|ha-kube-vip
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch-resources
   name: ha-kube-vip
   namespace: porch-system
@@ -33113,33 +33618,33 @@ spec:
   deletionPolicy: delete
   downstream:
     package: ha/kube-vip
-    repo: bioskop-state
+    repo: sample-state
   labels:
+    cluster-name: sample
     nxmatic.dev/app: kube-vip
-    nxmatic.dev/cluster: bioskop
     nxmatic.dev/component: ha
   packageContext:
     data:
-      cluster-env: home
-      cluster-name: bioskop
+      cluster-env: sample
+      cluster-name: sample
   pipeline:
     mutators:
     - configMap:
-        cluster-vip-address: 10.80.15.10
+        cluster-vip-address: ${node-vip-ip}
         cluster-vip-interface: rke2-vip0
         kube-vip-namespace: kube-vip
-        kube-vip-version: v0.8.7
+        kube-vip-version: ${kube-vip-version}
       image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
   upstream:
     package: ha/kube-vip
-    repo: bioskop-catalog
+    repo: sample-catalog
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: config.porch.kpt.dev|PackageVariant|porch-system|mesh-headscale
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch-resources
   name: mesh-headscale
   namespace: porch-system
@@ -33148,34 +33653,34 @@ spec:
   deletionPolicy: delete
   downstream:
     package: mesh/headscale
-    repo: bioskop-state
+    repo: sample-state
   labels:
+    cluster-name: sample
     nxmatic.dev/app: headscale
-    nxmatic.dev/cluster: bioskop
     nxmatic.dev/component: mesh
   packageContext:
     data:
-      cluster-env: home
-      cluster-name: bioskop
+      cluster-env: sample
+      cluster-name: sample
   pipeline:
     mutators:
     - configMap:
-        cluster-name: bioskop
-        darwin-host: bioskop
-        headscale-lb-ip: 192.168.1.193
-        home-lan-pool: 192.168.1.192/27
-        vip-network-cidr: 10.80.15.0/24
+        cluster-name: sample
+        darwin-host: sample
+        headscale-lb-ip: 10.80.56.65
+        home-lan-pool: 10.80.56.64/26
+        vip-network-cidr: ${cluster-vip-network-cidr}
       image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
   upstream:
     package: mesh/headscale
-    repo: bioskop-catalog
+    repo: sample-catalog
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: config.porch.kpt.dev|PackageVariant|porch-system|mesh-tailscale
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch-resources
   name: mesh-tailscale
   namespace: porch-system
@@ -33184,34 +33689,34 @@ spec:
   deletionPolicy: delete
   downstream:
     package: mesh/tailscale
-    repo: bioskop-state
+    repo: sample-state
   labels:
+    cluster-name: sample
     nxmatic.dev/app: tailscale
-    nxmatic.dev/cluster: bioskop
     nxmatic.dev/component: mesh
   packageContext:
     data:
-      cluster-env: home
-      cluster-name: bioskop
+      cluster-env: sample
+      cluster-name: sample
   pipeline:
     mutators:
     - configMap:
-        cluster-name: bioskop-cluster
-        lb-pool-cidr: 10.80.8.64/26
+        cluster-name: sample-cluster
+        lb-pool-cidr: ${cluster-lb-pool-cidr}
         tailscale-namespace: tailscale-system
         tailscale-version: 1.82.0
-        vip-address: 10.80.15.10
+        vip-address: ${node-vip-ip}
       image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
   upstream:
     package: mesh/tailscale
-    repo: bioskop-catalog
+    repo: sample-catalog
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: config.porch.kpt.dev|PackageVariant|porch-system|networking-cilium
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch-resources
   name: networking-cilium
   namespace: porch-system
@@ -33220,38 +33725,38 @@ spec:
   deletionPolicy: delete
   downstream:
     package: networking/cilium
-    repo: bioskop-state
+    repo: sample-state
   labels:
+    cluster-name: sample
     nxmatic.dev/app: cilium
-    nxmatic.dev/cluster: bioskop
     nxmatic.dev/component: networking
   packageContext:
     data:
-      cluster-env: home
-      cluster-name: bioskop
+      cluster-env: sample
+      cluster-name: sample
   pipeline:
     mutators:
     - configMap:
         bgp-local-asn: "65001"
         bgp-peer-asn: "65000"
-        cluster-id: "1"
-        cluster-name: bioskop-cluster
+        cluster-id: 7
+        cluster-name: sample-cluster
         l2-interface-1: vmnet0
         l2-interface-2: lan0
-        lb-pool-cidr: 10.80.8.64/26
-        node-gateway-ip: 10.80.8.1
-        vip-pool-cidr: 10.80.15.0/24
+        lb-pool-cidr: ${cluster-lb-pool-cidr}
+        node-gateway-ip: ${node-gateway-ip}
+        vip-pool-cidr: ${cluster-vip-network-cidr}
       image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
   upstream:
     package: networking/cilium
-    repo: bioskop-catalog
+    repo: sample-catalog
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: config.porch.kpt.dev|PackageVariant|porch-system|networking-envoy-gateway
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch-resources
   name: networking-envoy-gateway
   namespace: porch-system
@@ -33260,15 +33765,15 @@ spec:
   deletionPolicy: delete
   downstream:
     package: networking/envoy-gateway
-    repo: bioskop-state
+    repo: sample-state
   labels:
+    cluster-name: sample
     nxmatic.dev/app: envoy-gateway
-    nxmatic.dev/cluster: bioskop
     nxmatic.dev/component: networking
   packageContext:
     data:
-      cluster-env: home
-      cluster-name: bioskop
+      cluster-env: sample
+      cluster-name: sample
   pipeline:
     mutators:
     - configMap:
@@ -33277,14 +33782,14 @@ spec:
       image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
   upstream:
     package: networking/envoy-gateway
-    repo: bioskop-catalog
+    repo: sample-catalog
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: config.porch.kpt.dev|PackageVariant|porch-system|runtime-flox
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch-resources
   name: runtime-flox
   namespace: porch-system
@@ -33293,15 +33798,15 @@ spec:
   deletionPolicy: delete
   downstream:
     package: runtime/flox-containerd-shim
-    repo: bioskop-state
+    repo: sample-state
   labels:
+    cluster-name: sample
     nxmatic.dev/app: flox-containerd-shim
-    nxmatic.dev/cluster: bioskop
     nxmatic.dev/component: runtime
   packageContext:
     data:
-      cluster-env: home
-      cluster-name: bioskop
+      cluster-env: sample
+      cluster-name: sample
   pipeline:
     mutators:
     - configMap:
@@ -33315,14 +33820,14 @@ spec:
       image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
   upstream:
     package: runtime/flox-containerd-shim
-    repo: bioskop-catalog
+    repo: sample-catalog
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: config.porch.kpt.dev|PackageVariant|porch-system|storage-openebs-zfs
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch-resources
   name: storage-openebs-zfs
   namespace: porch-system
@@ -33331,71 +33836,69 @@ spec:
   deletionPolicy: delete
   downstream:
     package: storage-openebs-zfs
-    repo: bioskop-state
+    repo: sample-state
   labels:
+    cluster-name: sample
     nxmatic.dev/app: openebs-zfs
-    nxmatic.dev/cluster: bioskop
     nxmatic.dev/component: storage
   packageContext:
     data:
-      cluster-env: home
-      cluster-name: bioskop
+      cluster-env: sample
+      cluster-name: sample
   pipeline:
     mutators:
     - configMap:
-        kubelet-dir: /var/lib/rancher/rke2/server/tank
-        poolname: tank
+        kubelet-dir: ${kubelet-dir}
+        zfs-pool-name: ${zfs-pool-name}
       image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
   upstream:
     package: storage-openebs-zfs
-    repo: bioskop-catalog
+    repo: sample-catalog
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: Repository
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: config.porch.kpt.dev|Repository|porch-system|${cluster-name}-catalog
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch-resources
-  name: bioskop-catalog
+  name: sample-catalog
   namespace: porch-system
 spec:
   deployment: true
   description: Catalog of curated kpt packages tracked in incus-rke2-cluster
   git:
     branch: main
-    directory: kpt/catalog
-    repo: /var/lib/git/nxmatic/incus-rke2-cluster.git
-    secretRef:
-      name: github-token
+    directory: catalog
+    repo: https://github.com/nxmatic/incus-rke2-cluster.git
+    secretRef: github-token
   type: git
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: Repository
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: config.porch.kpt.dev|Repository|porch-system|${cluster-name}-state
-    kpt.dev/package-layer: system
+    internal.kpt.dev/upstream-identifier: config.porch.kpt.dev|Repository|porch-system|cluster-name-state
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: porch-resources
-  name: bioskop-state
+  name: sample-state
   namespace: porch-system
 spec:
   deployment: true
-  description: Rendered Porch package state for bioskop cluster
+  description: Rendered Porch package state for sample cluster
   git:
     branch: main
     createBranch: true
-    directory: kpt/fleet/bioskop/bioskop
-    repo: /var/lib/git/nxmatic/incus-rke2-cluster.git
-    secretRef:
-      name: github-token
+    directory: rke2-subtree/sample/catalog
+    repo: https://github.com/nxmatic/incus-rke2-cluster.git
+    secretRef: github-token
   type: git
 ---
 apiVersion: fluxcd.controlplane.io/v1
 kind: FluxInstance
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: gitops
     kpt.dev/package-name: flux-instance
   labels:
     app.kubernetes.io/instance: flux-instance
@@ -33423,12 +33926,6 @@ spec:
     version: 2.x
   kustomize:
     patches: []
-  sync:
-    interval: 1m
-    kind: GitRepository
-    path: bioskop
-    ref: rke2-subtree
-    url: https://github.com/nxmatic/fleet.git
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: GatewayClass
@@ -33446,8 +33943,6 @@ kind: HelmChart
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: helm.cattle.io|HelmChart|kube-system|tailscale-operator
-    kpt.dev/package-layer: mesh
-    kpt.dev/package-name: tailscale
   name: tailscale-operator
   namespace: kube-system
 spec:
@@ -33460,7 +33955,7 @@ spec:
       clientId: kT715erNJB21CNTRL # sops:encrypted
       clientSecret: tskey-client-kT715erNJB21CNTRL-BQPzAaha7Keq7CRE3NkXKezuo7yJCTfqE # sops:encrypted
     operatorConfig:
-      hostname: "bioskop-cluster-tailscale-operator" # kpt-set: ${cluster-name}-tailscale-operator
+      hostname: ${cluster-name}-tailscale-operator # kpt-set: ${cluster-name}-tailscale-operator
       debug: true
   version: 1.82.0
 ---
@@ -33479,8 +33974,10 @@ spec:
   repo: https://openebs.github.io/zfs-localpv
   targetNamespace: openebs
   valuesContent: |-
+    zfs:
+      bin: /usr/sbin/zfs # kpt-set: ${zfs-bin}
     zfsNode:
-      kubeletDir: /var/lib/rancher/rke2/server/tank # kpt-set: ${kubelet-dir}
+      kubeletDir: /var/lib/kubelet # kpt-set: ${kubelet-dir}
   version: 2.8.0
 ---
 apiVersion: helm.cattle.io/v1
@@ -33488,19 +33985,20 @@ kind: HelmChartConfig
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: helm.cattle.io|HelmChartConfig|kube-system|rke2-cilium
-    kpt.dev/package-layer: system
-    kpt.dev/package-name: cilium
+    kpt.dev/package-layer: networking
+    kpt.dev/package-name: cilium-config
   name: rke2-cilium
   namespace: kube-system
 spec:
   valuesContent: |-
+    installCRDs: true
     bpf:
       hostLegacyRouting: true
     bgpControlPlane:
       enabled: true
     cluster:
-      name: example-cluster # kpt-set: ${cluster-name}
-      id: 100 # kpt-set: ${cluster-id}
+      cluster-name: ${cluster-name} # kpt-set: ${cluster-name}
+      id: ${cluster-id} # kpt-set: ${cluster-id}
     clustermesh:
       useAPIServer: true
       apiserver:
@@ -33549,7 +34047,7 @@ kind: HelmChartConfig
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: helm.cattle.io|HelmChartConfig|kube-system|rke2-traefik
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: networking
     kpt.dev/package-name: traefik
   name: rke2-traefik
   namespace: kube-system
@@ -33564,16 +34062,6 @@ spec:
       websecure:
         expose:
           default: true
----
-apiVersion: kpt.dev/v1
-info:
-  description: RKE2 Traefik HelmChartConfig bootstrap package
-kind: Kptfile
-metadata:
-  annotations:
-    kpt.dev/package-layer: system
-    kpt.dev/package-name: traefik
-  name: traefik
 ---
 apiVersion: node.k8s.io/v1
 handler: flox
@@ -33594,21 +34082,19 @@ metadata:
   annotations:
     config.kubernetes.io/depends-on: helm.cattle.io/namespaces/kube-system/HelmChart/tailscale-operator
     internal.kpt.dev/upstream-identifier: tailscale.com|Connector|default|controlplane
-    kpt.dev/package-layer: mesh
-    kpt.dev/package-name: tailscale
   name: controlplane
 spec:
-  hostname: example-cluster-controlplane
+  hostname: sample-controlplane
   subnetRouter:
     advertiseRoutes:
-    - 10.0.15.1/32
-    - 10.0.8.0/24
+    - 10.80.63.10/32
+    - 10.80.56.64/26
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: webhook
@@ -33631,7 +34117,7 @@ apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: webhook
@@ -33657,7 +34143,7 @@ apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
   annotations:
-    kpt.dev/package-layer: system
+    kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
   labels:
     app.kubernetes.io/component: webhook

@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: # kpt-merge: /cluster-setters
+  name: cluster-setters
+  annotations:
+    config.kubernetes.io/local-config: "true"
+    internal.kpt.dev/function-config: apply-setters
+    description.kpt.dev: Shared cluster identity/network setters (consumed by catalog bundles)
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|default|cluster-setters'
+data:
+  cluster-name: sample
+  cluster-env: sample
+  cluster-id: 7
+  home-lan-pool: 10.80.56.64/26
+  headscale-lb-ip: 10.80.56.65
+  github-secret: github-token

@@ -8,16 +8,16 @@ upstream:
   type: git
   git:
     repo: /private/var/lib/git/nxmatic/incus-rke2-cluster
-    directory: /kpt/catalog
+    directory: /catalog
     ref: main
   updateStrategy: resource-merge
 upstreamLock:
   type: git
   git:
     repo: /private/var/lib/git/nxmatic/incus-rke2-cluster
-    directory: /kpt/catalog
+    directory: /catalog
     ref: main
-    commit: 429e2e4ef55a060916970a844f7d671f907b863a
+    commit: a5326e0aa4a0fc02912b014a1991319a00105c4c
 info:
   site: https://github.com/nxmatic/incus-rke2-cluster
   description: |
@@ -26,7 +26,14 @@ info:
     Organized by functional layers:
     - ha: High availability components (kube-vip)
     - mesh: Mesh networking (headscale, tailscale)
-    - networking: Network policies and gateways (cilium, envoy-gateway)
+    - networking: Network policies, gateways, ingress (cilium-config, cilium, envoy-gateway, traefik)
     - runtime: Container runtimes (flox-containerd-shim)
     - storage: Storage solutions (openebs-zfs)
-    - system: Core infrastructure (flux, porch, tekton, replicator)
+    - gitops: GitOps control plane and package management (flux, porch)
+    - cicd: CI/CD components (tekton)
+    - replication: Replicator services/CRDs
+pipeline:
+  mutators:
+    - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+      configPath: configmap-cluster-setters.yaml
+    - exec: derive-network-setters.sh

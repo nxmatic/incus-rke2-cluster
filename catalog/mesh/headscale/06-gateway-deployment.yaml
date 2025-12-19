@@ -1,0 +1,116 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: headscale-gateway
+  namespace: headscale
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: headscale-gateway
+  namespace: headscale
+  labels:
+    app: headscale-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: headscale-gateway
+  template:
+    metadata:
+      labels:
+        app: headscale-gateway
+    spec:
+      serviceAccountName: headscale-gateway
+      automountServiceAccountToken: false
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+      tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: tailscale-gateway
+        image: tailscale/tailscale:v1.76.6
+        env:
+        - name: DARWIN_HOST
+          value: ${cluster-name} # kpt-set: ${cluster-name}
+        - name: VIP_NETWORK_CIDR
+          value: ${cluster-vip-network-cidr} # kpt-set: ${cluster-vip-network-cidr}
+        - name: TS_AUTHKEY
+          valueFrom:
+            secretKeyRef:
+              name: headscale-client-auth
+              key: authkey
+        command:
+        - sh
+        - -c
+        - |
+          set -e
+          sysctl -w net.ipv4.ip_forward=1
+          sysctl -w net.ipv6.conf.all.forwarding=1 || true
+
+          echo "Starting tailscaled router..."
+          tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock &
+          TAILSCALED_PID=$$!
+
+          until [ -S /var/run/tailscale/tailscaled.sock ]; do sleep 1; done
+
+          HEADSCALE_URL="http://headscale.headscale.svc.cluster.local:8080"
+
+          tailscale up \
+            --login-server=$$HEADSCALE_URL \
+            --authkey=file:/var/secrets/authkey \
+            --hostname=$${DARWIN_HOST}-gateway \
+            --advertise-routes=$${VIP_NETWORK_CIDR} \
+            --accept-dns=false \
+            --ssh \
+            --reset
+
+          tailscale set --advertise-routes=$${VIP_NETWORK_CIDR}
+
+          wait $$TAILSCALED_PID
+        securityContext:
+          privileged: true
+          capabilities:
+            add:
+            - NET_ADMIN
+            - NET_RAW
+        volumeMounts:
+        - name: dev-net-tun
+          mountPath: /dev/net/tun
+        - name: tailscale-state
+          mountPath: /var/lib/tailscale
+        - name: tailscale-socket
+          mountPath: /var/run/tailscale
+        - name: authkey
+          mountPath: /var/secrets
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+            ephemeral-storage: 100Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+            ephemeral-storage: 500Mi
+      volumes:
+      - name: dev-net-tun
+        hostPath:
+          path: /dev/net/tun
+          type: CharDevice
+      - name: tailscale-state
+        hostPath:
+          path: /var/lib/tailscale
+          type: DirectoryOrCreate
+      - name: tailscale-socket
+        emptyDir: {}
+      - name: authkey
+        secret:
+          secretName: headscale-client-auth
+          items:
+          - key: authkey
+            path: authkey

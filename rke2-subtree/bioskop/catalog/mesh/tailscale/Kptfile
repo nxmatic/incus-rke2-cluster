@@ -1,7 +1,7 @@
 apiVersion: kpt.dev/v1
 kind: Kptfile
 metadata:
-  name: tailscale
+  name: tailscale-operator
   annotations:
     config.kubernetes.io/local-config: "true"
 info:
@@ -15,4 +15,4 @@ info:
 pipeline:
   mutators:
     - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
-      configPath: tailscale-setters.yaml
+      configPath: setters.yaml

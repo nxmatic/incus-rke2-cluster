@@ -1,0 +1,31 @@
+---
+apiVersion: v1
+data:
+  pod-cache-config.yaml: |
+    ghcr.io/kptdev/krm-functions-catalog/apply-replacements:v0.1.1: 30m
+    ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2.0: 30m
+    ghcr.io/kptdev/krm-functions-catalog/create-setters:v0.1.0: 30m
+    ghcr.io/kptdev/krm-functions-catalog/ensure-name-substring:v0.2.0: 30m
+    ghcr.io/kptdev/krm-functions-catalog/gatekeeper:v0.2.1: 30m
+    ghcr.io/kptdev/krm-functions-catalog/kubeconform:v0.1.1: 30m
+    ghcr.io/kptdev/krm-functions-catalog/search-replace:v0.2.0: 30m
+    ghcr.io/kptdev/krm-functions-catalog/set-annotations:v0.1.4: 30m
+    ghcr.io/kptdev/krm-functions-catalog/set-enforcement-action:v0.1.0: 30m
+    ghcr.io/kptdev/krm-functions-catalog/set-image:v0.1.1: 30m
+    ghcr.io/kptdev/krm-functions-catalog/set-labels:v0.1.5: 30m
+    ghcr.io/kptdev/krm-functions-catalog/set-namespace:v0.4.1: 30m
+    ghcr.io/kptdev/krm-functions-catalog/starlark:v0.4.3: 30m
+    ghcr.io/kptdev/krm-functions-catalog/upsert-resource:v0.2.0: 30m
+    ghcr.io/kptdev/krm-functions-catalog/enable-gcp-services:v0.1.0: 30m
+    ghcr.io/kptdev/krm-functions-catalog/export-terraform:v0.1.0: 30m
+    ghcr.io/kptdev/krm-functions-catalog/generate-folders:v0.1.1: 30m
+    ghcr.io/kptdev/krm-functions-catalog/remove-local-config-resources:v0.1.0: 30m
+    ghcr.io/kptdev/krm-functions-catalog/set-project-id:v0.2.0: 30m
+kind: ConfigMap
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|porch-system|pod-cache-config'
+    kpt.dev/package-layer: gitops
+    kpt.dev/package-name: porch
+  name: pod-cache-config
+  namespace: porch-system

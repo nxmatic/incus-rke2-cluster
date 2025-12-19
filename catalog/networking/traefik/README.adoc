@@ -1,0 +1,18 @@
+== Traefik HelmChartConfig kpt Package
+
+@codebase This package tracks the `+rke2-traefik+` HelmChartConfig used
+to expose the built-in RKE2 Traefik deployment during bootstrap. It
+replaces the previous cloud-config `+write_files+` manifest so the
+configuration now lives in git and is rendered/deployed via
+`+rke2-kpt-deploy+`.
+
+=== Usage
+
+[arabic]
+. `+kpt pkg get+` this folder into the downstream cluster repo under
+`+system/traefik+`.
+. Adjust the Helm values if you need to restrict Traefik exposure (mTLS,
+entryPoints, etc.).
+. Commit the rendered package and let `+rke2-kpt-package-sync+` mirror
+it onto the control-plane node, where the new
+`+rke2-traefik-config.service+` applies it automatically.

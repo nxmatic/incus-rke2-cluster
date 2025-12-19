@@ -4,9 +4,10 @@ metadata: # kpt-merge: /openebs-zfs
   name: openebs-zfs
   annotations:
     internal.kpt.dev/upstream-identifier: 'storage.k8s.io|StorageClass|default|openebs-zfs'
+    storageclass.kubernetes.io/is-default-class: "true"
 provisioner: zfs.csi.openebs.io
 parameters:
-  poolname: tank # kpt-set: ${poolname}
+  zfs.poolname: zfs-poolname # kpt-set: ${zfs-poolname}
   fstype: zfs
 reclaimPolicy: Delete
 volumeBindingMode: WaitForFirstConsumer

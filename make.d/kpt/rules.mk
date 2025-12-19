@@ -1,37 +1,30 @@
-# kpt/rules.mk - KPT package catalog and manifests management (@codebase)
+# rules.mk - KPT package catalog and manifests management (@codebase)
 
 # Self-guarding include so the layer can be pulled in multiple times safely.
 
-ifndef make.d/kpt/rules.mk
+ifndef make.d/rules.mk
 
 -include make.d/make.mk
 
-# Trace system for kpt operations (@codebase)
-ifeq ($(true),$(.trace.kpt))
-override kpt.trace = $(warning [kpt] $(1) $(if $(2),($(foreach var,$(2),$(var)=$($(var)))),(no vars)))
-kpt.is-trace := $(true)
-kpt.if-trace = $(1)
-$(call kpt.trace,enabling kpt-level trace)
-else
-kpt.is-trace := $(false)
-kpt.if-trace = $(2)
-endif
+$(call make.trace,"Including rules.mk")
+
+-include make.d/network/rules.mk
 
 # KPT catalog configuration (@codebase)
-
 .kpt.dir := $(rke2-subtree.dir)/$(cluster.name)
+.kpt.upstream.repo := $(realpath $(top-dir))
+.kpt.upstream.dir := catalog
 .kpt.catalog.dir := $(.kpt.dir)/catalog
 .kpt.overlays.dir := $(.kpt.dir)/overlays
 .kpt.overlays.Kustomization.file := $(.kpt.overlays.dir)/Kustomization
 .kpt.Kustomization.file := $(.kpt.dir)/Kustomization
 .kpt.render.dir := $(tmp-dir)/catalog/$(cluster.name)
-.kpt.local.render.dir := $(rke2-subtree.dir)/$(cluster.name)/.local.d
+.kpt.render.cmd := env PATH=$(PATH):$(realpath $(.kpt.catalog.dir)/bin) kpt fn render --allow-exec --truncate-output=false
 .kpt.manifests.file := $(.kpt.dir)/manifests.yaml
-.kpt.manifests.dir := $(.kpt.dir)/manifests.d
-
+.kpt.rke2-contribs.dir  := $(.kpt.dir)/rke2-contribs.d
 .kpt.package.aux_files := .gitattributes .krmignore
 
-export CLUSTER_MANIFESTS_DIR := $(realpath $(.kpt.manifests.dir))
+export CLUSTER_RK2E_CONTRIBS_DIR := $(realpath $(.kpt.rke2-contribs.dir))
 
 define .kpt.require-bin
 	if ! command -v $(1) >/dev/null 2>&1; then
@@ -50,7 +43,7 @@ update-kustomizations@kpt: check-tools@kpt
 update-kustomizations@kpt: render.dir := $(tmp-dir)/catalog
 update-kustomizations@kpt: ## Update Kustomization files from rendered catalog packages
 	: "[kpt] Staging and rendering catalog to generate Kustomizations"
-	kpt fn render --truncate-output=false "$(.kpt.catalog.dir)" -o "$(render.dir)"
+	$(.kpt.render.cmd) "$(.kpt.catalog.dir)" -o "$(render.dir)"
 	: "[kpt] Generating Kustomizations from rendered packages"
 	for layer in "$(render.dir)"/*/; do
 		[ -d "$$layer" ] || continue
@@ -84,7 +77,7 @@ render@kpt: $(.kpt.manifests.file)  ## Render catalog via kpt, aggregate via kus
 $(.kpt.render.dir): clean-render@kpt
 $(.kpt.render.dir):
 	$(call kpt.trace,Rendering catalog for cluster $(cluster.name) via kpt fn render)
-	kpt fn render --truncate-output=false "$(.kpt.catalog.dir)" -o "$(@)"
+	$(.kpt.render.cmd) "$(.kpt.catalog.dir)" -o "$(@)"
 
 .FORCE: $(.kpt.render.dir)
 
@@ -103,11 +96,11 @@ $(.kpt.manifests.file):
 # Resource categorization and reparenting (@codebase)
 # ----------------------------------------------------------------------------
 
-$(.kpt.manifests.dir): $(.kpt.manifests.file)
-$(.kpt.manifests.dir): $(.kpt.manifests.dir)/
-$(.kpt.manifests.dir): manifests.file = ../manifests.yaml
-$(.kpt.manifests.dir): 
-	cd $(.kpt.manifests.dir)
+$(.kpt.rke2-contribs.dir): $(.kpt.manifests.file)
+$(.kpt.rke2-contribs.dir): $(.kpt.rke2-contribs.dir)/
+$(.kpt.rke2-contribs.dir): manifests.file = ../manifests.yaml
+$(.kpt.rke2-contribs.dir): 
+	cd $(.kpt.rke2-contribs.dir)
 	yq --split-exp='$(call .kpt.toFilePath,00)' \
 		eval-all 'select(.kind == "CustomResourceDefinition")' \
 		"$(manifests.file)"
@@ -129,12 +122,13 @@ define .kpt.isOwnedByPackage =
 .metadata.annotations."kpt.dev/package-name" == "$(pkg)"
 endef
 
-unwrap@kpt: $(.kpt.manifests.dir)
-unwrap@kpt: ## Unwrap rendered manifests into categorized directory structure
-	: "[kpt] Unwrapped rendered manifests into categorized directories"
+.PHONY: rke2-contribs@kpt clean-rke2-contribs@kpt
+rke2-contribs@kpt: $(.kpt.rke2-contribs.dir)
+rke2-contribs@kpt: ## Unwrap rendered manifests into categorized directory structure
+	: "[kpt] Unwrapped rendered manifests into $(.kpt.rke2-contribs.dir)"
 
-clean-manifests@kpt: ## Clean categorized manifests directory
-	rm -fr $(.kpt.manifests.dir)
+clean-rke2-contribs@kpt: ## Clean categorized manifests directory
+	rm -fr $(.kpt.rke2-contribs.dir)
 
 # ----------------------------------------------------------------------------
 
@@ -154,31 +148,41 @@ prepare@kpt: # Fetch or update the cluster catalog
 clean-render@kpt: ## Clean rendered temporary directory
 	rm -rf "$(.kpt.render.dir)"
 
-.PHONY: render-pkg@kpt
-render-pkg@kpt: ## Development target: render a specific package to .local.d for inspection. Usage: make render-pkg@kpt PKG=system/porch
-	@: "[kpt] Rendering package $(PKG) to .local.d for inspection"
-	@mkdir -p "$(.kpt.local.render.dir)"
-	kpt fn render "$(rke2-subtree.dir)/$(cluster.name)/catalog/$(PKG)" -o "$(.kpt.local.render.dir)/$(PKG)" --truncate-output=false
+.PHONY: render@kpt
+render@kpt: clean-local-render@kpt
+render@kpt: $(.kpt.local.render.dir)
+render@kpt: ## Development target: render a specific package to .local.d for inspection. Usage: make render@kpt PKG=system/porch
+	: 
+
+$(.kpt.local.render.dir): $(.kpt.local.render.dir)/
+$(.kpt.local.render.dir)/:
+	: "[kpt] Rendering package $(PKG) to .local.d for inspection"
+	$(.kpt.render.cmd) "$(.kpt.catalog.dir)/$(PKG)" -o "$(.kpt.local.render.dir)/$(PKG)"
+
 
 .PHONY: clean-local-render@kpt
 clean-local-render@kpt: ## Clean local development render directory
 	rm -rf "$(.kpt.local.render.dir)"
 
+update@kpt: $(.kpt.catalog.dir)
+update@kpt: update-guard@kpt
 update@kpt: ## Update cluster catalog via kpt pkg get/update
-	$(call kpt.trace,Updating cluster $(cluster.name) catalog via kpt pkg get/update)
-	if git diff --quiet -- kpt/catalog rke2-subtree/bioskop/catalog &&
-	   git diff --cached --quiet -- kpt/catalog rke2-subtree/bioskop/catalog &&
-	   ! git ls-files --others --exclude-standard -- kpt/catalog rke2-subtree/bioskop/catalog | grep -q .; then
-		if [[ ! -d "$(.kpt.catalog.dir)" ]]; then
-			kpt pkg get "$(realpath $(top-dir)).git/kpt/catalog" "$(.kpt.catalog.dir)"
-		else
-			kpt pkg update "$(.kpt.catalog.dir)@main" --strategy resource-merge
-		fi
-	else
-		echo "[kpt] ERROR: kpt/catalog or rke2-subtree/bioskop/catalog has uncommitted changes"
+	: "Updating cluster $(cluster.name) catalog via kpt pkg get/update)"
+	kpt pkg update "$(.kpt.catalog.dir)@main" --strategy resource-merge
+
+update-guard@kpt: ## Guard target to ensure catalog directory exists
+	: "Ensuring catalog directory exists for cluster $(cluster.name)"
+	if ! git diff --quiet -- catalog $(.kpt.catalog.dir) ||
+	   ! git diff --cached --quiet -- catalog $(rke2-subtree.git.subtree.dir) ||
+	   git ls-files --others --exclude-standard -- catalog $(rke2-subtree.git.subtree.dir) | grep -q .; then
+		echo "[kpt] ERROR: catalog or rke2-subtree/bioskop/catalog has uncommitted changes"
 		echo "[kpt] Commit or discard changes before running update@kpt"
 		exit 1
 	fi
+
+$(.kpt.catalog.dir): ## Ensure cluster catalog directory exists and is updated
+	: "[kpt] Ensuring cluster catalog directory is updated"
+	kpt pkg get "$(.kpt.upstream.repo).git/${.kpt.upstream.dir}" "$(.kpt.dir)"
 
 define .yaml.comma-join =
 $(subst $(space),$1,$(strip $2))
@@ -273,5 +277,4 @@ push@kpt: remote@kpt check-clean@kpt
 		git subtree push --prefix="$(rke2-subtree.git.subtree.dir)" \
 		  "$(rke2-subtree.git.remote)" "$(rke2-subtree.git.branch)"
 	fi
-
-endif # make.d/kpt/rules.mk guard
+endif # make.d/rules.mk guard

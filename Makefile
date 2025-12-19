@@ -62,7 +62,7 @@ REMOTE_EXEC := $(shell if [ -x /run/wrappers/bin/sudo ]; then echo ""; else echo
 -include make.d/network/rules.mk
 -include make.d/plantuml/rules.mk
 -include make.d/incus/rules.mk
--include make.d/kpt/rules.mk
+-include make.d/rules.mk
 
 
 # Legacy compatibility aliases for templates (all logic moved to  variables above)

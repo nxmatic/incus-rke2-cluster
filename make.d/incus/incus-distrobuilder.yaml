@@ -63,25 +63,17 @@ packages:
         - ca-certificates
         - cloud-init
         - curl
-        - direnv
         - dstat
-        - dnsutils
-        - emacs-nox
         - file
-        - git
-        - gh
         - gnupg
         - gzip
         - htop
         - locales
         - iproute2
         - iptables
-        - iputils-ping
         - jq
         - kmod
         - less
-        - lshw
-        - lsof
         - man
         - man-db
         - nmap
@@ -96,8 +88,6 @@ packages:
         - psmisc
         - pv
         - rsync
-        - socat
-        - strace
         - sudo
         - systemd
         - systemd-container
@@ -107,10 +97,9 @@ packages:
         - netplan.io
         - tar
         - tree
-        - traceroute
-        - tshark
         - uuid-runtime
         - wget
+        - zfsutils-linux
         - zsh
         - xz-utils
       action: install

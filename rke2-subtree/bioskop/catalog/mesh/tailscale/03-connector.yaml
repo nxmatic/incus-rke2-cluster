@@ -9,7 +9,7 @@ metadata: # kpt-merge: /controlplane
 spec:
   # Single host route for the Kubernetes API virtual IP + wider LB pool for service IP reachability.
   # Using /32 avoids advertising unused VIP addresses.
-  hostname: bioskop-controlplane # kpt-set: ${cluster-name}-controlplane
+  hostname: ${cluster-name} # kpt-set: ${cluster-name}-controlplane
   subnetRouter:
     advertiseRoutes:
       # Control-plane virtual IP (host route)

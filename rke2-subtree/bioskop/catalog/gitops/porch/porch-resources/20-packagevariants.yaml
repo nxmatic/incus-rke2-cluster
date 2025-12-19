@@ -1,0 +1,236 @@
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata: # kpt-merge: porch-system/storage-openebs-zfs
+  name: storage-openebs-zfs
+  namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|PackageVariant|porch-system|storage-openebs-zfs'
+spec:
+  upstream:
+    repo: ${cluster-name}-catalog # kpt-set: ${cluster-name}-catalog
+    package: storage-openebs-zfs
+  downstream:
+    repo: ${cluster-name}-state # kpt-set: ${cluster-name}-state
+    package: storage-openebs-zfs
+  adoptionPolicy: adoptNone
+  deletionPolicy: delete
+  labels:
+    cluster-name: ${cluster-name} # kpt-set: ${cluster-name}
+    nxmatic.dev/component: storage
+    nxmatic.dev/app: openebs-zfs
+  packageContext:
+    data:
+      cluster-name: ${cluster-name} # kpt-set: ${cluster-name}
+      cluster-env: ${cluster-env} # kpt-set: ${cluster-env}
+  pipeline:
+    mutators:
+      - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+        configMap:
+          zfs-pool-name: ${zfs-pool-name} # kpt-set: ${zfs-pool-name}
+          kubelet-dir: ${kubelet-dir} # kpt-set: ${kubelet-dir}
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata: # kpt-merge: porch-system/ha-kube-vip
+  name: ha-kube-vip
+  namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|PackageVariant|porch-system|ha-kube-vip'
+spec:
+  upstream:
+    repo: ${cluster-name}-catalog # kpt-set: ${cluster-name}-catalog
+    package: ha/kube-vip
+  downstream:
+    repo: ${cluster-name}-state # kpt-set: ${cluster-name}-state
+    package: ha/kube-vip
+  adoptionPolicy: adoptNone
+  deletionPolicy: delete
+  labels:
+    cluster-name: ${cluster-name} # kpt-set: ${cluster-name}
+    nxmatic.dev/component: ha
+    nxmatic.dev/app: kube-vip
+  packageContext:
+    data:
+      cluster-name: ${cluster-name} # kpt-set: ${cluster-name}
+      cluster-env: ${cluster-env} # kpt-set: ${cluster-env}
+  pipeline:
+    mutators:
+      - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+        configMap:
+          kube-vip-version: ${kube-vip-version} # kpt-set: ${kube-vip-version}
+          cluster-vip-address: ${node-vip-ip} # kpt-set: ${node-vip-ip}
+          cluster-vip-interface: rke2-vip0
+          kube-vip-namespace: kube-vip
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata: # kpt-merge: porch-system/networking-cilium
+  name: networking-cilium
+  namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|PackageVariant|porch-system|networking-cilium'
+spec:
+  upstream:
+    repo: ${cluster-name}-catalog # kpt-set: ${cluster-name}-catalog
+    package: networking/cilium
+  downstream:
+    repo: ${cluster-name}-state # kpt-set: ${cluster-name}-state
+    package: networking/cilium
+  adoptionPolicy: adoptNone
+  deletionPolicy: delete
+  labels:
+    cluster-name: ${cluster-name} # kpt-set: ${cluster-name}
+    nxmatic.dev/component: networking
+    nxmatic.dev/app: cilium
+  packageContext:
+    data:
+      cluster-name: ${cluster-name} # kpt-set: ${cluster-name}
+      cluster-env: ${cluster-env} # kpt-set: ${cluster-env}
+  pipeline:
+    mutators:
+      - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+        configMap:
+          cluster-name: ${cluster-name}-cluster # kpt-set: ${cluster-name}-cluster
+          cluster-id: ${cluster-id} # kpt-set: ${cluster-id}
+          lb-pool-cidr: ${cluster-lb-pool-cidr} # kpt-set: ${cluster-lb-pool-cidr}
+          vip-pool-cidr: ${cluster-vip-network-cidr} # kpt-set: ${cluster-vip-network-cidr}
+          l2-interface-1: vmnet0
+          l2-interface-2: lan0
+          bgp-local-asn: "65001"
+          bgp-peer-asn: "65000"
+          node-gateway-ip: ${node-gateway-ip} # kpt-set: ${node-gateway-ip}
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata: # kpt-merge: porch-system/mesh-tailscale
+  name: mesh-tailscale
+  namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|PackageVariant|porch-system|mesh-tailscale'
+spec:
+  upstream:
+    repo: ${cluster-name}-catalog # kpt-set: ${cluster-name}-catalog
+    package: mesh/tailscale
+  downstream:
+    repo: ${cluster-name}-state # kpt-set: ${cluster-name}-state
+    package: mesh/tailscale
+  adoptionPolicy: adoptNone
+  deletionPolicy: delete
+  labels:
+    cluster-name: ${cluster-name} # kpt-set: ${cluster-name}
+    nxmatic.dev/component: mesh
+    nxmatic.dev/app: tailscale
+  packageContext:
+    data:
+      cluster-name: ${cluster-name} # kpt-set: ${cluster-name}
+      cluster-env: ${cluster-env} # kpt-set: ${cluster-env}
+  pipeline:
+    mutators:
+      - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+        configMap:
+          tailscale-version: 1.82.0
+          cluster-name: ${cluster-name}-cluster # kpt-set: ${cluster-name}-cluster
+          vip-address: ${node-vip-ip} # kpt-set: ${node-vip-ip}
+          lb-pool-cidr: ${cluster-lb-pool-cidr} # kpt-set: ${cluster-lb-pool-cidr}
+          tailscale-namespace: tailscale-system
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata: # kpt-merge: porch-system/mesh-headscale
+  name: mesh-headscale
+  namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|PackageVariant|porch-system|mesh-headscale'
+spec:
+  upstream:
+    repo: ${cluster-name}-catalog # kpt-set: ${cluster-name}-catalog
+    package: mesh/headscale
+  downstream:
+    repo: ${cluster-name}-state # kpt-set: ${cluster-name}-state
+    package: mesh/headscale
+  adoptionPolicy: adoptNone
+  deletionPolicy: delete
+  labels:
+    cluster-name: ${cluster-name} # kpt-set: ${cluster-name}
+    nxmatic.dev/component: mesh
+    nxmatic.dev/app: headscale
+  packageContext:
+    data:
+      cluster-name: ${cluster-name} # kpt-set: ${cluster-name}
+      cluster-env: ${cluster-env} # kpt-set: ${cluster-env}
+  pipeline:
+    mutators:
+      - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+        configMap:
+          cluster-name: ${cluster-name} # kpt-set: ${cluster-name}
+          darwin-host: ${cluster-name} # kpt-set: ${cluster-name}
+          home-lan-pool: ${home-lan-pool} # kpt-set: ${home-lan-pool}
+          headscale-lb-ip: ${headscale-lb-ip} # kpt-set: ${headscale-lb-ip}
+          vip-network-cidr: ${cluster-vip-network-cidr} # kpt-set: ${cluster-vip-network-cidr}
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata: # kpt-merge: porch-system/networking-envoy-gateway
+  name: networking-envoy-gateway
+  namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|PackageVariant|porch-system|networking-envoy-gateway'
+spec:
+  upstream:
+    repo: ${cluster-name}-catalog # kpt-set: ${cluster-name}-catalog
+    package: networking/envoy-gateway
+  downstream:
+    repo: ${cluster-name}-state # kpt-set: ${cluster-name}-state
+    package: networking/envoy-gateway
+  adoptionPolicy: adoptNone
+  deletionPolicy: delete
+  labels:
+    cluster-name: ${cluster-name} # kpt-set: ${cluster-name}
+    nxmatic.dev/component: networking
+    nxmatic.dev/app: envoy-gateway
+  packageContext:
+    data:
+      cluster-name: ${cluster-name} # kpt-set: ${cluster-name}
+      cluster-env: ${cluster-env} # kpt-set: ${cluster-env}
+  pipeline:
+    mutators:
+      - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+        configMap:
+          envoy-gateway-version: v1.4.2
+          envoy-gateway-namespace: envoy-gateway-system
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata: # kpt-merge: porch-system/runtime-flox
+  name: runtime-flox
+  namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'config.porch.kpt.dev|PackageVariant|porch-system|runtime-flox'
+spec:
+  upstream:
+    repo: ${cluster-name}-catalog # kpt-set: ${cluster-name}-catalog
+    package: runtime/flox-containerd-shim
+  downstream:
+    repo: ${cluster-name}-state # kpt-set: ${cluster-name}-state
+    package: runtime/flox-containerd-shim
+  adoptionPolicy: adoptNone
+  deletionPolicy: delete
+  labels:
+    cluster-name: ${cluster-name} # kpt-set: ${cluster-name}
+    nxmatic.dev/component: runtime
+    nxmatic.dev/app: flox-containerd-shim
+  packageContext:
+    data:
+      cluster-name: ${cluster-name} # kpt-set: ${cluster-name}
+      cluster-env: ${cluster-env} # kpt-set: ${cluster-env}
+  pipeline:
+    mutators:
+      - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+        configMap:
+          flox-namespace: flox
+          node-label-key: flox.dev/enabled
+          node-label-value: "true"
+          runtime-class-name: flox
+          containerd-config-file: /var/lib/rancher/rke2/agent/etc/containerd/config.toml
+          containerd-address: /run/k3s/containerd/containerd.sock
+          apk-max-retries: "5"

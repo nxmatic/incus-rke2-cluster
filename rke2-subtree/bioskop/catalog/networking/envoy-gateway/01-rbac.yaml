@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: ServiceAccount
-metadata: # kpt-merge: envoy-gateway-system/envoy-gateway-installer
+metadata: # kpt-merge: ${envoy-gateway-namespace}/envoy-gateway-installer
   name: envoy-gateway-installer
-  namespace: envoy-gateway-system # kpt-set: ${envoy-gateway-namespace}
+  namespace: ${envoy-gateway-namespace} # kpt-set: ${envoy-gateway-namespace}
   annotations:
-    internal.kpt.dev/upstream-identifier: '|ServiceAccount|envoy-gateway-system|envoy-gateway-installer'
+    internal.kpt.dev/upstream-identifier: '|ServiceAccount|${envoy-gateway-namespace}|envoy-gateway-installer'
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -15,7 +15,7 @@ metadata: # kpt-merge: /envoy-gateway-installer
 subjects:
 - kind: ServiceAccount
   name: envoy-gateway-installer
-  namespace: envoy-gateway-system # kpt-set: ${envoy-gateway-namespace}
+  namespace: ${envoy-gateway-namespace} # kpt-set: ${envoy-gateway-namespace}
 roleRef:
   kind: ClusterRole
   name: cluster-admin

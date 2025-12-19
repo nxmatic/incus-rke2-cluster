@@ -1,0 +1,6 @@
+CLUSTER_NAME=bioskop
+NODE_NAME=master
+NODE_ROLE=master
+CLUSTER_ID=0
+NODE_ID=0
+IMAGE_NAME=control-node

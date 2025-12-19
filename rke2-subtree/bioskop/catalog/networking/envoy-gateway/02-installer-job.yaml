@@ -1,10 +1,10 @@
 apiVersion: batch/v1
 kind: Job
-metadata: # kpt-merge: envoy-gateway-system/envoy-gateway-installer
+metadata: # kpt-merge: ${envoy-gateway-namespace}/envoy-gateway-installer
   name: envoy-gateway-installer
-  namespace: envoy-gateway-system # kpt-set: ${envoy-gateway-namespace}
+  namespace: ${envoy-gateway-namespace} # kpt-set: ${envoy-gateway-namespace}
   annotations:
-    internal.kpt.dev/upstream-identifier: 'batch|Job|envoy-gateway-system|envoy-gateway-installer'
+    internal.kpt.dev/upstream-identifier: 'batch|Job|${envoy-gateway-namespace}|envoy-gateway-installer'
 spec:
   ttlSecondsAfterFinished: 300
   template:

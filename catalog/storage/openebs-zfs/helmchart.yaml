@@ -1,0 +1,16 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: openebs-zfs
+  namespace: openebs
+spec:
+  chart: zfs-localpv
+  repo: https://openebs.github.io/zfs-localpv
+  version: 2.8.0
+  targetNamespace: openebs
+  createNamespace: true
+  valuesContent: |-
+    zfs:
+      bin: zfs-bin # kpt-set: ${zfs-bin}
+    zfsNode:
+      kubeletDir: kubelet-dir # kpt-set: ${kubelet-dir}

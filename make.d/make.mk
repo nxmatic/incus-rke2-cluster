@@ -254,6 +254,7 @@ ifeq ($(true),$(.trace.make))
 .make.shell := $(SHELL)
 SHELL=$(call make.trace,Building $@$(if $<, (from $<))$(if $?, ($? newer)))$(.make.shell)
 .SHELLFLAGS += -x
+export PS4 = '[trace:make] $$LINENO: '
 else ifeq ($(true),$(.trace.shell))
 .SHELLFLAGS += -x
 export PS4 = '[trace:shell] $$LINENO: '
@@ -309,7 +310,7 @@ make-dir               := $(call top-dir.to,make.d)
 rke2-subtree.dir        := $(call top-dir.to,rke2-subtree)
 rke2-subtree.git.remote ?= fleet
 rke2-subtree.git.branch ?= rke2-subtree
-rke2-subtree.git.subtree.dir ?= kpt/fleet
+rke2-subtree.git.subtree.dir ?= fleet
 
 
 .make.dirs := $(etc-dir) $(bin-dir) $(build-dir) $(tmp-dir) $(lib-dir) $(var-dir) $(run-dir) $(cache-dir) $(manifest-dir)

@@ -1,0 +1,84 @@
+= Talos vs RKE2: Incus Cluster Considerations
+:toc: left
+:toclevels: 3
+:sectlinks:
+:sectanchors:
+:source-highlighter: rouge
+:version: 0.1
+:date: 2025-12-20
+
+== Overview
+
+This note compares the current RKE2-on-Debian approach (running inside Incus system containers) with a potential move to Talos. It highlights fit, gaps, and migration implications for this repository.
+
+== Current Model (RKE2)
+
+* Debian inside privileged Incus system containers; images built via distrobuilder and bootstrapped with NoCloud cloud-init.
+* RKE2 installed by cloud-init scripts; Traefik, Cilium (bootstrap HelmChartConfig), kube-vip, and portions of OpenEBS come from the bootstrap payload.
+* Host bind-mounts provide secrets, manifests (rke2-contribs.d), and logs; ZFS devices and /dev/kmsg are passed through.
+* Network relies on Incus bridge/macvlan layout with kube-vip announcing on vmnet0/lan0; Cilium handles CNI/IPAM/BGP.
+* Ops: SSH + systemd + apt available for debugging; upgrades are package-based inside the container OS.
+
+== Talos Model (hypothetical)
+
+* Immutable OS (no package manager, no SSH); configuration delivered via Talos MachineConfig and talosctl APIs.
+* Intended for VMs/bare metal; would require Incus VMs (QEMU/KVM), not system containers.
+* Control plane and kubelet managed by Talos; bootstrap components (CNI, kube-vip equivalents) configured declaratively in MachineConfig and manifests.
+* No cloud-init; host bind-mount patterns (secrets, contrib manifests) do not apply. Storage and secrets must be delivered through Kubernetes/GitOps layers.
+* Ops: API-driven lifecycle (logs, upgrades, reboots) via talosctl; changes are image/config based.
+
+== Comparison
+
+[cols="1,2,2",options="header"]
+|===
+| Axis | RKE2 (current) | Talos (proposed)
+| Incus compatibility | Runs in privileged system containers; minimal host overhead | Requires Incus VMs with nested virt; higher host overhead, new profiles
+| Bootstrap method | Cloud-init + systemd scripts + apt; mutable after boot | MachineConfig + talosctl; immutable, no cloud-init/SSH
+| Control plane | RKE2-managed (rke2-server/agent) | Talos-managed Kubernetes; RKE2 on Talos is non-standard
+| Networking | Incus bridge/macvlan + kube-vip; Cilium via HelmChartConfig and kpt | NICs defined in VM; CNI configured in MachineConfig; kube-vip/Cilium via manifests
+| Storage | OpenEBS ZFS installed via packages/Helm | CSI via manifests; host-level ZFS integration would need redesign
+| Host integrations | Bind mounts for secrets/logs/manifests; device passthrough (/dev/zfs, /dev/kmsg) | Bind mounts largely incompatible; must rely on in-cluster storage/secrets
+| Ops & debugging | SSH, journalctl, package tweaks allowed | No SSH; talosctl-only diagnostics; toolbox for limited shell
+| Upgrades | Package-based inside container OS | Image swap with coordinated reboot via talosctl
+| GitOps fit | kpt overlays manage most components post-bootstrap | GitOps still applies; bootstrap expressed in MachineConfig/manifests
+|===
+
+== Benefits and Risks
+
+* Talos benefits: stronger immutability/drift control, uniform API-driven ops, clean upgrade story, reduced host drift.
+* Talos risks for this project: requires VM migration in Incus; existing cloud-init, bind-mount, and Debian tooling pipelines become obsolete; RKE2-specific assumptions (rke2-contribs, host package installs) break; networking/storage need redesign.
+* RKE2 benefits: already working in Incus containers; integrates with current bind-mount and cloud-init flows; familiar SSH/systemd tooling.
+* RKE2 risks: more mutable surface, package-level drift, and bespoke bootstrap logic maintained in cloud-init.
+
+== Migration Implications (if pursued)
+
+* Rework Incus definitions to VMs (type: virtual-machine, virtio NIC/disk, Talos ISO attachment).
+* Replace distrobuilder and cloud-init pipeline with Talos image fetch plus MachineConfig delivery (talosctl apply-config or config ISO).
+* Redesign host integrations: move secrets/manifests into cluster-native delivery; drop host bind mounts; revisit ZFS/storage strategy.
+* Re-express networking (VIPs, BGP, IP pools) in Talos MachineConfig + manifests; validate compatibility with Incus bridges.
+* Re-evaluate control plane: adopt Talos-managed Kubernetes (recommended) versus attempting RKE2 on Talos (unsupported/risky).
+
+== Migration Plan (staged prototype)
+
+* Phase 0: Spike in sandbox
+** Create an Incus VM profile for Talos (virtio NIC on existing bridge, virtio disk) and launch a single Talos VM using the metal ISO. Deliver a minimal MachineConfig via `talosctl apply-config --insecure`.
+** Validate networking parity: ensure the VM gets the expected bridge network, confirm kube API comes up, and check Cilium/kube-vip equivalents via manifests.
+
+* Phase 1: Control plane decision
+** Choose Talos-managed control plane (preferred) or prove RKE2-on-Talos viability (high risk). Document required addons (CNI, VIP, storage) and how they’re expressed in MachineConfig/manifests.
+
+* Phase 2: Bootstrap pipeline rework
+** Add make targets to fetch Talos ISO, create/configure Incus VM(s), and apply MachineConfig. Remove reliance on distrobuilder and NoCloud for Talos nodes.
+** Define Talos MachineConfigs for master/worker roles with static addressing, VIP handling, and CNI configuration.
+
+* Phase 3: Storage and secrets
+** Design storage strategy without host bind mounts; select CSI compatible with Talos and migrate any critical PVs in a test environment.
+** Move secrets/manifests currently bind-mounted (rke2-contribs.d) into GitOps-managed delivery.
+
+* Phase 4: Rollout & validation
+** Bring up a small Talos control plane in parallel (new cluster or canary) and run conformance smoke tests (API health, Cilium, kube-vip, ingress, storage).
+** Define rollback: ability to keep or revert to the existing Debian/RKE2 Incus containers if Talos validation fails.
+
+== Recommendation
+
+Talos is a clean, immutable model but requires a substantial replatform: Incus VMs, new bootstrap flow, and rethinking storage/secrets/networking integrations. Proposed approach: prototype a single Talos VM node in a sandbox, validate networking and CNI/CSI fit, and only then decide on a full migration versus staying on the current RKE2/container model.

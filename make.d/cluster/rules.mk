@@ -3,8 +3,9 @@
 
 ifndef make.d/cluster/rules.mk
 
--include make.d/make.mk  # Ensure availability when file used standalone (@codebase)
--include make.d/node/rules.mk  # Node identity and role variables (@codebase)
+-include make.d/make.mk # Ensure availability when file used standalone (@codebase)
+-include make.d/node/rules.mk # Node identity and role variables (@codebase)
+-include make.d/kpt/rules.mk  # KPT Packages (@codebase)
 # Note: Node and cluster configuration now inlined in make.d/node/rules.mk (@codebase)
 
 # -----------------------------------------------------------------------------

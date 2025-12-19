@@ -5,9 +5,6 @@ mkdir -p /etc/rancher/rke2
 cat <<EoE > /etc/rancher/rke2/environment
 $( cat /proc/1/environ | tr '\0' '\n' )
 EoE
-set -a
-source /etc/rancher/rke2/environment
-set +a
 
 LIBRARY_DIR="/var/lib/rancher/rke2"
 : "Configure direnv to use flox"
@@ -35,6 +32,7 @@ nocloud:env:generate() {
     --dir="${FLOX_ENV_DIR}" \
     dasel git gh yq-go
 }
+
 source <( flox activate --dir="$( nocloud:env:generate )" )
 
 cat > /var/lib/cloud/seed/nocloud/.envrc <<'EoEnvrc'
@@ -46,27 +44,87 @@ cat > /var/lib/cloud/seed/nocloud/.envrc <<'EoEnvrc'
     use flox
 EoEnvrc
 dasel -r toml -w yaml \
-  < /var/lib/cloud/seed/nocloud/.flox/env/manifest.toml |
-  yq eval '.profile = { "common": "source /var/lib/cloud/seed/nocloud/.flox/env/profile-common.sh" }' - |
+  < "${FLOX_ENV_PROJECT}/.flox/env/manifest.toml" |
+  yq eval '.profile = { "common": "source ${FLOX_ENV_PROJECT}/.flox/env/profile-common.sh" }' - |
   dasel --pretty -r yaml -w toml | tee /tmp/manifest.toml.$ &&
   mv /tmp/manifest.toml.$ \
-    /var/lib/cloud/seed/nocloud/.flox/env/manifest.toml
-cat <<'EoFloxCommonProfile' | cut -c 3- | tee /var/lib/cloud/seed/nocloud/.flox/env/profile-common.sh
-  : "Load environment variables from /etc/rancher/rke2/environment"
+    "${FLOX_ENV_PROJECT}/.flox/env/manifest.toml"
+cat <<'EoFloxCommonProfile' | cut -c 3- | tee "${FLOX_ENV_PROJECT}/.flox/env/profile-common.sh"
+  : "Backfill secrets from /srv/secrets if not already set (local yq wrapper)"
+
+  shell:indirect() {
+    local var="$1" value=""
+
+    set +u
+    if [[ -n "${BASH_VERSION:-}" ]]; then
+      value="${!var-}"
+    elif [[ -n "${ZSH_VERSION:-}" ]]; then
+      # shellcheck disable=SC2296
+      value="${(P)var:-}"
+    else
+      echo "ERROR: Unsupported shell for secret loading" >&2
+      set -u
+      return 1
+    fi
+    set -u
+
+    printf '%s\n' "${value}"
+  }
+
+  secret:value() {
+    local var="$1" key="$2" val
+
+    val="$( shell:indirect "${var}" )"
+
+    if [[ -z "$val" ]]; then
+      val=$( "${FLOX_ENV}/bin/yq" -r "${key}" /srv/secrets 2>/dev/null )
+    fi
+    
+    [[ -z "$val" ]] && return  
+    export "$var=$val"
+  }
+  
   set -a
 
-  : "Source RKE2 environment file if available"
+   : "Source RKE2 environment file if available"
   [[ -f /etc/rancher/rke2/environment ]] && source /etc/rancher/rke2/environment
 
-  if command -v ip >/dev/null; then
-    CLUSTER_GATEWAY=$( ip route show default 2>/dev/null | 
-                        awk '/default via/ { print $3; exit }' || 
-                        true )
-  fi
+  : "Load RKE2-specific dynamic environment variables"
+  ARCH="$(dpkg --print-architecture)"
+
+  secret:value CLUSTER_GITHUB_USERNAME '.github.username'
+  secret:value CLUSTER_GITHUB_TOKEN '.github.token'
+  secret:value CLUSTER_DOCKER_CONFIG_JSON '.docker.configJson'	
+  secret:value TEKTON_GIT_USERNAME '.tekton.git.username'
+  secret:value TEKTON_GIT_PASSWORD '.tekton.git.password'
+  secret:value TEKTON_DOCKER_CONFIG_JSON '.tekton.docker.configJson'
+  secret:value TEKTON_DOCKER_REGISTRY_URL '.tekton.docker.registryUrl'	
+  secret:value TSKEY_CLIENT_ID '.tailscale.client.id'
+  secret:value TSKEY_CLIENT_TOKEN '.tailscale.client.token'
+  secret:value TSKEY_API_ID '.tailscale.api.id'
+  secret:value TSKEY_API_TOKEN '.tailscale.api.token'	  
+  
+  # Convenience alias for tools expecting the conventional PAT variable
+  [[ -n "${CLUSTER_GITHUB_TOKEN:-}" ]] && export GITHUB_PAT="${CLUSTER_GITHUB_TOKEN}"	
+
+  unset shell_indirect
+  unset secret:value
+
+
+  : "Determine default gateway IP for cluster networking"
+  CLUSTER_GATEWAY=$( ip route show default 2>/dev/null | 
+                      awk '/default via/ { print $3; exit }' || 
+                      true )
 
   set +a
 EoFloxCommonProfile
-source <( env FLOX_ACTIVATE_TRACE=1 flox activate --dir=/var/lib/cloud/seed/nocloud )
+
+: Refresh flox environment 
+rm -f "${FLOX_ENV_PROJECT}/.flox/env/manifest.lock"
+flox activate --dir "${FLOX_ENV_PROJECT}"\
+
+: "Load flox common profile for the secrets"
+source "${FLOX_ENV_PROJECT}/.flox/env/profile-common.sh"
 
 : "GitHub authentication setup"
 gh auth login --with-token <<EoF
@@ -92,6 +150,7 @@ flox install \
 dasel -r toml -w yaml \
   < /var/lib/rancher/rke2/.flox/env/manifest.toml |
   yq eval '.include = {"environments": [{"dir": "/var/lib/cloud/seed/nocloud"}]}' - |
+  yq eval '.install += {"zfs": {"pkg-path": "zfs", "pkg-group": "linux", "systems": ["aarch64-linux"]}}' - |
   yq eval '.install += {"nerdctl": {"pkg-path": "nerdctl", "version": "1.7.5", "pkg-group": "containerd-tools", "systems": ["aarch64-linux"]}}' - |
   yq eval '.install += {"krew": {"pkg-path": "krew", "pkg-group": "kubectl-tools"}}' - |
   yq eval '.install += {"kubectl-ai": {"pkg-path": "kubectl-ai", "pkg-group": "kubectl-plugins"}}' - |
@@ -111,12 +170,10 @@ dasel -r toml -w yaml \
   mv /tmp/manifest.toml.$ \
     /var/lib/rancher/rke2/.flox/env/manifest.toml
   cat <<'EoFloxCommonProfile' | cut -c 3- | tee /var/lib/rancher/rke2/.flox/env/profile-common.sh
-  : "Load environment variables from /etc/rancher/rke2/environment"
+  : "Load nocloud environment from the common profile"
+  source "/var/lib/cloud/seed/nocloud/.flox/env/profile-common.sh" 
+ 
   set -a
-  
-  : "Source RKE2 environment file \(generated from Incus instance config\)"
-  [[ -f /etc/rancher/rke2/environment ]] && source /etc/rancher/rke2/environment
-
   : "Load RKE2-specific dynamic environment variables"
   ARCH="$(dpkg --print-architecture)"
   [[ -r /etc/rancher/rke2/rke2.yaml ]] &&

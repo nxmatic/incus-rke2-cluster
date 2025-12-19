@@ -20,19 +20,8 @@ config:
   environment.CLUSTER_NAME: "${CLUSTER_NAME}"
   environment.CLUSTER_TOKEN: "${CLUSTER_TOKEN}"
   environment.CLUSTER_DOMAIN: "${CLUSTER_DOMAIN}"
-  environment.CLUSTER_GITHUB_TOKEN: "${CLUSTER_GITHUB_TOKEN}"
-  environment.CLUSTER_GITHUB_USERNAME: "${CLUSTER_GITHUB_USERNAME}"
-  environment.TEKTON_GIT_USERNAME: "${TEKTON_GIT_USERNAME}"
-  environment.TEKTON_GIT_PASSWORD: "${TEKTON_GIT_PASSWORD}"
   environment.TEKTON_GIT_URL: "${TEKTON_GIT_URL}"
   # Tailscale / Headscale provisioning
-  environment.TSKEY_CLIENT_ID: "${TSKEY_CLIENT_ID}"
-  environment.TSKEY_CLIENT_TOKEN: "${TSKEY_CLIENT_TOKEN}"
-  environment.TSKEY_API_ID: "${TSKEY_API_ID}"
-  environment.TSKEY_API_TOKEN: "${TSKEY_API_TOKEN}"
-  environment.CLUSTER_DOCKER_CONFIG_JSON: "${CLUSTER_DOCKER_CONFIG_JSON}"
-  environment.TEKTON_DOCKER_CONFIG_JSON: "${TEKTON_DOCKER_CONFIG_JSON}"
-  environment.TEKTON_DOCKER_REGISTRY_URL: "${TEKTON_DOCKER_REGISTRY_URL}"
   environment.NODE_ROLE: "${NODE_ROLE}"
   environment.NODE_NAME: "${NODE_NAME}"
   environment.POD_NETWORK_CIDR: "${POD_NETWORK_CIDR}"
@@ -103,12 +92,12 @@ devices:
   secrets.file:
     type: disk
     source: ${PWD}/.secrets
-    path: /.secrets
+    path: /srv/secrets
     readonly: "true"
-  manifests.dir:
+  rke2-contribs.dir :
     type: disk
-    source: ${CLUSTER_MANIFESTS_DIR}/system
-    path: /var/lib/rancher/rke2/server/manifests/system.d
+    source: ${CLUSTER_RK2E_CONTRIBS_DIR}
+    path: /srv/rke2-contribs
   shared.dir:
     type: disk
     source: ${PWD}/${RUN_INSTANCE_DIR}/shared

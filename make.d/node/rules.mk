@@ -23,34 +23,36 @@ ifndef make.d/node/rules.mk
 .cluster.TOKEN ?= $(.cluster.name)
 .cluster.DOMAIN = cluster.local
 
+# Dynamic Pod/Service CIDR calculation via GMSL math (no python)
+CIDR_POD_BASE_OCTET := 42
+CIDR_SVC_BASE_OCTET := 43
+CIDR_STEP := 2
+
 # Cluster-specific configurations
 ifeq ($(.cluster.name),bioskop)
-  .cluster.id := 1
-  .cluster.POD_NETWORK_CIDR := 10.42.0.0/16
-  .cluster.SERVICE_NETWORK_CIDR := 10.43.0.0/16
+  .cluster.id := 0
   .cluster.LIMA_LAN_INTERFACE := vmlan0
   .cluster.LIMA_VMNET_INTERFACE := vmwan0
   .cluster.STATE_REPO := https://github.com/nxmatic/fleet-manifests.git
   .cluster.STATE_BRANCH := rke2-subtree
 else ifeq ($(.cluster.name),alcide)
-  .cluster.id := 2
-  .cluster.POD_NETWORK_CIDR := 10.44.0.0/16
-  .cluster.SERVICE_NETWORK_CIDR := 10.45.0.0/16
+  .cluster.id := 1
   .cluster.LIMA_LAN_INTERFACE := vmlan0
   .cluster.LIMA_VMNET_INTERFACE := vmwan0
-  .cluster.STATE_REPO := https://github.com/nxmatic/fleet-manifests.git
-  .cluster.STATE_BRANCH := rke2-subtree
 else ifeq ($(.cluster.name),nikopol)
   .cluster.id := 2
-  .cluster.POD_NETWORK_CIDR := 10.44.0.0/16
-  .cluster.SERVICE_NETWORK_CIDR := 10.45.0.0/16
   .cluster.LIMA_LAN_INTERFACE := vmlan0
   .cluster.LIMA_VMNET_INTERFACE := vmwan0
-  .cluster.STATE_REPO := https://github.com/nxmatic/fleet-manifests.git
-  .cluster.STATE_BRANCH := rke2-subtree
 else
-  $(error [node] Unknown cluster: $(.cluster.name). Supported clusters: bioskop alcide nikopol)
+  .cluster.id := 7
+  .cluster.LIMA_LAN_INTERFACE := vmlan0
+  .cluster.LIMA_VMNET_INTERFACE := vmwan0
 endif
+
+# Compute Pod/Service CIDRs from base + cluster index (0-based)
+cluster.idx := $(call subtract,$(.cluster.id),1)
+.cluster.POD_NETWORK_CIDR := 10.$(call plus,$(CIDR_POD_BASE_OCTET),$(call multiply,$(cluster.idx),$(CIDR_STEP))).0.0/16
+.cluster.SERVICE_NETWORK_CIDR := 10.$(call plus,$(CIDR_SVC_BASE_OCTET),$(call multiply,$(cluster.idx),$(CIDR_STEP))).0.0/16
 
 # Public cluster API
 cluster.name := $(.cluster.name)

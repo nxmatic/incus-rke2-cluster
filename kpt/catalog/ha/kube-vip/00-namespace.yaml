@@ -1,6 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: kube-vip # kpt-set: ${kube-vip-namespace}
-  labels:
-    name: kube-vip # kpt-set: ${kube-vip-namespace}

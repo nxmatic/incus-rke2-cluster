@@ -7,6 +7,7 @@ ifndef make.d/incus/rules.mk
 -include make.d/node/rules.mk  # Node identity and role variables (@codebase)
 -include make.d/cluster/rules.mk  # Cluster configuration and variables (@codebase)
 -include make.d/network/rules.mk  # Network targets and variables (@codebase)
+-include make.d/kpt/rules.mk  # KPT catalog targets and variables (@codebase)
 -include make.d/cloud-config/rules.mk  # Cloud-config targets and variables (@codebase)
 
 # =============================================================================
@@ -718,7 +719,7 @@ remove-hosts@tailscale: export SCRIPT := $(TAILSCALE_RM_HOSTS_SCRIPT)
 remove-hosts@tailscale: export YQ_EXPR := $(TAILSCALE_RM_HOSTS_YQ_EXPR)
 remove-hosts@tailscale: export NODE := $(NAME)
 remove-hosts@tailscale:
-	: "[+] Querying Tailscale devices with key $${TSKEY_API},prefix $${HOST}, yq-expr $${YQ_EXPR} ..."
-	( [[ $$NODE == "master" ]] && eval "$$SCRIPT" ) || true
-
+	: "[+] Querying Tailscale devices for cluster $(CLUSTER_NAME)..."
+	( [[ $$NODE == "master" ]] && eval "$$SCRIPT" ) ||
+		true
 endif  # incus/rules.mk guard

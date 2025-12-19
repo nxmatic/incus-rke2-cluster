@@ -40,9 +40,9 @@ spec:
         image: tailscale/tailscale:v1.76.6
         env:
         - name: DARWIN_HOST
-          value: "bioskop" # kpt-set: ${darwin-host}
+          value: ${cluster-name} # kpt-set: ${cluster-name}
         - name: VIP_NETWORK_CIDR
-          value: "10.80.15.0/24" # kpt-set: ${vip-network-cidr}
+          value: ${cluster-vip-network-cidr} # kpt-set: ${cluster-vip-network-cidr}
         - name: TS_AUTHKEY
           valueFrom:
             secretKeyRef:
