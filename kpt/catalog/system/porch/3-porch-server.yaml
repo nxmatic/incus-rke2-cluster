@@ -68,6 +68,15 @@ spec:
           # Update image to the image of your porch apiserver build.
           image: ghcr.io/nxmatic/porch-server:nxmatic-37254b4 # kpt-set: ${porch-server-image}
           imagePullPolicy: IfNotPresent
+          args:
+            - --function-runner=function-runner:9445
+            - --cache-directory=/cache
+            - --cert-dir=/tmp/certs
+            - --cache-type=db
+            - --secure-port=4443
+            - --repo-sync-frequency=3m
+            - --repo-operation-retry-attempts=3
+            - --max-request-body-size=6291456
           securityContext:
             runAsNonRoot: true
             runAsUser: 65532
