@@ -2,8 +2,24 @@ apiVersion: kpt.dev/v1
 kind: Kptfile
 metadata:
   name: porch
+  annotations:
+    config.kubernetes.io/local-config: "true"
+upstream:
+  type: git
+  git:
+    repo: https://github.com/nephio-project/porch
+    directory: /deployments/porch
+    ref: main
+  updateStrategy: resource-merge
+upstreamLock:
+  type: git
+  git:
+    repo: https://github.com/nephio-project/porch
+    directory: /deployments/porch
+    ref: main
+    commit: 4495204be0417cfc80ca7a33b0687786cc2cd3a4
 info:
-  description: porch (customized with git injection - merge from porch-upstream manually)
+  description: porch kpt package (upstream with local setters and git injection)
 pipeline:
   mutators:
     - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
