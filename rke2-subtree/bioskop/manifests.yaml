@@ -31732,7 +31732,16 @@ spec:
         app: porch-server
     spec:
       containers:
-      - env:
+      - args:
+        - --function-runner=function-runner:9445
+        - --cache-directory=/cache
+        - --cert-dir=/tmp/certs
+        - --cache-type=db
+        - --secure-port=4443
+        - --repo-sync-frequency=3m
+        - --repo-operation-retry-attempts=3
+        - --max-request-body-size=6291456
+        env:
         - name: PATH
           value: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
         - name: OTEL_SERVICE_NAME
