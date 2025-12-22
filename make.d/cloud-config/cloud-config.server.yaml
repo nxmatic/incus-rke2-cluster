@@ -65,7 +65,7 @@ write_files:
       [Service]
       EnvironmentFile=/etc/rancher/rke2/environment
       ExecStartPre=/bin/sh -xc '/usr/local/sbin/rke2-server-pre-start'
-      ExecStartPre=/bin/sh -xc '/usr/local/sbin/rke2-server-contribs-install'
+      ExecStartPre=/bin/sh -xc '/usr/local/sbin/rke2-server-manifests-install'
       ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-server-post-start'
 
   # Post-start configuration for all control plane nodes (but no Cilium check)
@@ -92,9 +92,9 @@ write_files:
     content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-server-post-start.sh    
 
   # Generate RKE2 static manifests from environment variables (called by pre-start)
-  - path: /usr/local/sbin/rke2-server-contribs-install
+  - path: /usr/local/sbin/rke2-server-manifests-install
     permissions: "0755"
-    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-server-contribs-install.sh
+    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-server-manifests-install.sh
 
 runcmd:
   - systemctl daemon-reload

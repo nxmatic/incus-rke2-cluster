@@ -1,6 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata: # kpt-merge: /${tailscale-namespace}
-  name: ${tailscale-namespace} # kpt-set: ${tailscale-namespace}
-  annotations:
-    internal.kpt.dev/upstream-identifier: '|Namespace|default|${tailscale-namespace}'

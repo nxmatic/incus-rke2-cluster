@@ -11,6 +11,6 @@ spec:
   createNamespace: true
   valuesContent: |-
     zfs:
-      bin: zfs-bin # kpt-set: ${zfs-bin}
+      bin: ${zfs_bin}
     zfsNode:
-      kubeletDir: kubelet-dir # kpt-set: ${kubelet-dir}
+      kubeletDir: ${kubelet_dir}
