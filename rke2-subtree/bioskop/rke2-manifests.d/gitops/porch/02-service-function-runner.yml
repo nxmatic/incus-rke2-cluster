@@ -1,0 +1,17 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Service|porch-system|function-runner'
+    kpt.dev/package-layer: gitops
+    kpt.dev/package-name: porch
+  name: function-runner
+  namespace: porch-system
+spec:
+  ports:
+    - port: 9445
+      protocol: TCP
+      targetPort: 9445
+  selector:
+    app: function-runner

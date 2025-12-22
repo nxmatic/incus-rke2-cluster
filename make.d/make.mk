@@ -254,10 +254,10 @@ ifeq ($(true),$(.trace.make))
 .make.shell := $(SHELL)
 SHELL=$(call make.trace,Building $@$(if $<, (from $<))$(if $?, ($? newer)))$(.make.shell)
 .SHELLFLAGS += -x
-export PS4 = '[trace:make] $$LINENO: '
+export PS4 = '+ [trace:make] $$LINENO: '
 else ifeq ($(true),$(.trace.shell))
 .SHELLFLAGS += -x
-export PS4 = '[trace:shell] $$LINENO: '
+export PS4 = '+ [trace:shell] $$LINENO: '
 endif
 
 ### bootstrap

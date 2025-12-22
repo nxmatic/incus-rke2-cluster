@@ -8,5 +8,4 @@ NODE_WAN_MAC_WORKER1=52:54:00:00:01:0a
 NODE_WAN_MAC_WORKER2=52:54:00:00:01:0b
 # Bridge MAC addressing (@codebase)
 LAN_BR_HWADDR=10:66:6a:4c:27:fe
-# Computed cluster values
 CLUSTER_NODE_IP_BASE=10.80.0

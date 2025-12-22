@@ -94,10 +94,10 @@ devices:
     source: ${PWD}/.secrets
     path: /srv/secrets
     readonly: "true"
-  rke2-contribs.dir :
+  manifests.dir :
     type: disk
-    source: ${CLUSTER_RK2E_CONTRIBS_DIR}
-    path: /srv/rke2-contribs
+    source: ${CLUSTER_RK2E_MANIFESTS_DIR}
+    path: /srv/manifests.d
   shared.dir:
     type: disk
     source: ${PWD}/${RUN_INSTANCE_DIR}/shared

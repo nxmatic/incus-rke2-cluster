@@ -1,0 +1,28 @@
+apiVersion: fn.kpt.dev/v1alpha1
+kind: StarlarkRun
+metadata:
+  name: render-helmchartconfig-placeholders
+  annotations:
+    config.kubernetes.io/local-config: "true"
+    description.kpt.dev: Replace ${...} placeholders in HelmChartConfig valuesContent using setters ConfigMaps (@codebase)
+source: |-
+  setters_data = {}
+  helmcfg = None
+
+  for r in ctx.resource_list["items"]:
+    if r.get("kind") == "ConfigMap" and r.get("metadata", {}).get("name") in ("cluster-setters", "cilium-setters"):
+      setters_data.update(r.get("data", {}))
+    if r.get("kind") == "HelmChartConfig" and r.get("metadata", {}).get("name") == "rke2-cilium":
+      helmcfg = r
+
+  if not helmcfg:
+    ctx.result.error("HelmChartConfig rke2-cilium not found")
+  elif not setters_data:
+    ctx.result.error("No setters ConfigMap (cluster-setters or cilium-setters) found")
+  else:
+    values = helmcfg.get("spec", {}).get("valuesContent", "")
+    for k, v in setters_data.items():
+      placeholder = "${%s}" % k
+      if placeholder in values:
+        values = values.replace(placeholder, str(v))
+    helmcfg.setdefault("spec", {})["valuesContent"] = values

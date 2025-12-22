@@ -107,7 +107,7 @@ metadata:
   name: openebs-zfs
 parameters:
   fstype: zfs
-  zfs.poolname: tank
+  zfs.poolname: zfs-poolname
 provisioner: zfs.csi.openebs.io
 reclaimPolicy: Delete
 volumeBindingMode: WaitForFirstConsumer
@@ -33955,7 +33955,7 @@ spec:
       clientId: kT715erNJB21CNTRL # sops:encrypted
       clientSecret: tskey-client-kT715erNJB21CNTRL-BQPzAaha7Keq7CRE3NkXKezuo7yJCTfqE # sops:encrypted
     operatorConfig:
-      hostname: ${cluster-name}-tailscale-operator # kpt-set: ${cluster-name}-tailscale-operator
+      hostname: name-tailscale-operator # kpt-set: name-tailscale-operator
       debug: true
   version: 1.82.0
 ---
@@ -33973,11 +33973,7 @@ spec:
   createNamespace: true
   repo: https://openebs.github.io/zfs-localpv
   targetNamespace: openebs
-  valuesContent: |-
-    zfs:
-      bin: /usr/sbin/zfs # kpt-set: ${zfs-bin}
-    zfsNode:
-      kubeletDir: /var/lib/kubelet # kpt-set: ${kubelet-dir}
+  valuesContent: "zfs:\n  bin: \nzfsNode:\n  kubeletDir: "
   version: 2.8.0
 ---
 apiVersion: helm.cattle.io/v1
@@ -33990,57 +33986,17 @@ metadata:
   name: rke2-cilium
   namespace: kube-system
 spec:
-  valuesContent: |-
-    installCRDs: true
-    bpf:
-      hostLegacyRouting: true
-    bgpControlPlane:
-      enabled: true
-    cluster:
-      cluster-name: ${cluster-name} # kpt-set: ${cluster-name}
-      id: ${cluster-id} # kpt-set: ${cluster-id}
-    clustermesh:
-      useAPIServer: true
-      apiserver:
-        service:
-          type: LoadBalancer
-          # Using BGP announcements for cluster mesh
-    envoy:
-      enabled: true
-    gatewayAPI:
-      enabled: true
-    ingressController:
-      default: true
-      enabled: true
-      loadBalancerMode: dedicated
-    hubble:
-      enabled: true
-      relay:
-        enabled: true
-      ui:
-        enabled: true
-    ipv4:
-      enabled: true
-    ipv6:
-      enabled: false
-    kubeProxyReplacement: true
-    l2announcements:
-      enabled: true
-      leaseDuration: 15s
-      leaseRenewDeadline: 5s
-      leaseRetryPeriod: 2s
-    l2NeighDiscovery:
-      enabled: true
-      refresh: true
-      refreshPeriod: 30s
-    l7Proxy: true
-    routingMode: tunnel
-    tunnelProtocol: vxlan
-    operator:
-      hostNetwork: true
-      replicas: 1
-    socketLB:
-      hostNamespaceOnly: false
+  valuesContent: "installCRDs: true\nbpf:\n  hostLegacyRouting: true\nbgpControlPlane:\n
+    \ enabled: true\ncluster:\n  cluster-name: \n  id: \nclustermesh:\n  useAPIServer:
+    true\n  apiserver:\n    service:\n      type: LoadBalancer\n      # Using BGP
+    announcements for cluster mesh\nenvoy:\n  enabled: true\ngatewayAPI:\n  enabled:
+    true\ningressController:\n  default: true\n  enabled: true\n  loadBalancerMode:
+    dedicated\nhubble:\n  enabled: true\n  relay:\n    enabled: true\n  ui:\n    enabled:
+    true\nipv4:\n  enabled: true\nipv6:\n  enabled: false\nkubeProxyReplacement: true\nl2announcements:\n
+    \ enabled: true\n  leaseDuration: 15s\n  leaseRenewDeadline: 5s\n  leaseRetryPeriod:
+    2s\nl2NeighDiscovery:\n  enabled: true\n  refresh: true\n  refreshPeriod: 30s\nl7Proxy:
+    true\nroutingMode: tunnel\ntunnelProtocol: vxlan\noperator:\n  hostNetwork: true\n
+    \ replicas: 1\nsocketLB:\n  hostNamespaceOnly: false"
 ---
 apiVersion: helm.cattle.io/v1
 kind: HelmChartConfig

@@ -17,7 +17,7 @@ upstreamLock:
     repo: /private/var/lib/git/nxmatic/incus-rke2-cluster
     directory: /catalog
     ref: main
-    commit: a5326e0aa4a0fc02912b014a1991319a00105c4c
+    commit: f52fc60a9ee3458f25971bcf1e9e512ca7265aef
 info:
   site: https://github.com/nxmatic/incus-rke2-cluster
   description: |
@@ -34,6 +34,6 @@ info:
     - replication: Replicator services/CRDs
 pipeline:
   mutators:
+    - exec: derive-network-setters.sh
     - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
       configPath: configmap-cluster-setters.yaml
-    - exec: derive-network-setters.sh

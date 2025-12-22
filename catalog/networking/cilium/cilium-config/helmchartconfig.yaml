@@ -11,8 +11,8 @@ spec:
     bgpControlPlane:
       enabled: true
     cluster:
-      cluster-name: ${cluster-name} # kpt-set: ${cluster-name}
-      id: ${cluster-id} # kpt-set: ${cluster-id}
+      cluster-name: ${cluster_name}
+      id: ${cluster_id}
     clustermesh:
       useAPIServer: true
       apiserver:

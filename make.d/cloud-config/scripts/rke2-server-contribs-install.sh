@@ -4,8 +4,8 @@
 source <( flox activate --dir /var/lib/rancher/rke2 )
 
 : "RKE2 static manifests directory"
-MANIFESTS_SRV_DIR="/srv/rke2-contribs"
-MANIFESTS_RKE2_DIR="/var/lib/rancher/rke2/server/manifests/contribs.d"
+MANIFESTS_SRV_DIR="/srv/manifests.d"
+MANIFESTS_RKE2_DIR="/var/lib/rancher/rke2/server/manifests/manifests.d"
 
 for layer in cicd ha gitops networking runtime storage; do
 	mkdir -p "${MANIFESTS_RKE2_DIR}/${layer}"
@@ -50,5 +50,5 @@ else
   : "WARNING: CLUSTER_GITHUB_TOKEN not set, skipping github-token generation"
 fi
 
-: "Mounted contribs in server manifests"
+: "Mounted manifests in server manifests"
 tree "$MANIFESTS_RKE2_DIR"

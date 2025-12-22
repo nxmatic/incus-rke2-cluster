@@ -24,81 +24,81 @@ ifndef make.d/node/rules.mk
 .cluster.DOMAIN = cluster.local
 
 # Dynamic Pod/Service CIDR calculation via GMSL math (no python)
-CIDR_POD_BASE_OCTET := 42
-CIDR_SVC_BASE_OCTET := 43
-CIDR_STEP := 2
+cidr_pod_base_octet := 42
+cidr_svc_base_octet := 43
+cidr_step := 2
 
 # Cluster-specific configurations
 ifeq ($(.cluster.name),bioskop)
   .cluster.id := 0
-  .cluster.LIMA_LAN_INTERFACE := vmlan0
-  .cluster.LIMA_VMNET_INTERFACE := vmwan0
-  .cluster.STATE_REPO := https://github.com/nxmatic/fleet-manifests.git
-  .cluster.STATE_BRANCH := rke2-subtree
+  .cluster.lima_lan_interface := vmlan0
+  .cluster.lima_vmnet_interface := vmwan0
+  .cluster.state_repo := https://github.com/nxmatic/fleet-manifests.git
+  .cluster.state_branch := rke2-subtree
 else ifeq ($(.cluster.name),alcide)
   .cluster.id := 1
-  .cluster.LIMA_LAN_INTERFACE := vmlan0
-  .cluster.LIMA_VMNET_INTERFACE := vmwan0
+  .cluster.lima_lan_interface := vmlan0
+  .cluster.lima_vmnet_interface := vmwan0
 else ifeq ($(.cluster.name),nikopol)
   .cluster.id := 2
-  .cluster.LIMA_LAN_INTERFACE := vmlan0
-  .cluster.LIMA_VMNET_INTERFACE := vmwan0
+  .cluster.lima_lan_interface := vmlan0
+  .cluster.lima_vmnet_interface  := vmwan0
 else
   .cluster.id := 7
-  .cluster.LIMA_LAN_INTERFACE := vmlan0
-  .cluster.LIMA_VMNET_INTERFACE := vmwan0
+  .cluster.lima_lan_interface := vmlan0
+  .cluster.lima_vmnet_interface := vmwan0
 endif
 
 # Compute Pod/Service CIDRs from base + cluster index (0-based)
-cluster.idx := $(call subtract,$(.cluster.id),1)
-.cluster.POD_NETWORK_CIDR := 10.$(call plus,$(CIDR_POD_BASE_OCTET),$(call multiply,$(cluster.idx),$(CIDR_STEP))).0.0/16
-.cluster.SERVICE_NETWORK_CIDR := 10.$(call plus,$(CIDR_SVC_BASE_OCTET),$(call multiply,$(cluster.idx),$(CIDR_STEP))).0.0/16
+.cluster.pod_network_cidr := 10.$(call plus,$(cidr_pod_base_octet),$(call multiply,$(.cluster.id),$(cidr_step))).0.0/16
+.cluster.service_network_cidr := 10.$(call plus,$(cidr_svc_base_octet),$(call multiply,$(.cluster.id),$(cidr_step))).0.0/16
 
 # Public cluster API
-cluster.name := $(.cluster.name)
-cluster.TOKEN := $(.cluster.TOKEN)
-cluster.DOMAIN := $(.cluster.DOMAIN)
 cluster.id := $(.cluster.id)
-cluster.POD_NETWORK_CIDR := $(.cluster.POD_NETWORK_CIDR)
-cluster.SERVICE_NETWORK_CIDR := $(.cluster.SERVICE_NETWORK_CIDR)
-cluster.LIMA_LAN_INTERFACE := $(.cluster.LIMA_LAN_INTERFACE)
-cluster.LIMA_VMNET_INTERFACE := $(.cluster.LIMA_VMNET_INTERFACE)
-cluster.STATE_REPO := $(.cluster.STATE_REPO)
-cluster.STATE_BRANCH := $(.cluster.STATE_BRANCH)
+cluster.name := $(.cluster.name)
+cluster.token := $(.cluster.token)
+cluster.domain := $(.cluster.domain)
+cluster.id := $(.cluster.id)
+cluster.pod_network_cidr := $(.cluster.pod_network_cidr)
+cluster.service_network_cidr := $(.cluster.service_network_cidr)
+cluster.lima_lan_interface := $(.cluster.lima_lan_interface)
+cluster.lima_vmnet_interface := $(.cluster.lima_vmnet_interface)
+cluster.state_repo := $(.cluster.state_repo)
+cluster.state_branch := $(.cluster.state_branch)
 
 # Export cluster variables for environment/templates
-export CLUSTER_NAME := $(cluster.name)
-export CLUSTER_TOKEN := $(cluster.TOKEN)
-export CLUSTER_DOMAIN := $(cluster.DOMAIN)
 export CLUSTER_ID := $(cluster.id)
-export POD_NETWORK_CIDR := $(cluster.POD_NETWORK_CIDR)
-export SERVICE_NETWORK_CIDR := $(cluster.SERVICE_NETWORK_CIDR)
-export LIMA_LAN_INTERFACE := $(cluster.LIMA_LAN_INTERFACE)
-export LIMA_VMNET_INTERFACE := $(cluster.LIMA_VMNET_INTERFACE)
+export CLUSTER_NAME := $(cluster.name)
+export CLUSTER_TOKEN := $(cluster.token)
+export CLUSTER_DOMAIN := $(cluster.domain)
+export POD_NETWORK_CIDR := $(cluster.pod_network_cidr)
+export SERVICE_NETWORK_CIDR := $(cluster.service_network_cidr)
+export LIMA_LAN_INTERFACE := $(cluster.lima_lan_interface)
+export LIMA_VMNET_INTERFACE := $(cluster.lima_vmnet_interface)
 
 # =============================================================================
 # NODE CONFIGURATION APPLICATION
 # =============================================================================
 
 # Node configuration data (inlined from cluster-templates.mk)
-.node.CONFIG_master = server master 0
-.node.CONFIG_peer1 := server peer 1  
-.node.CONFIG_peer2 := server peer 2
-.node.CONFIG_peer3 := server peer 3
-.node.CONFIG_worker1 := agent worker 10
-.node.CONFIG_worker2 := agent worker 11
+.node.config.master = server master 0
+.node.config.peer1 := server peer 1  
+.node.config.peer2 := server peer 2
+.node.config.peer3 := server peer 3
+.node.config.worker1 := agent worker 10
+.node.config.worker2 := agent worker 11
 
 # Macro to extract node attributes from .node.CONFIG_* variables
 # Usage: $(call get-node-attr,NODE_NAME,POSITION)
 # Example: $(call get-node-attr,peer1,1) returns "server"
 define get-node-attr
-$(word $(2),$(.node.CONFIG_$(1)))
+$(word $(2),$(.node.config.$(1)))
 endef
 
 # Derive node role/type using metaprogramming lookup
-ifdef .node.CONFIG_$(.node.name)
-  .node.TYPE := $(call get-node-attr,$(.node.name),1)
-  .node.ROLE := $(call get-node-attr,$(.node.name),2)
+ifdef .node.config.$(.node.name)
+  .node.type := $(call get-node-attr,$(.node.name),1)
+  .node.role := $(call get-node-attr,$(.node.name),2)
   .node.id := $(call get-node-attr,$(.node.name),3)
 else
   $(error [node] Unknown node: $(.node.name). Supported nodes: master peer1 peer2 peer3 worker1 worker2)
@@ -106,29 +106,28 @@ endif
 
 # Public node API
 node.name := $(.node.name)
-node.TYPE := $(.node.TYPE)
-node.ROLE := $(.node.ROLE)
+node.type := $(.node.type)
+node.role := $(.node.role)
 node.id := $(.node.id)
 
 # Export node variables for environment/templates
 export NODE_NAME := $(node.name)
-export NODE_TYPE := $(node.TYPE)
-export NODE_ROLE := $(node.ROLE)
+export NODE_TYPE := $(node.type)
+export NODE_ROLE := $(node.role)
 export NODE_ID := $(node.id)
 
 # Validation target for node layer
 .PHONY: test@node
 
-test@node:
-	: "[test@node] Validating node role/type derivation"
+test@node: ## Validate node role/type derivation
+  : "[ok] cluster.id=$(cluster.id)"
+  : "[ok] cluster.name=$(cluster.name)"
 	: "[ok] node.name=$(node.name)"
-	: "[ok] node.TYPE=$(node.TYPE)" 
-	: "[ok] node.ROLE=$(node.ROLE)"
+	: "[ok] node.type=$(node.type)" 
+	: "[ok] node.role=$(node.role)"
 	: "[ok] node.id=$(node.id)"
 	: "[ok] .node.config_key=$(.node.config_key)"
 	: "[PASS] Node variables present"
-
-
 
 endif # make.d/node/rules.mk
 

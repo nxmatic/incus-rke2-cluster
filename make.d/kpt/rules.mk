@@ -21,10 +21,10 @@ $(call make.trace,"Including rules.mk")
 .kpt.render.dir := $(tmp-dir)/catalog/$(cluster.name)
 .kpt.render.cmd := env PATH=$(PATH):$(realpath $(.kpt.catalog.dir)/bin) kpt fn render --allow-exec --truncate-output=false
 .kpt.manifests.file := $(.kpt.dir)/manifests.yaml
-.kpt.rke2-contribs.dir  := $(.kpt.dir)/rke2-contribs.d
+.kpt.manifests.dir  := $(.kpt.dir)/manifests.d
 .kpt.package.aux_files := .gitattributes .krmignore
 
-export CLUSTER_RK2E_CONTRIBS_DIR := $(realpath $(.kpt.rke2-contribs.dir))
+export CLUSTER_RK2E_MANIFESTS_DIR := $(realpath $(.kpt.manifests.dir))
 
 define .kpt.require-bin
 	if ! command -v $(1) >/dev/null 2>&1; then
@@ -71,10 +71,18 @@ update-kustomizations@kpt: ## Update Kustomization files from rendered catalog p
 
 .PHONY: render@kpt check-tools@kpt prepare@kpt
 
-render@kpt: check-tools@kpt prepare@kpt $(.kpt.overlays.Kustomization.file) $(.kpt.Kustomization.file)
-render@kpt: $(.kpt.manifests.file)  ## Render catalog via kpt, aggregate via kustomize (@codebase)
+render@kpt: check-tools@kpt prepare@kpt 
+render@kpt: $(.kpt.overlays.Kustomization.file)
+render@kpt: $(.kpt.Kustomization.file)
+render@kpt: $(.kpt.manifests.file)
+render@kpt:  ## Render catalog via kpt, aggregate via kustomize (@codebase)
+	: "[kpt] Rendered manifests for cluster $(cluster.name) to $<"
 
 $(.kpt.render.dir): clean-render@kpt
+$(.kpt.render.dir): $(.network.plan.file)
+$(.kpt.render.dir):
+	: "[kpt] Creating temporary render directory for cluster $(cluster.name)"
+	mkdir -p "$(@)"
 $(.kpt.render.dir):
 	$(call kpt.trace,Rendering catalog for cluster $(cluster.name) via kpt fn render)
 	$(.kpt.render.cmd) "$(.kpt.catalog.dir)" -o "$(@)"
@@ -96,11 +104,11 @@ $(.kpt.manifests.file):
 # Resource categorization and reparenting (@codebase)
 # ----------------------------------------------------------------------------
 
-$(.kpt.rke2-contribs.dir): $(.kpt.manifests.file)
-$(.kpt.rke2-contribs.dir): $(.kpt.rke2-contribs.dir)/
-$(.kpt.rke2-contribs.dir): manifests.file = ../manifests.yaml
-$(.kpt.rke2-contribs.dir): 
-	cd $(.kpt.rke2-contribs.dir)
+$(.kpt.manifests.dir): $(.kpt.manifests.file)
+$(.kpt.manifests.dir): $(.kpt.manifests.dir)/
+$(.kpt.manifests.dir): manifests.file = ../manifests.yaml
+$(.kpt.manifests.dir): 
+	cd $(.kpt.manifests.dir)
 	yq --split-exp='$(call .kpt.toFilePath,00)' \
 		eval-all 'select(.kind == "CustomResourceDefinition")' \
 		"$(manifests.file)"
@@ -122,13 +130,13 @@ define .kpt.isOwnedByPackage =
 .metadata.annotations."kpt.dev/package-name" == "$(pkg)"
 endef
 
-.PHONY: rke2-contribs@kpt clean-rke2-contribs@kpt
-rke2-contribs@kpt: $(.kpt.rke2-contribs.dir)
-rke2-contribs@kpt: ## Unwrap rendered manifests into categorized directory structure
-	: "[kpt] Unwrapped rendered manifests into $(.kpt.rke2-contribs.dir)"
+.PHONY: rke2-manifests@kpt clean-rke2-manifests@kpt
+rke2-manifests@kpt: $(.kpt.manifests.dir)
+rke2-manifests@kpt: ## Unwrap rendered manifests into categorized directory structure
+	: "[kpt] Unwrapped rendered manifests into $(.kpt.manifests.dir)"
 
-clean-rke2-contribs@kpt: ## Clean categorized manifests directory
-	rm -fr $(.kpt.rke2-contribs.dir)
+clean-rke2-manifests@kpt: ## Clean categorized manifests directory
+	rm -fr $(.kpt.manifests.dir)
 
 # ----------------------------------------------------------------------------
 

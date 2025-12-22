@@ -25,4 +25,4 @@ db::check() {
 : "Check server database for IP address changes"
 db::check
 
-# Manifests are now installed post-start via rke2-server-contribs-install.service
+# Manifests are now installed post-start via rke2-server-manifests-install.service

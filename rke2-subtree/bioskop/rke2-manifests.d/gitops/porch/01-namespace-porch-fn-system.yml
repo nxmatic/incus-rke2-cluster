@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Namespace|default|porch-fn-system'
+    kpt.dev/package-layer: gitops
+    kpt.dev/package-name: porch
+  name: porch-fn-system

@@ -7,6 +7,4 @@ info:
 pipeline:
   mutators:
     - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
-      configPath: configmap-setters.yaml
-    - image: ghcr.io/kptdev/krm-functions-catalog/starlark:v0.5
-      configPath: helmvalues.yaml
+      configPath: configmap-openebs-zfs-setters.yaml
