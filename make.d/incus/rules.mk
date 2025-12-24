@@ -10,91 +10,92 @@ ifndef make.d/incus/rules.mk
 -include make.d/kpt/rules.mk  # KPT catalog targets and variables (@codebase)
 -include make.d/cloud-config/rules.mk  # Cloud-config targets and variables (@codebase)
 
+-include $(.incus.env.file)
+
 # =============================================================================
 # PRIVATE VARIABLES (internal layer implementation)
 # =============================================================================
 
 # Directory layout (per-instance runtime)
-.incus.secrets_file := $(abspath $(.make.top-dir)/.secrets)
-YQ_BIN := $(shell command -v yq 2>/dev/null)
-BASE64_BIN := $(shell command -v base64 2>/dev/null)
+.incus.secrets.file := $(abspath $(.make.top-dir)/.secrets)
+.incus.yq.bin := $(shell command -v yq 2>/dev/null)
 
 define incus-secret-from-yaml
-$(strip $(if $(and $(YQ_BIN),$(wildcard $(.incus.secrets_file))),$(shell $(YQ_BIN) -r '$(1) // ""' $(.incus.secrets_file) 2>/dev/null),))
+$(strip $(if $(and $(.incus.yq.bin),$(wildcard $(.incus.secrets.file))),$(shell yq -r '$(1) // ""' $(.incus.secrets.file) 2>/dev/null),))
 endef
 
 define incus-secret
 $(strip $(call incus-secret-from-yaml,$(1)))
 endef
 
-.incus.dir ?= $(rke2-subtree.dir)/$(cluster.name)/incus
-.incus.local_build_dir ?= /tmp/incus-build/$(strip $(cluster.name))
+.incus.dir = $(rke2-subtree.dir)/$(cluster.name)/incus
+.incus.build.local.dir = /tmp/incus-build/$(strip $(cluster.name))
 	
 # should be kept outside of ZFS
-.incus.image.dir ?= $(.incus.dir)
-.incus.instance.dir ?= $(.incus.dir)/$(node.name)
-.incus.nocloud_dir ?= $(.incus.instance.dir)/nocloud
-.incus.shared_dir ?= $(.incus.instance.dir)/shared
-.incus.kubeconfig_dir ?= $(.incus.instance.dir)/kube
-.incus.logs_dir ?= $(.incus.instance.dir)/logs
+.incus.image.dir = $(.incus.dir)
+.incus.instance.dir = $(.incus.dir)/$(node.name)
+.incus.nocloud.dir = $(.incus.instance.dir)/nocloud
+.incus.shared.dir = $(.incus.instance.dir)/shared
+.incus.kubeconfig.dir = $(.incus.instance.dir)/kube
+.incus.logs.dir = $(.incus.instance.dir)/logs
 
 # Incus image / config artifacts  
-.incus.preseed.filename ?= incus-preseed.yaml
-.incus.preseed.file ?= $(.incus.dir)/preseed.yaml
-.incus.distrobuilder.file ?= $(make-dir)/incus/incus-distrobuilder.yaml
-.incus.distrobuilder.log.file ?= $(.incus.image.dir)/distrobuilder.log
-.incus.image.import.marker.file ?= $(.incus.image.dir)/import.tstamp
-.incus.image.build.files ?= $(.incus.image.dir)/incus.tar.xz $(.incus.image.dir)/rootfs.squashfs
-.incus.project.marker.file ?= $(.incus.dir)/project.tstamp
+.incus.preseed.filename = incus-preseed.yaml
+.incus.preseed.file = $(.incus.dir)/preseed.yaml
+.incus.distrobuilder.file = $(make-dir)/incus/incus-distrobuilder.yaml
+.incus.distrobuilder.log.file = $(.incus.image.dir)/distrobuilder.log
+.incus.image.import.marker.file = $(.incus.image.dir)/import.tstamp
+.incus.image.build.files = $(.incus.image.dir)/incus.tar.xz $(.incus.image.dir)/rootfs.squashfs
+.incus.project.marker.file = $(.incus.dir)/project.tstamp
 
-.incus.config_instance.marker.file ?= $(.incus.instance.dir)/init-instance.tstamp
-.incus.instance.config.filename ?= incus-instance-config.yaml
-.incus.instance.config.template ?= $(make-dir)/incus/$(.incus.instance.config.filename)
-.incus.instance.config.file ?= $(.incus.instance.dir)/config.yaml
+.incus.instance.config.marker.file = $(.incus.instance.dir)/init-instance.tstamp
+.incus.instance.config.filename = incus-instance-config.yaml
+.incus.instance.config.template = $(make-dir)/incus/$(.incus.instance.config.filename)
+.incus.instance.config.file = $(.incus.instance.dir)/config.yaml
 
 # Per-instance NoCloud files  
-.incus.instance.metadata.file ?= $(.incus.nocloud_dir)/metadata
-.incus.instance.userdata.file ?= $(.incus.nocloud_dir)/userdata
-.incus.instance.netcfg.file ?= $(.incus.nocloud_dir)/network-config
+.incus.instance.metadata.file = $(.incus.nocloud.dir)/metadata
+.incus.instance.userdata.file = $(.incus.nocloud.dir)/userdata
+.incus.instance.netcfg.file = $(.incus.nocloud.dir)/network-config
 
 # RUN_ prefixed variables for template compatibility
-.incus.run.instance_dir = $(.incus.instance.dir)
-.incus.run.nocloud_metadata.file = $(.incus.instance.metadata.file)
-.incus.run.nocloud_userdata.file = $(.incus.instance.userdata.file)
-.incus.run.nocloud_netcfg.file = $(.incus.instance.netcfg.file)
+.incus.run.instance.dir = $(.incus.instance.dir)
+.incus.run.nocloud.metadata.file = $(.incus.instance.metadata.file)
+.incus.run.nocloud.userdata.file = $(.incus.instance.userdata.file)
+.incus.run.nocloud.netcfg.file = $(.incus.instance.netcfg.file)
+.incus.cleanup.pre.cmd =
 
 # Cluster environment file
-.incus.cluster_env.file ?= $(.incus.instance.dir)/cluster-env.mk
--include $(.incus.cluster_env.file)
+.incus.env.file = $(.incus.instance.dir)/env.mk
 
 # Primary/secondary host interfaces (macvlan parents)
-.incus.lima_lan.interface ?= vmlan0
-.incus.lima_vmnet.interface ?= vmwan0
-.incus.lima_primary.interface ?= $(.incus.lima_lan.interface)
-.incus.lima_secondary.interface ?= $(.incus.lima_vmnet.interface)
-.incus.egress.interface ?= $(.incus.lima_primary.interface)
+.incus.lima.lan.interface = vmlan0
+.incus.lima.vmnet.interface = vmwan0
+.incus.lima.primary.interface = $(.incus.lima.lan.interface)
+.incus.lima.secondary.interface = $(.incus.lima.vmnet.interface)
+.incus.egress.interface = $(.incus.lima.primary.interface)
 
 # Tailscale secrets (canonical naming only, file-based fallback removed) – used for image build & cleanup (@codebase)
 # Notes:
 #  - Secrets resolve exclusively from the SOPS-managed YAML (.secrets).
 #  - Populate tailscale.* and github.* entries with `sops --in-place` edits. The GHCR dockerconfigjson
 #    content is derived automatically from the GitHub credentials below.
-.incus.tskey.client.id ?= $(call incus-secret,.tailscale.client.id)
-.incus.tskey.client.token ?= $(call incus-secret,.tailscale.client.token)
-.incus.tskey.api.id ?= $(call incus-secret,.tailscale.api.id)
-.incus.tskey.api.token ?= $(call incus-secret,.tailscale.api.token)
-.incus.cluster.github.token ?= $(call incus-secret,.github.token)
-.incus.cluster.github.username ?= $(or $(call incus-secret,.github.username,),x-access-token)
+.incus.tskey.client.id = $(call incus-secret,.tailscale.client.id)
+.incus.tskey.client.token = $(call incus-secret,.tailscale.client.token)
+.incus.tskey.api.id = $(call incus-secret,.tailscale.api.id)
+.incus.tskey.api.token = $(call incus-secret,.tailscale.api.token)
+.incus.cluster.github.token = $(call incus-secret,.github.token)
+.incus.cluster.github.username = $(or $(call incus-secret,.github.username,),x-access-token)
 
 define .incus-github-basic-auth
 $(shell printf '%s' "$(strip $(.incus.cluster.github.username)):$(strip $(.incus.cluster.github.token))" |
-   $(BASE64_BIN) |
+   base64 |
    tr -d '\n')
 endef
 
 define .incus-ghcr-dockerconfig-json
-$(shell $(YQ_BIN) -o=json -I 0 -n '{"auths": {"ghcr.io": {"username": "$(.incus.cluster.github.username)", "password": "$(.incus.cluster.github.token)", "auth": "$(call .incus-github-basic-auth)"}}}' \
-	| $(BASE64_BIN) | tr -d '\n')
+$(shell yq -o=json -I 0 -n '{"auths": {"ghcr.io": {"username": "$(.incus.cluster.github.username)", "password": "$(.incus.cluster.github.token)", "auth": "$(call .incus-github-basic-auth)"}}}' \
+	| base64 | tr -d '\n')
 endef
 
 
@@ -107,82 +108,104 @@ endif
 endif
 
 # Instance naming defaults (image alias)
-.incus.image.name ?= control-node
+.incus.image.name = control-node
 
 # Cluster inet address discovery helpers (IP unwrapping via yq)
-.incus.inet_yq_expr ?= .[].state.network.vmnet0.addresses[] | select(.family == "inet") | .address
+.incus.inet.yq.expr = .[].state.network.vmnet0.addresses[] | select(.family == "inet") | .address
 
 # =============================================================================
-# EXPORTS FOR TEMPLATE USAGE
+# Cluster Environment File Generation (@codebase)
 # =============================================================================
-
-# Export variables for use in YAML templates via yq envsubst
-export RUN_INSTANCE_DIR := $(.incus.instance.dir)
-export INCUS_PROJECT_NAME := rke2
-export RUN_NOCLOUD_METADATA_FILE := $(.incus.run.nocloud_metadata.file)
-export RUN_NOCLOUD_USERDATA_FILE := $(.incus.run.nocloud_userdata.file)
-export RUN_NOCLOUD_NETCFG_FILE := $(.incus.run.nocloud_netcfg.file)
-export INCUS_EGRESS_INTERFACE := $(.incus.egress.interface)
-export TSKEY_CLIENT_ID := $(.incus.tskey.client.id)
-export TSKEY_CLIENT_TOKEN := $(.incus.tskey.client.token)
-export TSKEY_API_ID := $(.incus.tskey.api.id)
-export TSKEY_API_TOKEN := $(.incus.tskey.api.token)
-# Fleet manifests repo provides the canonical kpt render tree (@codebase)
-export CLUSTER_GITHUB_TOKEN := $(.incus.cluster.github.token)
-export CLUSTER_GITHUB_USERNAME := $(.incus.cluster.github.username)
-export CLUSTER_DOCKER_CONFIG_JSON := $(.incus.dockerconfig.json)
-# Keep Tekton docker config in sync; fill empty/undefined with cluster dockerconfigjson
-ifeq ($(origin TEKTON_DOCKER_CONFIG_JSON),undefined)
-export TEKTON_DOCKER_CONFIG_JSON := $(CLUSTER_DOCKER_CONFIG_JSON)
-else ifeq ($(strip $(TEKTON_DOCKER_CONFIG_JSON)),)
-export TEKTON_DOCKER_CONFIG_JSON := $(CLUSTER_DOCKER_CONFIG_JSON)
-endif
-export NODE_PROFILE_NAME := $(network.NODE_PROFILE_NAME)
-export IMAGE_NAME := $(.incus.image.name)
-export CLUSTER_INET_MASTER := $(call cidr-to-host-ip,$(NODE_SUBNETS_NETWORK_0),$(call plus,10,0))
-# Instance config always uses VM logical paths since Incus runs on the VM
-export RUN_WORKSPACE_DIR := /var/lib/nixos/config/modules/nixos/incus-rke2-cluster
-define INCUS_INET_CMD
-$(shell incus list $(1) --format=yaml | yq eval '$(.incus.inet_yq_expr)' -)
-endef
 
 # Cluster master token template (retained for compatibility)
-define MASTER_TOKEN_TEMPLATE
-# Bootstrap server points at the master primary IP (CLUSTER_INET_MASTER now mapped to primary) (@codebase)
-server: https://$(CLUSTER_INET_MASTER):9345
-token: $(CLUSTER_TOKEN)
+.cluster.master.inet = $(call network.cidr-to-host-ip,$(network.node.subnets.network.0),$(call plus,10,0))
+
+define .incus.cluster.token.content :=
+# Bootstrap server points at the master primary IP (@codebase)
+server: https://$(.cluster.master.inet):9345
+token: $(cluster.token)
 endef
 
 # =============================================================================
 # Cluster Environment File Generation (@codebase)
 # =============================================================================
 
-define .incus.cluster_env_template :=
-CLUSTER_NAME=$(cluster.name)
-NODE_NAME=$(node.name)
-NODE_ROLE=$(node.ROLE)
-CLUSTER_ID=$(cluster.id)
-NODE_ID=$(node.id)
-IMAGE_NAME=$(.incus.image.name)
+define .incus.env.content :=
+# Generated assignments for cluster $(cluster.name) (ID: $(cluster.id)) - do not edit manually
+
+export INCUS_CLUSTER_NAME=$(cluster.name)
+export INCUS_NODE_NAME=$(node.name)
+export INCUS_NODE_ROLE=$(node.role)
+export INCUS_CLUSTER_ID=$(cluster.id)
+export INCUS_NODE_ID=$(node.id)
+export INCUS_IMAGE_NAME=$(.incus.image.name)
+
+export INCUS_CLUSTER_RK2E_MANIFESTS_DIR=$(.kpt.manifests.dir)
+export INCUS_CLUSTER_RKE2_CONFIG_DIR=$(rke2-subtree.dir)/$(cluster.name)/catalog/runtime/rke2-config
+
+export INCUS_HOST_SUPERNET_CIDR=$(network.host.supernet.cidr)
+export INCUS_CLUSTER_NETWORK_CIDR=$(network.cluster.network.cidr)
+export INCUS_CLUSTER_POD_NETWORK_CIDR=$(network.cluster.pod_network_cidr)
+export INCUS_CLUSTER_SERVICE_NETWORK_CIDR=$(cluster.service_network_cidr)
+export INCUS_CLUSTER_VIP_NETWORK_CIDR=$(network.cluster.vip.cidr)
+export INCUS_CLUSTER_VIP_GATEWAY_IP=$(network.cluster.vip.gateway)
+export INCUS_CLUSTER_LOADBALANCER_NETWORK_CIDR=$(network.cluster.lb.cidr)
+export INCUS_CLUSTER_LOADBALANCER_GATEWAY_IP=$(network.cluster.lb.gateway)
+export INCUS_NODE_NETWORK_CIDR=$(network.node.network.cidr)
+export INCUS_NODE_GATEWAY_IP=$(network.node.gateway.inet)
+export INCUS_NODE_HOST_IP=$(network.node.host.inet)
+export INCUS_NODE_VIP_IP=$(network.node.vip.inet)
+export INCUS_NODE_LAN_INTERFACE_NAME=$(network.node.lan.interface)
+export INCUS_NODE_VMNET_INTERFACE_NAME=$(network.node.vmnet.interface)
+export INCUS_CLUSTER_VIP_INTERFACE_NAME=$(network.cluster.vip.interface)
+export INCUS_VIP_VLAN_ID=$(network.vip.vlan.id)
+export INCUS_VIP_VLAN_NAME=$(network.vip.vlan.name)
+export INCUS_LAN_BR_HWADDR=$(network.lan.bridge.mac)
+export INCUS_CLUSTER_GATEWAY_IP=$(network.cluster.gateway.inet)
+export INCUS_WAN_DHCP_RANGE=$(network.wan.dhcp.range)
+export INCUS_NODE_WAN_MAC=$(network.node.wan.mac)
+export INCUS_NODE_LAN_MAC=$(network.node.lan.mac)
+export INCUS_NODE_PROFILE_NAME=$(network.node.profile.name)
+export INCUS_MASTER_NODE_IP=$(network.master.node.inet)
+
+export INCUS_LAN_LOADBALANCER_POOL=$(network.lan.lb.pool)
+export INCUS_LAN_HEADSCALE_IP=$(network.lan.headscale.inet)
+export INCUS_LAN_TAILSCALE_IP=$(network.lan.tailscale.inet)
+
+export INCUS_NODE_WAN_MAC_MASTER=$(shell printf '52:54:00:%02x:00:00' $(cluster.id))
+export INCUS_NODE_WAN_MAC_PEER1=$(shell printf '52:54:00:%02x:00:01' $(cluster.id))
+export INCUS_NODE_WAN_MAC_PEER2=$(shell printf '52:54:00:%02x:00:02' $(cluster.id))
+export INCUS_NODE_WAN_MAC_PEER3=$(shell printf '52:54:00:%02x:00:03' $(cluster.id))
+export INCUS_NODE_WAN_MAC_WORKER1=$(shell printf '52:54:00:%02x:01:0a' $(cluster.id))
+export INCUS_NODE_WAN_MAC_WORKER2=$(shell printf '52:54:00:%02x:01:0b' $(cluster.id))
+export INCUS_CLUSTER_NODE_IP_BASE=$(network.host.subnets.base.$(cluster.id))
+export INCUS_PROJECT_NAME=rke2
+export INCUS_RUN_INSTANCE_DIR=$(.incus.instance.dir)
+export INCUS_RUN_NOCLOUD_METADATA_FILE=$(.incus.run.nocloud.metadata.file)
+export INCUS_RUN_NOCLOUD_USERDATA_FILE=$(.incus.run.nocloud.userdata.file)
+export INCUS_RUN_NOCLOUD_NETCFG_FILE=$(.incus.run.nocloud.netcfg.file)
+export INCUS_CLUSTER_INET_MASTER=$(call network.subnet-host-ip,node,0,9)
+export INCUS_RUN_WORKSPACE_DIR=/var/lib/nixos/config/modules/nixos/incus-rke2-cluster
+export INCUS_EGRESS_INTERFACE=$(.incus.egress.interface)
 endef
 
-$(.incus.cluster_env.file): | $(.incus.instance.dir)/
-$(.incus.cluster_env.file):
-	: "[+] Generating cluster environment file $(@)" $(file >$(@),$(.incus.cluster_env_template))
+$(.incus.env.file): $(.network.subnets.mk.files) | $(.incus.instance.dir)/
+$(.incus.env.file):
+	: "[+] Generating cluster environment file $(@)" $(file >$(@),$(.incus.env.content))
 
 # Incus execution mode: local (on NixOS) or remote (Darwin -> Lima) (@codebase)
-.incus.remote_repo_root ?= /var/lib/nixos/config
+.incus.remote.repo.root = /var/lib/nixos/config
 .incus.exec.mode = $(if $(filter $(true),$(host.IS_REMOTE_INCUS_BUILD)),remote,local)
 
 # Incus command invocation with conditional remote wrapper (@codebase)
-.incus.remote_prefix = $(if $(filter remote,$(.incus.exec.mode)),$(REMOTE_EXEC),)
-.incus.command = $(.incus.remote_prefix) incus
-.incus.distrobuilder_command = $(.incus.remote_prefix) sudo distrobuilder
+.incus.remote.prefix = $(if $(filter remote,$(.incus.exec.mode)),$(REMOTE_EXEC),)
+.incus.command = $(.incus.remote.prefix) incus
+.incus.distrobuilder.command = $(.incus.remote.prefix) sudo distrobuilder
 
 # Distrobuilder build context resolution (@codebase)
 .incus.build.mode = $(.incus.exec.mode)
-.incus.distrobuilder_workdir = $(if $(filter remote,$(.incus.build.mode)),$(.incus.remote_repo_root)/modules/nixos/incus-rke2-cluster,$(abspath $(top-dir)))
-.incus.distrobuilder.file_abs = $(.incus.distrobuilder.file)
+.incus.distrobuilder.workdir = $(if $(filter remote,$(.incus.build.mode)),$(.incus.remote.repo.root)/modules/nixos/incus-rke2-cluster,$(abspath $(top-dir)))
+.incus.distrobuilder.file.abs = $(.incus.distrobuilder.file)
 
 # =============================================================================
 # BUILD VERIFICATION
@@ -192,7 +215,12 @@ $(.incus.cluster_env.file):
 .PHONY: verify-context@incus
 verify-context@incus:
 	: "[+] Verifying distrobuilder context (local mode)"
-	if sudo test -f $(.incus.distrobuilder.file_abs); then echo "  ✓ local distrobuilder file: $(.incus.distrobuilder.file_abs)"; else echo "  ✗ missing local distrobuilder file: $(.incus.distrobuilder.file_abs)"; fi
+	if sudo test -f $(.incus.distrobuilder.file.abs); then
+	  echo "  ✓ local distrobuilder file: $(.incus.distrobuilder.file.abs)"
+	else
+	  echo "  ✗ missing local distrobuilder file: $(.incus.distrobuilder.file.abs)" 2>&2
+	  exit 1
+	fi
 
 
 
@@ -230,10 +258,11 @@ preseed@incus:
 	$(.incus.command) admin init --preseed < $(.incus.preseed.file)
 
 $(.incus.preseed.file): $(make-dir)/incus/$(.incus.preseed.filename)
-$(.incus.preseed.file): load@network
+$(.incus.preseed.file): $(.incus.env.file)
 $(.incus.preseed.file): | $(.incus.dir)/
 $(.incus.preseed.file):
 	: "[+] Generating preseed file (pure envsubst via yq) ..."
+	set -a; . $(.incus.env.file); set +a; \
 	yq eval '( .. | select(tag=="!!str") ) |= envsubst(ne,nu)' $(<) > $@
 
 # =============================================================================
@@ -245,33 +274,17 @@ $(.incus.instance.config.file): $(.incus.project.marker.file)
 $(.incus.instance.config.file): $(.incus.instance.metadata.file)
 $(.incus.instance.config.file): $(.incus.instance.userdata.file) 
 $(.incus.instance.config.file): $(.incus.instance.netcfg.file)
+$(.incus.instance.config.file): $(.incus.env.file)
 $(.incus.instance.config.file): | $(.incus.instance.dir)/
-$(.incus.instance.config.file): | $(.incus.nocloud_dir)/
-# Note: RUN_ variables exported globally above, NOCLOUD_ variables exported from cloud-config rules
+$(.incus.instance.config.file): | $(.incus.nocloud.dir)/
 $(.incus.instance.config.file):
 	: "[+] Rendering instance config (envsubst via yq) ...";
+	set -a; . $(.incus.env.file); set +a; \
 	yq eval '( ... | select(tag=="!!str") ) |= envsubst(ne,nu)' $(.incus.instance.config.template) > $(@)
 
 #-----------------------------
 # Per-instance NoCloud file generation  
 #-----------------------------
-
-# Metadata and userdata now generated directly by cloud-config layer
-# $(.incus.instance.metadata.file): $(NOCLOUD_METADATA_FILE) | $(.incus.nocloud_dir)/
-# $(.incus.instance.metadata.file):
-#	: "[+] Copying per-instance metadata file ..."
-#	cp $(NOCLOUD_METADATA_FILE) $@
-
-# $(.incus.instance.userdata.file): $(NOCLOUD_USERDATA_FILE) | $(.incus.nocloud_dir)/
-# $(.incus.instance.userdata.file):
-#	: "[+] Copying per-instance userdata file ..."  
-#	cp $(NOCLOUD_USERDATA_FILE) $@
-
-# Network-config now generated directly by cloud-config layer
-# $(.incus.instance.netcfg.file): $(make-dir)/network/network-config.yaml test@network | $(.incus.nocloud_dir)/
-# $(.incus.instance.netcfg.file):
-#	: "[+] Rendering per-instance network-config (envsubst via yq) ..."
-#	yq eval '( .. | select(tag=="!!str") ) |= envsubst(ne,nu)' $< > $@
 
 .PHONY: render@instance-config
 render@instance-config: test@network $(.incus.instance.config.file) ## Explicit render of Incus instance config
@@ -458,11 +471,11 @@ $(.incus.image.build.files)&: $(.incus.distrobuilder.file) | $(.incus.dir)/ veri
 	echo "[+] Building image locally using native filesystem (not virtiofs)"
 	sudo mkdir -p $(.incus.dir)
 	echo "[+] Building filesystem first, then packing into Incus image"
-	sudo distrobuilder build-dir $(.incus.distrobuilder.file_abs) "$(.incus.local_build_dir)" --disable-overlay
+	sudo distrobuilder build-dir $(.incus.distrobuilder.file.abs) "$(.incus.build.local.dir)" --disable-overlay
 	echo "[+] Creating temporary config for packing (without debootstrap options)"
-	# sed '/options:/,/variant: "buildd"/d' $(.incus.distrobuilder.file_abs) > "/tmp/${cluster.name}-pack.yaml"
+	# sed '/options:/,/variant: "buildd"/d' $(.incus.distrobuilder.file.abs) > "/tmp/${cluster.name}-pack.yaml"
 	echo "[+] Packing filesystem into Incus image format"
-	sudo distrobuilder pack-incus "/tmp/${cluster.name}-pack.yaml" "$(.incus.local_build_dir)" $(.incus.dir) --debug
+	sudo distrobuilder pack-incus "/tmp/${cluster.name}-pack.yaml" "$(.incus.build.local.dir)" $(.incus.dir) --debug
 
 # Helper phony target for remote build delegation
 .PHONY: build-image-local@incus
@@ -472,7 +485,7 @@ build-image-local@incus: $(.incus.image.build.files)
 # Manual cleanup targets for troubleshooting
 .PHONY: cleanup-debootstrap@incus force-cleanup-debootstrap@incus
 cleanup-debootstrap@incus: ## Clean up debootstrap temp directories manually
-	$(.incus.cleanup_pre_cmd)
+	$(.incus.cleanup.pre.cmd)
 
 force-cleanup-debootstrap@incus: ## Force cleanup all temp directories and build artifacts
 	: "[+] Force cleanup of all build-related temporary directories..."
@@ -508,21 +521,21 @@ force-build-image@incus:
 create@incus: $(.incus.image.build.files)
 # Instance configuration
 create@incus: $(.incus.instance.config.file)
-create@incus: $(.incus.config_instance.marker.file) ## Create instance configuration and setup (@codebase)
+create@incus: $(.incus.instance.config.marker.file) ## Create instance configuration and setup (@codebase)
 # Network dependencies
 create@incus: generate@network
 # Runtime directories (order-only)
 create@incus: | $(.incus.dir)/
-create@incus: | $(.incus.nocloud_dir)/
-create@incus: | $(.incus.shared_dir)/
-create@incus: | $(.incus.kubeconfig_dir)/
-create@incus: | $(.incus.logs_dir)/
+create@incus: | $(.incus.nocloud.dir)/
+create@incus: | $(.incus.shared.dir)/
+create@incus: | $(.incus.kubeconfig.dir)/
+create@incus: | $(.incus.logs.dir)/
 create@incus: switch-project@incus
 create@incus:
 	: "[+] Ensuring Incus instance $(NODE_NAME) in project rke2...";
 	if ! $(.incus.command) info $(NODE_NAME) --project=rke2 >/dev/null 2>&1; then
 		: "[!] Instance $(NODE_NAME) missing; creating";
-		rm -f $(.incus.config_instance.marker.file);
+		rm -f $(.incus.instance.config.marker.file);
 		$(.incus.command) init $(IMAGE_NAME) $(NODE_NAME) --project=rke2 < $(.incus.instance.config.file);
 	else
 		: "[✓] Instance $(NODE_NAME) already exists";
@@ -541,9 +554,9 @@ create-create@incus: $(CLUSTER_ENV_FILE)
 create-create@incus: test@network
 # Runtime directories (order-only)
 create-create@incus: | $(.incus.dir)/
-create-create@incus: | $(.incus.shared_dir)/
-create-create@incus: | $(.incus.kubeconfig_dir)/
-create-create@incus: | $(.incus.logs_dir)/
+create-create@incus: | $(.incus.shared.dir)/
+create-create@incus: | $(.incus.kubeconfig.dir)/
+create-create@incus: | $(.incus.logs.dir)/
 create-create@incus:
 	: "[+] Recreating Incus instance $(NAME) in project rke2...";
 	$(.incus.command) init $(IMAGE_NAME) $(NAME) --project=rke2 < $(.incus.instance.config.file);
@@ -557,32 +570,32 @@ ensure-image@incus:
 		exit 1;
 	fi
 	: "[i] VIP interface defined in profile - no separate device addition needed"
-	touch $(.incus.config_instance.marker.file)
+	touch $(.incus.instance.config.marker.file)
 
 # Helper target to rebuild marker safely (expands original dependency chain)
 
 ## Grouped prerequisites for init marker (instance first init)
 # Imported image marker
-$(.incus.config_instance.marker.file).init: $(.incus.image.import.marker.file)
+$(.incus.instance.config.marker.file).init: $(.incus.image.import.marker.file)
 
 # Instance configuration file
-$(.incus.config_instance.marker.file).init: $(.incus.instance.config.file)
+$(.incus.instance.config.marker.file).init: $(.incus.instance.config.file)
 # Cluster environment file
-$(.incus.config_instance.marker.file).init: $(.incus.cluster_env.file)
+$(.incus.instance.config.marker.file).init: $(.incus.env.file)
 # Network validation
-$(.incus.config_instance.marker.file).init: test@network
+$(.incus.instance.config.marker.file).init: test@network
 # Runtime directories (order-only)
-$(.incus.config_instance.marker.file).init: | $(.incus.dir)/
-$(.incus.config_instance.marker.file).init: | $(.incus.shared_dir)/
-$(.incus.config_instance.marker.file).init: | $(.incus.kubeconfig_dir)/
-$(.incus.config_instance.marker.file).init: | $(.incus.logs_dir)/
-$(.incus.config_instance.marker.file).init:
+$(.incus.instance.config.marker.file).init: | $(.incus.dir)/
+$(.incus.instance.config.marker.file).init: | $(.incus.shared.dir)/
+$(.incus.instance.config.marker.file).init: | $(.incus.kubeconfig.dir)/
+$(.incus.instance.config.marker.file).init: | $(.incus.logs.dir)/
+$(.incus.instance.config.marker.file).init:
 	: "[+] Initializing instance $(NODE_NAME) in project rke2..."
 	$(.incus.command) init $(IMAGE_NAME) $(NODE_NAME) --project=rke2 < $(.incus.instance.config.file)
 	: "[i] Interfaces: lan0 (macvlan) + vmnet0 (Incus bridge)"
 
-$(.incus.config_instance.marker.file): $(.incus.config_instance.marker.file).init
-$(.incus.config_instance.marker.file): | $(.incus.dir)/ ## Ensure incus dir exists before cloud-init cleanup (@codebase)
+$(.incus.instance.config.marker.file): $(.incus.instance.config.marker.file).init
+$(.incus.instance.config.marker.file): | $(.incus.dir)/ ## Ensure incus dir exists before cloud-init cleanup (@codebase)
 	: "[+] Ensuring clean cloud-init state for fresh network configuration..."
 	: $(.incus.command) exec $(NODE_NAME) -- rm -rf /var/lib/cloud/instance /var/lib/cloud/instances /var/lib/cloud/data /var/lib/cloud/sem || true
 	: $(.incus.command) exec $(NODE_NAME) -- rm -rf /run/cloud-init /run/systemd/network/10-netplan-* || true
@@ -622,10 +635,10 @@ stop@incus: ## Stop the running instance
 delete@incus: ## Delete the instance (keeps configuration)
 	: "[+] Removing instance $(NODE_NAME)..."
 	$(.incus.command) delete -f $(NODE_NAME) || true
-	rm -f $(.incus.config_instance.marker.file) || true
+	rm -f $(.incus.instance.config.marker.file) || true
 
 .PHONY: remove-member@etcd
-remove-member@etcd: nodeName ?= $(NODE_NAME)
+remove-member@etcd: nodeName = $(NODE_NAME)
 remove-member@etcd: ## Remove etcd member for peer/server nodes from cluster
 	@if [ "$(nodeName)" != "master" ] && [ "$(NODE_TYPE)" = "server" ]; then
 		: "[+] Removing etcd member for $(nodeName)..."
@@ -649,7 +662,7 @@ remove-member@etcd: ## Remove etcd member for peer/server nodes from cluster
 clean@incus: remove-member@etcd
 clean@incus: delete@incus 
 clean@incus: remove-hosts@tailscale
-clean@incus: nodeName ?= $(NODE_NAME)
+clean@incus: nodeName = $(NODE_NAME)
 clean@incus: ## Remove instance, profiles, storage volumes, and runtime directories
 	: "[+] Removing $(nodeName) if exists..."
 	$(.incus.command) profile delete rke2-$(nodeName) --project=rke2 || true

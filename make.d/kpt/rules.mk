@@ -2,11 +2,9 @@
 
 # Self-guarding include so the layer can be pulled in multiple times safely.
 
-ifndef make.d/rules.mk
+ifndef make.d/kpt/rules.mk
 
 -include make.d/make.mk
-
-$(call make.trace,"Including rules.mk")
 
 -include make.d/network/rules.mk
 
@@ -24,11 +22,9 @@ $(call make.trace,"Including rules.mk")
 .kpt.manifests.dir  := $(.kpt.dir)/manifests.d
 .kpt.package.aux_files := .gitattributes .krmignore
 
-export CLUSTER_RK2E_MANIFESTS_DIR := $(realpath $(.kpt.manifests.dir))
-
 define .kpt.require-bin
 	if ! command -v $(1) >/dev/null 2>&1; then
-		echo "[fleet] Missing required command $(1)";
+		echo "[kpt] Missing required command $(1)";
 		exit 1;
 	fi
 endef
@@ -39,13 +35,10 @@ endef
 
 .PHONY: update-kustomizations@kpt
 
-update-kustomizations@kpt: check-tools@kpt
-update-kustomizations@kpt: render.dir := $(tmp-dir)/catalog
+update-kustomizations@kpt: $(.kpt.render.dir)
 update-kustomizations@kpt: ## Update Kustomization files from rendered catalog packages
-	: "[kpt] Staging and rendering catalog to generate Kustomizations"
-	$(.kpt.render.cmd) "$(.kpt.catalog.dir)" -o "$(render.dir)"
 	: "[kpt] Generating Kustomizations from rendered packages"
-	for layer in "$(render.dir)"/*/; do
+	for layer in "$(.kpt.render.dir)"/*/; do
 		[ -d "$$layer" ] || continue
 		layer_name=$$(basename "$$layer")
 		for pkg in "$$layer"/*/; do
@@ -69,34 +62,19 @@ update-kustomizations@kpt: ## Update Kustomization files from rendered catalog p
 # Rendering pipeline (@codebase)
 # ----------------------------------------------------------------------------
 
-.PHONY: render@kpt check-tools@kpt prepare@kpt
-
-render@kpt: check-tools@kpt prepare@kpt 
-render@kpt: $(.kpt.overlays.Kustomization.file)
-render@kpt: $(.kpt.Kustomization.file)
-render@kpt: $(.kpt.manifests.file)
-render@kpt:  ## Render catalog via kpt, aggregate via kustomize (@codebase)
-	: "[kpt] Rendered manifests for cluster $(cluster.name) to $<"
-
-$(.kpt.render.dir): clean-render@kpt
 $(.kpt.render.dir): $(.network.plan.file)
+$(.kpt.render.dir): | $(.kpt.render.dir)/
 $(.kpt.render.dir):
-	: "[kpt] Creating temporary render directory for cluster $(cluster.name)"
-	mkdir -p "$(@)"
-$(.kpt.render.dir):
-	$(call kpt.trace,Rendering catalog for cluster $(cluster.name) via kpt fn render)
+	: "Rendering catalog for cluster $(cluster.name) via kpt fn render"
+	rm -fr $(.kpt.render.dir)
 	$(.kpt.render.cmd) "$(.kpt.catalog.dir)" -o "$(@)"
 
-.FORCE: $(.kpt.render.dir)
-
-$(.kpt.manifests.file): check-tools@kpt
-$(.kpt.manifests.file): prepare@kpt
 $(.kpt.manifests.file): $(.kpt.Kustomization.file)
 $(.kpt.manifests.file): $(.kpt.render.dir)
 $(.kpt.manifests.file):
-	$(call kpt.trace,Copying Kustomization files to rendered output)
+	: "Copying Kustomization files to rendered output"
 	rsync -a --include='*/' --include='Kustomization' --exclude='*' "$(.kpt.catalog.dir)/" "$(.kpt.render.dir)/"
-	$(call kpt.trace,Building manifests for cluster $(cluster.name) via kustomize build)
+	: "Building manifests for cluster $(cluster.name) via kustomize build"
 	kustomize build "$(.kpt.render.dir)" > "$@"
 
 
@@ -105,7 +83,7 @@ $(.kpt.manifests.file):
 # ----------------------------------------------------------------------------
 
 $(.kpt.manifests.dir): $(.kpt.manifests.file)
-$(.kpt.manifests.dir): $(.kpt.manifests.dir)/
+$(.kpt.manifests.dir): | $(.kpt.manifests.dir)/
 $(.kpt.manifests.dir): manifests.file = ../manifests.yaml
 $(.kpt.manifests.dir): 
 	cd $(.kpt.manifests.dir)
@@ -131,6 +109,8 @@ define .kpt.isOwnedByPackage =
 endef
 
 .PHONY: rke2-manifests@kpt clean-rke2-manifests@kpt
+
+rke2-manifests@kpt: prepare@kpt
 rke2-manifests@kpt: $(.kpt.manifests.dir)
 rke2-manifests@kpt: ## Unwrap rendered manifests into categorized directory structure
 	: "[kpt] Unwrapped rendered manifests into $(.kpt.manifests.dir)"
@@ -140,15 +120,11 @@ clean-rke2-manifests@kpt: ## Clean categorized manifests directory
 
 # ----------------------------------------------------------------------------
 
-check-tools@kpt: # Ensure required CLI tools are available
-	$(call .kpt.require-bin,kpt)
-	$(call .kpt.require-bin,kustomize)
-	$(call .kpt.require-bin,yq)
-	$(call kpt.trace,Rendering cluster $(cluster.name))
+.PHONY: prepare@kpt
 
-prepare@kpt: $(.kpt.dir)/
-prepare@kpt: $(.kpt.overlays.dir)/
-prepare@kpt: clean-render@kpt update@kpt
+
+prepare@kpt: | $(.kpt.dir)/ $(.kpt.overlays.dir)/
+prepare@kpt: update@kpt
 prepare@kpt: # Fetch or update the cluster catalog
 	: "[kpt] Catalog updated from upstream"
 
@@ -156,23 +132,8 @@ prepare@kpt: # Fetch or update the cluster catalog
 clean-render@kpt: ## Clean rendered temporary directory
 	rm -rf "$(.kpt.render.dir)"
 
-.PHONY: render@kpt
-render@kpt: clean-local-render@kpt
-render@kpt: $(.kpt.local.render.dir)
-render@kpt: ## Development target: render a specific package to .local.d for inspection. Usage: make render@kpt PKG=system/porch
-	: 
 
-$(.kpt.local.render.dir): $(.kpt.local.render.dir)/
-$(.kpt.local.render.dir)/:
-	: "[kpt] Rendering package $(PKG) to .local.d for inspection"
-	$(.kpt.render.cmd) "$(.kpt.catalog.dir)/$(PKG)" -o "$(.kpt.local.render.dir)/$(PKG)"
-
-
-.PHONY: clean-local-render@kpt
-clean-local-render@kpt: ## Clean local development render directory
-	rm -rf "$(.kpt.local.render.dir)"
-
-update@kpt: $(.kpt.catalog.dir)
+update@kpt: | $(.kpt.catalog.dir)
 update@kpt: update-guard@kpt
 update@kpt: ## Update cluster catalog via kpt pkg get/update
 	: "Updating cluster $(cluster.name) catalog via kpt pkg get/update)"
@@ -192,70 +153,69 @@ $(.kpt.catalog.dir): ## Ensure cluster catalog directory exists and is updated
 	: "[kpt] Ensuring cluster catalog directory is updated"
 	kpt pkg get "$(.kpt.upstream.repo).git/${.kpt.upstream.dir}" "$(.kpt.dir)"
 
-define .yaml.comma-join =
-$(subst $(space),$1,$(strip $2))
-endef
-
-define .yaml.rangeOf =
-[ $(call .yaml.comma-join,$(comma)$(newline),$(foreach value,$(1),"$(value)")) ]
-endef 
+# --- Kustomization file generation (@codebase) ------------------------------------
 
 define .Kustomization.file.content =
 $(warning generating Kustomization content for $(1))
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-resources: $(call .yaml.rangeOf,$(1))
+resources: $(call .kpt.yaml.rangeOf,$(1))
 endef
 
-define .cluster.overlays.kustomize = 
-	: "[kpt] Writing overlays Kustomization for cluster $(cluster.name)"
-	echo "apiVersion: kustomize.config.k8s.io/v1beta1" > "$(1)"
-	echo "kind: Kustomization" >> "$(1)"
-	echo "resources:" >> "$(1)"
-	echo "  - ../catalog" >> "$(1)"
+define .kpt.yaml.comma-join =
+$(subst $(space),$1,$(strip $2))
 endef
 
-define .cluster.kustomize = 
-	: "[kpt] Writing cluster Kustomization for $(cluster.name)"
-	echo "apiVersion: kustomize.config.k8s.io/v1beta1" > "$(1)"
-	echo "kind: Kustomization" >> "$(1)"
-	echo "resources:" >> "$(1)"
-	echo "  - catalog" >> "$(1)"
-	echo "  - overlays" >> "$(1)"
+define .kpt.yaml.rangeOf =
+[ $(call .kpt.yaml.comma-join,$(comma)$(newline),$(foreach value,$(1),"$(value)")) ]
+endef 
+
+define .cluster.kustomize.content = 
+	apiVersion: kustomize.config.k8s.io/v1beta1
+	kind: Kustomization
+	resources:
+	- catalog
+	- overlays
 endef
 
 $(.kpt.overlays.Kustomization.file):
-	$(call .cluster.overlays.kustomize,$@)
+	$(file >$(@), $(.cluster.overlays.kustomize.content))
+
+define .cluster.overlays.kustomize.content = 
+	apiVersion: kustomize.config.k8s.io/v1beta1
+	kind: Kustomization
+	resources:
+	- ../catalog
+endef
 
 $(.kpt.Kustomization.file): $(.kpt.overlays.Kustomization.file)
 $(.kpt.Kustomization.file):
-	$(call .cluster.kustomize,$@)
-
-# Catalog packages and Kustomizations are now managed in the fetched catalog directory
+	$(file >$(@), $(.cluster.kustomize.content))
 
 # ----------------------------------------------------------------------------
-# Fleet subtree synchronization (@codebase)
+# rke2 subtree synchronization (@codebase)
 # ----------------------------------------------------------------------------
 
 .PHONY: remote@kpt finalize-merge@kpt check-clean@kpt pull@kpt push@kpt
 
-remote@kpt:
-	@if ! git remote get-url "$(rke2-subtree.git.remote)" >/dev/null 2>&1; then
-		git remote add "$(rke2-subtree.git.remote)" git@github.com:nxmatic/fleet-manifests.git
+remote@kpt: ## Ensure rke2 subtree remote is configured
+	: "Ensuring rke2 subtree remote is configured"
+	if ! git remote get-url "$(rke2-subtree.git.remote)" >/dev/null 2>&1; then
+		git remote add "$(rke2-subtree.git.remote)" git@github.com:nxmatic/rke2-manifests.git
 	fi
 
-finalize-merge@kpt:
-	@if git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; then
+finalize-merge@kpt: ## Finalize any pending rke2 subtree merge
+	if git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; then
 		if git diff --name-only --diff-filter=U | grep -q .; then
 			echo "Merge in progress with unresolved conflicts; resolve before continuing." >&2
 			exit 1
 		fi
-		: "Completing pending fleet subtree merge..."
+		: "Completing pending rke2 subtree merge..."
 		GIT_MERGE_AUTOEDIT=no git commit --no-edit --quiet
 	fi
 
-check-clean@kpt:
-	@if ! git diff --quiet -- "$(rke2-subtree.git.subtree.dir)"; then
+check-clean@kpt: ## Ensure no uncommitted changes exist in rke2 subtree
+	if ! git diff --quiet -- "$(rke2-subtree.git.subtree.dir)"; then
 		echo "Uncommitted changes detected inside $(rke2-subtree.git.subtree.dir)." >&2
 		exit 1
 	fi
@@ -268,21 +228,33 @@ check-clean@kpt:
 	fi
 
 pull@kpt: remote@kpt finalize-merge@kpt check-clean@kpt
+pull@kpt: ## Pull latest rke2 subtree changes from remote repository
+	: "Pulling latest rke2 subtree changes from remote repository"
 	git fetch --prune "$(rke2-subtree.git.remote)" "$(rke2-subtree.git.branch)"
 	git subtree pull --prefix="$(rke2-subtree.git.subtree.dir)" "$(rke2-subtree.git.remote)" "$(rke2-subtree.git.branch)" --squash
 
 push@kpt: remote@kpt check-clean@kpt
-	@split_sha="$$(git subtree split --prefix="$(rke2-subtree.git.subtree.dir)" HEAD 2>/dev/null || \
-		git rev-parse --verify "$(rke2-subtree.git.branch)" 2>/dev/null || true)"
-	remote_sha="$$(git ls-remote --heads "$(rke2-subtree.git.remote)" "$(rke2-subtree.git.branch)" | \
-		awk '{print $$1}')" || true
+push@kpt: ## Push updated rke2 subtree to remote repository
+	: "Pushing updated rke2 subtree to remote repository"
+	split_sha=$$(
+		git subtree split --prefix="$(rke2-subtree.git.subtree.dir)" HEAD 2>/dev/null ||
+		git rev-parse --verify "$(rke2-subtree.git.branch)" 2>/dev/null ||
+		true
+	)
+	remote_sha=$$(
+		git ls-remote --heads "$(rke2-subtree.git.remote)" "$(rke2-subtree.git.branch)" |
+		awk '{print $$1}' ||
+		true
+	)
 	if [ -z "$$split_sha" ]; then
-		echo "No fleet subtree revisions found to push." >&2
+		echo "No rke2 subtree revisions found to push." >&2
 		exit 0
 	elif [ -n "$$remote_sha" ] && [ "$$split_sha" = "$$remote_sha" ]; then
-		: "No new fleet revisions to push; skipping."
-	else
-		git subtree push --prefix="$(rke2-subtree.git.subtree.dir)" \
-		  "$(rke2-subtree.git.remote)" "$(rke2-subtree.git.branch)"
+		: "No new rke2 revisions to push; skipping."
+
 	fi
-endif # make.d/rules.mk guard
+	: "Pushing rke2 subtree updates to remote repository"
+	git subtree push --prefix="$(rke2-subtree.git.subtree.dir)" \
+	  "$(rke2-subtree.git.remote)" "$(rke2-subtree.git.branch)"
+
+endif # make.d/kpt/rules.mk guard

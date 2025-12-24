@@ -121,39 +121,6 @@ write_files:
     permissions: "0755"
     content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/docker.sh
 
-  - path: /etc/rancher/rke2/config.yaml.d/tls-san.yaml
-    content: |
-      tls-san:
-        - localhost
-        - gateway
-        - 0.0.0.0
-        - 127.0.0.1
-        - ${CLUSTER_VIP_GATEWAY_IP} # cluster VIP gateway
-        - ${NODE_GATEWAY_IP} # node gateway
-        # Note: VIP gateway removed - not a client endpoint
-        # IPv6 addresses removed for IPv4-only configuration
-
-  # Enable etcd metrics exposure
-  - path: /etc/rancher/rke2/config.yaml.d/etcd-metrics.yaml
-    content: |
-      etcd-expose-metrics: true
-
-  # Central dual-stack network CIDRs (applies to ALL nodes, control-plane & agents)
-  # Formerly only in server layer; moved here so kubelet / components on every node
-  # have consistent view.
-  - path: /etc/rancher/rke2/config.yaml.d/network-cidrs.yaml
-    content: |
-      cluster-cidr: ${POD_NETWORK_CIDR}
-      service-cidr: ${SERVICE_NETWORK_CIDR}
-      kube-controller-manager-arg:
-        - node-cidr-mask-size-ipv4=24
-
-  # IPv4-only node IP configuration to prevent dual-stack auto-detection
-  # Static DHCP lease ensures this matches the actual assigned IP
-  - path: /etc/rancher/rke2/config.yaml.d/node-ip.yaml
-    content: |
-      node-ip: ${NODE_HOST_IP}
-
   # =============================================================================
   # KUBELET CONFIGURATION FILES
   # =============================================================================

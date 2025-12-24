@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rke2-network-cidrs
+  annotations:
+    config.kubernetes.io/local-config: "true"
+    description.kpt.dev: Network CIDRs fragment
+data:
+  network-cidrs.yaml: |
+    cluster-cidr: ${pod-network-cidr}
+    service-cidr: ${service-network-cidr}
+    kube-controller-manager-arg:
+      - node-cidr-mask-size-ipv4=24

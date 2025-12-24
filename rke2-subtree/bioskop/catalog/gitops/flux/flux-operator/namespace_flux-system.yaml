@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata: # kpt-merge: /flux-system
+  name: flux-system
+  labels:
+    app.kubernetes.io/name: flux-system
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Namespace|default|flux-system'

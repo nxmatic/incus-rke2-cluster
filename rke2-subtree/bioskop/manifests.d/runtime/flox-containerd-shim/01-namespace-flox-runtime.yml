@@ -1,0 +1,11 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Namespace|default|flox-runtime'
+    kpt.dev/package-layer: runtime
+    kpt.dev/package-name: flox-containerd-shim
+  labels:
+    flox.dev/component: runtime
+  name: flox-runtime

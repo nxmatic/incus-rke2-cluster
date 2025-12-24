@@ -459,6 +459,11 @@ help: ## Show grouped help for all targets (use FILTER=regex to filter)
 	echo ""
 	echo "Metaprogramming generated targets appear once features are included.";
 
+#-----------------------------
+# Create necessary directories
+#-----------------------------
+%/:
+	mkdir -p $(@)
 
 .PHONY: help
 
@@ -485,18 +490,17 @@ ifndef $$(.make.tmp.path)
 
 $$(.make.tmp.path) := $$(.make.tmp.path) # marker
 $$(.make.tmp.context) := $$(.make.tmp.context) # guard variable expected by individual files
-$(warning Loading $(.make.tmp.path) into context $(.make.tmp.context))
 $$(.make.tmp.context).path := $$(.make.tmp.path) # values
 $$(.make.tmp.context).dir := $$(patsubst $(top-dir)/,%,$$(.make.tmp.dir))
 $$(.make.tmp.context).file := $$(.make.tmp.file)
 $$(.make.tmp.context).name := $$(.make.tmp.name)
 
-$$(call make.trace,loading,$$(.make.tmp.context).path)
+$$(call make.trace,Loading,$$(.make.tmp.context).path)
 
 endif
 endef
 
-noop: pre-launch@network ## Default goal: no operation
+noop: ## Default goal: no operation
 	echo "[+] noop target reached (default goal)"
 
 else

@@ -1,0 +1,37 @@
+apiVersion: cilium.io/v2
+kind: CiliumBGPClusterConfig
+metadata: # kpt-merge: /bgp-cluster-config
+  name: bgp-cluster-config
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'cilium.io|CiliumBGPClusterConfig|default|bgp-cluster-config'
+spec:
+  nodeSelector:
+    matchLabels:
+      node-role.kubernetes.io/control-plane: ""
+  bgpInstances:
+  - name: "control-plane-bgp"
+    localASN: ${bgp-local-asn} # kpt-set: ${bgp-local-asn}
+    peers:
+    - name: "gateway-peer"
+      peerASN: ${bgp-peer-asn} # kpt-set: ${bgp-peer-asn}
+      peerAddress: ${node-gateway-ip} # kpt-set: ${node-gateway-ip}
+      peerConfigRef:
+        name: "cilium-peer"
+---
+apiVersion: cilium.io/v2
+kind: CiliumBGPAdvertisement
+metadata: # kpt-merge: /control-plane-advertisement
+  name: control-plane-advertisement
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'cilium.io|CiliumBGPAdvertisement|default|control-plane-advertisement'
+spec:
+  advertisements:
+  - advertisementType: "Service"
+    service:
+      addresses:
+      - ExternalIP
+      - LoadBalancerIP
+    selector:
+      matchLabels:
+        io.cilium/lb-ipam: "load-balancers"
+  - advertisementType: "PodCIDR"

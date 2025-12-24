@@ -1,0 +1,12 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Namespace|default|flux-system'
+    kpt.dev/package-layer: gitops
+    kpt.dev/package-name: flux-operator
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: flux-system
+  name: flux-system

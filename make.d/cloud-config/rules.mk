@@ -69,7 +69,7 @@ export TEKTON_DOCKER_REGISTRY_URL ?= $(if $(CLUSTER_DOCKER_REGISTRY_URL),$(CLUST
 cloud-config.INSTANCE_ID = $(node.name)-cluster$(cluster.id)-node$(node.id)
 define .cloud-config.metadata_template
 instance-id: $(cloud-config.INSTANCE_ID)
-local-hostname: $(node.name).$(cluster.DOMAIN)
+local-hostname: $(node.name).$.cluster.domain)
 endef
 
 $(call register-cloud-config-targets,$(.cloud-config.metadata.file))
@@ -96,6 +96,9 @@ ifeq ($(node.ROLE),peer)
 $(.cloud-config.userdata.file): $(.cloud-config.peer) ## peer fragment (@codebase)
 endif
 $(.cloud-config.userdata.file): $(.cloud-config.script_files)
+$(.cloud-config.userdata.file): export CLUSTER_VIP_GATEWAY_IP := $(CLUSTER_VIP_GATEWAY_IP)
+$(.cloud-config.userdata.file): export NODE_GATEWAY_IP := $(NODE_GATEWAY_IP)
+$(.cloud-config.userdata.file): export NODE_HOST_IP := $(NODE_HOST_IP)
 
 # yq expressions for cloud-config merging with environment variable substitution
 # YQ cloud-config expressions (manually defined for now - TODO: metaprogramming)
@@ -152,6 +155,18 @@ $$preamble + "\n" + (. | to_yaml | sub("^---\n"; ""))
 endef
 
 # YQ cloud-config expression lookup by file count
+define YQ_CLOUD_CONFIG_MERGE_2_FILES
+"#cloud-config" as $$preamble | \
+select(fileIndex == 0) as $$a | \
+select(fileIndex == 1) as $$b | \
+($$a * $$b) | \
+.write_files = ($$a.write_files // []) + ($$b.write_files // []) | \
+.runcmd = ($$a.runcmd // []) + ($$b.runcmd // []) | \
+( .. | select( tag == "!!str" ) ) |= envsubst(ne,nu) | \
+$$preamble + "\n" + (. | to_yaml | sub("^---\n"; ""))
+endef
+
+YQ_CLOUD_CONFIG_EXPR_2 = $(YQ_CLOUD_CONFIG_MERGE_2_FILES)
 YQ_CLOUD_CONFIG_EXPR_3 = $(YQ_CLOUD_CONFIG_MERGE_3_FILES)
 YQ_CLOUD_CONFIG_EXPR_5 = $(YQ_CLOUD_CONFIG_MERGE_5_FILES)
 YQ_CLOUD_CONFIG_EXPR_6 = $(YQ_CLOUD_CONFIG_MERGE_6_FILES)

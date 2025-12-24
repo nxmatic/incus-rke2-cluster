@@ -1,0 +1,35 @@
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: config.porch.kpt.dev|PackageVariant|porch-system|ha-kube-vip
+    kpt.dev/package-layer: gitops
+    kpt.dev/package-name: porch-resources
+  name: ha-kube-vip
+  namespace: porch-system
+spec:
+  adoptionPolicy: adoptNone
+  deletionPolicy: delete
+  downstream:
+    package: ha/kube-vip
+    repo: sample-state
+  labels:
+    cluster-name: sample
+    nxmatic.dev/app: kube-vip
+    nxmatic.dev/component: ha
+  packageContext:
+    data:
+      cluster-env: sample
+      cluster-name: sample
+  pipeline:
+    mutators:
+      - configMap:
+          cluster-vip-address: ${node-vip-ip}
+          cluster-vip-interface: rke2-vip0
+          kube-vip-namespace: kube-vip
+          kube-vip-version: ${kube-vip-version}
+        image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+  upstream:
+    package: ha/kube-vip
+    repo: sample-catalog

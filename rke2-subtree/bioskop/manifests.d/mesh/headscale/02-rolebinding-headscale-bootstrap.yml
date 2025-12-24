@@ -1,0 +1,18 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|RoleBinding|headscale|headscale-bootstrap
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  name: headscale-bootstrap
+  namespace: headscale
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: headscale-bootstrap
+subjects:
+  - kind: ServiceAccount
+    name: headscale-bootstrap
+    namespace: headscale

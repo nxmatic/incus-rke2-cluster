@@ -22,8 +22,6 @@ REMOTE_EXEC := $(shell if [ -x /run/wrappers/bin/sudo ]; then echo ""; else echo
 	: Loading git sub-modules 
 	git submodule update --init --recursive
 
-
-
 #-----------------------------
 # Topology / Networking Mode
 #-----------------------------
@@ -74,21 +72,6 @@ CLUSTER_DOMAIN := $(CLUSTER_DOMAIN)
 ## The hierarchical 10.80.* / fd70:80::* assignments defined earlier are authoritative.
 ## Keeping this comment block to avoid accidental reintroduction.
 
-# =============================================================================
-# RKE2 VARIABLE EXPORTS FOR TEMPLATES
-# =============================================================================
-
-# Export RKE2 variables for YAML template rendering
-export CLUSTER_NAME
-export CLUSTER_TOKEN
-export CLUSTER_DOMAIN
-export NODE_NAME
-export NODE_TYPE
-export NODE_ROLE
-export POD_NETWORK_CIDR
-export SERVICE_NETWORK_CIDR
-export CLUSTER_ID
-export NODE_ID
 
 # Bridge configuration moved to network.mk (@codebase)
 
@@ -126,30 +109,21 @@ status: status-report check-runtime-state ## Show comprehensive cluster and runt
 scale: scale-cluster-resources ## Scale cluster resources (memory/CPU) for all nodes
 
 #-----------------------------
-# Pre-Launch Infrastructure
-#-----------------------------
-
-# Master pre-launch target that ensures all subsystem variables are ready
-.PHONY: pre-launch
-pre-launch: pre-launch@network ## Pre-populate all variable files and prepare runtime environment
-	echo "[pre-launch] All subsystem variables prepared and ready for main recipes"
-
-#-----------------------------
 # High-Level Target Aliases
 #-----------------------------
 
 # Main lifecycle targets (delegate to incus.mk)
-start: pre-launch start@incus ## Start RKE2 node instance (creates if needed)
+start: start@incus ## Start RKE2 node instance (creates if needed)
 stop: stop@incus ## Stop running RKE2 node instance
 delete: delete@incus ## Delete RKE2 node instance (keeps config) 
 clean: clean@network clean@incus ## Clean all generated files
-shell: pre-launch shell@incus ## Open interactive shell in RKE2 node
-instance: pre-launch instance@incus ## Create RKE2 instance without starting
+shell: shell@incus ## Open interactive shell in RKE2 node
+instance: instance@incus ## Create RKE2 instance without starting
 
 # Ensure dependencies for lifecycle targets explicitly (avoid undefined MAIN_TARGETS variable) (@codebase)
 start stop delete shell instance: preseed@incus image@incus switch-project@incus
 
-.PHONY: start stop delete clean shell instance pre-launch clean-project clean-orphaned
+.PHONY: start stop delete clean shell instance clean-project clean-orphaned
 
 # High-level cluster management  
 .PHONY: clean-all clean-project clean-orphaned
@@ -209,10 +183,3 @@ docs-diagrams: diagrams@plantuml ## Regenerate committed PlantUML diagrams (alia
 
 debug-variables: ## Show constructed variable values for debugging
 show-runtime-config: ## Display auto-generated runtime configuration
-
-#-----------------------------
-# Create necessary directories
-#-----------------------------
-%/:
-	mkdir -p $(@)
-

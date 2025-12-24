@@ -20,8 +20,8 @@ ifndef make.d/node/rules.mk
 
 # Cluster configuration (inlined from cluster-templates.mk)
 .cluster.name ?= $(if $(LIMA_HOSTNAME),$(LIMA_HOSTNAME),bioskop)
-.cluster.TOKEN ?= $(.cluster.name)
-.cluster.DOMAIN = cluster.local
+.cluster.token ?= $(.cluster.name)
+.cluster.domain = cluster.local
 
 # Dynamic Pod/Service CIDR calculation via GMSL math (no python)
 cidr_pod_base_octet := 42
@@ -65,16 +65,6 @@ cluster.lima_lan_interface := $(.cluster.lima_lan_interface)
 cluster.lima_vmnet_interface := $(.cluster.lima_vmnet_interface)
 cluster.state_repo := $(.cluster.state_repo)
 cluster.state_branch := $(.cluster.state_branch)
-
-# Export cluster variables for environment/templates
-export CLUSTER_ID := $(cluster.id)
-export CLUSTER_NAME := $(cluster.name)
-export CLUSTER_TOKEN := $(cluster.token)
-export CLUSTER_DOMAIN := $(cluster.domain)
-export POD_NETWORK_CIDR := $(cluster.pod_network_cidr)
-export SERVICE_NETWORK_CIDR := $(cluster.service_network_cidr)
-export LIMA_LAN_INTERFACE := $(cluster.lima_lan_interface)
-export LIMA_VMNET_INTERFACE := $(cluster.lima_vmnet_interface)
 
 # =============================================================================
 # NODE CONFIGURATION APPLICATION

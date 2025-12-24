@@ -59,8 +59,8 @@ ifndef make.d/cluster/rules.mk
 test@cluster:
 	: "[test@cluster] Validating cluster configuration from node layer"
 	: "[ok] cluster.name=$(cluster.name)"
-	: "[ok] cluster.TOKEN=$(cluster.TOKEN)"
-	: "[ok] cluster.DOMAIN=$(cluster.DOMAIN)"
+	: "[ok] cluster.token=$(cluster.token)"
+	: "[ok] cluster.domain=$(cluster.domain)"
 	: "[ok] cluster.id=$(cluster.id)"
 	: "[ok] cluster.POD_NETWORK_CIDR=$(cluster.POD_NETWORK_CIDR)"
 	: "[ok] cluster.SERVICE_NETWORK_CIDR=$(cluster.SERVICE_NETWORK_CIDR)"

@@ -1,0 +1,18 @@
+---
+apiVersion: v1
+data:
+  derp.yaml: |
+    regions:
+      900:
+        regionid: 900
+        regioncode: local
+        regionname: Local LAN
+        nodes: []
+kind: ConfigMap
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|headscale|headscale-derp'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  name: headscale-derp
+  namespace: headscale

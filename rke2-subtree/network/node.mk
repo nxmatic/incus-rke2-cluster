@@ -1,0 +1,45 @@
+# Generated network subnet definitions for type=node network='10.80.0.0/21' prefix=23
+
+.network.node.eval := eval
+.network.node.call := call
+
+network.node.split.network := '10.80.0.0/21'
+network.node.split.prefix := 23
+network.node.split.count := 4
+network.node.split.addresses := 510
+network.node.split.0.network='10.80.0.0'
+network.node.split.0.netmask='255.255.254.0'
+network.node.split.0.prefix=23
+network.node.split.0.broadcast='10.80.1.255'
+network.node.split.0.addrspace='Private Use'
+network.node.split.0.minaddr='10.80.0.1'
+network.node.split.0.maxaddr='10.80.1.254'
+network.node.split.0.addresses=510
+network.node.split.0.cidr='10.80.0.0/23'
+network.node.split.1.network='10.80.2.0'
+network.node.split.1.netmask='255.255.254.0'
+network.node.split.1.prefix=23
+network.node.split.1.broadcast='10.80.3.255'
+network.node.split.1.addrspace='Private Use'
+network.node.split.1.minaddr='10.80.2.1'
+network.node.split.1.maxaddr='10.80.3.254'
+network.node.split.1.addresses=510
+network.node.split.1.cidr='10.80.2.0/23'
+network.node.split.2.network='10.80.4.0'
+network.node.split.2.netmask='255.255.254.0'
+network.node.split.2.prefix=23
+network.node.split.2.broadcast='10.80.5.255'
+network.node.split.2.addrspace='Private Use'
+network.node.split.2.minaddr='10.80.4.1'
+network.node.split.2.maxaddr='10.80.5.254'
+network.node.split.2.addresses=510
+network.node.split.2.cidr='10.80.4.0/23'
+network.node.split.3.network='10.80.6.0'
+network.node.split.3.netmask='255.255.254.0'
+network.node.split.3.prefix=23
+network.node.split.3.broadcast='10.80.7.255'
+network.node.split.3.addrspace='Private Use'
+network.node.split.3.minaddr='10.80.6.1'
+network.node.split.3.maxaddr='10.80.7.254'
+network.node.split.3.addresses=510
+network.node.split.3.cidr='10.80.6.0/23'

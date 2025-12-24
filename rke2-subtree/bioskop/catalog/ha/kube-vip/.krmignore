@@ -1,0 +1,5 @@
+# Exclude Kptfiles from render output; function configs have local-config annotation
+Kptfile
+README.md
+.kptignore
+.kube/

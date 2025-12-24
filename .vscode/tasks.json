@@ -1,0 +1,65 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "network-regenerate",
+			"type": "shell",
+			"command": "make clean@network generate@network",
+			"problemMatcher": []
+		},
+		{
+			"label": "network-regenerate",
+			"type": "shell",
+			"command": "make clean@network generate@network",
+			"problemMatcher": []
+		},
+		{
+			"label": "network-regenerate-remake",
+			"type": "shell",
+			"command": "remake clean@network generate@network",
+			"problemMatcher": []
+		},
+		{
+			"label": "network-regenerate-remake",
+			"type": "shell",
+			"command": "remake clean@network generate@network",
+			"problemMatcher": []
+		},
+		{
+			"label": "network-regenerate-remake",
+			"type": "shell",
+			"command": "remake clean@network generate@network",
+			"problemMatcher": []
+		},
+		{
+			"label": "network-regenerate-remake",
+			"type": "shell",
+			"command": "remake clean@network generate@network",
+			"problemMatcher": []
+		},
+		{
+			"label": "network-regenerate-remake",
+			"type": "shell",
+			"command": "remake clean@network generate@network",
+			"problemMatcher": []
+		},
+		{
+			"label": "network-regenerate-remake",
+			"type": "shell",
+			"command": "remake clean@network generate@network",
+			"problemMatcher": []
+		},
+		{
+			"label": "network-regenerate-remake",
+			"type": "shell",
+			"command": "remake generate@network",
+			"problemMatcher": []
+		},
+		{
+			"label": "network-regenerate-remake",
+			"type": "shell",
+			"command": "remake clean@network generate@network",
+			"problemMatcher": []
+		}
+	]
+}

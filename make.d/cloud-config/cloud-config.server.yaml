@@ -2,50 +2,6 @@
 # Contains shared server components, bootstrap manifests are in master config
 
 write_files:
-  # =============================================================================
-  # SHARED RKE2 CONTROL PLANE CONFIGURATION
-  # =============================================================================
-
-  # Core RKE2 server configuration (shared across all control plane nodes)
-  - path: /etc/rancher/rke2/config.yaml.d/core.yaml
-    content: |
-      write-kubeconfig-mode: "0640"
-      bind-address: "0.0.0.0"
-      cni:
-        - cilium
-      ingress-controller: traefik
-
-
-  # Dedicated token fragment
-  - path: /etc/rancher/rke2/config.yaml.d/token.yaml
-    content: |
-      token: ${CLUSTER_TOKEN}
-
-  # Dedicated advertise-address fragment
-  - path: /etc/rancher/rke2/config.yaml.d/advertise-address.yaml
-    content: |
-      advertise-address: ${NODE_HOST_IP}
-
-  # Deterministic node labels for scheduling / selectors
-  - path: /etc/rancher/rke2/config.yaml.d/node-labels.yaml
-    content: |
-      node-label:
-        - ${CLUSTER_NAME}.cluster/node-role=${NODE_ROLE}
-        - ${CLUSTER_NAME}.cluster/node-type=${NODE_TYPE}
-
-  # Disable default controllers we don't want (consistent across cluster)
-  - path: /etc/rancher/rke2/config.yaml.d/disable.yaml
-    content: |
-      disable:
-        - rke2-snapshot-controller
-        - rke2-snapshot-controller-crd
-        - rke2-snapshot-validation-webhook
-        - rke2-ingress-nginx
-
-  # =============================================================================
-  # SHARED SYSTEMD SERVICE OVERRIDES
-  # =============================================================================
-
   # Main RKE2 server service override (consistent restart behavior)
   - path: /etc/systemd/system/rke2-server.service.d/override.conf
     content: |
@@ -65,7 +21,7 @@ write_files:
       [Service]
       EnvironmentFile=/etc/rancher/rke2/environment
       ExecStartPre=/bin/sh -xc '/usr/local/sbin/rke2-server-pre-start'
-      ExecStartPre=/bin/sh -xc '/usr/local/sbin/rke2-server-manifests-install'
+      ExecStartPre=/bin/sh -xc '/usr/local/sbin/rke2-config-install'
       ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-server-post-start'
 
   # Post-start configuration for all control plane nodes (but no Cilium check)
@@ -90,11 +46,9 @@ write_files:
   - path: /usr/local/sbin/rke2-server-post-start
     permissions: "0755"
     content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-server-post-start.sh    
-
-  # Generate RKE2 static manifests from environment variables (called by pre-start)
-  - path: /usr/local/sbin/rke2-server-manifests-install
+  - path: /usr/local/sbin/rke2-config-install
     permissions: "0755"
-    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-server-manifests-install.sh
+    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-config-install.sh
 
 runcmd:
   - systemctl daemon-reload

@@ -2,26 +2,7 @@
 # Contains all master-specific and bootstrap components EXCEPT any Cilium profile manifests.
 # @codebase
 
-write_files:
-  # Master ETCD config
-  - path: /etc/rancher/rke2/config.yaml.d/etcd.yaml
-    content: |
-      etcd-expose-metrics: true
-      node-name: master-control-node
-      with-node-id: false
-
-  # Cluster init
-  - path: /etc/rancher/rke2/config.yaml.d/cluster-init.yaml
-    content: |
-      cluster-init: true
-
-  # Cilium validation execution (script itself is in common.yaml, available on all nodes)
-  - path: /etc/systemd/system/rke2-server.service.d/post-start-master.conf
-    content: |
-      [Service]
-      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-cilium-check'
+write_files: []
 
 runcmd:
   - systemctl daemon-reload
-  - systemctl enable rke2-cluster-repo-sync.service
-  - systemctl start rke2-cluster-repo-sync.service

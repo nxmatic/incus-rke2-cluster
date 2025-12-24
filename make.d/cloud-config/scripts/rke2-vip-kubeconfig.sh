@@ -12,7 +12,7 @@ chmod 644 "$KUBECONFIG"
 : "Apply modifications to working copy"
 yq --inplace --from-file=<(cat <<EoE
 .clusters[0].cluster.name = "${CLUSTER_NAME}" |
-.clusters[0].cluster.server = "https://${CLUSTER_VIP_GATEWAY_IP}:6443" |
+.clusters[0].cluster.server = "https://${NETWORK_CLUSTER_VIP_GATEWAY_IP}:6443" |
 .clusters[0].name = "${CLUSTER_NAME}" |
 .contexts[0].context.cluster = "${CLUSTER_NAME}" |
 .contexts[0].context.namespace = "kube-system" |

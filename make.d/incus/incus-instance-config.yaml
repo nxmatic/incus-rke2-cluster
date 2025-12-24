@@ -1,8 +1,8 @@
 # incus instance config (@codebase)
-name: ${NODE_NAME}
+name: ${INCUS_NODE_NAME}
 architecture: aarch64
 profiles:
-  - ${NODE_PROFILE_NAME}
+  - ${INCUS_NODE_PROFILE_NAME}
 config:
   raw.lxc: |
     lxc.cap.drop =
@@ -12,38 +12,38 @@ config:
     lxc.cgroup.devices.allow = b *:* rwm
   security.privileged: true
   security.nesting: true
-  volatile.lan0.hwaddr: ${NODE_LAN_MAC}
-  volatile.vmnet0.hwaddr: ${NODE_WAN_MAC}
+  volatile.lan0.hwaddr: ${INCUS_NODE_LAN_MAC}
+  volatile.vmnet0.hwaddr: ${INCUS_NODE_WAN_MAC}
   # RKE2 Core Configuration
   environment.DEBUG: false
   environment.NODE_TYPE: "${NODE_TYPE}"
-  environment.CLUSTER_NAME: "${CLUSTER_NAME}"
-  environment.CLUSTER_TOKEN: "${CLUSTER_TOKEN}"
-  environment.CLUSTER_DOMAIN: "${CLUSTER_DOMAIN}"
+  environment.CLUSTER_NAME: "${INCUS_CLUSTER_NAME}"
+  environment.CLUSTER_TOKEN: "${INCUS_CLUSTER_TOKEN}"
+  environment.CLUSTER_DOMAIN: "${INCUS_CLUSTER_DOMAIN}"
   environment.TEKTON_GIT_URL: "${TEKTON_GIT_URL}"
   # Tailscale / Headscale provisioning
-  environment.NODE_ROLE: "${NODE_ROLE}"
-  environment.NODE_NAME: "${NODE_NAME}"
+  environment.NODE_ROLE: "${INCUS_NODE_ROLE}"
+  environment.NODE_NAME: "${INCUS_NODE_NAME}"
   environment.POD_NETWORK_CIDR: "${POD_NETWORK_CIDR}"
   environment.SERVICE_NETWORK_CIDR: "${SERVICE_NETWORK_CIDR}"
   # RKE2 Network Configuration
-  environment.CLUSTER_ID: "${CLUSTER_ID}"
-  environment.NODE_ID: "${NODE_ID}"
-  environment.NODE_HOST_IP: "${NODE_HOST_IP}"
-  environment.NODE_VIP_IP: "${NODE_VIP_IP}"
-  environment.NODE_NETWORK_CIDR: "${NODE_NETWORK_CIDR}"
-  environment.NODE_GATEWAY_IP: "${NODE_GATEWAY_IP}"
-  environment.CLUSTER_VIP_INTERFACE_NAME: "${CLUSTER_VIP_INTERFACE_NAME}"
-  environment.CLUSTER_VIP_NETWORK_CIDR: "${CLUSTER_VIP_NETWORK_CIDR}"
-  environment.CLUSTER_VIP_GATEWAY_IP: "${CLUSTER_VIP_GATEWAY_IP}"
-  environment.CLUSTER_NETWORK_CIDR: "${CLUSTER_NETWORK_CIDR}"
-  environment.CLUSTER_LOADBALANCER_NETWORK_CIDR: "${CLUSTER_LOADBALANCER_NETWORK_CIDR}"
-  environment.CLUSTER_LOADBALANCER_GATEWAY_IP: "${CLUSTER_LOADBALANCER_GATEWAY_IP}"
-  environment.HOME_LAN_LOADBALANCER_POOL: "${HOME_LAN_LOADBALANCER_POOL}"
-  environment.NODE_LAN_INTERFACE_NAME: "${NODE_LAN_INTERFACE_NAME}"
-  environment.NODE_VMNET_INTERFACE_NAME: "${NODE_VMNET_INTERFACE_NAME}"
+  environment.CLUSTER_ID: "${INCUS_CLUSTER_ID}"
+  environment.NODE_ID: "${INCUS_NODE_ID}"
+  environment.NODE_HOST_IP: "${INCUS_NODE_HOST_IP}"
+  environment.NODE_VIP_IP: "${INCUS_NODE_VIP_IP}"
+  environment.NODE_NETWORK_CIDR: "${INCUS_NODE_NETWORK_CIDR}"
+  environment.NODE_GATEWAY_IP: "${INCUS_NODE_GATEWAY_IP}"
+  environment.CLUSTER_VIP_INTERFACE_NAME: "${INCUS_CLUSTER_VIP_INTERFACE_NAME}"
+  environment.CLUSTER_VIP_NETWORK_CIDR: "${INCUS_CLUSTER_VIP_NETWORK_CIDR}"
+  environment.CLUSTER_VIP_GATEWAY_IP: "${INCUS_CLUSTER_VIP_GATEWAY_IP}"
+  environment.CLUSTER_NETWORK_CIDR: "${INCUS_CLUSTER_NETWORK_CIDR}"
+  environment.CLUSTER_LOADBALANCER_NETWORK_CIDR: "${INCUS_CLUSTER_LOADBALANCER_NETWORK_CIDR}"
+  environment.CLUSTER_LOADBALANCER_GATEWAY_IP: "${INCUS_CLUSTER_LOADBALANCER_GATEWAY_IP}"
+  environment.HOME_LAN_LOADBALANCER_POOL: "${INCUS_HOME_LAN_LOADBALANCER_POOL}"
+  environment.NODE_LAN_INTERFACE_NAME: "${INCUS_NODE_LAN_INTERFACE_NAME}"
+  environment.NODE_VMNET_INTERFACE_NAME: "${INCUS_NODE_VMNET_INTERFACE_NAME}"
   # Cluster Gateway (Lima VM on WAN bridge)
-  environment.CLUSTER_GATEWAY_IP: "${CLUSTER_GATEWAY_IP}"
+  environment.CLUSTER_GATEWAY_IP: "${INCUS_CLUSTER_GATEWAY_IP}"
   # Container Runtime Configuration
   environment.CONTAINERD_ADDRESS: "/run/k3s/containerd/containerd.sock"
   environment.CONTAINERD_NAMESPACE: "k8s.io"
@@ -96,29 +96,33 @@ devices:
     readonly: "true"
   manifests.dir :
     type: disk
-    source: ${CLUSTER_RK2E_MANIFESTS_DIR}
+    source: ${INCUS_CLUSTER_RK2E_MANIFESTS_DIR}
     path: /srv/manifests.d
+  rke2.config.dir:
+    type: disk
+    source: ${INCUS_CLUSTER_RKE2_CONFIG_DIR}
+    path: /srv/rke2-config
   shared.dir:
     type: disk
-    source: ${PWD}/${RUN_INSTANCE_DIR}/shared
+    source: ${PWD}/${INCUS_RUN_INSTANCE_DIR}/shared
     path: /.shared.d
   logs.dir:
     type: disk
-    source: ${PWD}/${RUN_INSTANCE_DIR}/logs
+    source: ${PWD}/${INCUS_RUN_INSTANCE_DIR}/logs
     path: /.logs.d
   kubeconfig.dir:
     type: disk
-    source: ${PWD}/${RUN_INSTANCE_DIR}/kube
+    source: ${PWD}/${INCUS_RUN_INSTANCE_DIR}/kube
     path: /.kubeconfig.d
   user.metadata:
     type: disk
-    source: ${PWD}/${RUN_NOCLOUD_METADATA_FILE}
+    source: ${PWD}/${INCUS_RUN_NOCLOUD_METADATA_FILE}
     path: /var/lib/cloud/seed/nocloud/meta-data
   user.user-data:
     type: disk
-    source: ${PWD}/${RUN_NOCLOUD_USERDATA_FILE}
+    source: ${PWD}/${INCUS_RUN_NOCLOUD_USERDATA_FILE}
     path: /var/lib/cloud/seed/nocloud/user-data
   user.network-config:
     type: disk
-    source: ${PWD}/${RUN_NOCLOUD_NETCFG_FILE}
+    source: ${PWD}/${INCUS_RUN_NOCLOUD_NETCFG_FILE}
     path: /var/lib/cloud/seed/nocloud/network-config

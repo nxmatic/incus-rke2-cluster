@@ -1,0 +1,43 @@
+== OpenEBS ZFS CSI Driver
+
+This kpt package deploys the OpenEBS ZFS CSI driver for persistent
+storage backed by ZFS.
+
+=== Components
+
+* *Namespace*: Creates `+openebs+` namespace
+* *HelmChart*: Deploys OpenEBS ZFS LocalPV chart v2.8.0
+* *StorageClass*: Configures `+openebs-zfs+` storage class with
+WaitForFirstConsumer binding
+
+=== Setters
+
+* `+zfs-poolname+`: ZFS pool name (default: `+tank+`)
+* `+zfs-bin+`: Path to the `+zfs+` binary on hosts (default: `+/usr/sbin/zfs+`; override per host type)
+* `+kubelet-dir+`: Kubelet directory on nodes (default: `+/var/lib/kubelet+`; override for RKE2 if needed)
+
+Setter layering: root `+catalog/setters.yaml+` provides cluster-wide defaults; this package ships sample setters in `+setters.yaml+`; per-cluster overrides live in `+catalog/packagevariants/<cluster>/<cluster>-setters.yaml+`.
+
+=== Usage
+
+[source,bash]
+----
+# @codebase Apply setters in-place using package defaults (overridable downstream)
+kpt fn eval --image ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2 --include-meta-resources -- \
+  zfs-poolname=tank \
+  zfs-bin=/usr/sbin/zfs \
+  kubelet-dir=/var/lib/kubelet
+
+# @codebase When vendored into a packagevariant, run apply-setters with the cluster's setters file
+kpt fn render --fn-config ../bioskop-setters.yaml
+
+# Deploy
+kpt live init .
+kpt live apply .
+----
+
+=== Dependencies
+
+* ZFS kernel module loaded on all nodes
+* ZFS pool created (e.g., `+tank+`)
+* Proper ZFS permissions configured
