@@ -7,6 +7,8 @@ ifndef make.d/cluster/rules.mk
 -include make.d/node/rules.mk # Node identity and role variables (@codebase)
 -include make.d/kpt/rules.mk  # KPT Packages (@codebase)
 
+
+
 # -----------------------------------------------------------------------------
 # Ownership: This layer owns cluster identity + pod/service CIDR mapping and
 # hierarchical addressing comments. Other layers (network/incus/cloud-config)
@@ -17,15 +19,60 @@ ifndef make.d/cluster/rules.mk
 # PRIVATE VARIABLES (internal layer implementation)  
 # =============================================================================
 
-# Note: Cluster configuration now managed in node/rules.mk
-# This layer provides validation and exports only
+# Cluster configuration (inlined from cluster-templates.mk)
+.cluster.name ?= $(if $(LIMA_HOSTNAME),$(LIMA_HOSTNAME),bioskop)
+# Guard against empty override (e.g., CLUSTER_NAME="" or env leaking an empty value)
+ifeq ($(strip $(.cluster.name)),)
+  .cluster.name := bioskop
+endif
+.cluster.token ?= $(.cluster.name)
+.cluster.domain = cluster.local
 
+# Cluster-specific configurations
+ifeq ($(cluster.name),bioskop)
+  .cluster.id := 0
+  .cluster.lima_lan_interface := vmlan0
+  .cluster.lima_vmnet_interface := vmwan0
+  .cluster.state_repo := https://github.com/nxmatic/fleet-manifests.git
+  .cluster.state_branch := rke2-subtree
+else ifeq ($(cluster.name),alcide)
+  .cluster.id := 1
+  .cluster.lima_lan_interface := vmlan0
+  .cluster.lima_vmnet_interface := vmwan0
+else ifeq ($(cluster.name),nikopol)
+  .cluster.id := 2
+  .cluster.lima_lan_interface := vmlan0
+  .cluster.lima_vmnet_interface  := vmwan0
+else
+  .cluster.id := 7
+  .cluster.lima_lan_interface := vmlan0
+  .cluster.lima_vmnet_interface := vmwan0
+endif
+
+# Compute Pod/Service CIDRs from base + cluster index (0-based)
+# Dynamic Pod/Service CIDR calculation via GMSL math (no python)
+.cluster.cidr_pod_base_octet := 42
+.cluster.cidr_svc_base_octet := 43
+.cluster.cidr_step := 2
+
+.cluster.pod.cidr := 10.$(call plus,$(.cluster.cidr_pod_base_octet),$(call multiply,$(.cluster.id),$(.cluster.cidr_step))).0.0/16
+.cluster.service.cidr := 10.$(call plus,$(.cluster.cidr_svc_base_octet),$(call multiply,$(.cluster.id),$(.cluster.cidr_step))).0.0/16
 # =============================================================================
 # PUBLIC CLUSTER API
 # =============================================================================
 
-# Public cluster API (re-export from node layer)
-# (All cluster variables defined in node/rules.mk)
+cluster.id := $(.cluster.id)
+cluster.name := $(.cluster.name)
+cluster.token := $(.cluster.token)
+cluster.domain := $(.cluster.domain)
+cluster.id := $(.cluster.id)
+cluster.pod.cidr := $(.cluster.pod.cidr)
+cluster.service.cidr := $(.cluster.service.cidr)
+cluster.lima_lan_interface := $(.cluster.lima_lan_interface)
+cluster.lima_vmnet_interface := $(.cluster.lima_vmnet_interface)
+cluster.state_repo := $(.cluster.state_repo)
+
+$(info [cluster] Derived cluster.name=$(cluster.name))
 
 # -----------------------------------------------------------------------------
 # Hierarchical Addressing Reference (moved from Makefile) (@codebase)

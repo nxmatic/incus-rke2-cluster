@@ -1,0 +1,59 @@
+# Generated assignments for cluster alcide (ID: 1) - do not edit manually
+
+export INCUS_CLUSTER_NAME=alcide
+export INCUS_CLUSTER_TOKEN=alcide
+export INCUS_CLUSTER_DOMAIN=cluster.local
+export INCUS_NODE_NAME=master
+export INCUS_NODE_ROLE=master
+export INCUS_CLUSTER_ID=1
+export INCUS_NODE_ID=0
+export INCUS_IMAGE_NAME=control-node
+
+export INCUS_CLUSTER_RK2E_MANIFESTS_DIR=/net/alcide.lan/private/var/lib/git/nxmatic/incus-rke2-cluster/rke2-subtree/alcide/manifests.d
+export INCUS_CLUSTER_RKE2_CONFIG_DIR=/net/alcide.lan/private/var/lib/git/nxmatic/incus-rke2-cluster/rke2-subtree/alcide/catalog/runtime/rke2-config
+
+export INCUS_HOST_SUPERNET_CIDR=10.80.0.0/18
+export INCUS_CLUSTER_NETWORK_CIDR=10.80.8.0/21
+export INCUS_CLUSTER_NETWORK_POD_CIDR=10.42.0.0/16
+export INCUS_CLUSTER_NETWORK_SERVICE_CIDR=10.45.0.0/16
+export INCUS_CLUSTER_VIP_NETWORK_CIDR=10.80.63.0/24
+export INCUS_CLUSTER_VIP_GATEWAY_IP=10.80.63.1
+export INCUS_CLUSTER_LOADBALANCER_NETWORK_CIDR=10.80.56.64/26
+export INCUS_CLUSTER_LOADBALANCER_GATEWAY_IP=10.80.56.65
+export INCUS_NODE_NETWORK_CIDR=10.80.56.0/23
+export INCUS_NODE_GATEWAY_IP=10.80.56.1
+export INCUS_NODE_HOST_IP=10.80.56.10
+export INCUS_NODE_VIP_IP=10.80.63.10
+export INCUS_NODE_LAN_INTERFACE_NAME=master-lan0
+export INCUS_NODE_VMNET_INTERFACE_NAME=master-vmnet0
+export INCUS_CLUSTER_VIP_INTERFACE_NAME=rke2-vip0
+export INCUS_VIP_VLAN_ID=100
+export INCUS_VIP_VLAN_NAME=rke2-vlan
+export INCUS_LAN_BR_HWADDR=02:00:00:bb:00:00
+export INCUS_CLUSTER_GATEWAY_IP=10.80.8.1
+export INCUS_WAN_DHCP_RANGE=10.80.8.2-10.80.8.9,10.80.8.31-10.80.15.254
+export INCUS_NODE_WAN_MAC=52:54:00:00:00:00
+export INCUS_NODE_LAN_MAC=10:66:6a:4c:00:00
+export INCUS_NODE_PROFILE_NAME=rke2-cluster
+export INCUS_MASTER_NODE_IP=10.80.56.3
+
+export INCUS_LAN_LOADBALANCER_POOL=192.168.1.32/27
+export INCUS_LAN_HEADSCALE_IP=192.168.1.33
+export INCUS_LAN_TAILSCALE_IP=192.168.1.34
+export INCUS_HOME_LAN_LOADBALANCER_POOL=192.168.1.32/27
+
+export INCUS_NODE_WAN_MAC_MASTER=52:54:00:01:00:00
+export INCUS_NODE_WAN_MAC_PEER1=52:54:00:01:00:01
+export INCUS_NODE_WAN_MAC_PEER2=52:54:00:01:00:02
+export INCUS_NODE_WAN_MAC_PEER3=52:54:00:01:00:03
+export INCUS_NODE_WAN_MAC_WORKER1=52:54:00:01:01:0a
+export INCUS_NODE_WAN_MAC_WORKER2=52:54:00:01:01:0b
+export INCUS_CLUSTER_NODE_IP_BASE=10.80.8
+export INCUS_PROJECT_NAME=rke2
+export INCUS_RUN_INSTANCE_DIR=rke2-subtree/alcide/incus/master
+export INCUS_RUN_NOCLOUD_METADATA_FILE=rke2-subtree/alcide/incus/master/nocloud/metadata
+export INCUS_RUN_NOCLOUD_USERDATA_FILE=rke2-subtree/alcide/incus/master/nocloud/userdata
+export INCUS_RUN_NOCLOUD_NETCFG_FILE=rke2-subtree/alcide/incus/master/nocloud/network-config
+export INCUS_CLUSTER_INET_MASTER=10.80.56.10
+export INCUS_RUN_WORKSPACE_DIR=/var/lib/nixos/config/modules/nixos/incus-rke2-cluster
+export INCUS_EGRESS_INTERFACE=vmlan0

@@ -54,14 +54,13 @@ REMOTE_EXEC := $(shell if [ -x /run/wrappers/bin/sudo ]; then echo ""; else echo
 # NODE_ID, NODE_TYPE, and NODE_ROLE are automatically set
 
 # Include layered modules using rules.mk convention (@codebase)
--include make.d/cloud-config/rules.mk
 -include make.d/cluster/rules.mk
 -include make.d/node/rules.mk
 -include make.d/network/rules.mk
 -include make.d/plantuml/rules.mk
+-include make.d/cloud-config/rules.mk
 -include make.d/incus/rules.mk
--include make.d/rules.mk
-
+-include make.d/kpt/rules.mk
 
 # Legacy compatibility aliases for templates (all logic moved to  variables above)
 CLUSTER_NAME := $(CLUSTER_NAME)

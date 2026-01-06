@@ -3,6 +3,8 @@
 
 ifndef make.d/incus/rules.mk
 
+make.d/incus/rules.mk := make.d/incus/rules.mk  # guard to allow safe re-inclusion (@codebase)
+
 -include make.d/make.mk  # Ensure availability when file used standalone (@codebase)
 -include make.d/node/rules.mk  # Node identity and role variables (@codebase)
 -include make.d/cluster/rules.mk  # Cluster configuration and variables (@codebase)
@@ -15,18 +17,6 @@ ifndef make.d/incus/rules.mk
 # =============================================================================
 # PRIVATE VARIABLES (internal layer implementation)
 # =============================================================================
-
-# Directory layout (per-instance runtime)
-.incus.secrets.file := $(abspath $(.make.top-dir)/.secrets)
-.incus.yq.bin := $(shell command -v yq 2>/dev/null)
-
-define incus-secret-from-yaml
-$(strip $(if $(and $(.incus.yq.bin),$(wildcard $(.incus.secrets.file))),$(shell yq -r '$(1) // ""' $(.incus.secrets.file) 2>/dev/null),))
-endef
-
-define incus-secret
-$(strip $(call incus-secret-from-yaml,$(1)))
-endef
 
 .incus.dir = $(rke2-subtree.dir)/$(cluster.name)/incus
 .incus.build.local.dir = /tmp/incus-build/$(strip $(cluster.name))
@@ -75,38 +65,6 @@ endef
 .incus.lima.secondary.interface = $(.incus.lima.vmnet.interface)
 .incus.egress.interface = $(.incus.lima.primary.interface)
 
-# Tailscale secrets (canonical naming only, file-based fallback removed) – used for image build & cleanup (@codebase)
-# Notes:
-#  - Secrets resolve exclusively from the SOPS-managed YAML (.secrets).
-#  - Populate tailscale.* and github.* entries with `sops --in-place` edits. The GHCR dockerconfigjson
-#    content is derived automatically from the GitHub credentials below.
-.incus.tskey.client.id = $(call incus-secret,.tailscale.client.id)
-.incus.tskey.client.token = $(call incus-secret,.tailscale.client.token)
-.incus.tskey.api.id = $(call incus-secret,.tailscale.api.id)
-.incus.tskey.api.token = $(call incus-secret,.tailscale.api.token)
-.incus.cluster.github.token = $(call incus-secret,.github.token)
-.incus.cluster.github.username = $(or $(call incus-secret,.github.username,),x-access-token)
-
-define .incus-github-basic-auth
-$(shell printf '%s' "$(strip $(.incus.cluster.github.username)):$(strip $(.incus.cluster.github.token))" |
-   base64 |
-   tr -d '\n')
-endef
-
-define .incus-ghcr-dockerconfig-json
-$(shell yq -o=json -I 0 -n '{"auths": {"ghcr.io": {"username": "$(.incus.cluster.github.username)", "password": "$(.incus.cluster.github.token)", "auth": "$(call .incus-github-basic-auth)"}}}' \
-	| base64 | tr -d '\n')
-endef
-
-
-ifeq ($(origin .incus.dockerconfig.json),undefined)
-ifneq ($(strip $(CLUSTER_DOCKER_CONFIG_JSON)),)
-.incus.dockerconfig.json := $(strip $(CLUSTER_DOCKER_CONFIG_JSON))
-else
-.incus.dockerconfig.json := $(call .incus-ghcr-dockerconfig-json)
-endif
-endif
-
 # Instance naming defaults (image alias)
 .incus.image.name = control-node
 
@@ -118,7 +76,7 @@ endif
 # =============================================================================
 
 # Cluster master token template (retained for compatibility)
-.cluster.master.inet = $(call network.cidr-to-host-ip,$(network.node.subnets.network.0),$(call plus,10,0))
+.cluster.master.inet = $(call network.subnet-host-ip,node,0,10)
 
 define .incus.cluster.token.content :=
 # Bootstrap server points at the master primary IP (@codebase)
@@ -134,24 +92,26 @@ define .incus.env.content :=
 # Generated assignments for cluster $(cluster.name) (ID: $(cluster.id)) - do not edit manually
 
 export INCUS_CLUSTER_NAME=$(cluster.name)
+export INCUS_CLUSTER_TOKEN=$(cluster.token)
+export INCUS_CLUSTER_DOMAIN=$(cluster.domain)
 export INCUS_NODE_NAME=$(node.name)
 export INCUS_NODE_ROLE=$(node.role)
 export INCUS_CLUSTER_ID=$(cluster.id)
 export INCUS_NODE_ID=$(node.id)
 export INCUS_IMAGE_NAME=$(.incus.image.name)
 
-export INCUS_CLUSTER_RK2E_MANIFESTS_DIR=$(.kpt.manifests.dir)
-export INCUS_CLUSTER_RKE2_CONFIG_DIR=$(rke2-subtree.dir)/$(cluster.name)/catalog/runtime/rke2-config
+export INCUS_CLUSTER_RK2E_MANIFESTS_DIR=$(abspath $(.kpt.manifests.dir))
+export INCUS_CLUSTER_RKE2_CONFIG_DIR=$(abspath $(rke2-subtree.dir)/$(cluster.name)/catalog/runtime/rke2-config)
 
 export INCUS_HOST_SUPERNET_CIDR=$(network.host.supernet.cidr)
-export INCUS_CLUSTER_NETWORK_CIDR=$(network.cluster.network.cidr)
-export INCUS_CLUSTER_POD_NETWORK_CIDR=$(network.cluster.pod_network_cidr)
-export INCUS_CLUSTER_SERVICE_NETWORK_CIDR=$(cluster.service_network_cidr)
+export INCUS_CLUSTER_NETWORK_CIDR=$(network.cluster.cidr)
+export INCUS_CLUSTER_NETWORK_POD_CIDR=$(network.cluster.pod.cidr)
+export INCUS_CLUSTER_NETWORK_SERVICE_CIDR=$(cluster.service.cidr)
 export INCUS_CLUSTER_VIP_NETWORK_CIDR=$(network.cluster.vip.cidr)
 export INCUS_CLUSTER_VIP_GATEWAY_IP=$(network.cluster.vip.gateway)
 export INCUS_CLUSTER_LOADBALANCER_NETWORK_CIDR=$(network.cluster.lb.cidr)
 export INCUS_CLUSTER_LOADBALANCER_GATEWAY_IP=$(network.cluster.lb.gateway)
-export INCUS_NODE_NETWORK_CIDR=$(network.node.network.cidr)
+export INCUS_NODE_NETWORK_CIDR=$(network.node.cidr)
 export INCUS_NODE_GATEWAY_IP=$(network.node.gateway.inet)
 export INCUS_NODE_HOST_IP=$(network.node.host.inet)
 export INCUS_NODE_VIP_IP=$(network.node.vip.inet)
@@ -171,6 +131,7 @@ export INCUS_MASTER_NODE_IP=$(network.master.node.inet)
 export INCUS_LAN_LOADBALANCER_POOL=$(network.lan.lb.pool)
 export INCUS_LAN_HEADSCALE_IP=$(network.lan.headscale.inet)
 export INCUS_LAN_TAILSCALE_IP=$(network.lan.tailscale.inet)
+export INCUS_HOME_LAN_LOADBALANCER_POOL=$(network.lan.lb.pool)
 
 export INCUS_NODE_WAN_MAC_MASTER=$(shell printf '52:54:00:%02x:00:00' $(cluster.id))
 export INCUS_NODE_WAN_MAC_PEER1=$(shell printf '52:54:00:%02x:00:01' $(cluster.id))
@@ -178,7 +139,7 @@ export INCUS_NODE_WAN_MAC_PEER2=$(shell printf '52:54:00:%02x:00:02' $(cluster.i
 export INCUS_NODE_WAN_MAC_PEER3=$(shell printf '52:54:00:%02x:00:03' $(cluster.id))
 export INCUS_NODE_WAN_MAC_WORKER1=$(shell printf '52:54:00:%02x:01:0a' $(cluster.id))
 export INCUS_NODE_WAN_MAC_WORKER2=$(shell printf '52:54:00:%02x:01:0b' $(cluster.id))
-export INCUS_CLUSTER_NODE_IP_BASE=$(network.host.subnets.base.$(cluster.id))
+export INCUS_CLUSTER_NODE_IP_BASE=$(call cidr-to-base-inetaddr,$(network.host.split.$(.cluster.id).cidr))
 export INCUS_PROJECT_NAME=rke2
 export INCUS_RUN_INSTANCE_DIR=$(.incus.instance.dir)
 export INCUS_RUN_NOCLOUD_METADATA_FILE=$(.incus.run.nocloud.metadata.file)
@@ -275,6 +236,7 @@ $(.incus.instance.config.file): $(.incus.instance.metadata.file)
 $(.incus.instance.config.file): $(.incus.instance.userdata.file) 
 $(.incus.instance.config.file): $(.incus.instance.netcfg.file)
 $(.incus.instance.config.file): $(.incus.env.file)
+$(.incus.instance.config.file): $(.kpt.manifests.dir)
 $(.incus.instance.config.file): | $(.incus.instance.dir)/
 $(.incus.instance.config.file): | $(.incus.nocloud.dir)/
 $(.incus.instance.config.file):
@@ -430,16 +392,16 @@ diagnostics@incus:
 network-status@incus: ## Show container network status
 	: "[i] Container Network Status"
 	: "============================"
-	: "Container: $(NODE_NAME)"
-	if $(.incus.command) info $(NODE_NAME) --project=rke2 >/dev/null 2>&1; then
+	: "Container: $(node.name)"
+	if $(.incus.command) info $(node.name) --project=rke2 >/dev/null 2>&1; then
 		: "Container network interfaces:";
-		$(.incus.command) exec $(NODE_NAME) --project=rke2 -- ip -o addr show lan0 2>/dev/null || echo "  lan0: not available";
-		$(.incus.command) exec $(NODE_NAME) --project=rke2 -- ip -o addr show vmnet0 2>/dev/null || echo "  vmnet0: not available";
+		$(.incus.command) exec $(node.name) --project=rke2 -- ip -o addr show lan0 2>/dev/null || echo "  lan0: not available";
+		$(.incus.command) exec $(node.name) --project=rke2 -- ip -o addr show vmnet0 2>/dev/null || echo "  vmnet0: not available";
 		: "";
 		: "Connectivity test:";
-		$(.incus.command) exec $(NODE_NAME) --project=rke2 -- ping -c1 -W2 8.8.8.8 >/dev/null 2>&1 && echo "  Internet: OK" || echo "  Internet: FAILED";
+		$(.incus.command) exec $(node.name) --project=rke2 -- ping -c1 -W2 8.8.8.8 >/dev/null 2>&1 && echo "  Internet: OK" || echo "  Internet: FAILED";
 	else
-		: "Container $(NODE_NAME) not found or not running";
+		: "Container $(node.name) not found or not running";
 	fi
 
 #-----------------------------
@@ -454,16 +416,16 @@ $(.incus.image.import.marker.file): $(.incus.image.build.files)
 $(.incus.image.import.marker.file): switch-project@incus
 $(.incus.image.import.marker.file): | $(.incus.dir)/
 $(.incus.image.import.marker.file):
-	if $(.incus.command) image show $(IMAGE_NAME) --project=rke2 >/dev/null 2>&1; then
-		: "[✓] Image $(IMAGE_NAME) already present; skipping import"
+	if $(.incus.command) image show $(.incus.image.name) --project=rke2 >/dev/null 2>&1; then
+		: "[✓] Image $(.incus.image.name) already present; skipping import"
 	else
-		: "[+] Importing image for instance $(NODE_NAME) into rke2 project..."
-		$(.incus.command) image import --alias $(IMAGE_NAME) $(.incus.image.build.files)
+		: "[+] Importing image for instance $(node.name) into rke2 project..."
+		$(.incus.command) image import --alias $(.incus.image.name) $(.incus.image.build.files)
 	fi
 	touch $@
 
 $(call register-distrobuilder-targets,$(.incus.image.build.files))
-# ($(IMAGE_NAME)) TSKEY export removed; image build uses TSKEY_CLIENT directly (@codebase)
+# ($(.incus.image.name)) TSKEY export removed; image build uses TSKEY_CLIENT directly (@codebase)
 # Local build target that always uses local filesystem (never virtiofs)
 # This is an internal target that creates the actual image files with robust cleanup
 $(.incus.image.build.files)&: $(.incus.distrobuilder.file) | $(.incus.dir)/ verify-context@incus switch-project@incus
@@ -473,9 +435,11 @@ $(.incus.image.build.files)&: $(.incus.distrobuilder.file) | $(.incus.dir)/ veri
 	echo "[+] Building filesystem first, then packing into Incus image"
 	sudo distrobuilder build-dir $(.incus.distrobuilder.file.abs) "$(.incus.build.local.dir)" --disable-overlay
 	echo "[+] Creating temporary config for packing (without debootstrap options)"
-	# sed '/options:/,/variant: "buildd"/d' $(.incus.distrobuilder.file.abs) > "/tmp/${cluster.name}-pack.yaml"
+	PACK_CFG="/tmp/${cluster.name}-pack.yaml"
+	sed '/^options:/,/^ *variant: "buildd"/d' $(.incus.distrobuilder.file.abs) > "$$PACK_CFG"
+	echo "  [i] pack config: $$PACK_CFG"
 	echo "[+] Packing filesystem into Incus image format"
-	sudo distrobuilder pack-incus "/tmp/${cluster.name}-pack.yaml" "$(.incus.build.local.dir)" $(.incus.dir) --debug
+	sudo distrobuilder pack-incus "$$PACK_CFG" "$(.incus.build.local.dir)" $(.incus.dir) --debug
 
 # Helper phony target for remote build delegation
 .PHONY: build-image-local@incus
@@ -522,23 +486,22 @@ create@incus: $(.incus.image.build.files)
 # Instance configuration
 create@incus: $(.incus.instance.config.file)
 create@incus: $(.incus.instance.config.marker.file) ## Create instance configuration and setup (@codebase)
-# Network dependencies
-create@incus: generate@network
 # Runtime directories (order-only)
 create@incus: | $(.incus.dir)/
 create@incus: | $(.incus.nocloud.dir)/
 create@incus: | $(.incus.shared.dir)/
 create@incus: | $(.incus.kubeconfig.dir)/
 create@incus: | $(.incus.logs.dir)/
+create@incus: | $(.kpt.manifests.dir)/
 create@incus: switch-project@incus
 create@incus:
-	: "[+] Ensuring Incus instance $(NODE_NAME) in project rke2...";
-	if ! $(.incus.command) info $(NODE_NAME) --project=rke2 >/dev/null 2>&1; then
-		: "[!] Instance $(NODE_NAME) missing; creating";
+	: "[+] Ensuring Incus instance $(node.name) in project rke2...";
+	if ! $(.incus.command) info $(node.name) --project=rke2 >/dev/null 2>&1; then
+		: "[!] Instance $(node.name) missing; creating";
 		rm -f $(.incus.instance.config.marker.file);
-		$(.incus.command) init $(IMAGE_NAME) $(NODE_NAME) --project=rke2 < $(.incus.instance.config.file);
+		$(.incus.command) init $(.incus.image.name) $(node.name) --project=rke2 < $(.incus.instance.config.file);
 	else
-		: "[✓] Instance $(NODE_NAME) already exists";
+		: "[✓] Instance $(node.name) already exists";
 	fi
 
 .PHONY: recreate-create@incus
@@ -558,15 +521,15 @@ create-create@incus: | $(.incus.shared.dir)/
 create-create@incus: | $(.incus.kubeconfig.dir)/
 create-create@incus: | $(.incus.logs.dir)/
 create-create@incus:
-	: "[+] Recreating Incus instance $(NAME) in project rke2...";
-	$(.incus.command) init $(IMAGE_NAME) $(NAME) --project=rke2 < $(.incus.instance.config.file);
+	: "[+] Recreating Incus instance $(node.name) in project rke2...";
+	$(.incus.command) init $(.incus.image.name) $(node.name) --project=rke2 < $(.incus.instance.config.file);
 
 # Image ensure target (build + import if missing)
 .PHONY: ensure-image@incus
 ensure-image@incus:
-	: "[+] Ensuring image $(IMAGE_NAME) exists in project rke2...";
-	if ! $(.incus.command) image show $(IMAGE_NAME) --project=rke2 >/dev/null 2>&1; then
-		echo "[e] Image $(IMAGE_NAME) missing";
+	: "[+] Ensuring image $(.incus.image.name) exists in project rke2...";
+	if ! $(.incus.command) image show $(.incus.image.name) --project=rke2 >/dev/null 2>&1; then
+		echo "[e] Image $(.incus.image.name) missing";
 		exit 1;
 	fi
 	: "[i] VIP interface defined in profile - no separate device addition needed"
@@ -590,15 +553,15 @@ $(.incus.instance.config.marker.file).init: | $(.incus.shared.dir)/
 $(.incus.instance.config.marker.file).init: | $(.incus.kubeconfig.dir)/
 $(.incus.instance.config.marker.file).init: | $(.incus.logs.dir)/
 $(.incus.instance.config.marker.file).init:
-	: "[+] Initializing instance $(NODE_NAME) in project rke2..."
-	$(.incus.command) init $(IMAGE_NAME) $(NODE_NAME) --project=rke2 < $(.incus.instance.config.file)
+	: "[+] Initializing instance $(node.name) in project rke2..."
+	$(.incus.command) init $(.incus.image.name) $(node.name) --project=rke2 < $(.incus.instance.config.file)
 	: "[i] Interfaces: lan0 (macvlan) + vmnet0 (Incus bridge)"
 
 $(.incus.instance.config.marker.file): $(.incus.instance.config.marker.file).init
 $(.incus.instance.config.marker.file): | $(.incus.dir)/ ## Ensure incus dir exists before cloud-init cleanup (@codebase)
 	: "[+] Ensuring clean cloud-init state for fresh network configuration..."
-	: $(.incus.command) exec $(NODE_NAME) -- rm -rf /var/lib/cloud/instance /var/lib/cloud/instances /var/lib/cloud/data /var/lib/cloud/sem || true
-	: $(.incus.command) exec $(NODE_NAME) -- rm -rf /run/cloud-init /run/systemd/network/10-netplan-* || true
+	: $(.incus.command) exec $(node.name) -- rm -rf /var/lib/cloud/instance /var/lib/cloud/instances /var/lib/cloud/data /var/lib/cloud/sem || true
+	: $(.incus.command) exec $(node.name) -- rm -rf /run/cloud-init /run/systemd/network/10-netplan-* || true
 	touch $@
 
 start@incus: switch-project@incus
@@ -606,39 +569,39 @@ start@incus: create@incus
 start@incus: zfs.allow 
 start@incus: ## Start the Incus instance
 	$(call trace,Entering target: start@incus)
-	$(call trace-var,NODE_NAME)
-	$(call trace-incus,Starting instance $(NODE_NAME))
-	: "[+] Starting instance $(NODE_NAME)...";
-	if $(.incus.command) start $(NODE_NAME); then
-		echo "✓ Instance $(NODE_NAME) started successfully";
+	$(call trace-var,incus.node.name)
+	$(call trace-incus,Starting instance $(node.name))
+	: "[+] Starting instance $(node.name)...";
+	if $(.incus.command) start $(node.name); then
+		echo "✓ Instance $(node.name) started successfully";
 	else
-		echo "✗ Failed to start instance $(NODE_NAME)";
+		echo "✗ Failed to start instance $(node.name)";
 		exit 1;
 	fi
 	$(call trace,Completed target: start@incus)
 
 shell@incus: ## Open interactive shell in the instance
-	: "[+] Opening a shell in instance $(NODE_NAME)...";
-	if $(.incus.command) info $(NODE_NAME) --project=rke2 >/dev/null 2>&1; then
-		echo "✓ Instance $(NODE_NAME) is available";
-		$(.incus.command) exec $(NODE_NAME) --project=rke2 -- zsh;
+	: "[+] Opening a shell in instance $(node.name)...";
+	if $(.incus.command) info $(node.name) --project=rke2 >/dev/null 2>&1; then
+		echo "✓ Instance $(node.name) is available";
+		$(.incus.command) exec $(node.name) --project=rke2 -- zsh;
 	else
-		echo "✗ Instance $(NODE_NAME) not found or not running";
+		echo "✗ Instance $(node.name) not found or not running";
 		echo "Use 'make start' to start the instance first";
 		exit 1;
 	fi
 
 stop@incus: ## Stop the running instance
-	: "[+] Stopping instance $(NODE_NAME) if running..."
-	$(.incus.command) stop $(NODE_NAME) || true
+	: "[+] Stopping instance $(node.name) if running..."
+	$(.incus.command) stop $(node.name) || true
 
 delete@incus: ## Delete the instance (keeps configuration)
-	: "[+] Removing instance $(NODE_NAME)..."
-	$(.incus.command) delete -f $(NODE_NAME) || true
+	: "[+] Removing instance $(node.name)..."
+	$(.incus.command) delete -f $(node.name) || true
 	rm -f $(.incus.instance.config.marker.file) || true
 
 .PHONY: remove-member@etcd
-remove-member@etcd: nodeName = $(NODE_NAME)
+remove-member@etcd: nodeName = $(node.name)
 remove-member@etcd: ## Remove etcd member for peer/server nodes from cluster
 	@if [ "$(nodeName)" != "master" ] && [ "$(NODE_TYPE)" = "server" ]; then
 		: "[+] Removing etcd member for $(nodeName)..."
@@ -661,8 +624,7 @@ remove-member@etcd: ## Remove etcd member for peer/server nodes from cluster
 
 clean@incus: remove-member@etcd
 clean@incus: delete@incus 
-clean@incus: remove-hosts@tailscale
-clean@incus: nodeName = $(NODE_NAME)
+clean@incus: nodeName = $(node.name)
 clean@incus: ## Remove instance, profiles, storage volumes, and runtime directories
 	: "[+] Removing $(nodeName) if exists..."
 	$(.incus.command) profile delete rke2-$(nodeName) --project=rke2 || true
@@ -698,41 +660,15 @@ clean-all@incus: ## Clean all cluster nodes and shared resources (destructive)
 
 .PHONY: zfs.allow
 
-zfs.allow: $(INCUS_ZFS_ALLOW_MARKER_FILE)
+.incus.zfs.allow.marker.file = $(rke2-subtree.dir)/zfs-allow-tank.marker
 
-$(INCUS_ZFS_ALLOW_MARKER_FILE):| $(DIR)/
+zfs.allow: $(.incus.zfs.allow.marker.file) ## Ensure ZFS permissions are set for Incus on tank dataset
+
+$(.incus.zfs.allow.marker.file):| $(.incus.zfs.allow.marker.dir)/
+$(.incus.zfs.allow.marker.file):
 	: "[+] Allowing ZFS permissions for tank..."
 	$(SUDO) zfs allow -s @allperms allow,clone,create,destroy,mount,promote,receive,rename,rollback,send,share,snapshot tank
 	$(SUDO) zfs allow -e @allperms tank
 	touch $@
 
-#-----------------------------
-# Tailscale Device Cleanup Target
-#-----------------------------
-
-.PHONY: remove-hosts@tailscale
-
-define TAILSCALE_RM_HOSTS_SCRIPT
-curl -fsSL -H "Authorization: Bearer $${TSKEY_API}" https://api.tailscale.com/api/v2/tailnet/-/devices |
-	yq -p json eval --from-file=<(echo "$${YQ_EXPR}") |
-	xargs -I{} curl -fsS -X DELETE -H "Authorization: Bearer $${TSKEY_API}" "https://api.tailscale.com/api/v2/device/{}"
-endef
-
-define TAILSCALE_RM_HOSTS_YQ_EXPR
-.devices[] | 
-  select( .hostname | 
-          test("^$(CLUSTER_NAME)-(tailscale-operator|controlplane)") ) |
-	.id
-endef
-
-remove-hosts@tailscale: export TSID := $(TSID)
-# (legacy TSKEY removed; using global TSKEY_API) (@codebase)
-remove-hosts@tailscale: export HOST := $(CLUSTER_NAME)
-remove-hosts@tailscale: export SCRIPT := $(TAILSCALE_RM_HOSTS_SCRIPT)
-remove-hosts@tailscale: export YQ_EXPR := $(TAILSCALE_RM_HOSTS_YQ_EXPR)
-remove-hosts@tailscale: export NODE := $(NAME)
-remove-hosts@tailscale:
-	: "[+] Querying Tailscale devices for cluster $(CLUSTER_NAME)..."
-	( [[ $$NODE == "master" ]] && eval "$$SCRIPT" ) ||
-		true
 endif  # incus/rules.mk guard

@@ -3,37 +3,37 @@
 
 ifndef make.d/network/rules.mk
 
--include make.d/make.mk  # robust relative include (@codebase)
--include make.d/macros.mk
--include make.d/node/rules.mk  # Node identity variables (@codebase)
+make.d/network/rules.mk := make.d/network/rules.mk
 
-# =============================================================================
+-include make.d/make.mk  # robust relative include (@codebase)
+-include make.d/cluster/rules.mk 
+
 # NETWORK IP ADDRESS DERIVATION MACROS
 # =============================================================================
 
 # Extract IP address from CIDR format (e.g., 10.80.23.0/24 -> 10.80.23.0)
 network.to-inetaddr = $(word 1,$(subst /, ,$(1)))
 
-# Convert network CIDR to gateway IP (replace .0 with .1)
-network.cidr-to-gateway = $(call network.to-inetaddr,$(subst .0/,.1/,$(1)))
+# Strip single quotes ipcalc emits in shell mode
+network.strip = $(subst ',,$(strip $(1)))
 
-# Convert network CIDR to host IP with specific last octet
-# Usage: $(call network.cidr-to-host-inetaddr,CIDR,OCTET) - e.g., $(call network.cidr-to-host-inetaddr,10.80.16.0/23,3) -> 10.80.16.3
-network.cidr-to-host-inetaddr = $(call network.to-inetaddr,$(subst .0/,.$(2)/,$(1)))
+# Break an inetaddr into base and last octet helpers
+network.inetaddr.base3 = $(word 1,$(subst ., ,$(1))).$(word 2,$(subst ., ,$(1))).$(word 3,$(subst ., ,$(1)))
+network.inetaddr.last = $(word 4,$(subst ., ,$(1)))
+network.inetaddr.add-last = $(call network.inetaddr.base3,$(1)).$(call plus,$(call network.inetaddr.last,$(1)),$(2))
 
-# Derive host IP from ipcalc-emitted base + host-min with a relative offset
-# Inputs: 1=subnet type (lowercase: host|node|vip|lb|lan), 2=subnet index, 3=offset from host_min (0 => host_min)
-network.subnet-host-inetaddr = $(strip $(network.$(1).split.base.$(2))).$(call plus,$(network.$(1).split.host_min.$(2)),$(3))
-
-# Gateway IP for a subnet (HOST_MIN is treated as gateway)
+# Gateway IP for a subnet (HOST_MIN from ipcalc is the gateway)
 # Inputs: 1=subnet type (lowercase), 2=subnet index
-network.subnet-gateway-inetaddr = $(strip $(network.$(1).split.base.$(2))).$(network.$(1).split.host_min.$(2))
-# Extract base IP from CIDR (first 3 octets) for DHCP reservations
-# Usage: $(call network.cidr-to-base-inetaddr,CIDR) - e.g., $(call network.cidr-to-base-inetaddr,10.80.16.0/21) -> 10.80.16
-network.cidr-to-base-inetaddr = $(shell echo "$(1)" | cut -d/ -f1 | sed 's/\.[0-9]*$$//')
+network.subnet-gateway-ip = $(call network.strip,$(network.$(1).split.$(2).minaddr))
 
-# Special case for LoadBalancer gateway (increment .64 to .65)
-network.lb-cidr-to-gateway = $(call network.to-inetaddr,$(subst .64/,.65/,$(1)))
+# Derive host IP from ipcalc-emitted HOST_MIN with a relative offset
+# Inputs: 1=subnet type, 2=subnet index, 3=offset from host_min (0 => host_min)
+network.subnet-host-ip = $(call network.inetaddr.add-last,$(call network.subnet-gateway-ip,$(1),$(2)),$(3))
+
+# Extract base IP from CIDR (first 3 octets) for DHCP reservations
+# Usage: $(call cidr-to-base-inetaddr,CIDR) - e.g., $(call cidr-to-base-inetaddr,10.80.16.0/21) -> 10.80.16
+# Strip ipcalc-emitted quotes before splitting to avoid unterminated strings in downstream env files
+cidr-to-base-inetaddr = $(call network.inetaddr.base3,$(call network.to-inetaddr,$(call network.strip,$(1))))
 
 # ipcalc dependency reintroduced: allocations derived from JSON introspection (@codebase)
 
@@ -77,7 +77,7 @@ $$(.network.$(1).mk.file): $(2)
 $$(.network.$(1).mk.file): type=$(1)
 $$(.network.$(1).mk.file): network=$(3)
 $$(.network.$(1).mk.file): prefix := $(4)
-$$(.network.$(1).mk.file): | make.d/network/rules.mk  $$(.network.dir)/
+$$(.network.$(1).mk.file): make.d/network/rules.mk | $$(.network.dir)/
 $$(.network.$(1).mk.file): ## Generate $(5)
 	: "[+] ($(1)) generating $$(@) via ipcalc type=$$(type) network=$$(network) prefix=$$(prefix)  (level=$$(MAKELEVEL) restart=$$(MAKE_RESTARTS))" # @codebase
 	mkdir -p $$$$(dirname $$(@))
@@ -112,11 +112,16 @@ $(.network.cluster.dir): | $(.network.cluster.dir)/
 .network.node.mk.file := $(.network.dir)/node.mk
 .network.vip.mk.file := $(.network.dir)/vip.mk
 .network.lb.mk.file := $(.network.dir)/lb.mk
+.network.lan.mk.file := $(.network.dir)/lan.mk
+
+.network.mk.files := $(.network.host.mk.file) $(.network.node.mk.file) $(.network.vip.mk.file) $(.network.lb.mk.file) $(.network.lan.mk.file)
+.network.subnets.mk.files := $(.network.mk.files)
 
 -include $(.network.host.mk.file)
 -include $(.network.node.mk.file)
 -include $(.network.vip.mk.file)
 -include $(.network.lb.mk.file)
+-include $(.network.lan.mk.file)
 
 # Existence predicates
 .network.host.exists := $(wildcard $(.network.host.mk.file))
@@ -127,7 +132,7 @@ $(.network.cluster.dir): | $(.network.cluster.dir)/
 $(if $(.network.host.exists), \
   $(eval $(call .network.split.rule,vip,$$(.network.host.mk.file),$$(network.host.split.$$(.cluster.id).cidr),24,VIP subnet allocation for control plane)) \
   $(if $(.network.node.exists), \
-    $(eval $(call .network.split.rule,lb,$$(.network.node.mk.file),$$(network.node.split.$$(.cluster.id).cidr),26,LoadBalancer subnet allocation within node network)) \
+	$(eval $(call .network.split.rule,lb,$$(.network.node.mk.file),$$(call network.strip,$$(network.node.split.0.cidr)),26,LoadBalancer subnet allocation within node network)) \
     $(eval $(call .network.split.rule,lan,,$$(.network.lan.cidr),27,Home LAN subnet allocation for clusters)), \
     $(eval $(call .network.split.rule,node,$$(.network.host.mk.file),$$(network.host.split.$$(.cluster.id).cidr),23,node-level subnet allocation within cluster)) \
     $(warning [network] node.mk missing; rebuilding it will trigger makefile restart to wire node/vip/lb/lan splits)), \
@@ -149,10 +154,10 @@ clean@network: ## Clean all generated network files
 show@network: ## Debug network configuration display
 	echo "=== RKE2 Network Configuration ==="
 	echo "Host supernet: $(network.HOST_SUPERNET_CIDR)"
-	echo "Cluster $(cluster.id): $(network.cluster.network.cidr)"
-	echo "Node $(node.id): $(network.node.network.cidr)"
-	echo "Node host IP: $(network.node.host.inetaddr)"
-	echo "Node gateway: $(network.node.gateway.inetaddr)"
+	echo "Cluster $(cluster.id): $(network.cluster.cidr)"
+	echo "Node $(node.id): $(network.node.cidr)"
+	echo "Node host IP: $(network.node.host.inet)"
+	echo "Node gateway: $(network.node.gateway.inet)"
 	echo "VIP network: $(network.cluster.vip.cidr)"
 	echo "VIP gateway: $(network.cluster.vip.gateway)"
 	echo "LoadBalancer network: $(network.cluster.lb.cidr)"
@@ -171,7 +176,7 @@ show@network: ## Debug network configuration display
 .network.node_profile_name = rke2-cluster
 
 # Master node IP for peer connections (derived from node 0) using subnet helper (gateway+2 -> .3)
-.network.master.node_ip := $(call network.subnet-host-inetaddr,node,0,2)
+.network.master.node_ip := $(call network.subnet-host-ip,node,0,2)
 
 # =============================================================================
 # PUBLIC NETWORK API
@@ -179,12 +184,13 @@ show@network: ## Debug network configuration display
 
 # Public network API (lowercase, dot-scoped) used by other layers
 network.host.supernet.cidr = $(.network.host.supernet.cidr)
-network.cluster.network.cidr = $(network.host.split.network.$(.cluster.id))
-network.cluster.vip.cidr = $(network.vip.split.network.7)
+network.host.subnets.base.$(.cluster.id) = $(call network.inetaddr.base3,$(call network.strip,$(network.host.split.$(.cluster.id).network)))
+network.cluster.cidr = $(call network.strip,$(network.host.split.$(.cluster.id).cidr))
+network.cluster.vip.cidr = $(call network.strip,$(network.vip.split.7.cidr))
 network.cluster.vip.gateway = $(call network.subnet-gateway-ip,vip,7)
-network.cluster.lb.cidr = $(network.lb.split.network.1)
+network.cluster.lb.cidr = $(call network.strip,$(network.lb.split.1.cidr))
 network.cluster.lb.gateway = $(call network.subnet-gateway-ip,lb,1)
-network.node.network.cidr = $(network.node.split.network.0)
+network.node.cidr = $(call network.strip,$(network.node.split.0.cidr))
 network.node.gateway.inet = $(call network.subnet-gateway-ip,node,0)
 network.node.host.inet = $(call network.subnet-host-ip,node,0,$(call plus,9,$(node.id)))
 network.node.vip.inet = $(call network.subnet-host-ip,vip,7,9)
@@ -197,8 +203,10 @@ network.lan.bridge.mac = $(.network.lan_bridge_hwaddr_default)
 network.lan.cidr = $(.network.lan.cidr)
 
 # LAN LoadBalancer pool/headscale IPs derived from ipcalc split of LAN
-network.lan.lb.pool = $(network.lan.split.network.$(.cluster.id))
+network.lan.lb.pool = $(call network.strip,$(network.lan.split.$(.cluster.id).cidr))
 network.lan.lb.headscale = $(call network.subnet-host-ip,lan,$(.cluster.id),0)
+network.lan.headscale.inet = $(network.lan.lb.headscale)
+network.lan.tailscale.inet = $(call network.subnet-host-ip,lan,$(.cluster.id),1)
 
 # Cluster WAN network (Incus bridge with Lima VM as gateway)
 # Lima VM has .1 IP on the bridge and provides routing/NAT to uplink
@@ -218,13 +226,13 @@ network.wan.dhcp.range = 10.80.$(.network.cluster_third_octet).2-10.80.$(.networ
 # Generate deterministic MAC address for node's WAN interface
 # Format: 52:54:00:CC:TT:NN where:
 #   52:54:00 = QEMU/KVM reserved prefix (locally administered)
-#   CC = cluster ID in hex (00-07, zero-padded)
+#   CC = cluster ID in hex (00-ff, zero-padded)
 #   TT = node type: 00=server, 01=agent
 #   NN = node ID in hex (00-ff, zero-padded)
-# Example: master (cluster 2, server, ID 0) = 52:54:00:02:00:00
-# Note: Use shell printf for zero-padding since GMSL dec2hex doesn't pad
-.network.node_type_hex := $(if $(filter server,$(node.TYPE)),00,01)
-network.node.wan.mac := $(shell printf "52:54:00:%02x:%s:%02x" $(cluster.id) $(.network.node_type_hex) $(node.id))
+# Example: master (cluster 1, server, ID 0) = 52:54:00:01:00:00
+# Note: Keep numeric printf for consistent zero-padding under .ONESHELL
+.network.node_type_num := $(if $(filter server,$(node.type)),0,1)
+network.node.wan.mac := $(shell printf "52:54:00:%02x:%02x:%02x" $(cluster.id) $(.network.node_type_num) $(node.id))
 
 # Generate deterministic MAC address for node's LAN interface (macvlan)
 # Format: 10:66:6a:4c:CC:NN where:
@@ -261,8 +269,8 @@ data:
   cluster-id: $(cluster.id)
   cluster-name: "$(cluster.name)"
   host-supernet-cidr: "$(network.host.supernet.cidr)"
-  cluster-network-cidr: "$(network.cluster.network.cidr)"
-  node-network-cidr: "$(network.node.network.cidr)"
+  cluster-network-cidr: "$(network.cluster.cidr)"
+  node-network-cidr: "$(network.node.cidr)"
   vip-pool-cidr: "$(network.cluster.vip.cidr)"
   lb-pool-cidr: "$(network.cluster.lb.cidr)"
   cluster-gateway-inetaddr: "$(network.cluster.gateway.inet)"
@@ -357,8 +365,8 @@ Network Configuration Summary:
 Cluster: $(cluster.name) (ID: $(cluster.id))
 Node: $(node.name) (ID: $(node.id), Role: $(node.ROLE))
 Host Supernet: $(network.host.supernet.cidr)
-Cluster Network: $(network.cluster.network.cidr)
-Node Network: $(network.node.network.cidr)
+Cluster Network: $(network.cluster.cidr)
+Node Network: $(network.node.cidr)
 Node IP: $(network.node.host.inetaddr)
 Gateway: $(network.node.gateway.inetaddr)
 VIP Network: $(network.cluster.vip.cidr)
@@ -383,13 +391,13 @@ status@network: ## Show container network status
 	echo "Container Network Status:"
 	echo "========================"
 	echo "Node: $(node.name) ($(node.ROLE))"
-	echo "Network: $(network.node.network.cidr)"
+	echo "Network: $(network.node.cidr)"
 	echo "Host IP: $(network.node.host.inetaddr)"
 	echo "Gateway: $(network.node.gateway.inetaddr)"
 
 setup-bridge@network: ## Set up network bridge for current node
 	: "[+] Interface $(network.node.lan.interface) uses macvlan (no setup needed)"
-	: "Network: $(network.node.network.cidr)"
+	: "Network: $(network.node.cidr)"
 	: "Gateway: $(network.node.gateway.inetaddr)"
 
 allocation@network: ## Show hierarchical network allocation
@@ -418,8 +426,8 @@ validate@network: ## Validate network configuration
 test@network: ## Run strict network checks (fails fast) (@codebase)
 	: "[test@network] Validating namespaced network variables"
 	: "[ok] network.host.supernet.cidr=$(network.host.supernet.cidr)"
-	: "[ok] network.cluster.network.cidr=$(network.cluster.network.cidr)"
-	: "[ok] network.node.network.cidr=$(network.node.network.cidr)"
+	: "[ok] network.cluster.cidr=$(network.cluster.cidr)"
+	: "[ok] network.node.cidr=$(network.node.cidr)"
 	: "[ok] network.node.host.inetaddr=$(network.node.host.inetaddr)"
 	: "[ok] network.node.gateway.inetaddr=$(network.node.gateway.inetaddr)"
 	: "[ok] network.cluster.vip.cidr=$(network.cluster.vip.cidr)"

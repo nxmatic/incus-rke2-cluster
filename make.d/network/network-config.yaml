@@ -15,6 +15,7 @@ network:
     # Local network access - NOW PRIMARY for internet connectivity
     # Home router provides reliable NAT for internet access
     lan0:
+      macaddress: ${INCUS_NODE_LAN_MAC}
       # DHCP Configuration - now allows default route
       dhcp4: true
       dhcp4-overrides:
@@ -37,6 +38,7 @@ network:
     # Cluster node-to-node communication ONLY
     # NO internet gateway - lan0 is the exclusive internet path
     vmnet0:
+      macaddress: ${INCUS_NODE_WAN_MAC}
       # DHCP from Incus wan bridge network
       dhcp4: true
       dhcp4-overrides:

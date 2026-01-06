@@ -3,6 +3,8 @@
 
 ifndef make.d/cloud-config/rules.mk
 
+make.d/cloud-config/rules.mk := make.d/cloud-config/rules.mk  # guard to allow safe re-inclusion (@codebase)
+
 -include make.d/make.mk  # Ensure availability when file used standalone (@codebase)
 -include make.d/node/rules.mk  # Node identity and role variables (@codebase)
 -include make.d/network/rules.mk  # Network configuration variables (@codebase)
@@ -48,15 +50,8 @@ cloud-config.netcfg.file := $(.cloud-config.netcfg.file)
 # Export cloud-config variables for use in YAML templates via yq envsubst
 export NOCLOUD_METADATA_FILE := $(cloud-config.metadata.file)
 export NOCLOUD_USERDATA_FILE := $(cloud-config.userdata.file)
-export NOCLOUD_netcfg.file := $(cloud-config.netcfg.file)
 export CLOUD_CONFIG_SOURCE_DIR := $(.cloud-config.source_dir)
 
-# Provide defaults for Tekton-specific setters so envsubst succeeds during compile-time.
-export TEKTON_GIT_USERNAME ?= $(if $(CLUSTER_GITHUB_USERNAME),$(CLUSTER_GITHUB_USERNAME),x-access-token)
-export TEKTON_GIT_PASSWORD ?= $(CLUSTER_GITHUB_TOKEN)
-export TEKTON_GIT_URL ?= https://$(if $(CLUSTER_GITHUB_HOST),$(CLUSTER_GITHUB_HOST),github.com)
-export TEKTON_DOCKER_CONFIG_JSON ?= $(CLUSTER_DOCKER_CONFIG_JSON)
-export TEKTON_DOCKER_REGISTRY_URL ?= $(if $(CLUSTER_DOCKER_REGISTRY_URL),$(CLUSTER_DOCKER_REGISTRY_URL),https://index.docker.io/v1/)
 
 # =============================================================================
 # CLOUD-CONFIG GENERATION RULES
@@ -192,9 +187,6 @@ endef
 $(call register-cloud-config-targets,$(.cloud-config.userdata.file))
 $(.cloud-config.userdata.file):
 	: "[+] Merging cloud-config fragments (common/server/node) with envsubst ..."
-	if [ -z "$(TSKEY_CLIENT_ID)" ]; then echo "  ✗ TSKEY_CLIENT_ID unset/empty (set tailscale.client.id in .secrets)"; exit 1; else echo "  ✓ TSKEY_CLIENT_ID loaded"; fi
-	if [ -z "$(TSKEY_CLIENT_TOKEN)" ]; then echo "  ✗ TSKEY_CLIENT_TOKEN unset/empty (set tailscale.client.token in .secrets)"; exit 1; else echo "  ✓ TSKEY_CLIENT_TOKEN loaded"; fi
-	if [ -z "$(CLUSTER_GITHUB_TOKEN)" ]; then echo "  ✗ CLUSTER_GITHUB_TOKEN unset/empty (set github.token in .secrets via sops)"; exit 1; else echo "  ✓ CLUSTER_GITHUB_TOKEN loaded"; fi
 	$(eval _merge_sources := $(filter %.yaml,$^))
 	$(eval _file_count := $(call length,$(_merge_sources)))
 	$(call EXECUTE_YQ_CLOUD_CONFIG_MERGE,$(_file_count),$(_merge_sources),$@)
@@ -205,10 +197,13 @@ $(.cloud-config.userdata.file):
 #-----------------------------
 
 $(call register-network-targets,$(.cloud-config.netcfg.file))
+.cloud-config.env.file := $(dir $(.cloud-config.nocloud.dir))env.mk
 $(.cloud-config.netcfg.file): $(make-dir)/network/network-config.yaml
+$(.cloud-config.netcfg.file): $(.cloud-config.env.file)
 $(.cloud-config.netcfg.file): | $(.cloud-config.nocloud.dir)/
 $(.cloud-config.netcfg.file):
 	: "[+] Rendering network-config (envsubst via yq) ..."
+	set -a; . $(.cloud-config.env.file); set +a; \
 	yq eval '( .. | select(tag=="!!str") ) |= envsubst(ne,nu)' $< > $@
 
 #-----------------------------

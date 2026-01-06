@@ -4,6 +4,8 @@
 
 ifndef make.d/kpt/rules.mk
 
+make.d/kpt/rules.mk := make.d/kpt/rules.mk  # guard to allow safe re-inclusion (@codebase)
+
 -include make.d/make.mk
 
 -include make.d/network/rules.mk
@@ -17,7 +19,7 @@ ifndef make.d/kpt/rules.mk
 .kpt.overlays.Kustomization.file := $(.kpt.overlays.dir)/Kustomization
 .kpt.Kustomization.file := $(.kpt.dir)/Kustomization
 .kpt.render.dir := $(tmp-dir)/catalog/$(cluster.name)
-.kpt.render.cmd := env PATH=$(PATH):$(realpath $(.kpt.catalog.dir)/bin) kpt fn render --allow-exec --truncate-output=false
+.kpt.render.cmd := env PATH=$(realpath $(.kpt.catalog.dir)/bin):$(PATH) kpt fn render --allow-exec --truncate-output=false
 .kpt.manifests.file := $(.kpt.dir)/manifests.yaml
 .kpt.manifests.dir  := $(.kpt.dir)/manifests.d
 .kpt.package.aux_files := .gitattributes .krmignore
@@ -63,11 +65,12 @@ update-kustomizations@kpt: ## Update Kustomization files from rendered catalog p
 # ----------------------------------------------------------------------------
 
 $(.kpt.render.dir): $(.network.plan.file)
+$(.kpt.render.dir): $(.kpt.catalog.dir)
 $(.kpt.render.dir): | $(.kpt.render.dir)/
 $(.kpt.render.dir):
 	: "Rendering catalog for cluster $(cluster.name) via kpt fn render"
 	rm -fr $(.kpt.render.dir)
-	$(.kpt.render.cmd) "$(.kpt.catalog.dir)" -o "$(@)"
+	env PATH=$(realpath $(.kpt.catalog.dir)/bin):$(PATH) kpt fn render --allow-exec --truncate-output=false "$(.kpt.catalog.dir)" -o "$(@)"
 
 $(.kpt.manifests.file): $(.kpt.Kustomization.file)
 $(.kpt.manifests.file): $(.kpt.render.dir)
@@ -178,6 +181,7 @@ define .cluster.kustomize.content =
 	- overlays
 endef
 
+$(.kpt.overlays.Kustomization.file): | $(dir $(.kpt.overlays.Kustomization.file))/
 $(.kpt.overlays.Kustomization.file):
 	$(file >$(@), $(.cluster.overlays.kustomize.content))
 
@@ -189,6 +193,7 @@ define .cluster.overlays.kustomize.content =
 endef
 
 $(.kpt.Kustomization.file): $(.kpt.overlays.Kustomization.file)
+$(.kpt.Kustomization.file): $(.kpt.overlays.dir)/
 $(.kpt.Kustomization.file):
 	$(file >$(@), $(.cluster.kustomize.content))
 

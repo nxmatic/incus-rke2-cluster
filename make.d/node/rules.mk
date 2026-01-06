@@ -4,6 +4,7 @@
 ifndef make.d/node/rules.mk
 
 -include make.d/make.mk  # Ensure availability when file used standalone (@codebase)
+-include make.d/cluster/rules.mk # Cluster identity variables (@codebase)
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -18,53 +19,6 @@ ifndef make.d/node/rules.mk
 # Node configuration lookup key for .node-config.* rules
 .node.config_key = .node-config.$(.node.name)
 
-# Cluster configuration (inlined from cluster-templates.mk)
-.cluster.name ?= $(if $(LIMA_HOSTNAME),$(LIMA_HOSTNAME),bioskop)
-.cluster.token ?= $(.cluster.name)
-.cluster.domain = cluster.local
-
-# Dynamic Pod/Service CIDR calculation via GMSL math (no python)
-cidr_pod_base_octet := 42
-cidr_svc_base_octet := 43
-cidr_step := 2
-
-# Cluster-specific configurations
-ifeq ($(.cluster.name),bioskop)
-  .cluster.id := 0
-  .cluster.lima_lan_interface := vmlan0
-  .cluster.lima_vmnet_interface := vmwan0
-  .cluster.state_repo := https://github.com/nxmatic/fleet-manifests.git
-  .cluster.state_branch := rke2-subtree
-else ifeq ($(.cluster.name),alcide)
-  .cluster.id := 1
-  .cluster.lima_lan_interface := vmlan0
-  .cluster.lima_vmnet_interface := vmwan0
-else ifeq ($(.cluster.name),nikopol)
-  .cluster.id := 2
-  .cluster.lima_lan_interface := vmlan0
-  .cluster.lima_vmnet_interface  := vmwan0
-else
-  .cluster.id := 7
-  .cluster.lima_lan_interface := vmlan0
-  .cluster.lima_vmnet_interface := vmwan0
-endif
-
-# Compute Pod/Service CIDRs from base + cluster index (0-based)
-.cluster.pod_network_cidr := 10.$(call plus,$(cidr_pod_base_octet),$(call multiply,$(.cluster.id),$(cidr_step))).0.0/16
-.cluster.service_network_cidr := 10.$(call plus,$(cidr_svc_base_octet),$(call multiply,$(.cluster.id),$(cidr_step))).0.0/16
-
-# Public cluster API
-cluster.id := $(.cluster.id)
-cluster.name := $(.cluster.name)
-cluster.token := $(.cluster.token)
-cluster.domain := $(.cluster.domain)
-cluster.id := $(.cluster.id)
-cluster.pod_network_cidr := $(.cluster.pod_network_cidr)
-cluster.service_network_cidr := $(.cluster.service_network_cidr)
-cluster.lima_lan_interface := $(.cluster.lima_lan_interface)
-cluster.lima_vmnet_interface := $(.cluster.lima_vmnet_interface)
-cluster.state_repo := $(.cluster.state_repo)
-cluster.state_branch := $(.cluster.state_branch)
 
 # =============================================================================
 # NODE CONFIGURATION APPLICATION
@@ -95,6 +49,18 @@ else
 endif
 
 # Public node API
+
+cluster.id := $(.cluster.id)
+cluster.name := $(.cluster.name)
+cluster.token := $(.cluster.token)
+cluster.domain := $(.cluster.domain)
+cluster.id := $(.cluster.id)
+cluster.pod.cidr := $(.cluster.pod.cidr)
+cluster.service.cidr := $(.cluster.service.cidr)
+cluster.lima_lan_interface := $(.cluster.lima_lan_interface)
+cluster.lima_vmnet_interface := $(.cluster.lima_vmnet_interface)
+cluster.state_repo := $(.cluster.state_repo)
+
 node.name := $(.node.name)
 node.type := $(.node.type)
 node.role := $(.node.role)

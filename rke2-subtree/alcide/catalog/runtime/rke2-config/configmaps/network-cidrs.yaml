@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: # kpt-merge: /rke2-network-cidrs
+  name: rke2-network-cidrs
+  annotations:
+    config.kubernetes.io/local-config: "true"
+    description.kpt.dev: Network CIDRs fragment
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|default|rke2-network-cidrs'
+data:
+  network-cidrs.yaml: |
+    cluster-cidr: ${pod-network-cidr}
+    service-cidr: ${service-network-cidr}
+    kube-controller-manager-arg:
+      - node-cidr-mask-size-ipv4=24

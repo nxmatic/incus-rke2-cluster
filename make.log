@@ -1,0 +1,85 @@
+make.d/make.mk:168: make.mk: enabling make-level trace (no vars)
+make.d/make.mk:191: make.mk: host-detection ((host.UNAME= host.IS_DARWIN= host.IS_NIXOS)=)
+make.d/make.mk:319: make.mk: Building  (no vars)
++ mkdir -p .local.d/etc .local.d/bin .local.d/build .local.d/tmp .local.d/lib .local.d/var .local.d/run .local.d/var/cache .local.d/var/manifest
+Makefile:13: make.mk: Building  (no vars)
++ test -x /run/wrappers/bin/sudo
++ echo /run/wrappers/bin/sudo
+Makefile:17: make.mk: Building  (no vars)
++ '[' -x /run/wrappers/bin/sudo ']'
++ echo ''
+make.d/make.mk:508: make.mk: Loading (make.d/cluster/rules.path=make.d/cluster/rules.mk )
+make.d/make.mk:508: make.mk: Loading (make.d/node/rules.path=make.d/node/rules.mk )
+make.d/network/rules.mk:57: make.mk: Building  (no vars)
++ printf 02:00:00:bb:%02x:%02x 0
+make.d/network/rules.mk:132: [network] Loading vip
+make.d/network/rules.mk:132: [network] Loading lb
+make.d/network/rules.mk:132: [network] Loading lan
+make.d/network/rules.mk:235: make.mk: Building  (no vars)
++ printf 52:54:00:%02x:%02x:%02x 0 0
+make.d/network/rules.mk:244: make.mk: Building  (no vars)
++ printf 10:66:6a:4c:%02x:%02x 0
+make.d/network/rules.mk:341: make.mk: Building  (no vars)
++ printf 10:66:6a:4c:%02x:%02x 0
+[cluster] Derived cluster.name=alcide
+make.d/make.mk:508: make.mk: Loading (make.d/plantuml/rules.path=make.d/plantuml/rules.mk )
+make.d/incus/rules.mk:151: make.mk: Building  (no vars)
++ printf 52:54:00:%02x:00:00 1
+make.d/incus/rules.mk:151: make.mk: Building  (no vars)
++ printf 52:54:00:%02x:00:01 1
+make.d/incus/rules.mk:151: make.mk: Building  (no vars)
++ printf 52:54:00:%02x:00:02 1
+make.d/incus/rules.mk:151: make.mk: Building  (no vars)
++ printf 52:54:00:%02x:00:03 1
+make.d/incus/rules.mk:151: make.mk: Building  (no vars)
++ printf 52:54:00:%02x:01:0a 1
+make.d/incus/rules.mk:151: make.mk: Building  (no vars)
++ printf 52:54:00:%02x:01:0b 1
+make.d/incus/rules.mk:218: make.mk: Building preseed@incus (from rke2-subtree/alcide/incus/preseed.yaml) (rke2-subtree/alcide/incus/preseed.yaml newer) (no vars)
+'+ [trace:make] 1: ': '[+] Applying incus preseed ...'
+'+ [trace:make] 2: 'incus admin init --preseed
+make.d/incus/rules.mk:271: make.mk: Building switch-project@incus (from preseed@incus) (preseed@incus rke2-subtree/alcide/incus/project.tstamp newer) (no vars)
+'+ [trace:make] 1: ': '[+] Switching to project alcide'
+'+ [trace:make] 2: 'incus project switch rke2
+make.d/incus/rules.mk:178: make.mk: Building verify-context@incus (no vars)
+'+ [trace:make] 1: ': '[+] Verifying distrobuilder context (local mode)'
+'+ [trace:make] 2: 'sudo test -f make.d/incus/incus-distrobuilder.yaml
+'+ [trace:make] 3: 'echo '  ✓ local distrobuilder file: make.d/incus/incus-distrobuilder.yaml'
+  ✓ local distrobuilder file: make.d/incus/incus-distrobuilder.yaml
+make.d/network/rules.mk:427: make.mk: Building test@network (no vars)
+'+ [trace:make] 1: ': '[test@network] Validating namespaced network variables'
+'+ [trace:make] 2: ': '[ok] network.host.supernet.cidr=10.80.0.0/18'
+'+ [trace:make] 3: ': '[ok] network.cluster.cidr=10.80.8.0/21'
+'+ [trace:make] 4: ': '[ok] network.node.cidr=10.80.56.0/23'
+'+ [trace:make] 5: ': '[ok] network.node.host.inetaddr='
+'+ [trace:make] 6: ': '[ok] network.node.gateway.inetaddr='
+'+ [trace:make] 7: ': '[ok] network.cluster.vip.cidr=10.80.63.0/24'
+'+ [trace:make] 8: ': '[PASS] All required network vars present'
+make.d/incus/rules.mk:419: make.mk: Building rke2-subtree/alcide/incus/import.tstamp (from rke2-subtree/alcide/incus/incus.tar.xz) (no vars)
+'+ [trace:make] 1: 'incus image show control-node --project=rke2
+'+ [trace:make] 2: ': '[✓] Image control-node already present; skipping import'
+'+ [trace:make] 7: 'touch rke2-subtree/alcide/incus/import.tstamp
+make.d/incus/rules.mk:556: make.mk: Building rke2-subtree/alcide/incus/master/init-instance.tstamp.init (from rke2-subtree/alcide/incus/import.tstamp) (rke2-subtree/alcide/incus/import.tstamp rke2-subtree/alcide/incus/master/config.yaml rke2-subtree/alcide/incus/master/env.mk test@network newer) (no vars)
+'+ [trace:make] 1: ': '[+] Initializing instance master in project rke2...'
+'+ [trace:make] 2: 'incus init control-node master --project=rke2
+Creating master
+'+ [trace:make] 3: ': '[i] Interfaces: lan0 (macvlan) + vmnet0 (Incus bridge)'
+make.d/incus/rules.mk:562: make.mk: Building rke2-subtree/alcide/incus/master/init-instance.tstamp (from rke2-subtree/alcide/incus/master/init-instance.tstamp.init) (no vars)
+'+ [trace:make] 1: ': '[+] Ensuring clean cloud-init state for fresh network configuration...'
+'+ [trace:make] 2: ': incus exec master -- rm -rf /var/lib/cloud/instance /var/lib/cloud/instances /var/lib/cloud/data /var/lib/cloud/sem
+'+ [trace:make] 3: ': incus exec master -- rm -rf /run/cloud-init '/run/systemd/network/10-netplan-*'
+'+ [trace:make] 4: 'touch rke2-subtree/alcide/incus/master/init-instance.tstamp
+make.d/incus/rules.mk:498: make.mk: Building create@incus (from rke2-subtree/alcide/incus/incus.tar.xz) (rke2-subtree/alcide/incus/incus.tar.xz rke2-subtree/alcide/incus/rootfs.squashfs rke2-subtree/alcide/incus/master/config.yaml rke2-subtree/alcide/incus/master/init-instance.tstamp switch-project@incus newer) (no vars)
+'+ [trace:make] 1: ': '[+] Ensuring Incus instance master in project rke2...'
+'+ [trace:make] 2: 'incus info master --project=rke2
+'+ [trace:make] 7: ': '[✓] Instance master already exists'
+make.d/incus/rules.mk:669: make.mk: Building rke2-subtree/zfs-allow-tank.marker (no vars)
+'+ [trace:make] 1: ': '[+] Allowing ZFS permissions for tank...'
+'+ [trace:make] 2: '/run/wrappers/bin/sudo zfs allow -s @allperms allow,clone,create,destroy,mount,promote,receive,rename,rollback,send,share,snapshot tank
+'+ [trace:make] 3: '/run/wrappers/bin/sudo zfs allow -e @allperms tank
+'+ [trace:make] 4: 'touch rke2-subtree/zfs-allow-tank.marker
+make.d/incus/rules.mk:571: make.mk: Building start@incus (from switch-project@incus) (switch-project@incus create@incus zfs.allow newer) (no vars)
+'+ [trace:make] 4: ': '[+] Starting instance master...'
+'+ [trace:make] 5: 'incus start master
+'+ [trace:make] 6: 'echo '✓ Instance master started successfully'
+✓ Instance master started successfully

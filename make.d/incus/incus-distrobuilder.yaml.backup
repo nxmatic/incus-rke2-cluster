@@ -116,7 +116,7 @@ actions:
   # - trigger: post-unpack
   #   action: |
       #!/usr/bin/env bash
-      set -euo pipefail
+      set -euxo pipefail 
       : "==> Debian archive key handling (post-unpack)"
       : "[i] At post-unpack, requested runtime packages are not installed."
       : "[i] debootstrap seeded rootfs with debian-archive keyring; optional."
@@ -190,7 +190,7 @@ actions:
   - trigger: post-packages
     action: |
       #!/usr/bin/env bash
-      set -euo pipefail
+      set -euxo pipefail 
       if command -v locale-gen >/dev/null 2>&1; then
         echo 'en_US.UTF-8 UTF-8' >> /etc/locale.gen || true
         echo 'LANG=en_US.UTF-8' > /etc/default/locale
@@ -209,7 +209,7 @@ actions:
   - trigger: post-packages
     action: |
       #!/usr/bin/env bash
-      set -euo pipefail
+      set -euxo pipefail 
       : "==> Ensuring flox is installed (required for RKE2 cloud-init)"
       if command -v flox >/dev/null 2>&1; then
         : "==> flox already present: $(flox --version || true)"
@@ -253,7 +253,7 @@ actions:
   - trigger: post-packages
     action: |
       #!/usr/bin/env bash
-      set -euo pipefail
+      set -euxo pipefail 
       : "==> Running APT debug update (pkgProblemResolver)"
       LOG_DIR=/var/lib/build-diagnostics
       mkdir -p "$LOG_DIR"
@@ -299,7 +299,7 @@ actions:
   # - trigger: post-packages
   #   action: |
   #     #!/usr/bin/env bash
-  #     set -euo pipefail
+  #     set -euxo pipefail 
   #     echo "==> Creating apt pin for cloud-init from unstable"
   #     printf '%s\n' \
   #       'Package: cloud-init' \

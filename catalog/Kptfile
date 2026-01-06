@@ -21,7 +21,7 @@ info:
   site: https://github.com/nxmatic/incus-rke2-cluster
 pipeline:
   mutators:
-    - exec: derive-network-setters.sh
+    - exec: derive-network-setters
     - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
       configPath: configmap-cluster-setters.yaml
 
