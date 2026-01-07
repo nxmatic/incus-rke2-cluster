@@ -90,9 +90,9 @@ devices:
     path: /dev/zfs
   secrets.file:
     type: disk
-    # Prefer host-owned secrets over NFS; fallback to local .secrets if not set (@codebase)
-    # Order: explicit INCUS_CLUSTER_SECRETS_PATH -> INCUS_CLUSTER_SECRETS_HOST-derived -> PWD/.secrets
-    source: ${INCUS_CLUSTER_SECRETS_PATH:-${INCUS_CLUSTER_SECRETS_HOST:+/net/${INCUS_CLUSTER_SECRETS_HOST}/private/var/lib/git/nxmatic/incus-rke2-cluster/.secrets:-${PWD}/.secrets}}
+    # Always read host-owned secrets over NFS (optional explicit override) (@codebase)
+    # Order: explicit INCUS_CLUSTER_SECRETS_PATH -> /net/${INCUS_CLUSTER_SECRETS_HOST}/... 
+    source: ${INCUS_CLUSTER_SECRETS_PATH:-/net/${INCUS_CLUSTER_SECRETS_HOST}/private/var/lib/git/nxmatic/incus-rke2-cluster/.secrets}
     path: /srv/secrets
     readonly: "true"
   manifests.dir :
