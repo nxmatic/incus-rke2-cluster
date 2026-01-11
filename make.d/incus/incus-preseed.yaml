@@ -27,11 +27,11 @@ networks:
   - name: vmnet-br
     type: bridge
     config:
-      ipv4.address: ${INCUS_CLUSTER_GATEWAY_IP}/21
+      ipv4.address: ${NETWORK_CLUSTER_GATEWAY_INETADDR}/21
       ipv4.nat: "false"         # NAT disabled - cluster-internal only
       ipv4.routing: "false"      # No routing - isolated bridge
       ipv4.dhcp: "true"
-      ipv4.dhcp.ranges: ${INCUS_WAN_DHCP_RANGE}
+      ipv4.dhcp.ranges: ${NETWORK_WAN_DHCP_RANGE}
       dns.mode: none
       bridge.driver: native
       # Static DHCP leases for RKE2 nodes - ensures predictable IP allocation
@@ -39,14 +39,14 @@ networks:
       # MACs use QEMU prefix 52:54:00 + cluster_id:node_type:node_id (in hex, zero-padded)
       # IPs use cluster network base + node offset (10 for master, 11-13 for peers, 20+ for workers)
       raw.dnsmasq: |
-        dhcp-host=${INCUS_NODE_WAN_MAC_MASTER},${INCUS_CLUSTER_NODE_IP_BASE}.10,master
-        dhcp-host=${INCUS_NODE_WAN_MAC_PEER1},${INCUS_CLUSTER_NODE_IP_BASE}.11,peer1
-        dhcp-host=${INCUS_NODE_WAN_MAC_PEER2},${INCUS_CLUSTER_NODE_IP_BASE}.12,peer2
-        dhcp-host=${INCUS_NODE_WAN_MAC_PEER3},${INCUS_CLUSTER_NODE_IP_BASE}.13,peer3
-        dhcp-host=${INCUS_NODE_WAN_MAC_WORKER1},${INCUS_CLUSTER_NODE_IP_BASE}.20,worker1
-        dhcp-host=${INCUS_NODE_WAN_MAC_WORKER2},${INCUS_CLUSTER_NODE_IP_BASE}.21,worker2
+        dhcp-host=${NETWORK_NODE_WAN_MACADDR_MASTER},${NETWORK_CLUSTER_NODE_INETADDR_BASE}.10,master
+        dhcp-host=${NETWORK_NODE_WAN_MACADDR_PEER1},${NETWORK_CLUSTER_NODE_INETADDR_BASE}.11,peer1
+        dhcp-host=${NETWORK_NODE_WAN_MACADDR_PEER2},${NETWORK_CLUSTER_NODE_INETADDR_BASE}.12,peer2
+        dhcp-host=${NETWORK_NODE_WAN_MACADDR_PEER3},${NETWORK_CLUSTER_NODE_INETADDR_BASE}.13,peer3
+        dhcp-host=${NETWORK_NODE_WAN_MACADDR_WORKER1},${NETWORK_CLUSTER_NODE_INETADDR_BASE}.20,worker1
+        dhcp-host=${NETWORK_NODE_WAN_MACADDR_WORKER2},${NETWORK_CLUSTER_NODE_INETADDR_BASE}.21,worker2
 profiles:
-  - name: ${INCUS_NODE_PROFILE_NAME}
+  - name: ${NETWORK_NODE_PROFILE_NAME}
     description: RKE2 profile (LAN bridge + cluster bridge)
     devices:
       root:

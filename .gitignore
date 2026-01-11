@@ -3,6 +3,10 @@
 .local.d
 .venv/
 tmp/
+.nfs*
+rke.d/*/*/logs
+rke.d/*/*/kube
+rke.d/*/*/shared
 
 # incus image
 **incus.tar.xz

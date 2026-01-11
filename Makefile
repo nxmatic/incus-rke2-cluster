@@ -54,6 +54,7 @@ REMOTE_EXEC := $(shell if [ -x /run/wrappers/bin/sudo ]; then echo ""; else echo
 # NODE_ID, NODE_TYPE, and NODE_ROLE are automatically set
 
 # Include layered modules using rules.mk convention (@codebase)
+-include make.d/rke2.mk
 -include make.d/cluster/rules.mk
 -include make.d/node/rules.mk
 -include make.d/network/rules.mk

@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: # kpt-merge: /rke2-node-ip
+  name: node-ip.yaml
+  annotations:
+    description.kpt.dev: Node IP fragment
+    config.kubernetes.io/local-config: "true"
+data:
+  node-ip: ${node-host-ip} # kpt-set: ${node-host-ip}

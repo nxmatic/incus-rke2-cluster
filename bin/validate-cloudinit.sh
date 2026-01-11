@@ -9,7 +9,7 @@ set -euo pipefail
 
 min_version="${1:-24.1.0}"  # adjust as needed
 repo_root="$(git rev-parse --show-toplevel)"
-cloud_cfg_dir="$repo_root/modules/nixos/incus-rke2-cluster"
+cloud_cfg_dir="$repo_root/modules/nixos/rke2lab"
 
 err=0
 

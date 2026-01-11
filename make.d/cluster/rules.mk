@@ -3,12 +3,6 @@
 
 ifndef make.d/cluster/rules.mk
 
--include make.d/make.mk # Ensure availability when file used standalone (@codebase)
--include make.d/node/rules.mk # Node identity and role variables (@codebase)
--include make.d/kpt/rules.mk  # KPT Packages (@codebase)
-
-
-
 # -----------------------------------------------------------------------------
 # Ownership: This layer owns cluster identity + pod/service CIDR mapping and
 # hierarchical addressing comments. Other layers (network/incus/cloud-config)
@@ -20,13 +14,14 @@ ifndef make.d/cluster/rules.mk
 # =============================================================================
 
 # Cluster configuration (inlined from cluster-templates.mk)
-.cluster.name ?= $(if $(LIMA_HOSTNAME),$(LIMA_HOSTNAME),bioskop)
+.cluster.name := $(if $(LIMA_HOSTNAME),$(LIMA_HOSTNAME),bioskop)
 # Guard against empty override (e.g., CLUSTER_NAME="" or env leaking an empty value)
 ifeq ($(strip $(.cluster.name)),)
   .cluster.name := bioskop
 endif
-.cluster.token ?= $(.cluster.name)
-.cluster.domain = cluster.local
+.cluster.token := $(.cluster.name)
+.cluster.domain := cluster.local
+.cluster.env := dave
 
 # Cluster-specific configurations
 ifeq ($(cluster.name),bioskop)
@@ -63,6 +58,7 @@ endif
 
 cluster.id := $(.cluster.id)
 cluster.name := $(.cluster.name)
+cluster.env := $(.cluster.env)
 cluster.token := $(.cluster.token)
 cluster.domain := $(.cluster.domain)
 cluster.id := $(.cluster.id)
@@ -72,7 +68,11 @@ cluster.lima_lan_interface := $(.cluster.lima_lan_interface)
 cluster.lima_vmnet_interface := $(.cluster.lima_vmnet_interface)
 cluster.state_repo := $(.cluster.state_repo)
 
-$(info [cluster] Derived cluster.name=$(cluster.name))
+$(call make.trace,[cluster] Derived, cluster.name cluster.id)
+
+include make.d/make.mk # Ensure availability when file used standalone (@codebase)
+include make.d/node/rules.mk # Node identity and role variables (@codebase)
+include make.d/kpt/rules.mk  # KPT Packages (@codebase)
 
 # -----------------------------------------------------------------------------
 # Hierarchical Addressing Reference (moved from Makefile) (@codebase)

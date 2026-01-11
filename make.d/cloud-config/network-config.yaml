@@ -1,0 +1,49 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/canonical/netplan/main/netplan/cli/schema.json
+# network-config (NoCloud datasource) (@codebase)
+#
+# MANDATORY SEPARATION: Modern cloud-init requires network configuration to be separated
+# from user-data to prevent parsing issues. Older cloud-init versions failed silently
+# when network config was embedded, causing truncated interface configuration.
+#
+# Use networkd renderer for systemd-networkd management (shows as "managed" in networkctl).
+# Disable IPv6 on lan0 to avoid DHCPv6 client dependency issues that break ifupdown parsing.
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    # ===== LAN INTERFACE (DHCP) =====
+    # Local network access - NOW PRIMARY for internet connectivity
+    # Home router provides reliable NAT for internet access
+    lan0:
+      macaddress: ${NETWORK_NODE_LAN_MACADDR}
+      # DHCP Configuration - now allows default route
+      dhcp4: true
+      dhcp4-overrides:
+        use-routes: true       # Accept default route from home router
+        use-dns: true          # Use home router DNS
+        use-domains: false     # Prevent domain override from DHCP
+        use-hostname: false    # Prevent hostname override
+        send-hostname: false   # Don't send hostname to DHCP server
+        route-metric: 100      # Primary route for internet access
+      dhcp6: false             # Disable IPv6 DHCP
+      dhcp-identifier: mac
+      accept-ra: false         # Disable IPv6 Router Advertisements
+      ipv6-privacy: false      # Disable IPv6 privacy extensions
+      link-local: []           # Disable link-local addressing
+
+      # Interface Options
+      optional: false
+
+    # ===== VMNET INTERFACE (DHCP from Incus bridge) =====
+    # Cluster node-to-node communication ONLY
+    # NO internet gateway - lan0 is the exclusive internet path
+    vmnet0:
+      macaddress: ${NETWORK_NODE_WAN_MACADDR}
+      # DHCP from Incus wan bridge network
+      dhcp4: true
+      dhcp4-overrides:
+        use-dns: false           # Don't override DNS from LAN
+        use-routes: false        # Do NOT accept any routes (cluster-internal only)
+
+      # Interface Options
+      optional: false

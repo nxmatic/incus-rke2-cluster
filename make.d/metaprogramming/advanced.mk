@@ -39,8 +39,8 @@ config-instance@incus:
 	echo "  CPU limit: $($(CLUSTER_NAME)_CPU_LIMIT)"
 	echo "  Min memory: $($(NODE_TYPE)_MIN_MEMORY)"
 	echo "  Min CPU: $($(NODE_TYPE)_MIN_CPU)"
-	incus config set $(NODE_NAME) --project=rke2 limits.memory=$(or $($(CLUSTER_NAME)_MEMORY_LIMIT),$($(NODE_TYPE)_MIN_MEMORY))
-	incus config set $(NODE_NAME) --project=rke2 limits.cpu=$(or $($(CLUSTER_NAME)_CPU_LIMIT),$($(NODE_TYPE)_MIN_CPU))
+	incus config set $(NODE_NAME) --project=$(.incus.project.name) limits.memory=$(or $($(CLUSTER_NAME)_MEMORY_LIMIT),$($(NODE_TYPE)_MIN_MEMORY))
+	incus config set $(NODE_NAME) --project=$(.incus.project.name) limits.cpu=$(or $($(CLUSTER_NAME)_CPU_LIMIT),$($(NODE_TYPE)_MIN_CPU))
 
 #-----------------------------
 # Context-Aware Recipe Generation
@@ -102,7 +102,7 @@ define STATUS_CHECK_TEMPLATE
 echo "=== Status for $(1) ==="
 echo "Node type: $$($(1)_NODE_TYPE)"
 echo "Special flags: $$($(1)_SPECIAL_FLAGS)" 
-echo "Instance status: $$(incus info $(1) --project=rke2 2>/dev/null | grep Status || echo "Not found")"
+echo "Instance status: $$(incus info $(1) --project=$(.incus.project.name) 2>/dev/null | grep Status || echo "Not found")"
 echo ""
 endef
 
@@ -118,11 +118,11 @@ status-report: ## Generate comprehensive cluster status report
 # Use pattern rules with constructed names for resource scaling
 scale-%-memory: ## Scale memory for specific node (e.g., make scale-master-memory)
 	echo "[+] Scaling memory for node $* to $($(*)_MEMORY_LIMIT)"
-	incus config set $* --project=rke2 limits.memory=$($(*)_MEMORY_LIMIT)
+	incus config set $* --project=$(.incus.project.name) limits.memory=$($(*)_MEMORY_LIMIT)
 
 scale-%-cpu: ## Scale CPU for specific node (e.g., make scale-master-cpu)
 	echo "[+] Scaling CPU for node $* to $($(*)_CPU_LIMIT)"
-	incus config set $* --project=rke2 limits.cpu=$($(*)_CPU_LIMIT)
+	incus config set $* --project=$(.incus.project.name) limits.cpu=$($(*)_CPU_LIMIT)
 
 # Bulk scaling operations
 .PHONY: scale-cluster-resources

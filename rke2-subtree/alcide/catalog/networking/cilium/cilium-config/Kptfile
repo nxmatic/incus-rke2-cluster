@@ -1,6 +1,0 @@
-apiVersion: kpt.dev/v1
-kind: Kptfile
-metadata:
-  name: cilium
-info:
-  description: Core Cilium HelmChartConfig deployed via kpt

@@ -5,10 +5,13 @@ ifndef make.d/cloud-config/rules.mk
 
 make.d/cloud-config/rules.mk := make.d/cloud-config/rules.mk  # guard to allow safe re-inclusion (@codebase)
 
--include make.d/make.mk  # Ensure availability when file used standalone (@codebase)
--include make.d/node/rules.mk  # Node identity and role variables (@codebase)
--include make.d/network/rules.mk  # Network configuration variables (@codebase)
--include make.d/cluster/rules.mk  # Cluster configuration and variables (@codebase)
+include make.d/rke2.mk  # Ensure availability when file used standalone (@codebase)
+include make.d/node/rules.mk  # Node identity and role variables (@codebase)
+include make.d/network/rules.mk  # Network configuration variables (@codebase)
+include make.d/cluster/rules.mk  # Cluster configuration and variables (@codebase)
+
+-include $(network.env.mk)
+-include rke2.d/$(cluster.name)/$(node.name)/cloud-config.env.mk
 
 # =============================================================================
 # PRIVATE VARIABLES (internal layer implementation)
@@ -22,36 +25,28 @@ make.d/cloud-config/rules.mk := make.d/cloud-config/rules.mk  # guard to allow s
 .cloud-config.master.cilium = $(.cloud-config.source_dir)/cloud-config.master.cilium.yaml
 .cloud-config.master.kube_vip = $(.cloud-config.source_dir)/cloud-config.master.kube-vip.yaml
 .cloud-config.peer = $(.cloud-config.source_dir)/cloud-config.peer.yaml
-.cloud-config.script_dir = $(.cloud-config.source_dir)/scripts
-.cloud-config.script_files = $(wildcard $(.cloud-config.script_dir)/*)
 
 
 
 # Output files (nocloud format) - node-specific paths matching incus structure (@codebase)
-.cloud-config.nocloud.dir = $(rke2-subtree.dir)/${cluster.name}/incus/$(node.name)/nocloud
-.cloud-config.metadata.file = $(.cloud-config.nocloud.dir)/metadata
-.cloud-config.userdata.file = $(.cloud-config.nocloud.dir)/userdata
-.cloud-config.netcfg.file = $(.cloud-config.nocloud.dir)/network-config
-
-# =============================================================================
-# PUBLIC CLOUD-CONFIG API
-# =============================================================================
-
-# Public cloud-config API (used by other layers)
-cloud-config.nocloud.dir := $(.cloud-config.nocloud.dir)
-cloud-config.metadata.file := $(.cloud-config.metadata.file)
-cloud-config.userdata.file := $(.cloud-config.userdata.file)
-cloud-config.netcfg.file := $(.cloud-config.netcfg.file)
+.cloud-config.dir = $(rke2-subtree.dir)/${cluster.name}/$(node.name)
+.cloud-config.metadata.file = $(.cloud-config.dir)/meta-data
+.cloud-config.userdata.file = $(.cloud-config.dir)/user-data
+.cloud-config.netcfg.file = $(.cloud-config.dir)/network-config
 
 # =============================================================================
 # EXPORTS FOR TEMPLATE USAGE
 # =============================================================================
 
 # Export cloud-config variables for use in YAML templates via yq envsubst
-export NOCLOUD_METADATA_FILE := $(cloud-config.metadata.file)
-export NOCLOUD_USERDATA_FILE := $(cloud-config.userdata.file)
-export CLOUD_CONFIG_SOURCE_DIR := $(.cloud-config.source_dir)
 
+define .cloud-config.env.mk =
+
+export CLOUDCONFIG_METADATA_FILE := $(abspath $(.cloud-config.metadata.file))
+export CLOUDCONFIG_USERDATA_FILE := $(abspath $(.cloud-config.userdata.file))
+export CLOUDCONFIG_NETCFG_FILE := $(abspath $(.cloud-config.netcfg.file))
+
+endef
 
 # =============================================================================
 # CLOUD-CONFIG GENERATION RULES
@@ -61,14 +56,13 @@ export CLOUD_CONFIG_SOURCE_DIR := $(.cloud-config.source_dir)
 ## Metadata template (deterministic instance-id) (@codebase)
 ## Decision: Use stable instance-id format to avoid unnecessary cloud-init reinitialization.
 ## Format: <name>-cluster<clusterID>-node<nodeID>
-cloud-config.INSTANCE_ID = $(node.name)-cluster$(cluster.id)-node$(node.id)
 define .cloud-config.metadata_template
-instance-id: $(cloud-config.INSTANCE_ID)
-local-hostname: $(node.name).$.cluster.domain)
+instance-id:$(node.name)-cluster$(cluster.id)-node$(node.id)
+local-hostname: $(node.name).$(cluster.domain)
 endef
 
 $(call register-cloud-config-targets,$(.cloud-config.metadata.file))
-$(.cloud-config.metadata.file): | $(.cloud-config.nocloud.dir)/
+$(.cloud-config.metadata.file): | $(.cloud-config.dir)/
 $(.cloud-config.metadata.file): export METADATA_INLINE := $(.cloud-config.metadata_template)
 $(.cloud-config.metadata.file):
 	: "[+] Generating meta-data file for instance $(node.name)..."
@@ -78,7 +72,7 @@ $(.cloud-config.metadata.file):
 # Generate cloud-init user-data file using yq for YAML correctness
 #-----------------------------
 
-$(.cloud-config.userdata.file): | $(.cloud-config.nocloud.dir)/
+$(.cloud-config.userdata.file): | $(.cloud-config.dir)/
 $(.cloud-config.userdata.file): $(.cloud-config.common) ## common fragment (@codebase)
 $(.cloud-config.userdata.file): $(.cloud-config.server) ## server fragment (@codebase)
 ifeq ($(node.ROLE),master)
@@ -90,7 +84,6 @@ endif
 ifeq ($(node.ROLE),peer)
 $(.cloud-config.userdata.file): $(.cloud-config.peer) ## peer fragment (@codebase)
 endif
-$(.cloud-config.userdata.file): $(.cloud-config.script_files)
 $(.cloud-config.userdata.file): export CLUSTER_VIP_GATEWAY_IP := $(CLUSTER_VIP_GATEWAY_IP)
 $(.cloud-config.userdata.file): export NODE_GATEWAY_IP := $(NODE_GATEWAY_IP)
 $(.cloud-config.userdata.file): export NODE_HOST_IP := $(NODE_HOST_IP)
@@ -197,13 +190,10 @@ $(.cloud-config.userdata.file):
 #-----------------------------
 
 $(call register-network-targets,$(.cloud-config.netcfg.file))
-.cloud-config.env.file := $(dir $(.cloud-config.nocloud.dir))env.mk
-$(.cloud-config.netcfg.file): $(make-dir)/network/network-config.yaml
-$(.cloud-config.netcfg.file): $(.cloud-config.env.file)
-$(.cloud-config.netcfg.file): | $(.cloud-config.nocloud.dir)/
+$(.cloud-config.netcfg.file): $(make-dir)/cloud-config/network-config.yaml
+$(.cloud-config.netcfg.file): | $(.cloud-config.dir)/
 $(.cloud-config.netcfg.file):
 	: "[+] Rendering network-config (envsubst via yq) ..."
-	set -a; . $(.cloud-config.env.file); set +a; \
 	yq eval '( .. | select(tag=="!!str") ) |= envsubst(ne,nu)' $< > $@
 
 #-----------------------------

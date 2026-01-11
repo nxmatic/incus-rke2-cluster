@@ -127,16 +127,16 @@ The Makefile automatically composes configurations based on node role and requir
 [source,makefile]
 ----
 # Master node composition (full features)
-$(NOCLOUD_USERDATA_FILE): cloud-config.common.yaml
-$(NOCLOUD_USERDATA_FILE): cloud-config.server.yaml
-$(NOCLOUD_USERDATA_FILE): cloud-config.master.base.yaml
-$(NOCLOUD_USERDATA_FILE): cloud-config.master.cilium.yaml
-$(NOCLOUD_USERDATA_FILE): cloud-config.master.kube-vip.yaml
+$(CLOUDCONFIG_USERDATA_FILE): cloud-config.common.yaml
+$(CLOUDCONFIG_USERDATA_FILE): cloud-config.server.yaml
+$(CLOUDCONFIG_USERDATA_FILE): cloud-config.master.base.yaml
+$(CLOUDCONFIG_USERDATA_FILE): cloud-config.master.cilium.yaml
+$(CLOUDCONFIG_USERDATA_FILE): cloud-config.master.kube-vip.yaml
 
 # Peer node composition
-$(NOCLOUD_USERDATA_FILE): cloud-config.common.yaml
-$(NOCLOUD_USERDATA_FILE): cloud-config.server.yaml
-$(NOCLOUD_USERDATA_FILE): cloud-config.peer.yaml
+$(CLOUDCONFIG_USERDATA_FILE): cloud-config.common.yaml
+$(CLOUDCONFIG_USERDATA_FILE): cloud-config.server.yaml
+$(CLOUDCONFIG_USERDATA_FILE): cloud-config.peer.yaml
 ----
 
 == Network Modes

@@ -25,8 +25,8 @@ CLUSTER_IMAGE_NAME := control-node
 CLUSTER_NODE_NAME := $(NAME)
 
 # NEW (RKE2-prefixed)
-RKE2_NODE_NAME ?= $(name)
-RKE2_NODE_NAME ?= $(if $(RKE2_NODE_NAME),$(RKE2_NODE_NAME),master)
+NODE_NAME ?= $(name)
+NODE_NAME ?= $(if $(NODE_NAME),$(NODE_NAME),master)
 RKE2_CLUSTER_NAME ?= $(LIMA_HOSTNAME)
 RKE2_CLUSTER_TOKEN ?= $(RKE2_CLUSTER_NAME)
 RKE2_CLUSTER_DOMAIN := cluster.local
@@ -49,15 +49,15 @@ else
 endif
 
 # NEW (comprehensive role detection)
-ifeq ($(RKE2_NODE_NAME),master)
-	RKE2_NODE_TYPE := server
-	RKE2_NODE_ROLE := master
-else ifneq (,$(findstring peer,$(RKE2_NODE_NAME)))
-	RKE2_NODE_TYPE := server
-	RKE2_NODE_ROLE := peer
+ifeq ($(NODE_NAME),master)
+	NODE_TYPE := server
+	NODE_ROLE := master
+else ifneq (,$(findstring peer,$(NODE_NAME)))
+	NODE_TYPE := server
+	NODE_ROLE := peer
 else
-	RKE2_NODE_TYPE := agent
-	RKE2_NODE_ROLE := worker
+	NODE_TYPE := agent
+	NODE_ROLE := worker
 endif
 ----
 
@@ -72,9 +72,9 @@ Updated directory structure for better organization:
 # Runtime directories
 RUN_DIR := .run.d
 IMAGE_DIR := $(RUN_DIR)/image
-RUN_INSTANCE_DIR := $(RUN_DIR)/$(RKE2_NODE_NAME)
-INCUS_DIR := $(RUN_INSTANCE_DIR)/incus
-NOCLOUD_DIR := $(RUN_INSTANCE_DIR)/nocloud
+RUN_INSTANCE_DIR := $(RUN_DIR)/$(NODE_NAME)
+INCUS_RUNTIME_DIR := $(RUN_INSTANCE_DIR)/incus
+CLOUDCONFIG_DIR := $(RUN_INSTANCE_DIR)/nocloud
 SHARED_DIR := $(RUN_INSTANCE_DIR)/shared
 KUBECONFIG_DIR := $(RUN_INSTANCE_DIR)/kube
 LOGS_DIR := $(RUN_INSTANCE_DIR)/logs
@@ -87,11 +87,11 @@ Consistent naming patterns throughout:
 [source,makefile]
 ----
 # Profile naming
-RKE2_NODE_PROFILE_NAME := rke2-$(RKE2_NODE_NAME)
+NODE_PROFILE_NAME := rke2-$(NODE_NAME)
 
 # File naming patterns
 INCUS_PRESSED_FILENAME := incus-preseed.yaml
-INCUS_INSTANCE_CONFIG_FILENAME := incus-instance-config.yaml
+INCUS_CONFIG_FILENAME := incus-instance-config.yaml
 ----
 
 == Network Configuration Updates
@@ -208,13 +208,13 @@ Comprehensive variable exports for template rendering:
 export RKE2_CLUSTER_NAME
 export RKE2_CLUSTER_TOKEN
 export RKE2_CLUSTER_DOMAIN
-export RKE2_NODE_NAME
-export RKE2_NODE_TYPE
-export RKE2_NODE_ROLE
+export NODE_NAME
+export NODE_TYPE
+export NODE_ROLE
 export RKE2_POD_NETWORK_CIDR
 export RKE2_SERVICE_NETWORK_CIDR
 export RKE2_CLUSTER_ID
-export RKE2_NODE_ID
+export NODE_ID
 ----
 
 === Legacy Compatibility

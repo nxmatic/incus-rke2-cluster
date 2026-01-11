@@ -1,0 +1,77 @@
+# kpt-macros.mk - KPT helper macros (@codebase)
+# Self-guarding include; safe for multiple -include occurrences.
+
+ifndef make.d/kpt/macros.mk
+make.d/kpt/macros.mk := make.d/kpt/macros.mk
+
+# Require a binary to be present, otherwise exit with an error (@codebase)
+define .kpt.require-bin
+	if ! command -v $(1) >/dev/null 2>&1; then
+		echo "[kpt] Missing required command $(1)";
+		exit 1;
+	fi
+endef
+
+# Apply-setters config content for rke2 (@codebase)
+define .kpt.rke2-config.setters.file.content
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rke2-config-setters
+  annotations:
+    internal.kpt.dev/function-config: apply-setters
+data:
+  cluster-id: "$(cluster.id)"
+  cluster-init: "$(if $(filter master,$(node.role)),true,false)"
+  cluster-name: $(cluster.name)
+  cluster-token: $(cluster.token)
+  node-role: $(node.role)
+  node-type: $(node.type)
+  node-host-ip: $(.network.node.host.inetaddr)
+  pod-network-cidr: $(cluster.pod.cidr)
+  service-network-cidr: $(cluster.service.cidr)
+  node-gateway-ip: $(.network.node.gateway.inetaddr)
+  cluster-vip-gateway-ip: $(.network.cluster.vip.gateway)
+endef
+
+# Utility macros for Kustomization generation (@codebase)
+define .kpt.yaml.comma-join =
+$(subst $(space),$1,$(strip $2))
+endef
+
+define .kpt.yaml.rangeOf =
+[ $(call .kpt.yaml.comma-join,$(comma)$(newline),$(foreach value,$(1),"$(value)")) ]
+endef 
+
+define .Kustomization.file.content =
+$(warning generating Kustomization content for $(1))
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources: $(call .kpt.yaml.rangeOf,$(1))
+endef
+
+define .cluster.kustomize.content = 
+	apiVersion: kustomize.config.k8s.io/v1beta1
+	kind: Kustomization
+	resources:
+	- catalog
+	- overlays
+endef
+
+define .cluster.overlays.kustomize.content = 
+	apiVersion: kustomize.config.k8s.io/v1beta1
+	kind: Kustomization
+	resources:
+	- ../catalog
+endef
+
+# Resource categorization helpers (@codebase)
+define .kpt.toFilePath =
+((.metadata.annotations["kpt.dev/package-layer"] // "default") + "/" + (.metadata.annotations["kpt.dev/package-name"] // "unknown") + "/" + "$(strip $(1))-" + (.kind | downcase) + "-" + (.metadata.name | downcase) + ".yml")
+endef
+
+define .kpt.isOwnedByPackage =
+.metadata.annotations."kpt.dev/package-name" == "$(pkg)"
+endef
+
+endif

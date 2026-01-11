@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: network-plan
+  annotations:
+    config.kubernetes.io/local-config: "true"
+    internal.kpt.dev/function-config: apply-setters
+data:
+  cluster-id: 1
+  cluster-name: "alcide"
+
+  host-supernet-cidr: "10.80.0.0/18"
+  cluster-network-cidr: "10.80.8.0/21"
+  node-network-cidr: "10.80.8.0/23"
+  vip-pool-cidr: "10.80.15.0/24"
+  lb-pool-cidr: "10.80.8.64/26"
+  cluster-gateway-inet: "10.80.8.1"
+  node-vip-inet: "10.80.15.10"
+  node-gateway-inet: "10.80.8.1"
+  node-host-inet: "10.80.8.10"
+  lan-bridge-hwaddr: "02:00:00:bb:01:00"
+  cluster-node-inet-base: "10.80.8"
+  host-subnet-split-network: "10.80.0.0/18"
+  host-subnet-split-prefix: "21"
+  host-subnet-split-count: "8"
+  node-subnet-split-network: "10.80.8.0/21"
+  node-subnet-split-prefix: "23"
+  node-subnet-split-count: "4"
+  vip-subnet-split-network: "10.80.8.0/21"
+  vip-subnet-split-prefix: "24"
+  vip-subnet-split-count: "8"
+  lb-subnet-split-network: "10.80.8.0/23"
+  lb-subnet-split-prefix: "26"
+  lb-subnet-split-count: "8"
+  host-split: |-
+    - "'10.80.0.0/21'"
+    - "'10.80.8.0/21'"
+    - "'10.80.16.0/21'"
+    - "'10.80.24.0/21'"
+    - "'10.80.32.0/21'"
+    - "'10.80.40.0/21'"
+    - "'10.80.48.0/21'"
+    - "'10.80.56.0/21'"
+  node-split: |-
+    - "'10.80.8.0/23'"
+    - "'10.80.10.0/23'"
+    - "'10.80.12.0/23'"
+    - "'10.80.14.0/23'"
+  vip-split: |-
+    - "'10.80.8.0/24'"
+    - "'10.80.9.0/24'"
+    - "'10.80.10.0/24'"
+    - "'10.80.11.0/24'"
+    - "'10.80.12.0/24'"
+    - "'10.80.13.0/24'"
+    - "'10.80.14.0/24'"
+    - "'10.80.15.0/24'"
+  lb-split: |-
+    - "'10.80.8.0/26'"
+    - "'10.80.8.64/26'"
+    - "'10.80.8.128/26'"
+    - "'10.80.8.192/26'"
+    - "'10.80.9.0/26'"
+    - "'10.80.9.64/26'"
+    - "'10.80.9.128/26'"
+    - "'10.80.9.192/26'"
+  node-wan-macs: |-
+    master: "52:54:00:01:00:00"
+    peer1: "52:54:00:01:00:01"
+    peer2: "52:54:00:01:00:02"
+    peer3: "52:54:00:01:00:03"
+    worker1: "52:54:00:01:01:0a"
+    worker2: "52:54:00:01:01:0b"
+  # RKE2 config setter-friendly fields
+  pod-network-cidr: "10.44.0.0/16"
+  service-network-cidr: "10.45.0.0/16"
+  node-gateway-ip: "10.80.8.1"
+  node-host-ip: "10.80.8.10"
+  cluster-vip-gateway-ip: "10.80.15.1"

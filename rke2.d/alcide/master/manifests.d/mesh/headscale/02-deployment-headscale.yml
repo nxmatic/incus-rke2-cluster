@@ -1,0 +1,88 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: apps|Deployment|headscale|headscale
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  labels:
+    app: headscale
+  name: headscale
+  namespace: headscale
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: headscale
+  template:
+    metadata:
+      annotations:
+        kpt.dev/package-layer: mesh
+        kpt.dev/package-name: headscale
+      labels:
+        app: headscale
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - command:
+            - headscale
+            - serve
+          image: headscale/headscale:0.27.0
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          name: headscale
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+            - containerPort: 9090
+              name: metrics
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          volumeMounts:
+            - mountPath: /etc/headscale/config.yaml
+              name: config
+              subPath: config.yaml
+            - mountPath: /etc/headscale/acl.json
+              name: acl
+              subPath: acl.json
+            - mountPath: /etc/headscale/derp.yaml
+              name: derp
+              subPath: derp.yaml
+            - mountPath: /var/lib/headscale
+              name: data
+            - mountPath: /var/run/headscale
+              name: run
+      nodeSelector:
+        cluster-name.cluster/node-role: '"alcide.cluster/node-role": master'
+      volumes:
+        - configMap:
+            name: headscale-config
+          name: config
+        - configMap:
+            name: headscale-acl
+          name: acl
+        - configMap:
+            name: headscale-derp
+          name: derp
+        - emptyDir: {}
+          name: data
+        - emptyDir: {}
+          name: run

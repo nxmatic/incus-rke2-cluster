@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rke2-config-setters
+  annotations:
+    internal.kpt.dev/function-config: apply-setters
+data:
+  cluster-id: "1"
+  cluster-init: "true"
+  cluster-name: alcide
+  cluster-token: alcide
+  node-role: master
+  node-type: server
+  node-host-ip: 10.80.8.10
+  pod-network-cidr: 10.44.0.0/16
+  service-network-cidr: 10.45.0.0/16
+  node-gateway-ip: 10.80.8.1
+  cluster-vip-gateway-ip: 10.80.15.1

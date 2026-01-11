@@ -50,17 +50,6 @@ endif
 
 # Public node API
 
-cluster.id := $(.cluster.id)
-cluster.name := $(.cluster.name)
-cluster.token := $(.cluster.token)
-cluster.domain := $(.cluster.domain)
-cluster.id := $(.cluster.id)
-cluster.pod.cidr := $(.cluster.pod.cidr)
-cluster.service.cidr := $(.cluster.service.cidr)
-cluster.lima_lan_interface := $(.cluster.lima_lan_interface)
-cluster.lima_vmnet_interface := $(.cluster.lima_vmnet_interface)
-cluster.state_repo := $(.cluster.state_repo)
-
 node.name := $(.node.name)
 node.type := $(.node.type)
 node.role := $(.node.role)
