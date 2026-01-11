@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: # kpt-merge: /rke2-advertise-address
+  name: advertise-address.yaml
+  annotations:
+    description.kpt.dev: Advertise address fragment
+    config.kubernetes.io/local-config: "true"
+data:
+  advertise-address: ${node-host-ip} # kpt-set: ${node-host-ip}

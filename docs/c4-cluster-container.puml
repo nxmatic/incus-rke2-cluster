@@ -8,7 +8,7 @@ LAYOUT_WITH_LEGEND()
 
 Person_Ext(devops, "Cluster Engineer", "Works from Bioskop")
 System_Ext(githubFleet, "fleet-manifests repo", "GitHub", "Overlay + render sources")
-System_Ext(githubIncus, "incus-rke2-cluster repo", "GitHub", "Automation + documentation")
+System_Ext(githubIncus, "rke2lab repo", "GitHub", "Automation + documentation")
 System_Ext(homeLan, "Home LAN / Internet", "Router + registries", "DHCP, image pulls, VIP consumers")
 
 System_Boundary(bioskop, "Bioskop Automation Stack") {

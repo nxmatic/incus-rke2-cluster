@@ -19,7 +19,7 @@ System_Boundary(bioskop, "Bioskop Workstation") {
 }
 
 System_Ext(githubFleet, "fleet-manifests repo", "GitHub", "Overlays + render scripts")
-System_Ext(githubIncus, "incus-rke2-cluster repo", "GitHub", "Makefiles, cloud-config, docs")
+System_Ext(githubIncus, "rke2lab repo", "GitHub", "Makefiles, cloud-config, docs")
 System_Ext(homeLan, "Home LAN / Internet", "Router + registries", "DHCP, egress, upstream registries")
 
 Rel(devops, githubFleet, "Reviews + pushes overlays")

@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: # kpt-merge: /rke2-etcd
+  name: etcd.yaml
+  annotations:
+    description.kpt.dev: Etcd settings fragment
+    config.kubernetes.io/local-config: "true"
+data:
+  etcd-expose-metrics: true
+  node-name: ${cluster-name}-${node-type}-node # kpt-set: ${cluster-name}-${node-type}-node
+  with-node-id: false

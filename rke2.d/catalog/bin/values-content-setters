@@ -1,0 +1,42 @@
+#!/usr/bin/env -S bash -euo pipefail
+
+if [[ "${KPT_DEBUG:-false}" == "true" ]]; then
+  exec 2>/tmp/$(basename "$0").log
+  set -x
+fi
+
+input=$(cat)
+
+# Extract setters as shell variables and source them for envsubst compatibility
+set -a
+# shellcheck disable=SC1090
+source <( yq eval-all -o=shell --from-file=<( cat <<'EoE'
+  (
+    .items // [.]          # handle ResourceList or plain stream
+  )
+  | sort_by(
+      ((.metadata.annotations["config.kubernetes.io/path"] // "")
+        | split("/")
+        | length)
+    )
+  | .[]
+  | select( .kind=="ConfigMap" and
+            .metadata.annotations["internal.kpt.dev/function-config"] == "apply-setters" and
+			.metadata.name = "cluster-setters" ) |
+          .data
+EoE
+) - <<< "$input" )
+set +a
+
+# Interpolate valuesContent using envsubst with exported variables
+# Only the value part (with underscores) will be replaced; annotation comments are preserved
+yq --from-file=<( cat <<'EoE'
+with(
+  .items[] |
+  select(
+    ( .kind == "HelmChartConfig" or .kind == "HelmChart") and
+    ( has("spec") and ( .spec | has("valuesContent") ) ) );
+  .spec.valuesContent = (.spec.valuesContent | envsubst)
+)
+EoE
+) - <<< "$input"

@@ -157,12 +157,12 @@ show-metaprogramming-features: ## Show available metaprogramming features
 ----
 .PHONY: show-cloud-config-files
 show-cloud-config-files: ## Show cloud-config files for current node type
-	@echo "Cloud-config files for $(RKE2_NODE_NAME) ($(RKE2_NODE_ROLE)):"
+	@echo "Cloud-config files for $(NODE_NAME) ($(NODE_ROLE)):"
 	@echo "  Common: cloud-config/cloud-config.common.yaml"
 	@echo "  Server: cloud-config/cloud-config.server.yaml"
-ifeq ($(RKE2_NODE_ROLE),master)
+ifeq ($(NODE_ROLE),master)
 	@echo "  Master: cloud-config/cloud-config.master.*.yaml"
-else ifeq ($(RKE2_NODE_ROLE),peer)
+else ifeq ($(NODE_ROLE),peer)
 	@echo "  Peer: cloud-config/cloud-config.peer.yaml"
 endif
 ----
@@ -186,7 +186,7 @@ Help content adapts based on current configuration:
 help: ## Show context-aware help
 	@echo "Current Configuration:"
 	@echo "  Cluster: $(RKE2_CLUSTER_NAME)"
-	@echo "  Node: $(RKE2_NODE_NAME) ($(RKE2_NODE_ROLE))"
+	@echo "  Node: $(NODE_NAME) ($(NODE_ROLE))"
 	@echo "  Network: $(CLUSTER_INET_NETWORK)"
 	@echo ""
 ----

@@ -1,0 +1,36 @@
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: config.porch.kpt.dev|PackageVariant|porch-system|mesh-tailscale
+    kpt.dev/package-layer: gitops
+    kpt.dev/package-name: porch-resources
+  name: mesh-tailscale
+  namespace: porch-system
+spec:
+  adoptionPolicy: adoptNone
+  deletionPolicy: delete
+  downstream:
+    package: mesh/tailscale
+    repo: alcide-state
+  labels:
+    cluster-name: alcide
+    nxmatic.dev/app: tailscale
+    nxmatic.dev/component: mesh
+  packageContext:
+    data:
+      cluster-env: dave
+      cluster-name: alcide
+  pipeline:
+    mutators:
+      - configMap:
+          cluster-name: alcide-cluster
+          lb-pool-cidr: ${cluster-lb-pool-cidr}
+          tailscale-namespace: tailscale-system
+          tailscale-version: 1.82.0
+          vip-address: ${node-vip-ip}
+        image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+  upstream:
+    package: mesh/tailscale
+    repo: alcide-catalog

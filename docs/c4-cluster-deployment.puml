@@ -12,7 +12,7 @@ Person_Ext(devops, "Cluster Engineer", "Runs make targets + render workflows")
 Deployment_Node(fleetrepo, "fleet-manifests", "GitHub", "Rendered package sources + overlays") {
     Deployment_Node(fleetRender, "render.sh outputs", "Rendered manifests", "kpt fn render + kustomize build artifacts")
 }
-Deployment_Node(cloudcfgrepo, "incus-rke2-cluster", "GitHub", "Layered Make + cloud-config") {
+Deployment_Node(cloudcfgrepo, "rke2lab", "GitHub", "Layered Make + cloud-config") {
     Deployment_Node(cloudCfg, "cloud-config.*.yaml", "Cloud-config bundles", "Common/server/master/peer stacks")
 }
 

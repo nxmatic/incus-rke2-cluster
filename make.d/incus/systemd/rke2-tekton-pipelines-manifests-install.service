@@ -1,0 +1,17 @@
+[Unit]
+Description=Apply Tekton Pipelines manifests from host share (post-server)
+After=rke2-server.service
+Requires=rke2-server.service
+ConditionPathExists=/srv/host/rke2/scripts/rke2-tekton-pipelines-manifests-install.sh
+ConditionPathExists=/srv/host/rke2/manifests.d/cicd/tekton-pipelines
+
+[Service]
+Type=oneshot
+ExecStart=/srv/host/rke2/scripts/rke2-tekton-pipelines-manifests-install.sh
+RemainAfterExit=true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+

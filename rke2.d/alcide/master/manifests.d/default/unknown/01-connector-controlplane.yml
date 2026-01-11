@@ -1,0 +1,14 @@
+---
+apiVersion: tailscale.com/v1alpha1
+kind: Connector
+metadata:
+  annotations:
+    config.kubernetes.io/depends-on: helm.cattle.io/namespaces/kube-system/HelmChart/tailscale-operator
+    internal.kpt.dev/upstream-identifier: tailscale.com|Connector|default|controlplane
+  name: controlplane
+spec:
+  hostname: alcide-controlplane
+  subnetRouter:
+    advertiseRoutes:
+      - 10.80.63.10/32
+      - 10.80.8.64/26

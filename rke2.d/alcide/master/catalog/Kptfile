@@ -1,0 +1,39 @@
+apiVersion: kpt.dev/v1
+kind: Kptfile
+metadata:
+  name: catalog
+  annotations:
+    config.kubernetes.io/local-config: "true"
+upstream:
+  type: git
+  git:
+    repo: /net/alcide.lan/private/var/lib/git/nxmatic/rke2lab
+    directory: /rke2.d/catalog
+    ref: main
+  updateStrategy: resource-merge
+upstreamLock:
+  type: git
+  git:
+    repo: /net/alcide.lan/private/var/lib/git/nxmatic/rke2lab
+    directory: /rke2.d/catalog
+    ref: main
+    commit: c0ac813d549ff87897d5f68717a8333c9f69aa4e
+info:
+  site: https://github.com/nxmatic/rke2lab
+  description: |
+    Root kpt package for RKE2 cluster Kubernetes manifests.
+
+    Organized by functional layers:
+    - ha: High availability components (kube-vip)
+    - mesh: Mesh networking (headscale, tailscale)
+    - networking: Network policies, gateways, ingress (cilium-config, cilium, envoy-gateway, traefik)
+    - runtime: Container runtimes (flox-containerd-shim)
+    - storage: Storage solutions (openebs-zfs)
+    - gitops: GitOps control plane and package management (flux, porch)
+    - cicd: CI/CD components (tekton)
+    - replication: Replicator services/CRDs
+pipeline:
+  mutators:
+    - exec: values-content-setters
+    - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+      configPath: configmap-cluster-setters.yaml

@@ -1,0 +1,12 @@
+[Unit]
+Description=Early ZFS umount all datasets
+After=zfs-mount.service
+Before=basic.target
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/zfs umount -a
+
+[Install]
+WantedBy=basic.target

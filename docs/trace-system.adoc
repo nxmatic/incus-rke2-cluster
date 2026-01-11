@@ -108,7 +108,7 @@ make .trace=vars network
 [source]
 ----
 [TRACE] RKE2_CLUSTER_NAME = bioskop
-[TRACE] RKE2_NODE_NAME = srv-main
+[TRACE] NODE_NAME = srv-main
 ----
 
 === `network` - Network Operation Tracing
@@ -234,7 +234,7 @@ When developing new targets or troubleshooting issues:
 [source,bash]
 ----
 # See all variable values and target flow
-make .trace=targets,vars RKE2_NODE_NAME=debug-node summary@network
+make .trace=targets,vars NODE_NAME=debug-node summary@network
 
 # Trace shell execution for complex recipes  
 make .trace=shell,targets start@incus

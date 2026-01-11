@@ -2,7 +2,7 @@
 # @codebase
 
 # All rendered resources now live inside the fleet subtree and are
-# materialized on each control-plane node via rke2-server-manifests-install.
+# materialized on each control-plane node via rke2-cilium.
 # No extra systemd glue is required in this overlay.
 
 write_files: []

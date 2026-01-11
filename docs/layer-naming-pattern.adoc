@@ -325,7 +325,7 @@ Layers can depend on targets from other layers:
 [source,makefile]
 ----
 # Example: Cloud-config depends on network configuration
-$(NOCLOUD_USERDATA_FILE): validate-network@network
+$(CLOUDCONFIG_USERDATA_FILE): validate-network@network
 ----
 
 == Future Enhancements

@@ -9,7 +9,7 @@
 
 == Overview
 
-This document outlines the migration strategy for introducing kpt (Kubernetes Package Tool) into the incus-rke2-cluster deployment system. The goal is to reduce reliance on RKE2 manifests embedded in cloud-config files, maintaining only minimal bootstrap manifests in RKE2 while managing most cluster components through kpt packages.
+This document outlines the migration strategy for introducing kpt (Kubernetes Package Tool) into the rke2lab deployment system. The goal is to reduce reliance on RKE2 manifests embedded in cloud-config files, maintaining only minimal bootstrap manifests in RKE2 while managing most cluster components through kpt packages.
 
 === Current State
 
@@ -193,7 +193,7 @@ Create a structured directory for kpt packages in the repository.
 
 [source,text]
 ----
-modules/nixos/incus-rke2-cluster/
+modules/nixos/rke2lab/
 └── 
   ├── catalog/
   │   ├── Kptfile
@@ -272,7 +272,7 @@ modules/nixos/incus-rke2-cluster/
 apiVersion: kpt.dev/v1
 kind: Kptfile
 metadata:
-  name: incus-rke2-cluster
+  name: rke2lab
 info:
   description: Kubernetes cluster components for Incus RKE2 deployment
   keywords:
@@ -304,8 +304,8 @@ info:
 upstream:
   type: git
   git:
-    repo: https://github.com/nxmatic/incus-rke2-cluster
-    directory: modules/nixos/incus-rke2-cluster/catalog/mesh/headscale
+    repo: https://github.com/nxmatic/rke2lab
+    directory: modules/nixos/rke2lab/catalog/mesh/headscale
     ref: develop
 pipeline:
   mutators:
@@ -519,7 +519,7 @@ Build a reusable catalog of kpt packages for common Kubernetes components.
 
 == Conclusion
 
-This migration plan provides a structured approach to introducing kpt into the incus-rke2-cluster deployment system. The phased migration strategy reduces risk by starting with non-critical components and gradually moving to core infrastructure.
+This migration plan provides a structured approach to introducing kpt into the rke2lab deployment system. The phased migration strategy reduces risk by starting with non-critical components and gradually moving to core infrastructure.
 
 **Next Steps**:
 

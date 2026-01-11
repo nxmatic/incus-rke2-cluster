@@ -1,0 +1,187 @@
+#cloud-config
+# Common cloud-init configuration for all RKE2 nodes (masters and agents)
+
+write_files:
+  # =============================================================================
+  # SYSTEM CONFIGURATION FILES
+  # =============================================================================
+
+  # Disable cloud-init network configuration to prevent conflicts with netplan/systemd-networkd
+  # This prevents cloud-init from generating /etc/network/interfaces.d/50-cloud-init
+  # which would start dhcpcd and conflict with systemd-networkd DHCP
+  - path: /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+    permissions: "0644"
+    content: |
+      network: {config: disabled}
+  # systemd-networkd drop-in to set cluster-prefixed hostname for LAN DHCP
+  # This ensures LAN DHCP registrations are unique per cluster (bioskop vs alcide)
+  # while keeping the actual system hostname unchanged
+  # Drop-in must match netplan-generated config name: 10-netplan-lan0.network
+  - path: /etc/systemd/network/10-netplan-lan0.network.d/10-hostname.conf
+    permissions: "0644"
+    content: |
+      [DHCP]
+      SendHostname=yes
+      Hostname=alcide-master-control-node
+  # systemd-networkd drop-in to prevent vmnet0 DHCP from installing routes/DNS
+  - path: /etc/systemd/network/10-netplan-lan0.network.d/90-no-default.conf
+    permissions: "0644"
+    content: |
+      [Network]
+      DHCP=ipv4
+      IPv6AcceptRA=no
+      LinkLocalAddressing=ipv4
+      LLMNR=yes
+
+      [DHCP]
+      UseDNS=yes
+  # systemd-networkd drop-in to prevent vmnet0 DHCP from installing routes/DNS
+  - path: /etc/systemd/network/10-netplan-vmnet0.network.d/90-no-default.conf
+    permissions: "0644"
+    content: |
+      [Network]
+      IPv6AcceptRA=no
+      LinkLocalAddressing=ipv4
+
+      [DHCP]
+      UseRoutes=no
+      UseDNS=no
+  # systemd-resolved drop-in to disable LLMNR/mDNS advertising on LAN interfaces
+  - path: /etc/systemd/resolved.conf.d/10-disable-llmnr-mdns.conf
+    permissions: "0644"
+    content: |
+      [Resolve]
+      LLMNR=no
+      MulticastDNS=no
+  # Disable IPv6 globally so nodes stay IPv4-only end-to-end (@codebase)
+  - path: /etc/sysctl.d/99-disable-ipv6.conf
+    permissions: "0644"
+    content: |
+      net.ipv6.conf.all.disable_ipv6 = 1
+      net.ipv6.conf.default.disable_ipv6 = 1
+      net.ipv6.conf.lo.disable_ipv6 = 1
+      net.ipv6.conf.lan0.disable_ipv6 = 1
+      net.ipv6.conf.vmnet0.disable_ipv6 = 1
+      net.ipv6.conf.all.accept_ra = 0
+      net.ipv6.conf.default.accept_ra = 0
+  # Set systemd as cgroup driver
+  - path: /var/lib/rancher/rke2/agent/etc/kubelet.conf.d/01-cgroup-override.conf
+    # =============================================================================
+    # KUBELET CONFIGURATION FILES
+    # =============================================================================
+
+    content: |
+      apiVersion: kubelet.config.k8s.io/v1beta1
+      kind: KubeletConfiguration
+      cgroupDriver: systemd
+  # Disable aggressive image garbage collection
+  - path: /var/lib/rancher/rke2/agent/etc/kubelet.conf.d/00-disable-gc.conf
+    content: |
+      apiVersion: kubelet.config.k8s.io/v1beta1
+      kind: KubeletConfiguration
+      kubelet-arg:
+        imageGCHighThresholdPercent: 100
+        imageGCLowThresholdPercent: 99
+  # ZFS snapshotter configuration for containerd
+  - path: /var/lib/rancher/rke2/agent/etc/containerd/config-v3.toml
+    # =============================================================================
+    # CONTAINERD CONFIGURATION
+    # =============================================================================
+
+    permissions: "0644"
+    content: |
+      {{ template "base" . }}
+
+      [plugins."io.containerd.grpc.v1.cri".containerd]
+        snapshotter = "zfs"
+
+      [plugins."io.containerd.snapshotter.v1.zfs"]
+        root_path = "/var/lib/rancher/rke2/agent/containerd/io.containerd.snapshotter.v1.zfs"
+
+      [debug]
+        level = "debug"
+  # Control plane specific systemd drop-in for Cilium operator scaling
+  - path: /srv/host/system.d/rke2-server.service.d/cilium-operator-scaling.conf
+    # =============================================================================
+    # FLOX ENVIRONMENT SETUP SCRIPTS
+    # =============================================================================
+    # kubeconfig drop-ins are mounted from /srv/host/system.d
+
+    permissions: "0644"
+    content: |
+      [Service]
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-cilium-operator-scaling'
+  # Simplified RKE2 environment configuration (variables now in flox profile)
+  - path: /var/lib/rancher/rke2/.envrc
+    # =============================================================================
+    # ENVIRONMENT CONFIGURATION FILES
+    # =============================================================================
+
+    permissions: "0644"
+    content: |
+      #!/usr/bin/env bash
+      log_status "Loading RKE2 flox environment"
+
+      # Variables are now defined in flox profile-common.sh
+      # Just activate flox environment
+      [[ "${FLOX_ENV_PROJECT}" != "${PWD}" ]] &&
+        use flox
+  # Root user zsh configuration
+  - path: /root/.zshrc
+    # =============================================================================
+    # SHELL CONFIGURATION FILES
+    # =============================================================================
+
+    permissions: "0644"
+    content: |
+      #!/usr/bin/env zsh
+
+      : "Define useful functions"
+      journalctl:unit:follow() {
+        local unit="$1"
+        journalctl --unit $unit --follow --no-tail |
+          tee /srv/host/share/logs/${unit}.log
+      }
+
+      : "Configure completions"
+      autoload -Uz compinit &&
+        compinit
+      command -v kubectl >/dev/null &&
+        source <( kubectl completion zsh ) 2>/dev/null || true
+      command -v helm >/dev/null &&
+        source <( helm completion zsh ) 2>/dev/null || true
+
+      : "Load direnv hook"
+      source <( direnv hook zsh )
+  # Bash completion for kubectl and helm
+  - path: /etc/bash_completion.d/kube
+    permissions: "0644"
+    content: |
+      #!/usr/bin/env -S bash
+      source <( flox activate --dir /var/lib/rancher/rke2 )
+
+      source <( kubectl completion bash ) 2>/dev/null || true
+      source <( helm completion bash ) 2>/dev/null || true
+runcmd:
+  - /srv/host/rke2/scripts/rke2-systemd-link.sh
+  - /srv/host/rke2/scripts/rke2-activate.sh
+hostname: master-control-node
+manage_resolv_conf: true
+resolv_conf:
+  searchdomains:
+    - mammoth-skate.ts.net
+# -----------------------------------------------------------------------------
+# Network configuration now provided via separate NoCloud network-config file (@codebase)
+# The standalone network-config.yaml template generates the network-config seed file
+# mounted at /var/lib/cloud/seed/nocloud/network-config. Since cloud-init doesn't
+# properly honor the 'renderer: networkd' directive, we use bootcmd to install the
+# netplan file before systemd-networkd starts.
+# -----------------------------------------------------------------------------
+bootcmd:
+  # Install NoCloud network-config as netplan file before cloud-init processes network
+  # This must run in bootcmd because write_files happens too late (after network config)
+  - [test, -f, /var/lib/cloud/seed/nocloud/network-config]
+  - [cp, /var/lib/cloud/seed/nocloud/network-config, /etc/netplan/01-nocloud.yaml]
+  - [chmod, '600', /etc/netplan/01-nocloud.yaml]
+  # Disable dhcpcd for vmnet0 - systemd-networkd will handle it
+  - [sh, -c, "echo 'denyinterfaces vmnet0' >> /etc/dhcpcd.conf"]

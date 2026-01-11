@@ -41,19 +41,19 @@ $(foreach node,$(SUPPORTED_NODES),$(eval $(call GENERATE_NODE_RULES_TEMPLATE,$(n
 [source,makefile]
 ----
 # Old approach
-ifeq ($(RKE2_NODE_NAME),master)
-    RKE2_NODE_ID := 0
-    RKE2_NODE_TYPE := server  
-else ifeq ($(RKE2_NODE_NAME),peer1)
-    RKE2_NODE_ID := 1
-    RKE2_NODE_TYPE := server
+ifeq ($(NODE_NAME),master)
+    NODE_ID := 0
+    NODE_TYPE := server  
+else ifeq ($(NODE_NAME),peer1)
+    NODE_ID := 1
+    NODE_TYPE := server
 # ... many more conditions
 
 # New approach  
 master_SPECIAL_FLAGS := --bootstrap
 peer1_SPECIAL_FLAGS := --join-peer
 
-# Usage: $($(RKE2_NODE_NAME)_SPECIAL_FLAGS)
+# Usage: $($(NODE_NAME)_SPECIAL_FLAGS)
 ----
 
 **Benefits**:
@@ -90,7 +90,7 @@ setup-network-%: | $$($$*_REQUIRED_BRIDGES:%=bridge-%)
 [source,makefile]
 ----
 # Runtime state detection
-INSTANCE_EXISTS := $(shell incus info $(RKE2_NODE_NAME) --project=rke2 >/dev/null 2>&1 && echo "true" || echo "false")
+INSTANCE_EXISTS := $(shell incus info $(NODE_NAME) --project=$(.incus.project.name) >/dev/null 2>&1 && echo "true" || echo "false")
 
 # Conditional rule generation
 ifneq ($(INSTANCE_EXISTS),true)
@@ -159,9 +159,9 @@ SUPPORTED_CLUSTERS := bioskop alcide newcluster
 ----
 # In cluster-config.mk
 define NODE_storage1_CONFIG
-RKE2_NODE_ID := 6
-RKE2_NODE_TYPE := agent
-RKE2_NODE_ROLE := storage
+NODE_ID := 6
+NODE_TYPE := agent
+NODE_ROLE := storage
 endef
 
 # Add to supported list
@@ -212,15 +212,15 @@ else
 endif
 
 # Automatic node type detection
-ifneq (,$(findstring peer,$(RKE2_NODE_NAME)))
-    RKE2_NODE_TYPE := server
-    RKE2_NODE_ROLE := peer
-else ifeq ($(RKE2_NODE_NAME),master)
-    RKE2_NODE_TYPE := server
-    RKE2_NODE_ROLE := master
+ifneq (,$(findstring peer,$(NODE_NAME)))
+    NODE_TYPE := server
+    NODE_ROLE := peer
+else ifeq ($(NODE_NAME),master)
+    NODE_TYPE := server
+    NODE_ROLE := master
 else
-    RKE2_NODE_TYPE := agent
-    RKE2_NODE_ROLE := worker
+    NODE_TYPE := agent
+    NODE_ROLE := worker
 endif
 ----
 

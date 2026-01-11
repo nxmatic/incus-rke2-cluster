@@ -1,0 +1,15 @@
+---
+apiVersion: cilium.io/v2alpha1
+kind: CiliumLoadBalancerIPPool
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: cilium.io|CiliumLoadBalancerIPPool|default|load-balancers
+    kpt.dev/package-layer: networking
+    kpt.dev/package-name: cilium-advanced
+  name: load-balancers
+spec:
+  blocks: 10.80.8.64/26
+  serviceSelector:
+    matchExpressions:
+      - key: io.cilium/lb-ipam
+        operator: DoesNotExist

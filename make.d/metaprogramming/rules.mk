@@ -12,7 +12,6 @@ include make.d/make.mk  # Ensure availability when file used standalone (@codeba
 # Only include these for non-help targets to avoid evaluation issues
 ifneq ($(MAKECMDGOALS),help)
 # Note: cluster configuration now inlined in make.d/node/rules.mk
--include metaprogramming/runtime-config.mk  
 -include metaprogramming/advanced.mk
 endif
 

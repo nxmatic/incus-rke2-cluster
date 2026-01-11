@@ -59,7 +59,7 @@ Successfully refactored the Incus RKE2 cluster Makefile project from a flat stru
 ** Bridge configuration and validation
 ** IPv4/IPv6 dual-stack support
 ** RKE2 network CIDR management
-* **Variables**: `RKE2_CLUSTER_ID`, `RKE2_NODE_ID`, network CIDRs
+* **Variables**: `RKE2_CLUSTER_ID`, `NODE_ID`, network CIDRs
 * **Targets**: `network@incus`, `host-network@incus`, bridge setup
 
 === Incus Layer (`incus/rules.mk`)

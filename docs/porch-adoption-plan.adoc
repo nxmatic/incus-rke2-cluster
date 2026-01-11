@@ -31,7 +31,7 @@
 
 === Repository Objects
 
-All cluster-specific Porch manifests live under `modules/nixos/incus-rke2-cluster/system/porch` so they can be applied together and versioned alongside the catalog.
+All cluster-specific Porch manifests live under `modules/nixos/rke2lab/system/porch` so they can be applied together and versioned alongside the catalog.
 
 . **Catalog repository** – read-only blueprint source that maps to this workspace path.
 // @codebase
@@ -45,9 +45,9 @@ metadata:
 spec:
   type: git
   git:
-    repo: git@github.com:nxmatic/incus-rke2-cluster.git
+    repo: git@github.com:nxmatic/rke2lab.git
     branch: develop
-    directory: modules/nixos/incus-rke2-cluster/catalog
+    directory: modules/nixos/rke2lab/catalog
     secretRef:
       name: github-token
   deployment: false

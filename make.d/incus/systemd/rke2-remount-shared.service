@@ -1,0 +1,12 @@
+[Unit]
+Description=Remount RKE2 required volumes as shared
+Before=rke2-server.service
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+ExecStart=/srv/host/rke2/scripts/rke2-remount-shared.sh
+RemainAfterExit=true
+
+[Install]
+WantedBy=multi-user.target

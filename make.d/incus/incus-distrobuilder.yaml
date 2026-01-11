@@ -332,7 +332,7 @@ actions:
       cat > /etc/systemd/system/systemd-networkd-wait-online.service.d/timeout.conf << 'EOF'
       [Service]
       ExecStart=
-      ExecStart=/lib/systemd/systemd-networkd-wait-online --any --timeout=5
+      ExecStart=/lib/systemd/systemd-networkd-wait-online --interface=lan0 --timeout=10
       EOF
 
   - trigger: post-files

@@ -1,0 +1,13 @@
+[Unit]
+Description=RKE2 Network Debug Logger
+After=systemd-networkd.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c 'echo "=== Network Debug at $(date) ==="; ip addr show; echo "=== Routes ==="; ip route show; echo "=== NetworkD Status ==="; systemctl status systemd-networkd --no-pager; echo "=== NetworkCTL List ==="; networkctl list'
+RemainAfterExit=true
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target

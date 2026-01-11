@@ -5,7 +5,7 @@
 set -euo pipefail
 
 root="$(git rev-parse --show-toplevel)"
-cd "$root/modules/nixos/incus-rke2-cluster"
+cd "$root/modules/nixos/rke2lab"
 
 out_dir="build/trixie-image"
 mkdir -p build

@@ -1,0 +1,11 @@
+ifndef rke2.env.mk
+rke2.env.mk := rke2.d/alcide/rke2.env.mk
+export CLUSTER_ID=1
+export CLUSTER_NAME=alcide
+export CLUSTER_ENV=dave
+export CLUSTER_TOKEN=alcide
+export CLUSTER_DOMAIN=cluster.local
+export CLUSTER_SECRETS_FILE=/net/alcide.lan/private/var/lib/git/nxmatic/rke2lab/.secrets
+export CLUSTER_SERVER_MANIFESTS_DIR=/net/alcide.lan/private/var/lib/git/nxmatic/rke2lab/rke2.d/alcide/master/manifests.d
+export CLUSTER_CONFIG_DIR=/net/alcide.lan/private/var/lib/git/nxmatic/rke2lab/.local.d/var/lib/kpt/alcide/master/runtime/rke2-config/configmaps
+endif

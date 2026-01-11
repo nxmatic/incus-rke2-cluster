@@ -93,34 +93,6 @@ write_files:
       net.ipv6.conf.all.accept_ra = 0
       net.ipv6.conf.default.accept_ra = 0
 
-  # Network configuration script using flox environment and yq
-  - path: /usr/local/sbin/rke2-network-config
-    permissions: "0755"
-    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-network-config.sh
-  - path: /etc/systemd/system/rke2-network-config.service
-    permissions: "0644"
-    content: |
-      [Unit]
-      Description=RKE2 Network Configuration Service
-      After=systemd-networkd.service cloud-init.service
-      Wants=systemd-networkd.service
-      Before=rke2-install.service
-      
-      [Service]
-      Type=oneshot
-      ExecStart=/usr/local/sbin/rke2-network-config
-      RemainAfterExit=yes
-      StandardOutput=journal
-      StandardError=journal
-      
-      [Install]
-      WantedBy=multi-user.target
-
-  # Docker CLI shim to route invocations to nerdctl for kpt functions
-  - path: /usr/local/bin/docker
-    permissions: "0755"
-    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/docker.sh
-
   # =============================================================================
   # KUBELET CONFIGURATION FILES
   # =============================================================================
@@ -163,34 +135,14 @@ write_files:
   # =============================================================================
   # FLOX ENVIRONMENT SETUP SCRIPTS
   # =============================================================================
-
-  # Pre-installation script for environment setup
-  - path: /usr/local/sbin/rke2-install-pre
-    permissions: "0755"
-    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-install-pre.sh
-  - path: /usr/local/sbin/rke2-install
-    permissions: "0755"
-    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-install.sh
-  - path: /usr/local/sbin/rke2-install-post
-    permissions: "0755"
-    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-install-post.sh
-  - path: /etc/systemd/system/rke2-server.service.d/kubeconfig.conf
-    content: |
-      [Service]
-      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-tools-configuration-directories'
-      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-vip-kubeconfig'
-
-  - path: /etc/systemd/system/rke2-agent.service.d/kubeconfig.conf
-    content: |
-      [Service]
-      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-tools-configuration-directories'
-      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-vip-kubeconfig'
+  # kubeconfig drop-ins are mounted from /srv/host/system.d
 
   # Control plane specific systemd drop-in for Cilium operator scaling
-  # - path: /etc/systemd/system/rke2-server.service.d/cilium-operator-scaling.conf
-  #   content: |
-  #     [Service]
-  #     ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-cilium-operator-scaling'
+  - path: /srv/host/system.d/rke2-server.service.d/cilium-operator-scaling.conf
+    permissions: "0644"
+    content: |
+      [Service]
+      ExecStartPost=/bin/sh -xc '/usr/local/sbin/rke2-cilium-operator-scaling'
 
   # =============================================================================
   # ENVIRONMENT CONFIGURATION FILES
@@ -222,7 +174,7 @@ write_files:
       journalctl:unit:follow() {
         local unit="$$1"
         journalctl --unit $$unit --follow --no-tail |
-          tee /.logs.d/$${unit}.log
+          tee /srv/host/share/logs/$${unit}.log
       }
 
       : "Configure completions"
@@ -246,161 +198,6 @@ write_files:
       source <( kubectl completion bash ) 2>/dev/null || true
       source <( helm completion bash ) 2>/dev/null || true
 
-  # =============================================================================
-  # UTILITY SCRIPTS
-  # =============================================================================
-
-  - path: /usr/local/sbin/rke2-route-cleanup
-    permissions: "0755"
-    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-route-cleanup.sh
-  - path: /usr/local/sbin/rke2-network-wait
-    permissions: "0755"
-    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-network-wait.sh
-  - path: /usr/local/sbin/rke2-network-debug
-    permissions: "0755"
-    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-network-debug.sh
-  - path: /usr/local/sbin/rke2-remount-shared
-    permissions: "0755"
-    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-remount-shared.sh
-  - path: /usr/local/sbin/rke2-activate
-    permissions: "0755"
-    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-activate.sh
-  - path: /usr/local/sbin/rke2-enable-containerd-zfs-mount
-    permissions: "0755"
-    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-enable-containerd-zfs-mount.sh
-  - path: /usr/local/sbin/rke2-cilium-operator-scaling
-    permissions: "0755"
-    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-cilium-operator-scaling.sh
-  - path: /usr/local/sbin/rke2-tools-configuration-directories
-    permissions: "0755"
-    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-tools-configuration-directories.sh
-  - path: /usr/local/sbin/rke2-vip-kubeconfig
-    permissions: "0755"
-    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-vip-kubeconfig.sh
-  - path: /usr/local/sbin/rke2-cilium-check
-    permissions: "0755"
-    content_from_file: ${CLOUD_CONFIG_SOURCE_DIR}/scripts/rke2-cilium-check.sh
-  - path: /etc/systemd/system/rke2-network-debug.service
-    permissions: "0644"
-    content: |
-      [Unit]
-      Description=RKE2 Network Debug Logger
-      After=systemd-networkd.service
-
-      [Service]
-      Type=oneshot
-      ExecStart=/bin/bash -c 'echo "=== Network Debug at $$(date) ==="; ip addr show; echo "=== Routes ==="; ip route show; echo "=== NetworkD Status ==="; systemctl status systemd-networkd --no-pager; echo "=== NetworkCTL List ==="; networkctl list'
-      RemainAfterExit=true
-      StandardOutput=journal+console
-      StandardError=journal+console
-
-      [Install]
-      WantedBy=multi-user.target
-  - path: /etc/systemd/system/rke2-network-wait.service
-    permissions: "0644"
-    content: |
-      [Unit]
-      Description=RKE2 Network Wait Service
-      After=systemd-networkd.service
-      Before=rke2-server.service rke2-agent.service
-      Wants=systemd-networkd.service
-
-      [Service]
-      Type=oneshot
-      ExecStart=/usr/local/sbin/rke2-network-wait
-      RemainAfterExit=true
-      StandardOutput=journal+console
-      StandardError=journal+console
-      SuccessExitStatus=0 1
-
-      [Install]
-      WantedBy=multi-user.target
-  - path: /etc/systemd/system/rke2-route-cleanup.service
-    permissions: "0644"
-    content: |
-      [Unit]
-      Description=RKE2 Route Cleanup Service - Remove DHCP default routes
-      After=network-online.target systemd-networkd.service
-      Wants=network-online.target systemd-networkd.service
-      Before=rke2-server.service rke2-agent.service
-      StartLimitIntervalSec=30
-
-      [Service]
-      Type=oneshot
-      ExecStart=/usr/local/sbin/rke2-route-cleanup
-      RemainAfterExit=true
-      StandardOutput=journal+console
-      StandardError=journal+console
-      Restart=on-failure
-      RestartSec=5
-      StartLimitBurst=3
-
-      [Install]
-      WantedBy=multi-user.target
-  - path: /etc/systemd/system/zfs-early-umount.service
-    permissions: "0644"
-    content: |
-      [Unit]
-      Description=Early ZFS umount all datasets
-      After=zfs-mount.service
-      Before=basic.target
-      DefaultDependencies=no
-
-      [Service]
-      Type=oneshot
-      ExecStart=/usr/sbin/zfs umount -a
-
-      [Install]
-      WantedBy=basic.target
-  - path: /etc/systemd/system/rke2-remount-shared.service
-    permissions: "0644"
-    content: |
-      [Unit]
-      Description=Remount RKE2 required volumes as shared
-      Before=rke2-server.service
-      DefaultDependencies=no
-
-      [Service]
-      Type=oneshot
-      ExecStart=/usr/local/sbin/rke2-remount-shared
-      RemainAfterExit=true
-
-      [Install]
-      WantedBy=multi-user.target
-
-  - path: /etc/systemd/system/rke2-install.service
-    permissions: "0644"
-    content: |
-      [Unit]
-      Description=Run RKE2 Installation Script
-      After=network-online.target systemd-networkd.service
-      Wants=network-online.target systemd-networkd.service
-      ConditionPathExists=!/etc/systemd/system/rke2-server.service
-      ConditionPathExists=!/etc/systemd/system/rke2-agent.service
-
-      [Service]
-      Type=oneshot
-      ExecStartPre=/usr/local/sbin/rke2-install-pre
-      ExecStart=/usr/local/sbin/rke2-install
-      ExecStartPost=/usr/local/sbin/rke2-install-post
-      RemainAfterExit=true
-      StandardOutput=journal
-      StandardError=journal
-
-      [Install]
-      WantedBy=multi-user.target
-
 runcmd:
-  - [ sysctl, -p, /etc/sysctl.d/99-disable-ipv6.conf ]
-  - [ systemctl, daemon-reload ]
-  - [ systemctl, enable,
-      rke2-network-config.service,
-      rke2-network-debug.service,
-      rke2-network-wait.service,
-      rke2-route-cleanup.service,
-      zfs-early-umount.service,
-      rke2-remount-shared.service,
-      rke2-install.service ]
-  # Start network configuration service immediately
-  - [ systemctl, start, rke2-network-config.service ]
-  - /usr/local/sbin/rke2-activate
+  - /srv/host/rke2/scripts/rke2-systemd-link.sh
+  - /srv/host/rke2/scripts/rke2-activate.sh

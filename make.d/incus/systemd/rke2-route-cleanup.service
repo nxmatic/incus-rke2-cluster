@@ -1,0 +1,19 @@
+[Unit]
+Description=RKE2 Route Cleanup Service - Remove DHCP default routes
+After=network-online.target systemd-networkd.service
+Wants=network-online.target systemd-networkd.service
+Before=rke2-server.service rke2-agent.service
+StartLimitIntervalSec=30
+
+[Service]
+Type=oneshot
+ExecStart=/srv/host/rke2/scripts/rke2-route-cleanup.sh
+RemainAfterExit=true
+StandardOutput=journal+console
+StandardError=journal+console
+Restart=on-failure
+RestartSec=5
+StartLimitBurst=3
+
+[Install]
+WantedBy=multi-user.target

@@ -5,10 +5,13 @@ ifndef make.d/cloud-config/rules.mk
 
 make.d/cloud-config/rules.mk := make.d/cloud-config/rules.mk  # guard to allow safe re-inclusion (@codebase)
 
--include make.d/make.mk  # Ensure availability when file used standalone (@codebase)
--include make.d/node/rules.mk  # Node identity and role variables (@codebase)
--include make.d/network/rules.mk  # Network configuration variables (@codebase)
--include make.d/cluster/rules.mk  # Cluster configuration and variables (@codebase)
+include make.d/rke2.mk  # Ensure availability when file used standalone (@codebase)
+include make.d/node/rules.mk  # Node identity and role variables (@codebase)
+include make.d/network/rules.mk  # Network configuration variables (@codebase)
+include make.d/cluster/rules.mk  # Cluster configuration and variables (@codebase)
+
+-include $(network.env.mk)
+-include rke2.d/$(cluster.name)/$(node.name)/cloud-config.env.mk
 
 # =============================================================================
 # PRIVATE VARIABLES (internal layer implementation)
@@ -22,36 +25,33 @@ make.d/cloud-config/rules.mk := make.d/cloud-config/rules.mk  # guard to allow s
 .cloud-config.master.cilium = $(.cloud-config.source_dir)/cloud-config.master.cilium.yaml
 .cloud-config.master.kube_vip = $(.cloud-config.source_dir)/cloud-config.master.kube-vip.yaml
 .cloud-config.peer = $(.cloud-config.source_dir)/cloud-config.peer.yaml
-.cloud-config.script_dir = $(.cloud-config.source_dir)/scripts
-.cloud-config.script_files = $(wildcard $(.cloud-config.script_dir)/*)
+
+# Temp workspace for generated yq scripts and merge outputs (@codebase)
+.cloud-config.tmp.dir = $(tmp-dir)/cloud-config/$(cluster.name)/$(node.name)
+.cloud-config.yq.file = $(.cloud-config.tmp.dir)/user-data.yq
+.cloud-config.tmp.output = $(.cloud-config.tmp.dir)/user-data.tmp
 
 
 
 # Output files (nocloud format) - node-specific paths matching incus structure (@codebase)
-.cloud-config.nocloud.dir = $(rke2-subtree.dir)/${cluster.name}/incus/$(node.name)/nocloud
-.cloud-config.metadata.file = $(.cloud-config.nocloud.dir)/metadata
-.cloud-config.userdata.file = $(.cloud-config.nocloud.dir)/userdata
-.cloud-config.netcfg.file = $(.cloud-config.nocloud.dir)/network-config
-
-# =============================================================================
-# PUBLIC CLOUD-CONFIG API
-# =============================================================================
-
-# Public cloud-config API (used by other layers)
-cloud-config.nocloud.dir := $(.cloud-config.nocloud.dir)
-cloud-config.metadata.file := $(.cloud-config.metadata.file)
-cloud-config.userdata.file := $(.cloud-config.userdata.file)
-cloud-config.netcfg.file := $(.cloud-config.netcfg.file)
+.cloud-config.dir = $(rke2-subtree.dir)/${cluster.name}/$(node.name)
+.cloud-config.metadata.file = $(.cloud-config.dir)/meta-data
+.cloud-config.userdata.file = $(.cloud-config.dir)/user-data
+.cloud-config.netcfg.file = $(.cloud-config.dir)/network-config
 
 # =============================================================================
 # EXPORTS FOR TEMPLATE USAGE
 # =============================================================================
 
 # Export cloud-config variables for use in YAML templates via yq envsubst
-export NOCLOUD_METADATA_FILE := $(cloud-config.metadata.file)
-export NOCLOUD_USERDATA_FILE := $(cloud-config.userdata.file)
-export CLOUD_CONFIG_SOURCE_DIR := $(.cloud-config.source_dir)
 
+define .cloud-config.env.mk =
+
+export CLOUDCONFIG_METADATA_FILE := $(abspath $(.cloud-config.metadata.file))
+export CLOUDCONFIG_USERDATA_FILE := $(abspath $(.cloud-config.userdata.file))
+export CLOUDCONFIG_NETCFG_FILE := $(abspath $(.cloud-config.netcfg.file))
+
+endef
 
 # =============================================================================
 # CLOUD-CONFIG GENERATION RULES
@@ -61,14 +61,13 @@ export CLOUD_CONFIG_SOURCE_DIR := $(.cloud-config.source_dir)
 ## Metadata template (deterministic instance-id) (@codebase)
 ## Decision: Use stable instance-id format to avoid unnecessary cloud-init reinitialization.
 ## Format: <name>-cluster<clusterID>-node<nodeID>
-cloud-config.INSTANCE_ID = $(node.name)-cluster$(cluster.id)-node$(node.id)
 define .cloud-config.metadata_template
-instance-id: $(cloud-config.INSTANCE_ID)
-local-hostname: $(node.name).$.cluster.domain)
+instance-id: cluster-${cluster.id}-${node.id}
+local-hostname: $(cluster.name)-$(node.name).$(cluster.domain)
 endef
 
 $(call register-cloud-config-targets,$(.cloud-config.metadata.file))
-$(.cloud-config.metadata.file): | $(.cloud-config.nocloud.dir)/
+$(.cloud-config.metadata.file): | $(.cloud-config.dir)/
 $(.cloud-config.metadata.file): export METADATA_INLINE := $(.cloud-config.metadata_template)
 $(.cloud-config.metadata.file):
 	: "[+] Generating meta-data file for instance $(node.name)..."
@@ -78,7 +77,7 @@ $(.cloud-config.metadata.file):
 # Generate cloud-init user-data file using yq for YAML correctness
 #-----------------------------
 
-$(.cloud-config.userdata.file): | $(.cloud-config.nocloud.dir)/
+$(.cloud-config.userdata.file): | $(.cloud-config.dir)/
 $(.cloud-config.userdata.file): $(.cloud-config.common) ## common fragment (@codebase)
 $(.cloud-config.userdata.file): $(.cloud-config.server) ## server fragment (@codebase)
 ifeq ($(node.ROLE),master)
@@ -90,98 +89,47 @@ endif
 ifeq ($(node.ROLE),peer)
 $(.cloud-config.userdata.file): $(.cloud-config.peer) ## peer fragment (@codebase)
 endif
-$(.cloud-config.userdata.file): $(.cloud-config.script_files)
 $(.cloud-config.userdata.file): export CLUSTER_VIP_GATEWAY_IP := $(CLUSTER_VIP_GATEWAY_IP)
 $(.cloud-config.userdata.file): export NODE_GATEWAY_IP := $(NODE_GATEWAY_IP)
 $(.cloud-config.userdata.file): export NODE_HOST_IP := $(NODE_HOST_IP)
+$(.cloud-config.userdata.file): | $(.cloud-config.tmp.dir)/
 
 # yq expressions for cloud-config merging with environment variable substitution
 # YQ cloud-config expressions (manually defined for now - TODO: metaprogramming)
-define YQ_CLOUD_CONFIG_MERGE_3_FILES
-"#cloud-config" as $$preamble | \
-select(fileIndex == 0) as $$a | \
-select(fileIndex == 1) as $$b | \
-select(fileIndex == 2) as $$c | \
-($$a * $$b * $$c) | \
-.write_files = ($$a.write_files // []) + ($$b.write_files // []) + ($$c.write_files // []) | \
-.runcmd = ($$a.runcmd // []) + ($$b.runcmd // []) + ($$c.runcmd // []) | \
-( .. | select( tag == "!!str" ) ) |= envsubst(ne,nu) | \
-$$preamble + "\n" + (. | to_yaml | sub("^---\n"; ""))
-endef
-
-define YQ_CLOUD_CONFIG_MERGE_5_FILES
-"#cloud-config" as $$preamble | \
-select(fileIndex == 0) as $$a | \
-select(fileIndex == 1) as $$b | \
-select(fileIndex == 2) as $$c | \
-select(fileIndex == 3) as $$d | \
-select(fileIndex == 4) as $$e | \
-($$a * $$b * $$c * $$d * $$e) | \
-.write_files = ($$a.write_files // []) + ($$b.write_files // []) + ($$c.write_files // []) + ($$d.write_files // []) + ($$e.write_files // []) | \
-.runcmd = ($$a.runcmd // []) + ($$b.runcmd // []) + ($$c.runcmd // []) + ($$d.runcmd // []) + ($$e.runcmd // []) | \
-( .. | select( tag == "!!str" ) ) |= envsubst(ne,nu) | \
-$$preamble + "\n" + (. | to_yaml | sub("^---\n"; ""))
-endef
-
-define YQ_CLOUD_CONFIG_MERGE_6_FILES
-"#cloud-config" as $$preamble |
-select(fileIndex == 0) as $$a |
-select(fileIndex == 1) as $$b |
-select(fileIndex == 2) as $$c |
-select(fileIndex == 3) as $$d |
-select(fileIndex == 4) as $$e |
-select(fileIndex == 5) as $$f |
-($$a * $$b * $$c * $$d * $$e * $$f) |
-.write_files = ($$a.write_files // []) 
-  + ($$b.write_files // [])
-  + ($$c.write_files // [])
-  + ($$d.write_files // [])
-  + ($$e.write_files // [])
-  + ($$f.write_files // []) |
-.runcmd = ( 
-  $$a.runcmd // [])
-  + ($$b.runcmd // [])
-  + ($$c.runcmd // [])
-  + ($$d.runcmd // [])
-  + ($$e.runcmd // [])
-  + ($$f.runcmd // []) |
-( .. | select( tag == "!!str" ) ) |= envsubst(ne,nu) |
-$$preamble + "\n" + (. | to_yaml | sub("^---\n"; ""))
-endef
-
-# YQ cloud-config expression lookup by file count
-define YQ_CLOUD_CONFIG_MERGE_2_FILES
-"#cloud-config" as $$preamble | \
-select(fileIndex == 0) as $$a | \
-select(fileIndex == 1) as $$b | \
-($$a * $$b) | \
-.write_files = ($$a.write_files // []) + ($$b.write_files // []) | \
-.runcmd = ($$a.runcmd // []) + ($$b.runcmd // []) | \
-( .. | select( tag == "!!str" ) ) |= envsubst(ne,nu) | \
-$$preamble + "\n" + (. | to_yaml | sub("^---\n"; ""))
-endef
-
-YQ_CLOUD_CONFIG_EXPR_2 = $(YQ_CLOUD_CONFIG_MERGE_2_FILES)
-YQ_CLOUD_CONFIG_EXPR_3 = $(YQ_CLOUD_CONFIG_MERGE_3_FILES)
-YQ_CLOUD_CONFIG_EXPR_5 = $(YQ_CLOUD_CONFIG_MERGE_5_FILES)
-YQ_CLOUD_CONFIG_EXPR_6 = $(YQ_CLOUD_CONFIG_MERGE_6_FILES)
-
-define YQ_INLINE_SCRIPT_LOAD
-with(
-	.write_files[]?;
-	select(has("content_from_file")) |= (
-		.content = load_str(.content_from_file) |
-		del(.content_from_file)
+define YQ_CLOUD_CONFIG_MERGE_REDUCE
+select(fi == 0) |
+( . as $$item ireduce (
+	{ "write_files": [], "runcmd": [] };
+	. * $$item |
+	.write_files = (.write_files // []) + ($$item.write_files // []) |
+	.runcmd = (.runcmd // []) + ($$item.runcmd // [])
 	)
-)
+) |
+( .write_files |= ( (. // []) | reverse | unique_by(.path) | reverse ) ) |
+( .runcmd |= ( (. // []) | unique ) ) |
+( .. | select( tag == "!!str" ) ) |= envsubst(ne,nu)
 endef
+
+# Single expression reused for all supported merge counts to avoid duplicate outputs
+YQ_CLOUD_CONFIG_EXPR_2 = $(YQ_CLOUD_CONFIG_MERGE_REDUCE)
+YQ_CLOUD_CONFIG_EXPR_3 = $(YQ_CLOUD_CONFIG_MERGE_REDUCE)
+YQ_CLOUD_CONFIG_EXPR_5 = $(YQ_CLOUD_CONFIG_MERGE_REDUCE)
+YQ_CLOUD_CONFIG_EXPR_6 = $(YQ_CLOUD_CONFIG_MERGE_REDUCE)
 
 # Macro for executing the appropriate yq cloud-config merge based on file count
 define EXECUTE_YQ_CLOUD_CONFIG_MERGE
 $(if $(YQ_CLOUD_CONFIG_EXPR_$(1)),
-echo '$(YQ_CLOUD_CONFIG_EXPR_$(1))' > $(3).yq && yq eval-all --unwrapScalar --from-file=$(3).yq $(2) > $(3) && : "rm $(3).yq",
-$(error Unsupported file count: $(1) (expected 3, 5, or 6)))
+mkdir -p $(.cloud-config.tmp.dir)
+echo '$(YQ_CLOUD_CONFIG_EXPR_$(1))' > $(.cloud-config.yq.file)
+yq eval-all --unwrapScalar --from-file=$(.cloud-config.yq.file) $(2) |
+	sed -e '/^---$$/d' > $(.cloud-config.tmp.output)
+ ( echo "#cloud-config"; cat $(.cloud-config.tmp.output) ) > $(3)
+ rm -f $(.cloud-config.tmp.output) $(.cloud-config.yq.file),
+$(error Unsupported file count: $(1) (expected 2, 3, 5, or 6)))
 endef
+
+$(.cloud-config.tmp.dir)/:
+	mkdir -p $(@)
 
 # Note: Dependencies already defined above for different node roles
 $(call register-cloud-config-targets,$(.cloud-config.userdata.file))
@@ -197,13 +145,10 @@ $(.cloud-config.userdata.file):
 #-----------------------------
 
 $(call register-network-targets,$(.cloud-config.netcfg.file))
-.cloud-config.env.file := $(dir $(.cloud-config.nocloud.dir))env.mk
-$(.cloud-config.netcfg.file): $(make-dir)/network/network-config.yaml
-$(.cloud-config.netcfg.file): $(.cloud-config.env.file)
-$(.cloud-config.netcfg.file): | $(.cloud-config.nocloud.dir)/
+$(.cloud-config.netcfg.file): $(make-dir)/cloud-config/network-config.yaml
+$(.cloud-config.netcfg.file): | $(.cloud-config.dir)/
 $(.cloud-config.netcfg.file):
 	: "[+] Rendering network-config (envsubst via yq) ..."
-	set -a; . $(.cloud-config.env.file); set +a; \
 	yq eval '( .. | select(tag=="!!str") ) |= envsubst(ne,nu)' $< > $@
 
 #-----------------------------

@@ -1,0 +1,134 @@
+# incus instance config (@codebase)
+name: master
+architecture: aarch64
+profiles:
+  - rke2lab
+config:
+  raw.lxc: |
+    lxc.cap.drop =
+    lxc.apparmor.profile = unconfined
+    lxc.mount.auto = proc:rw sys:rw cgroup-full:rw
+    lxc.cgroup.devices.allow = c *:* rwm
+    lxc.cgroup.devices.allow = b *:* rwm
+  security.privileged: true
+  security.nesting: true
+  volatile.lan0.hwaddr: 10:66:6a:4c:01:00
+  volatile.vmnet0.hwaddr: 52:54:00:01:00:00
+  # RKE2 Core Configuration
+  environment.RKE2LAB_DEBUG: false
+  environment.RKE2LAB_NODE_TYPE: "server"
+  environment.RKE2LAB_CLUSTER_NAME: "alcide"
+  environment.RKE2LAB_CLUSTER_TOKEN: "alcide"
+  environment.RKE2LAB_CLUSTER_DOMAIN: "cluster.local"
+  # Tailscale / Headscale provisioning
+  environment.RKE2LAB_NODE_ROLE: "master"
+  environment.RKE2LAB_NODE_NAME: "master"
+  # RKE2 Network Configuration
+  environment.RKE2LAB_CLUSTER_ID: "1"
+  environment.RKE2LAB_NODE_ID: "0"
+  environment.RKE2LAB_NODE_HOST_INETADDR: "10.80.8.10"
+  environment.RKE2LAB_NODE_VIP_INETADDR: "10.80.15.10"
+  environment.RKE2LAB_NODE_NETWORK_CIDR: "10.80.8.0/23"
+  environment.RKE2LAB_NODE_GATEWAY_INETADDR: "10.80.8.1"
+  environment.RKE2LAB_VIP_INTERFACE: "rke2-vip0"
+  environment.RKE2LAB_CLUSTER_VIP_CIDR: "10.80.15.0/24"
+  environment.RKE2LAB_CLUSTER_VIP_GATEWAY_INETADDR: "10.80.15.1"
+  environment.RKE2LAB_CLUSTER_CIDR: "10.80.8.0/21"
+  environment.RKE2LAB_CLUSTER_LB_CIDR: "10.80.8.64/26"
+  environment.RKE2LAB_CLUSTER_LB_GATEWAY_INETADDR: "10.80.8.65"
+  environment.RKE2LAB_CLUSTER_POD_CIDR: "10.44.0.0/16"
+  environment.RKE2LAB_CLUSTER_SERVICE_CIDR: "10.45.0.0/16"
+  environment.RKE2LAB_LAN_LB_POOL: "192.168.1.32/27"
+  environment.RKE2LAB_NODE_LAN_INTERFACE: "master-lan0"
+  environment.RKE2LAB_NODE_WAN_INTERFACE: "master-vmnet0"
+  # Cluster Gateway (Lima VM on WAN bridge)
+  environment.RKE2LAB_CLUSTER_GATEWAY_INETADDR: "10.80.8.1"
+  # Container Runtime Configuration
+  environment.CONTAINERD_ADDRESS: "/run/k3s/containerd/containerd.sock"
+  environment.CONTAINERD_NAMESPACE: "k8s.io"
+  environment.CONTAINERD_CONFIG_FILE: "/var/lib/rancher/rke2/agent/etc/containerd/config.toml"
+  environment.CRI_CONFIG_FILE: "/var/lib/rancher/rke2/agent/etc/crictl.yaml"
+  # etcdctl Configuration
+  environment.ETCDCTL_API: "3"
+  environment.ETCDCTL_CERT: "/var/lib/rancher/rke2/server/tls/etcd/server-client.crt"
+  environment.ETCDCTL_KEY: "/var/lib/rancher/rke2/server/tls/etcd/server-client.key"
+  environment.ETCDCTL_CACERT: "/var/lib/rancher/rke2/server/tls/etcd/server-ca.crt"
+  environment.ETCDCTL_ENDPOINTS: "https://127.0.0.1:2379"
+  environment.ETCDCTL_WRITE_OUT: "table"
+  environment.ETCDCTL_DIAL_TIMEOUT: "10s"
+  environment.ETCDCTL_COMMAND_TIMEOUT: "30s"
+  # kubectl Configuration
+  environment.KUBECTL_OUTPUT: "yaml"
+  environment.KUBECTL_EXTERNAL_DIFF: "diff"
+  # Cilium CLI Configuration
+  environment.CILIUM_CLI_MODE: "kubernetes"
+  environment.CILIUM_CLI_CONTEXT: "default"
+  # Hubble Configuration
+  environment.HUBBLE_SERVER: "localhost:4245"
+  environment.HUBBLE_TLS: "false"
+  # Helm Configuration
+  environment.HELM_DATA_HOME: "/var/lib/rancher/rke2/helm"
+  environment.HELM_CONFIG_HOME: "/etc/rancher/rke2/helm"
+  environment.HELM_CACHE_HOME: "/var/cache/rancher/rke2/helm"
+  environment.HELM_REPOSITORY_CONFIG: "/etc/rancher/rke2/helm/repositories.yaml"
+  environment.HELM_REPOSITORY_CACHE: "/var/cache/rancher/rke2/helm/repository"
+  environment.HELM_PLUGINS: "/var/lib/rancher/rke2/helm/plugins"
+  # Krew Configuration
+  environment.KREW_ROOT: "/var/lib/rancher/rke2/krew"
+  # Kpt Configuration
+  environment.KRM_FN_RUNTIME: "nerdctl"
+  # Home Directory
+  environment.HOME: "/root"
+devices:
+  kmsg.dev:
+    type: unix-char
+    source: /dev/kmsg
+    path: /dev/kmsg
+  zfs.dev:
+    type: unix-char
+    source: /dev/zfs
+    path: /dev/zfs
+  secrets.file:
+    type: disk
+    source: /net/alcide.lan/private/var/lib/git/nxmatic/rke2lab/.secrets
+    path: /srv/host/rke2/secrets
+  rke2lab.env.file:
+    type: disk
+    source: /net/alcide.lan/private/var/lib/git/nxmatic/rke2lab/rke2.d/alcide/master/environment
+    path: /srv/host/rke2/environment
+  rke2lab.scripts.dir:
+    type: disk
+    source: /net/alcide.lan/private/var/lib/git/nxmatic/rke2lab/make.d/incus/scripts
+    path: /srv/host/rke2/scripts
+  rke2lab.system.dir:
+    type: disk
+    source: /net/alcide.lan/private/var/lib/git/nxmatic/rke2lab/make.d/incus/systemd
+    path: /srv/host/system.d
+  manifests.dir:
+    type: disk
+    source: /net/alcide.lan/private/var/lib/git/nxmatic/rke2lab/rke2.d/alcide/master/manifests.d
+    path: /srv/host/rke2/manifests.d
+  rke2.config.dir:
+    type: disk
+    source: /net/alcide.lan/private/var/lib/git/nxmatic/rke2lab/.local.d/var/lib/kpt/alcide/master/runtime/rke2-config/configmaps
+    path: /srv/host/rke2/config
+  shared.dir:
+    type: disk
+    source: /net/alcide.lan/private/var/lib/git/nxmatic/rke2lab/.local.d/share
+    path: /srv/host/share
+  kubeconfig.dir:
+    type: disk
+    source: /net/alcide.lan/private/var/lib/git/nxmatic/rke2lab/.local.d/var/kube
+    path: /srv/host/rke2/kubeconfig
+  user.metadata:
+    type: disk
+    source: /net/alcide.lan/private/var/lib/git/nxmatic/rke2lab/rke2.d/alcide/master/meta-data
+    path: /var/lib/cloud/seed/nocloud/meta-data
+  user.user-data:
+    type: disk
+    source: /net/alcide.lan/private/var/lib/git/nxmatic/rke2lab/rke2.d/alcide/master/user-data
+    path: /var/lib/cloud/seed/nocloud/user-data
+  user.network-config:
+    type: disk
+    source: /net/alcide.lan/private/var/lib/git/nxmatic/rke2lab/rke2.d/alcide/master/network-config
+    path: /var/lib/cloud/seed/nocloud/network-config

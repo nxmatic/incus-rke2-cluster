@@ -50,27 +50,12 @@ endif
 
 # Public node API
 
-cluster.id := $(.cluster.id)
-cluster.name := $(.cluster.name)
-cluster.token := $(.cluster.token)
-cluster.domain := $(.cluster.domain)
-cluster.id := $(.cluster.id)
-cluster.pod.cidr := $(.cluster.pod.cidr)
-cluster.service.cidr := $(.cluster.service.cidr)
-cluster.lima_lan_interface := $(.cluster.lima_lan_interface)
-cluster.lima_vmnet_interface := $(.cluster.lima_vmnet_interface)
-cluster.state_repo := $(.cluster.state_repo)
-
 node.name := $(.node.name)
 node.type := $(.node.type)
 node.role := $(.node.role)
 node.id := $(.node.id)
 
-# Export node variables for environment/templates
-export NODE_NAME := $(node.name)
-export NODE_TYPE := $(node.type)
-export NODE_ROLE := $(node.role)
-export NODE_ID := $(node.id)
+include make.d/node/env.mk  # Export node env vars (@codebase)
 
 # Validation target for node layer
 .PHONY: test@node

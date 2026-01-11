@@ -1,0 +1,16 @@
+[Unit]
+Description=RKE2 Network Wait Service
+After=systemd-networkd.service
+Before=rke2-server.service rke2-agent.service
+Wants=systemd-networkd.service
+
+[Service]
+Type=oneshot
+ExecStart=/srv/host/rke2/scripts/rke2-network-wait.sh
+RemainAfterExit=true
+StandardOutput=journal+console
+StandardError=journal+console
+SuccessExitStatus=0 1
+
+[Install]
+WantedBy=multi-user.target

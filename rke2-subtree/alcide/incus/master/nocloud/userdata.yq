@@ -1,1 +1,0 @@
-"#cloud-config" as $preamble | select(fileIndex == 0) as $a | select(fileIndex == 1) as $b | ($a * $b) | .write_files = ($a.write_files // []) + ($b.write_files // []) | .runcmd = ($a.runcmd // []) + ($b.runcmd // []) | ( .. | select( tag == "!!str" ) ) |= envsubst(ne,nu) | $preamble + "\n" + (. | to_yaml | sub("^---\n"; ""))
