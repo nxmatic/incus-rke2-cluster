@@ -74,6 +74,10 @@ $(.incus.instance.config.file):
 	yq eval '( ... | select(tag=="!!str") ) |= envsubst(ne,nu)' $(.incus.instance.config.template) > $(@)
 
 define .incus.env.file.content
+: "[i] Setting root user environment variables"
+USER=root
+HOME=/root
+: "[i] Generating RKE2LAB environment variables"
 RKE2LAB_ROOT=/srv/host/rke2
 RKE2LAB_ENV_FILE=/srv/host/rke2/environment
 RKE2LAB_SCRIPTS_DIR=/srv/host/rke2/scripts
@@ -109,10 +113,15 @@ RKE2LAB_LAN_LB_POOL=$(NETWORK_LAN_LB_POOL)
 RKE2LAB_NODE_LAN_INTERFACE=$(NETWORK_NODE_LAN_INTERFACE)
 RKE2LAB_NODE_WAN_INTERFACE=$(NETWORK_NODE_WAN_INTERFACE)
 RKE2LAB_CLUSTER_GATEWAY_INETADDR=$(NETWORK_CLUSTER_GATEWAY_INETADDR)
+: "[i] RKE2 environment variables"
+RKE2_SERVER_MANIFESTS_DIR=/var/lib/rancher/rke2/server/manifests
+: "[i] containerd environment variables"
 CONTAINERD_ADDRESS=/run/k3s/containerd/containerd.sock
 CONTAINERD_NAMESPACE=k8s.io
 CONTAINERD_CONFIG_FILE=/var/lib/rancher/rke2/agent/etc/containerd/config.toml
+: "[i] cri environment variables"
 CRI_CONFIG_FILE=/var/lib/rancher/rke2/agent/etc/crictl.yaml
+: "[i] etcdctl environment variables"
 ETCDCTL_API=3
 ETCDCTL_CERT=/var/lib/rancher/rke2/server/tls/etcd/server-client.crt
 ETCDCTL_KEY=/var/lib/rancher/rke2/server/tls/etcd/server-client.key
@@ -121,21 +130,24 @@ ETCDCTL_ENDPOINTS=https://127.0.0.1:2379
 ETCDCTL_WRITE_OUT=table
 ETCDCTL_DIAL_TIMEOUT=10s
 ETCDCTL_COMMAND_TIMEOUT=30s
+: "[i] kubectl environment variables"
 KUBECTL_OUTPUT=yaml
-KUBECTL_EXTERNAL_DIFF=diff
+KUBECTL_EXTERNAL_DIFF=delta
+KREW_ROOT=/var/lib/rancher/rke2/krew
+: "[i] helm environment variables"
 CILIUM_CLI_MODE=kubernetes
 CILIUM_CLI_CONTEXT=default
 HUBBLE_SERVER=localhost:4245
 HUBBLE_TLS=false
+: "[i] helm environment variables"
 HELM_DATA_HOME=/var/lib/rancher/rke2/helm
 HELM_CONFIG_HOME=/etc/rancher/rke2/helm
 HELM_CACHE_HOME=/var/cache/rancher/rke2/helm
 HELM_REPOSITORY_CONFIG=/etc/rancher/rke2/helm/repositories.yaml
 HELM_REPOSITORY_CACHE=/var/cache/rancher/rke2/helm/repository
 HELM_PLUGINS=/var/lib/rancher/rke2/helm/plugins
-KREW_ROOT=/var/lib/rancher/rke2/krew
+: "[i] kpt environment variables"
 KRM_FN_RUNTIME=nerdctl
-HOME=/root
 endef
 
 $(.incus.env.file): $(incus.env.mk) $(network.env.mk) $(node.env.mk) $(cluster.env.mk)
@@ -460,6 +472,7 @@ $(.incus.instance.config.marker.file): ## Ensure incus dir exists before cloud-i
 	touch $@
 
 start@incus: create@incus
+start@incus: $(.incus.env.file)
 start@incus: | zfs.allow 
 start@incus: ## Start the Incus instance
 	$(call trace,Entering target: start@incus)

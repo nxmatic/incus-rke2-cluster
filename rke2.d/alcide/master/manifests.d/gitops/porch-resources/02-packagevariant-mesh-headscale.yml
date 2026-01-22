@@ -27,8 +27,8 @@ spec:
       - configMap:
           cluster-name: alcide
           darwin-host: alcide
-          headscale-lb-ip: ${headscale-lb-ip}
-          home-lan-pool: ${home-lan-pool}
+          lan-headscale-inetaddr: 192.168.1.33
+          lan-lb-pool: 192.168.1.32/27
           vip-network-cidr: ${cluster-vip-network-cidr}
         image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
   upstream:

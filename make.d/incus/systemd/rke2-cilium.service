@@ -1,0 +1,13 @@
+[Unit]
+Description=OBSOLETE: replaced by rke2-networking-install.service (stub)
+ConditionPathExists=/dev/null
+
+[Service]
+Type=oneshot
+ExecStart=/bin/true
+RemainAfterExit=true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

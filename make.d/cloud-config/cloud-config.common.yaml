@@ -1,6 +1,7 @@
 # Common cloud-init configuration for all RKE2 nodes (masters and agents)
 
-hostname: ${NODE_NAME}-control-node
+# Simplify system hostname to cluster + node (no domain)
+hostname: ${CLUSTER_NAME}-${NODE_NAME}
 
 manage_resolv_conf: true
 resolv_conf:
@@ -38,15 +39,14 @@ write_files:
       network: {config: disabled}
 
   # systemd-networkd drop-in to set cluster-prefixed hostname for LAN DHCP
-  # This ensures LAN DHCP registrations are unique per cluster (bioskop vs alcide)
-  # while keeping the actual system hostname unchanged
+  # This keeps DHCP registrations unique per cluster while matching the system hostname
   # Drop-in must match netplan-generated config name: 10-netplan-lan0.network
   - path: /etc/systemd/network/10-netplan-lan0.network.d/10-hostname.conf
     permissions: "0644"
     content: |
       [DHCP]
       SendHostname=yes
-      Hostname=${CLUSTER_NAME}-${NODE_NAME}-control-node
+      Hostname=${CLUSTER_NAME}-${NODE_NAME}
 
   # systemd-networkd drop-in to prevent vmnet0 DHCP from installing routes/DNS
   - path: /etc/systemd/network/10-netplan-lan0.network.d/90-no-default.conf

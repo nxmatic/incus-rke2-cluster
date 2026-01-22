@@ -1,0 +1,10 @@
+= Tekton Dashboard (read/write)
+
+This package installs the Tekton Dashboard using the upstream `release-full.yaml` manifest
+from `https://infra.tekton.dev/tekton-releases/dashboard/latest/` into the
+`tekton-pipelines` namespace.
+
+* Pin a version by swapping `latest` for `previous/vX.Y.Z` in `Kustomization`.
+* Default install is read/write. Use `release.yaml` instead if you want read-only.
+* Access via `kubectl -n tekton-pipelines port-forward svc/tekton-dashboard 9097:9097`
+  then browse to http://localhost:9097.

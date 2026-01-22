@@ -10,13 +10,13 @@ until kubectl get --raw /readyz &>/dev/null; do
 done
 
 : "Source manifest root" # @codebase
-SRC_DIR="${RKE2LAB_MANIFESTS_DIR:-/srv/host/rke2/manifests.d}/cicd/tekton-pipelines"
+SRC_DIR="${RKE2LAB_MANIFESTS_DIR:-/srv/host/rke2/manifests.d}/cicd/tekton-operator"
 if [[ ! -d "${SRC_DIR}" ]]; then
   echo "[rke2-tekton] source manifest directory not found: ${SRC_DIR}" >&2
   exit 1
 fi
 
-: "Apply Tekton Pipelines manifests (recursive)"
+: "Apply Tekton Operator manifests (recursive)"
 kubectl apply -R -f "${SRC_DIR}" --server-side=false
 
-echo "[rke2-tekton] applied Tekton Pipelines manifests from ${SRC_DIR}"
+echo "[rke2-tekton] applied Tekton Operator manifests from ${SRC_DIR}"

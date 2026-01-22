@@ -113,11 +113,11 @@ Customize using kpt setters in Kptfile:
 * `+headscale-version+`: Headscale container image version (default:
 0.27.0)
 * `+cluster-name+`: Cluster name for hostname tagging (default: bioskop)
-* `+home-lan-pool+`: LoadBalancer IP pool CIDR (bioskop:
+* `+lan-lb-pool+`: LoadBalancer IP pool CIDR (bioskop:
 192.168.1.192/27, alcide: 192.168.1.64/27)
 * `+headscale-lb-ip+`: First usable IP from pool (bioskop:
 192.168.1.193, alcide: 192.168.1.65)
-* `+home-lan-pool+`: CIDR block for LoadBalancer IP pool (default:
+* `+lan-lb-pool+`: CIDR block for LoadBalancer IP pool (default:
 192.168.1.192/27)
 * `+headscale-lb-ip+`: LoadBalancer IP for Headscale service (default:
 192.168.1.193)

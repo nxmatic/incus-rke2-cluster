@@ -14,15 +14,14 @@ write_files:
     content: |
       network: {config: disabled}
   # systemd-networkd drop-in to set cluster-prefixed hostname for LAN DHCP
-  # This ensures LAN DHCP registrations are unique per cluster (bioskop vs alcide)
-  # while keeping the actual system hostname unchanged
+  # This keeps DHCP registrations unique per cluster while matching the system hostname
   # Drop-in must match netplan-generated config name: 10-netplan-lan0.network
   - path: /etc/systemd/network/10-netplan-lan0.network.d/10-hostname.conf
     permissions: "0644"
     content: |
       [DHCP]
       SendHostname=yes
-      Hostname=alcide-master-control-node
+      Hostname=alcide-master
   # systemd-networkd drop-in to prevent vmnet0 DHCP from installing routes/DNS
   - path: /etc/systemd/network/10-netplan-lan0.network.d/90-no-default.conf
     permissions: "0644"
@@ -165,7 +164,7 @@ write_files:
 runcmd:
   - /srv/host/rke2/scripts/rke2-systemd-link.sh
   - /srv/host/rke2/scripts/rke2-activate.sh
-hostname: master-control-node
+hostname: alcide-master
 manage_resolv_conf: true
 resolv_conf:
   searchdomains:

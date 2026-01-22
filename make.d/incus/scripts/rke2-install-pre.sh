@@ -159,6 +159,7 @@ dasel -r toml -w yaml \
   yq eval '.include = {"environments": [{"dir": "/var/lib/cloud"}]}' - |
   yq eval '.install += {"zfs": {"pkg-path": "zfs", "pkg-group": "linux", "systems": ["aarch64-linux"]}}' - |
   yq eval '.install += {"nerdctl": {"pkg-path": "nerdctl", "version": "1.7.5", "pkg-group": "containerd-tools", "systems": ["aarch64-linux"]}}' - |
+  yq eval '.install += {"tektoncd-cli": {"pkg-path": "tektoncd-cli", "pkg-group": "tekton-tools"}}' - |
   yq eval '.install += {"krew": {"pkg-path": "krew", "pkg-group": "kubectl-tools"}}' - |
   yq eval '.install += {"kubectl-ai": {"pkg-path": "kubectl-ai", "pkg-group": "kubectl-plugins"}}' - |
   yq eval '.install += {"kubectl-ktop": {"pkg-path": "kubectl-ktop", "pkg-group": "kubectl-plugins"}}' - |
@@ -172,6 +173,9 @@ dasel -r toml -w yaml \
   yq eval '.install += {"tubekit": {"pkg-path": "tubekit", "pkg-group": "kubectl-tools"}}' - |
   yq eval '.install += {"yq-go": {"pkg-path": "yq-go", "pkg-group": "yaml-tools"}}' - |
   yq eval '.install += {"kpt": {"pkg-path": "kpt", "version": "1.0.0-beta.55", "pkg-group": "kpt-tools"}}' - |
+  yq eval '.install += {"delta": {"pkg-path": "delta", "pkg-group": "diff-tools"}}' - |
+  yq eval '.install += {"direnv": {"pkg-path": "direnv", "pkg-group": "direnv-tools"}}' - |
+  yq eval '.install += {"xstow": {"pkg-path": "xstow", "pkg-group": "stow-tools"}}' - |
   yq eval '.profile = {"common": "source /var/lib/rancher/rke2/.flox/env/profile-common.sh"}' - |
   dasel --pretty -r yaml -w toml | tee /tmp/manifest.toml.$$ &&
   mv /tmp/manifest.toml.$$ \
@@ -195,6 +199,9 @@ dasel -r toml -w yaml \
 
   : "Update PATH with RKE2 tools"
   PATH="/var/lib/rancher/rke2/bin:$PATH:${KREW_ROOT}/bin"
+
+  : "Create kubectl symlinks for the tekton cli"
+  ln -sf "$(command -v tkn)" /usr/local/bin/kubectl-tkn
 
   set +a
 EoFloxCommonProfile

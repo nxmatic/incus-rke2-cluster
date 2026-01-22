@@ -1,2 +1,2 @@
-instance-id: cluster-1-0
-local-hostname: alcide-master.cluster.local
+instance-id: alcide-master
+local-hostname: alcide-master

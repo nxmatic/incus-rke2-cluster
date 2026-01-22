@@ -3,20 +3,21 @@
 : "Load RKE2 flox environment for kubectl and tooling"
 source <( flox activate --dir /var/lib/rancher/rke2 )
 
-: "Wait for API server readiness"
-until kubectl get --raw /readyz &>/dev/null; do
-  echo "[rke2-tekton-pipelines-manifests-install] waiting for API server..." >&2
-  sleep 5
-done
+: "Source and destination manifest roots" # @codebase
+SRC_DIR="${RKE2LAB_MANIFESTS_DIR:-/srv/host/rke2/manifests.d}"
+DST_DIR="/var/lib/rancher/rke2/server/manifests"
+PKG_PATH="cicd/tekton-pipelines"
 
-: "Source manifest root" # @codebase
-SRC_DIR="${RKE2LAB_MANIFESTS_DIR:-/srv/host/rke2/manifests.d}/cicd/tekton-pipelines"
-if [[ ! -d "${SRC_DIR}" ]]; then
-  echo "[rke2-tekton-pipelines-manifests-install] source manifest directory not found: ${SRC_DIR}" >&2
+if [[ ! -d "${SRC_DIR}/${PKG_PATH}" ]]; then
+  echo "[rke2-tekton-pipelines-manifests-install] source manifest directory not found: ${SRC_DIR}/${PKG_PATH}" >&2
   exit 1
 fi
 
-: "Apply Tekton Pipelines manifests (recursive)"
-kubectl apply -R -f "${SRC_DIR}" --server-side=false
+mkdir -p "${DST_DIR}/cicd"
 
-echo "[rke2-tekton-pipelines-manifests-install] applied Tekton Pipelines manifests from ${SRC_DIR}"
+src_layer="${SRC_DIR}/${PKG_PATH}"
+dst_layer="${DST_DIR}/${PKG_PATH}"
+
+: "[rke2-tekton-pipelines-manifests-install] linking ${dst_layer} -> ${src_layer}"
+
+ln -sfn "${src_layer}" "${dst_layer}"

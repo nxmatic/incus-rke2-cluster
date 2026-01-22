@@ -7,7 +7,7 @@ metadata: # kpt-merge: headscale/headscale-config
     internal.kpt.dev/upstream-identifier: '|ConfigMap|headscale|headscale-config'
 data:
   config.yaml: |
-    server_url: http://192.168.1.193:8080 # kpt-set: http://${headscale-lb-ip}:8080
+    server_url: http://192.168.1.193:8080 # kpt-set: http://${lan-headscale-inetaddr}:8080
     listen_addr: 0.0.0.0:8080
     metrics_listen_addr: 0.0.0.0:9090
     grpc_listen_addr: 0.0.0.0:50443

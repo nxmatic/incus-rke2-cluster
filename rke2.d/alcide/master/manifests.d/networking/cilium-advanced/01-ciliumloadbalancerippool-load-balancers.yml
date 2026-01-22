@@ -8,7 +8,8 @@ metadata:
     kpt.dev/package-name: cilium-advanced
   name: load-balancers
 spec:
-  blocks: 10.80.8.64/26
+  blocks:
+    - cidr: 10.80.8.64/26
   serviceSelector:
     matchExpressions:
       - key: io.cilium/lb-ipam

@@ -9,7 +9,7 @@ metadata:
   name: home-lan
 spec:
   blocks:
-    - cidr: ${home-lan-pool}
+    - cidr: 192.168.1.32/27
   serviceSelector:
     matchLabels:
       io.cilium/lb-ipam: home-lan

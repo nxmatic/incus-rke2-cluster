@@ -84,9 +84,6 @@ data:
   node-wan-macaddr-peer3: $(NETWORK_NODE_WAN_MACADDR_PEER3)
   node-wan-macaddr-worker1: $(NETWORK_NODE_WAN_MACADDR_WORKER1)
   node-wan-macaddr-worker2: $(NETWORK_NODE_WAN_MACADDR_WORKER2)
-  home-lan-pool: $(HOME_LAN_POOL)
-  headscale-lb-ip: $(HEADSCALE_LB_IP)
-  github-secret: $(GITHUB_SECRET)
 endef
 
 endif # make.d/kpt/setters.mk

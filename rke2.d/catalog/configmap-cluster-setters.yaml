@@ -10,6 +10,6 @@ data:
   cluster-name: sample
   cluster-env: sample
   cluster-id: 7
-  home-lan-pool: 10.80.56.64/26
-  headscale-lb-ip: 10.80.56.65
+  lan-lb-pool: 10.80.56.64/26
+  lan-headscale-inetaddr: 10.80.56.65
   github-secret: github-token

@@ -8,4 +8,5 @@ metadata:
     kpt.dev/package-name: cilium-advanced
   name: virtual-addresses
 spec:
-  blocks: 10.80.15.0/24
+  blocks:
+    - cidr: 10.80.15.0/24

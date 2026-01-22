@@ -114,7 +114,7 @@ Repeat per package, adjusting setters and injectors as needed:
 |ha/kube-vip |`cluster-vip-address`, `cluster-vip-interface`, `kube-vip-version` |`VipNetworkConfig`
 |networking/cilium |`cluster-name`, `cluster-id`, `lb-pool-cidr`, `vip-pool-cidr`, `bgp-local-asn`, `bgp-peer-asn`, `node-gateway-ip` |`ClusterNetworkConfig` supplying L2/BGP peers
 |mesh/tailscale |`cluster-name`, `vip-address`, `lb-pool-cidr` |`TailscaleConnectorConfig` for auth keys
-|mesh/headscale |`cluster-name`, `home-lan-pool`, `headscale-lb-ip`, `vip-network-cidr`, `darwin-host` |`HomeLanConfig`, `HeadscaleAuthConfig`
+|mesh/headscale |`cluster-name`, `lan-lb-pool`, `headscale-lb-ip`, `vip-network-cidr`, `darwin-host` |`HomeLanConfig`, `HeadscaleAuthConfig`
 |networking/envoy-gateway |`envoy-gateway-namespace`, `envoy-gateway-version` |Optional Envoy-specific config CR
 |runtime/flox-containerd-shim |`node-label-key`, `node-label-value`, `runtime-class-name` |None (pure setters)
 |===

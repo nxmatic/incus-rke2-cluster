@@ -6,7 +6,7 @@ metadata: # kpt-merge: /home-lan
     internal.kpt.dev/upstream-identifier: 'cilium.io|CiliumLoadBalancerIPPool|default|home-lan'
 spec:
   blocks:
-  - cidr: ${home-lan-pool} # kpt-set: ${home-lan-pool}
+  - cidr: ${lan-lb-pool} # kpt-set: ${lan-lb-pool}
   serviceSelector:
     matchLabels:
       io.cilium/lb-ipam: home-lan

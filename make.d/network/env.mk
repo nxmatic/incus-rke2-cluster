@@ -98,6 +98,8 @@ data:
     - "$(.network.vip.split.0.cidr)"
     - "$(.network.vip.split.1.cidr)"
     - "$(.network.vip.split.2.cidr)"
+  lan-lb-pool: "$\(.network.lan.lb.pool)"
+  lan-headscale-inetaddr: "$\(.network.lan.lb.headscale)"
     - "$(.network.vip.split.3.cidr)"
     - "$(.network.vip.split.4.cidr)"
     - "$(.network.vip.split.5.cidr)"

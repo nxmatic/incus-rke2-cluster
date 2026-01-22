@@ -62,8 +62,8 @@ endef
 ## Decision: Use stable instance-id format to avoid unnecessary cloud-init reinitialization.
 ## Format: <name>-cluster<clusterID>-node<nodeID>
 define .cloud-config.metadata_template
-instance-id: cluster-${cluster.id}-${node.id}
-local-hostname: $(cluster.name)-$(node.name).$(cluster.domain)
+instance-id: ${cluster.name}-${node.name}
+local-hostname: $(cluster.name)-$(node.name)
 endef
 
 $(call register-cloud-config-targets,$(.cloud-config.metadata.file))

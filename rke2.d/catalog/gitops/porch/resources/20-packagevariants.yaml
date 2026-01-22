@@ -164,8 +164,8 @@ spec:
         configMap:
           cluster-name: ${cluster-name} # kpt-set: ${cluster-name}
           darwin-host: ${cluster-name} # kpt-set: ${cluster-name}
-          home-lan-pool: ${home-lan-pool} # kpt-set: ${home-lan-pool}
-          headscale-lb-ip: ${headscale-lb-ip} # kpt-set: ${headscale-lb-ip}
+          lan-lb-pool: ${lan-lb-pool} # kpt-set: ${lan-lb-pool}
+          lan-headscale-inetaddr: ${lan-headscale-inetaddr} # kpt-set: ${lan-headscale-inetaddr}
           vip-network-cidr: ${cluster-vip-network-cidr} # kpt-set: ${cluster-vip-network-cidr}
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1

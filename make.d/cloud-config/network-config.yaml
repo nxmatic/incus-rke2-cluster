@@ -1,3 +1,4 @@
+#network-config
 # yaml-language-server: $schema=https://raw.githubusercontent.com/canonical/netplan/main/netplan/cli/schema.json
 # network-config (NoCloud datasource) (@codebase)
 #
@@ -15,7 +16,7 @@ network:
     # Local network access - NOW PRIMARY for internet connectivity
     # Home router provides reliable NAT for internet access
     lan0:
-      macaddress: ${NETWORK_NODE_LAN_MACADDR}
+      macaddress: "${NETWORK_NODE_LAN_MACADDR}"  # Quote to avoid YAML 1.1 sexagesimal parsing (@codebase)
       # DHCP Configuration - now allows default route
       dhcp4: true
       dhcp4-overrides:
@@ -38,7 +39,7 @@ network:
     # Cluster node-to-node communication ONLY
     # NO internet gateway - lan0 is the exclusive internet path
     vmnet0:
-      macaddress: ${NETWORK_NODE_WAN_MACADDR}
+      macaddress: "${NETWORK_NODE_WAN_MACADDR}"  # Quote to avoid YAML 1.1 sexagesimal parsing (@codebase)
       # DHCP from Incus wan bridge network
       dhcp4: true
       dhcp4-overrides:
