@@ -58,7 +58,7 @@ spec:
       - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
         configMap:
           kube-vip-version: ${kube-vip-version} # kpt-set: ${kube-vip-version}
-          cluster-vip-address: ${node-vip-ip} # kpt-set: ${node-vip-ip}
+          cluster-vip-address: ${node-vip-inetaddr} # kpt-set: ${node-vip-inetaddr}
           cluster-vip-interface: rke2-vip0
           kube-vip-namespace: kube-vip
 ---
@@ -98,7 +98,7 @@ spec:
           l2-interface-2: lan0
           bgp-local-asn: "65001"
           bgp-peer-asn: "65000"
-          node-gateway-ip: ${node-gateway-ip} # kpt-set: ${node-gateway-ip}
+          node-gateway-inetaddr: ${node-gateway-inetaddr} # kpt-set: ${node-gateway-inetaddr}
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
@@ -130,7 +130,7 @@ spec:
         configMap:
           tailscale-version: 1.82.0
           cluster-name: ${cluster-name}-cluster # kpt-set: ${cluster-name}-cluster
-          vip-address: ${node-vip-ip} # kpt-set: ${node-vip-ip}
+          vip-address: ${node-vip-inetaddr} # kpt-set: ${node-vip-inetaddr}
           lb-pool-cidr: ${cluster-lb-pool-cidr} # kpt-set: ${cluster-lb-pool-cidr}
           tailscale-namespace: tailscale-system
 ---

@@ -9,7 +9,7 @@ spec:
   serviceSelector:
     matchExpressions:
       # Default pool backs services that do not request a custom pool label
-      - key: io.cilium/lb-ipam
+      - key: io.cilium/lb-inetaddram
         operator: DoesNotExist
 ---
 apiVersion: cilium.io/v2alpha1

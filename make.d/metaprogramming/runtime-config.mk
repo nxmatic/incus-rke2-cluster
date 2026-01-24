@@ -28,7 +28,7 @@ CURRENT_NODE := $(NODE_NAME)
 CURRENT_NODE_TYPE := $(NODE_TYPE)
 
 # Generated network variables
-## Removed recursive $(MAKE) calls to non-existent show@rke2-node-host-ip/show@rke2-node-vip-ip to avoid infinite recursion.
+## Removed recursive $(MAKE) calls to non-existent show@rke2-node-host-inetaddr/show@rke2-node-vip-inetaddr to avoid infinite recursion.
 NODE_HOST_IP := $(NODE_HOST_IP)
 NODE_VIP_IP := $(NODE_VIP_IP)
 

@@ -53,32 +53,55 @@ endif
 .network.node.profile.name = rke2lab
 
 # Master node IP for peer connections (derived from node 0) using subnet helper (gateway+2 -> .3)
-.network.master.node.inetaddr := $(call .network.subnet-host-ip,node,0,2)
+.network.master.node.inetaddr := $(call .network.subnet-host-inetaddr,node,0,2)
 .network.cluster_third_octet = $(call multiply,$(.cluster.id),8)
 .network.host.cluster.cidr = 10.80.$(.network.cluster_third_octet).0/21
 .network.node.base.cidr = 10.80.$(.network.cluster_third_octet).0/23
 .network.host.subnets.base.$(.cluster.id) = $(call .network.inetaddr.base3,$(call .network.strip,$(.network.host.split.$(.cluster.id).network)))
 .network.cluster.cidr = $(call .network.strip,$(.network.host.split.$(.cluster.id).cidr))
 .network.cluster.vip.cidr = $(call .network.strip,$(.network.vip.split.7.cidr))
-.network.cluster.vip.gateway = $(call .network.subnet-gateway-ip,vip,7)
+.network.cluster.vip.gateway = $(call .network.subnet-gateway-inetaddr,vip,7)
 .network.cluster.lb.cidr = $(call .network.strip,$(.network.lb.split.1.cidr))
-.network.cluster.lb.gateway = $(call .network.subnet-gateway-ip,lb,1)
+.network.cluster.lb.gateway = $(call .network.subnet-gateway-inetaddr,lb,1)
 .network.node.cidr = $(call .network.strip,$(.network.node.split.0.cidr))
-.network.node.gateway.inetaddr = $(call .network.subnet-gateway-ip,node,0)
-.network.node.host.inetaddr = $(call .network.subnet-host-ip,node,0,$(call plus,9,$(node.id)))
-.network.node.vip.inetaddr = $(call .network.subnet-host-ip,vip,7,9)
+.network.node.gateway.inetaddr = $(call .network.subnet-gateway-inetaddr,node,0)
+.network.node.host.inetaddr = $(call .network.subnet-host-inetaddr,node,0,$(call plus,9,$(node.id)))
+.network.node.vip.inetaddr = $(call .network.subnet-host-inetaddr,vip,7,9)
 .network.lan.bridge.macaddr = $(.network.lan_bridge_hwaddr_default)
 
-# LAN LoadBalancer pool/headscale IPs derived from ipcalc split of LAN
-.network.lan.lb.pool = $(call .network.strip,$(.network.lan.split.$(.cluster.id).cidr))
-.network.lan.lb.headscale = $(call .network.subnet-host-ip,lan,$(.cluster.id),0)
+# LAN slices per documented plan (block 0 = DHCP pool)
+# Block 1: 192.168.1.32/27  → alcide static
+# Block 2: 192.168.1.64/27  → alcide LB
+# Block 4: 192.168.1.128/27 → bioskop static
+# Block 6: 192.168.1.192/27 → bioskop LB
+ifeq ($(cluster.name),bioskop)
+	.network.lan.slice.index := 4
+	.network.lan.lb.slice.index := 6
+else ifeq ($(cluster.name),alcide)
+	.network.lan.slice.index := 1
+	.network.lan.lb.slice.index := 2
+else ifeq ($(cluster.name),nikopol)
+	.network.lan.slice.index := 3
+	.network.lan.lb.slice.index := 5
+else
+	.network.lan.slice.index := 7
+	.network.lan.lb.slice.index := 7
+endif
+
+.network.lan.lb.pool = $(call .network.strip,$(.network.lan.split.$(.network.lan.lb.slice.index).cidr))
+.network.lan.lb.headscale = $(call .network.subnet-host-inetaddr,lan,$(.network.lan.lb.slice.index),0)
 .network.lan.headscale.inetaddr = $(.network.lan.lb.headscale)
-.network.lan.tailscale.inetaddr = $(call .network.subnet-host-ip,lan,$(.cluster.id),1)
+.network.lan.tailscale.inetaddr = $(call .network.subnet-host-inetaddr,lan,$(.network.lan.lb.slice.index),1)
+
+# Deterministic LAN static addressing for nodes: offset from minaddr to avoid headscale/tailscale
+.network.lan.node.inetaddr = $(call .network.subnet-host-inetaddr,lan,$(.network.lan.slice.index),$(call plus,2,$(node.id)))
+.network.lan.node.prefix = $(.network.lan.split.prefix)
+.network.lan.gateway := 192.168.1.254
 
 # Cluster WAN network (Incus bridge with Lima VM as gateway)
 # Lima VM has .1 IP on the bridge and provides routing/NAT to uplink
 # Cluster allocation: 10.80.(RKE2_CLUSTER_ID * 8).0/21
-.network.cluster.gateway.inetaddr = $(call .network.subnet-gateway-ip,host,$(.cluster.id))
+.network.cluster.gateway.inetaddr = $(call .network.subnet-gateway-inetaddr,host,$(.cluster.id))
 
 # =============================================================================
 # MAC ADDRESS GENERATION FOR STATIC DHCP LEASES

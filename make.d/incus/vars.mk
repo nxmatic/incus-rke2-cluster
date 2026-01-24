@@ -53,7 +53,7 @@ make.d/incus/vars.mk := make.d/incus/vars.mk
 .incus.inetaddr.yq.expr = .[].state.network.vmnet0.addresses[] | select(.family == "inet") | .address
 
 # Cluster master token template (retained for compatibility)
-.cluster.master.inetaddr = $(call .network.subnet-host-ip,node,0,10)
+.cluster.master.inetaddr = $(call .network.subnet-host-inetaddr,node,0,10)
 
 define .incus.cluster.token.content :=
 # Bootstrap server points at the master primary IP (@codebase)

@@ -17,15 +17,14 @@ network:
     # Home router provides reliable NAT for internet access
     lan0:
       macaddress: "${NETWORK_NODE_LAN_MACADDR}"  # Quote to avoid YAML 1.1 sexagesimal parsing (@codebase)
-      # DHCP Configuration - now allows default route
-      dhcp4: true
-      dhcp4-overrides:
-        use-routes: true       # Accept default route from home router
-        use-dns: true          # Use home router DNS
-        use-domains: false     # Prevent domain override from DHCP
-        use-hostname: false    # Prevent hostname override
-        send-hostname: false   # Don't send hostname to DHCP server
-        route-metric: 100      # Primary route for internet access
+      # Static LAN addressing to avoid DHCP pool conflicts
+      dhcp4: false
+      addresses:
+        - "${NETWORK_NODE_LAN_STATIC_INETADDR}/${NETWORK_NODE_LAN_PREFIX}"
+      gateway4: "${NETWORK_LAN_GATEWAY_INETADDR}"
+      nameservers:
+        addresses:
+          - "${NETWORK_LAN_NAMESERVERS}"
       dhcp6: false             # Disable IPv6 DHCP
       dhcp-identifier: mac
       accept-ra: false         # Disable IPv6 Router Advertisements

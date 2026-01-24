@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata: # kpt-merge: tekton-pipelines/tekton-dashboard
+  name: tekton-dashboard
+  namespace: tekton-pipelines
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    internal.kpt.dev/upstream-identifier: 'networking.k8s.io|Ingress|tekton-pipelines|tekton-dashboard'
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: ${tekton-dashboard-host} # kpt-set: ${tekton-dashboard-host}
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: tekton-dashboard
+                port:
+                  number: 9097

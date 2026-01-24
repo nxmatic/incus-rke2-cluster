@@ -38,7 +38,7 @@ config:
   environment.RKE2LAB_CLUSTER_LB_GATEWAY_INETADDR: "10.80.8.65"
   environment.RKE2LAB_CLUSTER_POD_CIDR: "10.44.0.0/16"
   environment.RKE2LAB_CLUSTER_SERVICE_CIDR: "10.45.0.0/16"
-  environment.RKE2LAB_LAN_LB_POOL: "192.168.1.32/27"
+  environment.RKE2LAB_LAN_LB_POOL: "192.168.1.64/27"
   environment.RKE2LAB_NODE_LAN_INTERFACE: "master-lan0"
   environment.RKE2LAB_NODE_WAN_INTERFACE: "master-vmnet0"
   # Cluster Gateway (Lima VM on WAN bridge)

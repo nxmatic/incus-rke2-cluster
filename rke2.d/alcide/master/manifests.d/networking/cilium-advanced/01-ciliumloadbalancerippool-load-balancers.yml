@@ -12,5 +12,5 @@ spec:
     - cidr: 10.80.8.64/26
   serviceSelector:
     matchExpressions:
-      - key: io.cilium/lb-ipam
+      - key: io.cilium/lb-inetaddram
         operator: DoesNotExist

@@ -1,6 +1,7 @@
 #cloud-config
 # Common cloud-init configuration for all RKE2 nodes (masters and agents)
 
+# Simplify system hostname to cluster + node (no domain)
 write_files:
   # =============================================================================
   # SYSTEM CONFIGURATION FILES
@@ -31,6 +32,7 @@ write_files:
       IPv6AcceptRA=no
       LinkLocalAddressing=ipv4
       LLMNR=yes
+      MulticastDNS=yes
 
       [DHCP]
       UseDNS=yes
@@ -45,13 +47,29 @@ write_files:
       [DHCP]
       UseRoutes=no
       UseDNS=no
-  # systemd-resolved drop-in to disable LLMNR/mDNS advertising on LAN interfaces
-  - path: /etc/systemd/resolved.conf.d/10-disable-llmnr-mdns.conf
+  # systemd-resolved drop-in to enable LLMNR/mDNS advertising on LAN interfaces
+  - path: /etc/systemd/resolved.conf.d/10-llmnr-mdns.conf
     permissions: "0644"
     content: |
       [Resolve]
-      LLMNR=no
-      MulticastDNS=no
+      LLMNR=yes
+      MulticastDNS=yes
+  # Avahi configuration to advertise only on the LAN interface (IPv4 mDNS)
+  - path: /etc/avahi/avahi-daemon.conf
+    permissions: "0644"
+    content: |
+      [server]
+      allow-interfaces=lan0
+      use-ipv4=yes
+      use-ipv6=no
+      ratelimit-interval-usec=1000000
+
+      [publish]
+      publish-addresses=yes
+      publish-workstation=yes
+      publish-hinfo=yes
+      publish-aaaa-on-ipv4=no
+      publish-a-on-ipv6=no
   # Disable IPv6 globally so nodes stay IPv4-only end-to-end (@codebase)
   - path: /etc/sysctl.d/99-disable-ipv6.conf
     permissions: "0644"
@@ -157,10 +175,13 @@ write_files:
     permissions: "0644"
     content: |
       #!/usr/bin/env -S bash
-      source <( flox activate --dir /var/lib/rancher/rke2 )
+      [[ -d /var/lib/rancher/rke2/.flox ]] &&
+        source <( flox activate --dir /var/lib/rancher/rke2 )
 
-      source <( kubectl completion bash ) 2>/dev/null || true
-      source <( helm completion bash ) 2>/dev/null || true
+      command -v kubectl >/dev/null &&
+        source <( kubectl completion zsh ) 2>/dev/null || true
+      command -v helm >/dev/null &&
+        source <( helm completion zsh ) 2>/dev/null || true
 runcmd:
   - /srv/host/rke2/scripts/rke2-systemd-link.sh
   - /srv/host/rke2/scripts/rke2-activate.sh
@@ -184,3 +205,8 @@ bootcmd:
   - [chmod, '600', /etc/netplan/01-nocloud.yaml]
   # Disable dhcpcd for vmnet0 - systemd-networkd will handle it
   - [sh, -c, "echo 'denyinterfaces vmnet0' >> /etc/dhcpcd.conf"]
+# =============================================================================
+# PACKAGES
+# =============================================================================
+packages:
+  - avahi-daemon

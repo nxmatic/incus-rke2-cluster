@@ -12,4 +12,4 @@ spec:
     - cidr: 192.168.1.32/27
   serviceSelector:
     matchLabels:
-      io.cilium/lb-ipam: home-lan
+      io.cilium/lb-inetaddram: home-lan

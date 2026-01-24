@@ -29,7 +29,7 @@ spec:
           lb-pool-cidr: ${cluster-lb-pool-cidr}
           tailscale-namespace: tailscale-system
           tailscale-version: 1.82.0
-          vip-address: ${node-vip-ip}
+          vip-address: ${node-vip-inetaddr}
         image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
   upstream:
     package: mesh/tailscale

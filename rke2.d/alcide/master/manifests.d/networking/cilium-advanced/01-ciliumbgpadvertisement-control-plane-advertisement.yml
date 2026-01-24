@@ -12,7 +12,7 @@ spec:
     - advertisementType: Service
       selector:
         matchLabels:
-          io.cilium/lb-ipam: load-balancers
+          io.cilium/lb-inetaddram: load-balancers
       service:
         addresses:
           - ExternalIP

@@ -1,0 +1,33 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRole|default|tekton-dashboard-tenant-view
+    kpt.dev/package-layer: cicd
+    kpt.dev/package-name: tekton-dashboard
+  labels:
+    app.kubernetes.io/component: dashboard
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: tekton-dashboard
+  name: tekton-dashboard-tenant-view
+rules:
+  - apiGroups:
+      - dashboard.tekton.dev
+    resources:
+      - extensions
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+      - namespaces
+      - pods
+      - pods/log
+    verbs:
+      - get
+      - list
+      - watch

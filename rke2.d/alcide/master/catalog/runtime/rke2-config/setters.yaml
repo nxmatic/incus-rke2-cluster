@@ -13,10 +13,10 @@ data:
   node-type: server
   node-role: master
   cluster-token: alcide
-  node-host-ip: 10.80.8.10
+  node-host-inetaddr: 10.80.8.10
   cluster-id: "1"
   cluster-init: "true"
   pod-network-cidr: 10.44.0.0/16
   service-network-cidr: 10.45.0.0/16
-  node-gateway-ip: 10.80.8.1
-  cluster-vip-gateway-ip: 10.80.15.1
+  node-gateway-inetaddr: 10.80.8.1
+  cluster-vip-gateway-inetaddr: 10.80.15.1

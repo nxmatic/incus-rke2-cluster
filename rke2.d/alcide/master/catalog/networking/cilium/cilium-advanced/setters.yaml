@@ -16,4 +16,4 @@ data:
   l2-interface-2: lan0
   bgp-local-asn: "65010"
   bgp-peer-asn: "65020"
-  node-gateway-ip: node-gateway-ip
+  node-gateway-inetaddr: node-gateway-inetaddr

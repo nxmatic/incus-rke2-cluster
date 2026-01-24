@@ -12,6 +12,7 @@ data:
   cluster-env: dave
   cluster-id: 1
   cluster-domain: cluster.local
+  tekton-dashboard-host: tekton-dashboard.mammoth-skate.ts.net
   cluster-network-cidr: 10.80.8.0/21
   host-supernet-cidr: 10.80.0.0/18
   node-network-cidr: 10.80.8.0/23
@@ -19,14 +20,14 @@ data:
   lb-pool-cidr: 10.80.8.64/26
   cluster-gateway-inet: 10.80.8.1
   node-vip-inet: 10.80.15.10
-  node-gateway-ip: 10.80.8.1
-  node-host-ip: 10.80.8.10
+  node-gateway-inetaddr: 10.80.8.1
+  node-host-inetaddr: 10.80.8.10
   lan-bridge-hwaddr: 02:00:00:bb:01:00
   cluster-node-inet-base: 10.80.8
   pod-network-cidr: 10.44.0.0/16
   service-network-cidr: 10.45.0.0/16
-  cluster-vip-gateway-ip: 10.80.15.1
-  cluster-lb-gateway-ip: 10.80.8.65
+  cluster-vip-gateway-inetaddr: 10.80.15.1
+  cluster-lb-gateway-inetaddr: 10.80.8.65
   node-lan-macaddr: 10:66:6a:4c:01:00
   node-wan-macaddr: 52:54:00:01:00:00
   node-profile-name: rke2lab

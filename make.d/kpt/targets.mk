@@ -25,15 +25,15 @@ metadata:
 data:
   cluster-name: $(CLUSTER_NAME)
   node-type: $(NODE_TYPE)
-  node-role: $(NODE_ROLE)  
+  node-role: $(NODE_ROLE)
   cluster-token: $(CLUSTER_TOKEN)
-  node-host-ip: $(NETWORK_NODE_HOST_INETADDR)
+  node-host-inetaddr: $(NETWORK_NODE_HOST_INETADDR)
   cluster-id: "$(CLUSTER_ID)"
   cluster-init: "$(if $(filter master,$(NODE_ROLE)),true,false)"
   pod-network-cidr: $(NETWORK_CLUSTER_POD_CIDR)
   service-network-cidr: $(NETWORK_CLUSTER_SERVICE_CIDR)
-  node-gateway-ip: $(NETWORK_NODE_GATEWAY_INETADDR)
-  cluster-vip-gateway-ip: $(NETWORK_VIP_GATEWAY_INETADDR)
+  node-gateway-inetaddr: $(NETWORK_NODE_GATEWAY_INETADDR)
+  cluster-vip-gateway-inetaddr: $(NETWORK_VIP_GATEWAY_INETADDR)
 endef
 
 # ----------------------------------------------------------------------------

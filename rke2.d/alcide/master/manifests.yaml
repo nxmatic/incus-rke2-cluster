@@ -88,6 +88,18 @@ apiVersion: v1
 kind: Namespace
 metadata:
   annotations:
+    internal.kpt.dev/upstream-identifier: '|Namespace|default|tekton-dashboard'
+    kpt.dev/package-layer: cicd
+    kpt.dev/package-name: tekton-dashboard
+  labels:
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: tekton-dashboard
+  name: tekton-dashboard
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
     internal.kpt.dev/upstream-identifier: '|Namespace|default|tekton-operator'
     kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
@@ -109,6 +121,55 @@ parameters:
 provisioner: zfs.csi.openebs.io
 reclaimPolicy: Delete
 volumeBindingMode: WaitForFirstConsumer
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: apiextensions.k8s.io|CustomResourceDefinition|default|extensions.dashboard.tekton.dev
+    kpt.dev/package-layer: cicd
+    kpt.dev/package-name: tekton-dashboard
+  labels:
+    app.kubernetes.io/component: dashboard
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: tekton-dashboard
+  name: extensions.dashboard.tekton.dev
+spec:
+  group: dashboard.tekton.dev
+  names:
+    categories:
+    - tekton
+    - tekton-dashboard
+    kind: Extension
+    plural: extensions
+    shortNames:
+    - ext
+    - exts
+  preserveUnknownFields: false
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.apiVersion
+      name: API version
+      type: string
+    - jsonPath: .spec.name
+      name: Kind
+      type: string
+    - jsonPath: .spec.displayName
+      name: Display name
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        type: object
+        x-kubernetes-preserve-unknown-fields: true
+    served: true
+    storage: true
+    subresources:
+      status: {}
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -4181,6 +4242,20 @@ metadata:
   name: tekton-operator
   namespace: tekton-operator
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ServiceAccount|tekton-pipelines|tekton-dashboard'
+    kpt.dev/package-layer: cicd
+    kpt.dev/package-name: tekton-dashboard
+  labels:
+    app.kubernetes.io/component: dashboard
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: tekton-dashboard
+  name: tekton-dashboard
+  namespace: tekton-pipelines
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -4307,6 +4382,28 @@ rules:
   verbs:
   - get
   - describe
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|Role|tekton-pipelines|tekton-dashboard-info
+    kpt.dev/package-layer: cicd
+    kpt.dev/package-name: tekton-dashboard
+  labels:
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: tekton-dashboard
+  name: tekton-dashboard-info
+  namespace: tekton-pipelines
+rules:
+- apiGroups:
+  - ""
+  resourceNames:
+  - dashboard-info
+  resources:
+  - configmaps
+  verbs:
+  - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -4716,6 +4813,97 @@ rules:
   - get
   - watch
   - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRole|default|tekton-dashboard-backend-edit
+    kpt.dev/package-layer: cicd
+    kpt.dev/package-name: tekton-dashboard
+  labels:
+    app.kubernetes.io/component: dashboard
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: tekton-dashboard
+  name: tekton-dashboard-backend-edit
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - dashboard.tekton.dev
+  resources:
+  - extensions
+  verbs:
+  - create
+  - update
+  - delete
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRole|default|tekton-dashboard-backend-view
+    kpt.dev/package-layer: cicd
+    kpt.dev/package-name: tekton-dashboard
+  labels:
+    app.kubernetes.io/component: dashboard
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: tekton-dashboard
+  name: tekton-dashboard-backend-view
+rules:
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - security.openshift.io
+  resources:
+  - securitycontextconstraints
+  verbs:
+  - use
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRole|default|tekton-dashboard-tenant-view
+    kpt.dev/package-layer: cicd
+    kpt.dev/package-name: tekton-dashboard
+  labels:
+    app.kubernetes.io/component: dashboard
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: tekton-dashboard
+  name: tekton-dashboard-tenant-view
+rules:
+- apiGroups:
+  - dashboard.tekton.dev
+  resources:
+  - extensions
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  - namespaces
+  - pods
+  - pods/log
+  verbs:
+  - get
+  - list
+  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -5244,6 +5432,27 @@ subjects:
   name: system:authenticated
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|RoleBinding|tekton-pipelines|tekton-dashboard-info
+    kpt.dev/package-layer: cicd
+    kpt.dev/package-name: tekton-dashboard
+  labels:
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: tekton-dashboard
+  name: tekton-dashboard-info
+  namespace: tekton-pipelines
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tekton-dashboard-info
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: Group
+  name: system:authenticated
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   annotations:
@@ -5422,6 +5631,160 @@ subjects:
 - apiGroup: rbac.authorization.k8s.io
   kind: Group
   name: system:authenticated
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRoleBinding|default|tekton-dashboard-backend-edit
+    kpt.dev/package-layer: cicd
+    kpt.dev/package-name: tekton-dashboard
+  labels:
+    app.kubernetes.io/component: dashboard
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: tekton-dashboard
+    rbac.dashboard.tekton.dev/subject: tekton-dashboard
+  name: tekton-dashboard-backend-edit
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tekton-dashboard-backend-edit
+subjects:
+- kind: ServiceAccount
+  name: tekton-dashboard
+  namespace: tekton-pipelines
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRoleBinding|default|tekton-dashboard-backend-view
+    kpt.dev/package-layer: cicd
+    kpt.dev/package-name: tekton-dashboard
+  labels:
+    app.kubernetes.io/component: dashboard
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: tekton-dashboard
+    rbac.dashboard.tekton.dev/subject: tekton-dashboard
+  name: tekton-dashboard-backend-view
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tekton-dashboard-backend-view
+subjects:
+- kind: ServiceAccount
+  name: tekton-dashboard
+  namespace: tekton-pipelines
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRoleBinding|default|tekton-dashboard-pipelines-edit
+    kpt.dev/package-layer: cicd
+    kpt.dev/package-name: tekton-dashboard
+  labels:
+    app.kubernetes.io/component: dashboard
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: tekton-dashboard
+    rbac.dashboard.tekton.dev/subject: tekton-dashboard
+  name: tekton-dashboard-pipelines-edit
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tekton-aggregate-edit
+subjects:
+- kind: ServiceAccount
+  name: tekton-dashboard
+  namespace: tekton-pipelines
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRoleBinding|default|tekton-dashboard-pipelines-view
+    kpt.dev/package-layer: cicd
+    kpt.dev/package-name: tekton-dashboard
+  labels:
+    app.kubernetes.io/component: dashboard
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: tekton-dashboard
+    rbac.dashboard.tekton.dev/subject: tekton-dashboard
+  name: tekton-dashboard-pipelines-view
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tekton-aggregate-view
+subjects:
+- kind: ServiceAccount
+  name: tekton-dashboard
+  namespace: tekton-pipelines
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRoleBinding|default|tekton-dashboard-tenant-view
+    kpt.dev/package-layer: cicd
+    kpt.dev/package-name: tekton-dashboard
+  labels:
+    app.kubernetes.io/component: dashboard
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: tekton-dashboard
+    rbac.dashboard.tekton.dev/subject: tekton-dashboard
+  name: tekton-dashboard-tenant-view
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tekton-dashboard-tenant-view
+subjects:
+- kind: ServiceAccount
+  name: tekton-dashboard
+  namespace: tekton-pipelines
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRoleBinding|default|tekton-dashboard-triggers-edit
+    kpt.dev/package-layer: cicd
+    kpt.dev/package-name: tekton-dashboard
+  labels:
+    app.kubernetes.io/component: dashboard
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: tekton-dashboard
+    rbac.dashboard.tekton.dev/subject: tekton-dashboard
+  name: tekton-dashboard-triggers-edit
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tekton-triggers-aggregate-edit
+subjects:
+- kind: ServiceAccount
+  name: tekton-dashboard
+  namespace: tekton-pipelines
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRoleBinding|default|tekton-dashboard-triggers-view
+    kpt.dev/package-layer: cicd
+    kpt.dev/package-name: tekton-dashboard
+  labels:
+    app.kubernetes.io/component: dashboard
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: tekton-dashboard
+    rbac.dashboard.tekton.dev/subject: tekton-dashboard
+  name: tekton-dashboard-triggers-view
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tekton-triggers-aggregate-view
+subjects:
+- kind: ServiceAccount
+  name: tekton-dashboard
+  namespace: tekton-pipelines
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -5845,6 +6208,21 @@ metadata:
   namespace: tekton-operator
 ---
 apiVersion: v1
+data:
+  version: v0.63.1
+kind: ConfigMap
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|tekton-pipelines|dashboard-info'
+    kpt.dev/package-layer: cicd
+    kpt.dev/package-name: tekton-dashboard
+  labels:
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: tekton-dashboard
+  name: dashboard-info
+  namespace: tekton-pipelines
+---
+apiVersion: v1
 kind: Secret
 metadata:
   annotations:
@@ -5886,14 +6264,14 @@ kind: Service
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: '|Service|headscale|headscale'
-    io.cilium/lb-ipam-ips: 192.168.1.33
+    io.cilium/lb-inetaddram-inetaddrs: 192.168.1.33
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headscale
     tailscale.com/expose: "true"
     tailscale.com/hostname: alcide-headscale
   labels:
     app: headscale
-    io.cilium/lb-ipam: home-lan
+    io.cilium/lb-inetaddram: home-lan
   name: headscale
   namespace: headscale
 spec:
@@ -6017,6 +6395,36 @@ spec:
   selector:
     app: tekton-operator
     name: tekton-operator-webhook
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Service|tekton-pipelines|tekton-dashboard'
+    kpt.dev/package-layer: cicd
+    kpt.dev/package-name: tekton-dashboard
+  labels:
+    app: tekton-dashboard
+    app.kubernetes.io/component: dashboard
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/name: dashboard
+    app.kubernetes.io/part-of: tekton-dashboard
+    app.kubernetes.io/version: v0.63.1
+    dashboard.tekton.dev/release: v0.63.1
+    version: v0.63.1
+  name: tekton-dashboard
+  namespace: tekton-pipelines
+spec:
+  ports:
+  - name: http
+    port: 9097
+    protocol: TCP
+    targetPort: 9097
+  selector:
+    app.kubernetes.io/component: dashboard
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/name: dashboard
+    app.kubernetes.io/part-of: tekton-dashboard
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6793,6 +7201,111 @@ spec:
             type: RuntimeDefault
       serviceAccountName: tekton-operator
 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: apps|Deployment|tekton-pipelines|tekton-dashboard
+    kpt.dev/package-layer: cicd
+    kpt.dev/package-name: tekton-dashboard
+  labels:
+    app: tekton-dashboard
+    app.kubernetes.io/component: dashboard
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/name: dashboard
+    app.kubernetes.io/part-of: tekton-dashboard
+    app.kubernetes.io/version: v0.63.1
+    dashboard.tekton.dev/release: v0.63.1
+    version: v0.63.1
+  name: tekton-dashboard
+  namespace: tekton-pipelines
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: dashboard
+      app.kubernetes.io/instance: default
+      app.kubernetes.io/name: dashboard
+      app.kubernetes.io/part-of: tekton-dashboard
+  template:
+    metadata:
+      annotations:
+        kpt.dev/package-layer: cicd
+        kpt.dev/package-name: tekton-dashboard
+      labels:
+        app: tekton-dashboard
+        app.kubernetes.io/component: dashboard
+        app.kubernetes.io/instance: default
+        app.kubernetes.io/name: dashboard
+        app.kubernetes.io/part-of: tekton-dashboard
+        app.kubernetes.io/version: v0.63.1
+      name: tekton-dashboard
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/os
+                operator: NotIn
+                values:
+                - windows
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: dashboard
+                  app.kubernetes.io/instance: default
+                  app.kubernetes.io/name: dashboard
+                  app.kubernetes.io/part-of: tekton-dashboard
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+      containers:
+      - args:
+        - --default-namespace=
+        - --external-logs=
+        - --log-format=json
+        - --log-level=info
+        - --logout-url=
+        - --namespaces=
+        - --pipelines-namespace=tekton-pipelines
+        - --port=9097
+        - --read-only=false
+        - --stream-logs=true
+        - --triggers-namespace=tekton-pipelines
+        env:
+        - name: INSTALLED_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        image: ghcr.io/tektoncd/dashboard/dashboard-9623576a202fe86c8b7d1bc489905f86:v0.63.1@sha256:16eca97b649f6f27dfbab2be167be0afc34bab43af9d3304f64bf7f04d44e606
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 9097
+        name: tekton-dashboard
+        ports:
+        - containerPort: 9097
+        readinessProbe:
+          httpGet:
+            path: /readiness
+            port: 9097
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsGroup: 65532
+          runAsNonRoot: true
+          runAsUser: 65532
+          seccompProfile:
+            type: RuntimeDefault
+      nodeSelector:
+        kubernetes.io/os: linux
+      serviceAccountName: tekton-dashboard
+      volumes: []
+---
 apiVersion: apiregistration.k8s.io/v1
 kind: APIService
 metadata:
@@ -6872,7 +7385,7 @@ spec:
 
           install_deps
 
-          nsenter --target 1 --mount --uts --ipc --net --pid -- env \
+          nsenter --target 1 --mount --uts --inetaddrc --net --pid -- env \
             CONTAINERD_CONFIG_FILE="${CONTAINERD_CONFIG_FILE}" \
             bash <<'HOSTSCRIPT'
           set -euxo pipefail
@@ -7388,7 +7901,7 @@ spec:
   - advertisementType: Service
     selector:
       matchLabels:
-        io.cilium/lb-ipam: load-balancers
+        io.cilium/lb-inetaddram: load-balancers
     service:
       addresses:
       - ExternalIP
@@ -7435,7 +7948,7 @@ spec:
       operator: Exists
   serviceSelector:
     matchLabels:
-      io.cilium/lb-ipam: home-lan
+      io.cilium/lb-inetaddram: home-lan
 ---
 apiVersion: cilium.io/v2alpha1
 kind: CiliumL2AnnouncementPolicy
@@ -7470,7 +7983,7 @@ spec:
   - cidr: 192.168.1.32/27
   serviceSelector:
     matchLabels:
-      io.cilium/lb-ipam: home-lan
+      io.cilium/lb-inetaddram: home-lan
 ---
 apiVersion: cilium.io/v2alpha1
 kind: CiliumLoadBalancerIPPool
@@ -7485,7 +7998,7 @@ spec:
   - cidr: 10.80.8.64/26
   serviceSelector:
     matchExpressions:
-    - key: io.cilium/lb-ipam
+    - key: io.cilium/lb-inetaddram
       operator: DoesNotExist
 ---
 apiVersion: cilium.io/v2alpha1
@@ -7526,7 +8039,7 @@ spec:
   pipeline:
     mutators:
     - configMap:
-        cluster-vip-address: ${node-vip-ip}
+        cluster-vip-address: ${node-vip-inetaddr}
         cluster-vip-interface: rke2-vip0
         kube-vip-namespace: kube-vip
         kube-vip-version: ${kube-vip-version}
@@ -7601,7 +8114,7 @@ spec:
         lb-pool-cidr: ${cluster-lb-pool-cidr}
         tailscale-namespace: tailscale-system
         tailscale-version: 1.82.0
-        vip-address: ${node-vip-ip}
+        vip-address: ${node-vip-inetaddr}
       image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
   upstream:
     package: mesh/tailscale
@@ -7640,7 +8153,7 @@ spec:
         l2-interface-1: vmnet0
         l2-interface-2: lan0
         lb-pool-cidr: ${cluster-lb-pool-cidr}
-        node-gateway-ip: 10.80.8.1
+        node-gateway-inetaddr: 10.80.8.1
         vip-pool-cidr: ${cluster-vip-network-cidr}
       image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
   upstream:

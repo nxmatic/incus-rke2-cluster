@@ -184,6 +184,9 @@ dasel -r toml -w yaml \
   : "Load nocloud environment from the common profile"
   source "/var/lib/cloud/.flox/env/profile-common.sh" 
  
+   : "Create kubectl symlinks for the tekton cli"
+  ln -sf "$(command -v tkn)" /usr/local/bin/kubectl-tkn
+
   set -a
   : "Load RKE2-specific dynamic environment variables"
   ARCH="$(dpkg --print-architecture)"
@@ -199,10 +202,6 @@ dasel -r toml -w yaml \
 
   : "Update PATH with RKE2 tools"
   PATH="/var/lib/rancher/rke2/bin:$PATH:${KREW_ROOT}/bin"
-
-  : "Create kubectl symlinks for the tekton cli"
-  ln -sf "$(command -v tkn)" /usr/local/bin/kubectl-tkn
-
   set +a
 EoFloxCommonProfile
 

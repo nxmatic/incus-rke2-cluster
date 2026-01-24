@@ -32,7 +32,7 @@ spec:
           l2-interface-1: vmnet0
           l2-interface-2: lan0
           lb-pool-cidr: ${cluster-lb-pool-cidr}
-          node-gateway-ip: 10.80.8.1
+          node-gateway-inetaddr: 10.80.8.1
           vip-pool-cidr: ${cluster-vip-network-cidr}
         image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
   upstream:

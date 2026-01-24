@@ -17,4 +17,4 @@ spec:
         operator: Exists
   serviceSelector:
     matchLabels:
-      io.cilium/lb-ipam: home-lan
+      io.cilium/lb-inetaddram: home-lan

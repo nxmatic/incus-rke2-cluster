@@ -27,11 +27,6 @@ if [[ $# -ne 1 ]]; then
   exit 1
 fi
 
-if ! command -v xstow >/dev/null 2>&1; then
-  echo "[rke2-manifests-install] xstow is required but not found in PATH" >&2
-  exit 1
-fi
-
 path="${1%/}"
 parent_dir=$(dirname "${path}")
 pkg_name=$(basename "${path}")
@@ -48,7 +43,7 @@ if [[ ! -d "${src_dir}" ]]; then
 fi
 
 stow_dir="${BASE_DIR}/${parent_dir}"
-target_dir="${DST_DIR}/${parent_dir}"
+target_dir="${DST_DIR}/${path}"
 
 mkdir -p "${target_dir}"
 

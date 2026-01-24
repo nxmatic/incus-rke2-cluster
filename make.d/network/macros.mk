@@ -21,11 +21,11 @@ make.d/network/macros.mk := make.d/network/macros.mk
 
 # Gateway IP for a subnet (HOST_MIN from ipcalc is the gateway)
 # Inputs: 1=subnet type (lowercase), 2=subnet index
-.network.subnet-gateway-ip = $(call .network.strip,$(.network.$(1).split.$(2).minaddr))
+.network.subnet-gateway-inetaddr = $(call .network.strip,$(.network.$(1).split.$(2).minaddr))
 
 # Derive host IP from ipcalc-emitted HOST_MIN with a relative offset
 # Inputs: 1=subnet type, 2=subnet index, 3=offset from host_min (0 => host_min)
-.network.subnet-host-ip = $(call .network.inetaddr.add-last,$(call .network.subnet-gateway-ip,$(1),$(2)),$(3))
+.network.subnet-host-inetaddr = $(call .network.inetaddr.add-last,$(call .network.subnet-gateway-inetaddr,$(1),$(2)),$(3))
 
 # Extract base IP from CIDR (first 3 octets) for DHCP reservations
 # Usage: $(call .network.cidr.to-base-inetaddr,CIDR) - e.g., $(call .network.cidr.to-base-inetaddr.,10.80.16.0/21) -> 10.80.16

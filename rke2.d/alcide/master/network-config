@@ -16,16 +16,15 @@ network:
     # Local network access - NOW PRIMARY for internet connectivity
     # Home router provides reliable NAT for internet access
     lan0:
-      macaddress: "10:66:6a:4c:01:00"
-      # DHCP Configuration - now allows default route
-      dhcp4: true
-      dhcp4-overrides:
-        use-routes: true # Accept default route from home router
-        use-dns: true # Use home router DNS
-        use-domains: false # Prevent domain override from DHCP
-        use-hostname: false # Prevent hostname override
-        send-hostname: false # Don't send hostname to DHCP server
-        route-metric: 100 # Primary route for internet access
+      macaddress: "10:66:6a:4c:01:00" # Quote to avoid YAML 1.1 sexagesimal parsing (@codebase)
+      # Static LAN addressing to avoid DHCP pool conflicts
+      dhcp4: false
+      addresses:
+        - "192.168.1.35/27"
+      gateway4: "192.168.1.254"
+      nameservers:
+        addresses:
+          - "192.168.1.254"
       dhcp6: false # Disable IPv6 DHCP
       dhcp-identifier: mac
       accept-ra: false # Disable IPv6 Router Advertisements
@@ -37,7 +36,7 @@ network:
     # Cluster node-to-node communication ONLY
     # NO internet gateway - lan0 is the exclusive internet path
     vmnet0:
-      macaddress: "52:54:00:01:00:00"
+      macaddress: "52:54:00:01:00:00" # Quote to avoid YAML 1.1 sexagesimal parsing (@codebase)
       # DHCP from Incus wan bridge network
       dhcp4: true
       dhcp4-overrides:

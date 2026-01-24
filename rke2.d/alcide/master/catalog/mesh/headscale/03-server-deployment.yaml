@@ -88,9 +88,9 @@ metadata: # kpt-merge: headscale/headscale
   namespace: headscale
   labels:
     app: headscale
-    io.cilium/lb-ipam: home-lan
+    io.cilium/lb-inetaddram: home-lan
   annotations:
-    io.cilium/lb-ipam-ips: ${lan-headscale-inetaddr} # kpt-set: ${lan-headscale-inetaddr}
+    io.cilium/lb-inetaddram-inetaddrs: ${lan-headscale-inetaddr} # kpt-set: ${lan-headscale-inetaddr}
     tailscale.com/expose: "true"
     tailscale.com/hostname: ${cluster-name}-headscale # kpt-set: ${cluster-name}-headscale
     internal.kpt.dev/upstream-identifier: '|Service|headscale|headscale'

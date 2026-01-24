@@ -25,6 +25,10 @@ export NETWORK_NODE_VIP_INETADDR=$(.network.node.vip.inetaddr)
 export NETWORK_NODE_LAN_MACADDR=$(.network.node.lan.macaddr)
 export NETWORK_NODE_WAN_MACADDR=$(.network.node.wan.macaddr)
 export NETWORK_LAN_BRIDGE_MACADDR=$(.network.lan.bridge.macaddr)
+export NETWORK_NODE_LAN_STATIC_INETADDR=$(.network.lan.node.inetaddr)
+export NETWORK_NODE_LAN_PREFIX=$(.network.lan.node.prefix)
+export NETWORK_LAN_GATEWAY_INETADDR=$(.network.lan.gateway)
+export NETWORK_LAN_NAMESERVERS=192.168.1.254
 export NETWORK_NODE_PROFILE_NAME=$(.network.node.profile.name)
 export NETWORK_WAN_DHCP_RANGE=$(.network.wan.dhcp.range)
 export NETWORK_CLUSTER_NODE_INETADDR_BASE=$(call .network.cidr.to-base-inetaddr,$(.network.host.split.$(.cluster.id).cidr))
@@ -124,9 +128,9 @@ data:
   # RKE2 config setter-friendly fields
   pod-network-cidr: "$(.network.cluster.pod.cidr)"
   service-network-cidr: "$(.network.cluster.service.cidr)"
-  node-gateway-ip: "$(.network.node.gateway.inetaddr)"
-  node-host-ip: "$(.network.node.host.inetaddr)"
-  cluster-vip-gateway-ip: "$(.network.cluster.vip.gateway)"
+  node-gateway-inetaddr: "$(.network.node.gateway.inetaddr)"
+  node-host-inetaddr: "$(.network.node.host.inetaddr)"
+  cluster-vip-gateway-inetaddr: "$(.network.cluster.vip.gateway)"
 endef
 
 endif

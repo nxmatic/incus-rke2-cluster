@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: tekton-dashboard
+  namespace: tekton-pipelines
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.middlewares: tekton-dashboard-strip@kubernetescrd
+    kube-vip.io/address-pool: lan-lb
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: ${cluster-name}-web-proxy.lan # kpt-set: ${cluster-name}-web-proxy.lan
+      http:
+        paths:
+          - path: /tekton
+            pathType: Prefix
+            backend:
+              service:
+                name: tekton-dashboard
+                port:
+                  number: 9097

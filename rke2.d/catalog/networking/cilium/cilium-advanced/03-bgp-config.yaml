@@ -12,7 +12,7 @@ spec:
     peers:
     - name: "gateway-peer"
       peerASN: ${bgp-peer-asn} # kpt-set: ${bgp-peer-asn}
-      peerAddress: ${node-gateway-ip} # kpt-set: ${node-gateway-ip}
+      peerAddress: ${node-gateway-inetaddr} # kpt-set: ${node-gateway-inetaddr}
       peerConfigRef:
         name: "cilium-peer"
 ---
@@ -29,5 +29,5 @@ spec:
       - LoadBalancerIP
     selector:
       matchLabels:
-        io.cilium/lb-ipam: "load-balancers"
+        io.cilium/lb-inetaddram: "load-balancers"
   - advertisementType: "PodCIDR"
