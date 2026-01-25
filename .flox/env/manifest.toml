@@ -70,6 +70,10 @@ tree.pkg-path = "tree"
 ## Profile script ----------------------------------------------------
 ## ... sourced by _your shell_ when you run 'flox activate'.
 ## -------------------------------------------------------------------
+[profile]
+  common = '''
+    PATH="${FLOX_ENV_PROJECT}/rke2.d/catalog/bin:$PATH"
+  '''
 # [profile]
 # common = '''
 #   gum style \

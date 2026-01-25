@@ -183,8 +183,8 @@ write_files:
       command -v helm >/dev/null &&
         source <( helm completion zsh ) 2>/dev/null || true
 runcmd:
-  - /srv/host/rke2/scripts/rke2-systemd-link.sh
-  - /srv/host/rke2/scripts/rke2-activate.sh
+  - /srv/host/scripts.d/rke2-systemd-link.sh
+  - /srv/host/scripts.d/rke2-activate.sh
 hostname: alcide-master
 manage_resolv_conf: true
 resolv_conf:

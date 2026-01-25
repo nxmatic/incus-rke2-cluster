@@ -78,14 +78,14 @@ define .incus.env.file.content
 USER=root
 HOME=/root
 : "[i] Generating RKE2LAB environment variables"
-RKE2LAB_ROOT=/srv/host/rke2
-RKE2LAB_ENV_FILE=/srv/host/rke2/environment
-RKE2LAB_SCRIPTS_DIR=/srv/host/rke2/scripts
+RKE2LAB_ROOT=/srv/host
+RKE2LAB_ENV_FILE=/srv/host/environment
+RKE2LAB_SCRIPTS_DIR=/srv/host/scripts.d
 RKE2LAB_SYSTEMD_DIR=/srv/host/system.d
-RKE2LAB_CONFIG_DIR=/srv/host/rke2/config
-RKE2LAB_MANIFESTS_DIR=/srv/host/rke2/manifests.d
-RKE2LAB_SHARED_DIR=/srv/host/share
-RKE2LAB_KUBECONFIG_DIR=/srv/host/rke2/kubeconfig
+RKE2LAB_CONFIG_DIR=/srv/host/config.d
+RKE2LAB_MANIFESTS_DIR=/srv/host/manifests.d
+RKE2LAB_SHARED_DIR=/srv/host/share.d
+RKE2LAB_KUBECONFIG_DIR=/srv/host/kubeconfig.d
 RKE2LAB_DEBUG=false
 RKE2LAB_NODE_TYPE=$(NODE_TYPE)
 RKE2LAB_CLUSTER_NAME=$(CLUSTER_NAME)
@@ -155,6 +155,22 @@ $(.incus.env.file): | $(.incus.dir)/
 $(.incus.env.file):
 	: "[+] Generating RKE2LAB environment file (bind-mount target) ...";
 	$(file >$(@),$(.incus.env.file.content))
+
+#-----------------------------
+# Runtime secrets rendering
+#-----------------------------
+
+$(.incus.secrets.file): $(.incus.secrets.template)
+$(.incus.secrets.file): | $(dir $(.incus.secrets.file))/
+$(.incus.secrets.file):
+	: "[+] Rendering runtime secrets file with host gh auth token (if available) ...";
+	env \
+	  GH_TOKEN=$$(gh auth token 2>/dev/null || true) \
+	  yq eval '.github.token = strenv(GH_TOKEN)' $(<) > $(@)
+
+.PHONY: secrets@incus
+secrets@incus: $(.incus.secrets.file)
+	: "[i] Secrets file ready at $(.incus.secrets.file)"
 
 #-----------------------------
 # Per-instance NoCloud file generation  
@@ -324,9 +340,9 @@ image@incus: $(.incus.image.marker.file) ## Aggregate image build/import marker 
 $(.incus.image.marker.file): $(.incus.image.build.files)
 $(.incus.image.marker.file): | switch-project@incus
 $(.incus.image.marker.file): | $(.incus.dir)/
-$(.incus.image.marker.file): | $(.incus.runtime.dir)/kube/
-$(.incus.image.marker.file): | $(.incus.runtime.dir)/logs/
-$(.incus.image.marker.file): | $(.incus.runtime.dir)/shared/
+$(.incus.image.marker.file): | $(.incus.dir)/kube/
+$(.incus.image.marker.file): | $(.incus.dir)/logs/
+$(.incus.image.marker.file): | $(.incus.dir)/shared/
 $(.incus.image.marker.file):
 	: "[+] Importing image for instance $(node.name) into rke2 project $(.incus.project.name)..."
 	incus image delete --project=$(.incus.project.name) $(.incus.image.name) 2>/dev/null || true
@@ -340,25 +356,25 @@ $(.incus.image.marker.file):
 $(call register-distrobuilder-targets,$(.incus.image.build.files))
 # ($(.incus.image.name)) TSKEY export removed; image build uses TSKEY_CLIENT directly (@codebase)
 # Ensure tmpfs-backed runtime before building
-.PHONY: ensure-runtime-tmpfs@incus
-ensure-runtime-tmpfs@incus:
-	$(SUDO) mkdir -p $(.incus.runtime.dir)
-	if findmnt -rno FSTYPE --target $(.incus.runtime.dir) 2>/dev/null | grep -q '^tmpfs$$'; then \
-		: "[✓] tmpfs already mounted at $(.incus.runtime.dir)"; \
+.PHONY: ensure-image-tmpfs@incus
+ensure-image-tmpfs@incus:
+	$(SUDO) mkdir -p $(.incus.image.dir)
+	if findmnt -rno FSTYPE --target $(.incus.image.dir) 2>/dev/null | grep -q '^tmpfs$$'; then \
+		: "[✓] tmpfs already mounted at $(.incus.image.dir)"; \
 	else \
-		: "[!] $(.incus.runtime.dir) not on tmpfs; mounting tmpfs..."; \
-		$(SUDO) mount -t tmpfs -o size=4G tmpfs $(.incus.runtime.dir); \
+		: "[!] $(.incus.image.dir) not on tmpfs; mounting tmpfs..."; \
+		$(SUDO) mount -t tmpfs -o size=4G tmpfs $(.incus.image.dir); \
 	fi
 	$(SUDO) mkdir -p $(.incus.image.build.dir) $(.incus.image.pack.dir)
 
-$(.incus.runtime.dir)/:
-	$(SUDO) mkdir -p $(.incus.runtime.dir)
+$(.incus.image.dir)/:
+	$(SUDO) mkdir -p $(.incus.image.dir)
 
 # Local build target that always uses local filesystem (never virtiofs)
 # This is an internal target that creates the actual image files with robust cleanup
-$(.incus.image.build.files)&: $(.incus.distrobuilder.file) | ensure-runtime-tmpfs@incus $(.incus.runtime.dir)/ verify-context@incus switch-project@incus
+$(.incus.image.build.files)&: $(.incus.distrobuilder.file) | ensure-image-tmpfs@incus $(.incus.image.dir)/ verify-context@incus switch-project@incus
 	: "[+] Building image locally using native filesystem (not virtiofs)"
-	$(SUDO) mkdir -p $(.incus.dir) $(.incus.runtime.dir) $(.incus.image.build.dir) $(.incus.image.pack.dir)
+	$(SUDO) mkdir -p $(.incus.dir) $(.incus.image.dir) $(.incus.image.build.dir) $(.incus.image.pack.dir)
 	: "[+] Building filesystem first, then packing into Incus image"
 	DIST_CFG=$(realpath $(.incus.distrobuilder.file))
 	$(SUDO) distrobuilder build-dir "$$DIST_CFG"  "$(.incus.image.build.dir)" --disable-overlay
@@ -366,12 +382,12 @@ $(.incus.image.build.files)&: $(.incus.distrobuilder.file) | ensure-runtime-tmpf
 	PACK_CFG="$(.incus.image.pack.config)"
 	sed '/^options:/,/^ *variant: "buildd"/d' "$$DIST_CFG" | $(SUDO) tee "$$PACK_CFG" >/dev/null
 	: "[+] Packing filesystem into Incus image format"
-	$(SUDO) distrobuilder pack-incus "$$PACK_CFG" "$(.incus.image.build.dir)" $(.incus.runtime.dir) --debug
+	$(SUDO) distrobuilder pack-incus "$$PACK_CFG" "$(.incus.image.build.dir)" $(.incus.image.dir) --debug
 	: "[+] Rebuilding squashfs explicitly (verbose) fixing up the built image"
-	$(SUDO) rm -f $(.incus.runtime.dir)/rootfs.squashfs
-	$(SUDO) mksquashfs $(.incus.image.build.dir) $(.incus.runtime.dir)/rootfs.squashfs $(.incus.mksquashfs.opts)
+	$(SUDO) rm -f $(.incus.image.dir)/rootfs.squashfs
+	$(SUDO) mksquashfs $(.incus.image.build.dir) $(.incus.image.dir)/rootfs.squashfs $(.incus.mksquashfs.opts)
 	$(SUDO) rm -fr $(.incus.image.build.dir)
-	$(SUDO) chown -R $(USER):$(USER) $(.incus.runtime.dir)
+	$(SUDO) chown -R $(USER):$(USER) $(.incus.image.dir)
 
 # Helper phony target for remote build delegation
 .PHONY: distrobuilder@incus
@@ -381,13 +397,13 @@ distrobuilder@incus: $(.incus.image.build.files)
 # Runtime reset target (clears tmpfs workspace by remounting)
 .PHONY: reset-runtime@incus
 reset-runtime@incus: ## Clear Incus runtime tmpfs workspace
-	: "[+] Resetting Incus runtime tmpfs at $(.incus.runtime.dir)"s
-	if findmnt -rno FSTYPE --target $(.incus.runtime.dir) 2>/dev/null | grep -q '^tmpfs$$'; then \
-		$(SUDO) umount $(.incus.runtime.dir) || true; \
+	: "[+] Resetting Incus runtime tmpfs at $(.incus.image.dir)"s
+	if findmnt -rno FSTYPE --target $(.incus.image.dir) 2>/dev/null | grep -q '^tmpfs$$'; then \
+		$(SUDO) umount $(.incus.image.dir) || true; \
 	fi
-	$(SUDO) mkdir -p $(.incus.runtime.dir)
-	$(SUDO) mount -t tmpfs tmpfs $(.incus.runtime.dir)
-	$(SUDO) mkdir -p $(.incus.runtime.dir) $(.incus.image.build.dir) $(.incus.image.pack.dir)
+	$(SUDO) mkdir -p $(.incus.image.dir)
+	$(SUDO) mount -t tmpfs tmpfs $(.incus.image.dir)
+	$(SUDO) mkdir -p $(.incus.image.dir) $(.incus.image.build.dir) $(.incus.image.pack.dir)
 	: "[✓] Runtime tmpfs reset and ready"
 
 # Explicit user-invocable phony targets for image build lifecycle (@codebase)
@@ -417,6 +433,8 @@ force-build-image@incus:
 # Instance configuration
 create@incus: $(.incus.instance.config.file)
 create@incus: $(.incus.instance.config.marker.file)
+create@incus: $(.incus.secrets.file)
+create@incus: $(.incus.ghcr.secret.manifest)
 # Runtime directories (order-only)
 create@incus: | $(.incus.dir)/
 create@incus: | $(.incus.nocloud.dir)/
@@ -448,11 +466,11 @@ ensure-image@incus:
 ## Grouped prerequisites for init marker (instance first init)
 $(.incus.instance.config.marker.file).init: $(.incus.image.marker.file)
 $(.incus.instance.config.marker.file).init: $(.incus.instance.config.file)
+$(.incus.instance.config.marker.file).init: $(.incus.env.file)
 $(.incus.instance.config.marker.file).init: $(kpt.manifests.dir)
 $(.incus.instance.config.marker.file).init: $(.cloud-config.metadata.file)
 $(.incus.instance.config.marker.file).init: $(.cloud-config.userdata.file)
 $(.incus.instance.config.marker.file).init: $(.cloud-config.netcfg.file)
-$(.incus.instance.config.marker.file).init: test@network
 $(.incus.instance.config.marker.file).init: | $(.incus.dir)/
 $(.incus.instance.config.marker.file).init: | $(.incus.shared.dir)/
 $(.incus.instance.config.marker.file).init: | $(.incus.kubeconfig.dir)/

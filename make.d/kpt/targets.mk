@@ -4,6 +4,9 @@
 ifndef make.d/kpt/targets.mk
 make.d/kpt/targets.mk := make.d/kpt/targets.mk
 
+# Marker file indicating the rendered catalog is current (@codebase)
+.kpt.render.stamp := $(.kpt.render.dir)/.rendered
+
 
 $(.kpt.catalog.dir): sync@kpt
 $(.kpt.catalog.dir): $(.kpt.catalog.dir)/Kptfile
@@ -42,7 +45,7 @@ endef
 
 .PHONY: update-kustomizations@kpt
 
-update-kustomizations@kpt: $(.kpt.render.dir)
+update-kustomizations@kpt: $(.kpt.render.stamp)
 update-kustomizations@kpt: ## Update Kustomization files from rendered catalog packages
 	: "[kpt] Generating Kustomizations from rendered packages"
 	for layer in "$(.kpt.render.dir)"/*/; do
@@ -69,18 +72,20 @@ update-kustomizations@kpt: ## Update Kustomization files from rendered catalog p
 # Rendering pipeline (@codebase)
 # ----------------------------------------------------------------------------
 
-$(.kpt.render.dir): $(.kpt.catalog.dir)
-$(.kpt.render.dir): $(.kpt.setters.cluster.file)
-$(.kpt.render.dir): | $(dir $(.kpt.render.dir))/
-$(.kpt.render.dir):
+$(.kpt.render.stamp): $(.kpt.catalog.dir)
+$(.kpt.render.stamp): $(.kpt.setters.cluster.file)
+$(.kpt.render.stamp): $(.kpt.catalog.files)
+$(.kpt.render.stamp): | $(dir $(.kpt.render.dir))/
+$(.kpt.render.stamp):
 	: "Rendering catalog for cluster $(cluster.name) via kpt fn render"
 	: "[kpt] Refreshing setters.yaml with current cluster values"
 	$(file >$(.kpt.rke2-config.setters.file),$(.kpt.rke2-config.setters.file.content))
 	rm -fr "$(.kpt.render.dir)"
-	env PATH=$(realpath $(.kpt.catalog.dir)/bin):$(PATH) kpt fn render --allow-exec --truncate-output=false "$(.kpt.catalog.dir)" -o "$(@)"
+	kpt fn render --allow-network --allow-exec --truncate-output=false "$(.kpt.catalog.dir)" -o "$(.kpt.render.dir)"
+	touch "$(@)"
 
 $(.kpt.manifests.file): $(.kpt.Kustomization.file)
-$(.kpt.manifests.file): $(.kpt.render.dir)
+$(.kpt.manifests.file): $(.kpt.render.stamp)
 $(.kpt.manifests.file):
 	: "Copying Kustomization files to rendered output"
 	rsync -a --include='*/' --include='Kustomization' --exclude='*' "$(.kpt.catalog.dir)/" "$(.kpt.render.dir)/"

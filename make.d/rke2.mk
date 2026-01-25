@@ -12,15 +12,15 @@ include make.d/kpt/rules.mk
 
 -include rke2.d/$(cluster.name)/rke2.env.mk
 
+include $(incus.env.mk)
+
 define .rke2.env.mk =
 export CLUSTER_ID=$(cluster.id)
 export CLUSTER_NAME=$(cluster.name)
 export CLUSTER_ENV=$(cluster.env)
 export CLUSTER_TOKEN=$(cluster.token)
 export CLUSTER_DOMAIN=$(cluster.domain)
-export CLUSTER_SECRETS_FILE=$(abspath $(top-dir)/.secrets)
-export CLUSTER_SERVER_MANIFESTS_DIR=$(abspath $(.kpt.manifests.dir))
-export CLUSTER_CONFIG_DIR=$(abspath $(.kpt.render.dir)/runtime/rke2-config/configmaps)
+export CLUSTER_SECRETS_FILE=$(INCUS_SECRETS_FILE)
 endef
 
 export RKE2_DIR=$(abspath $(rke2.dir))

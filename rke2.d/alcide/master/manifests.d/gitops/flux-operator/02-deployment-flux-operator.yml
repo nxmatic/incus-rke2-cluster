@@ -93,6 +93,7 @@ spec:
           volumeMounts:
             - mountPath: /tmp
               name: temp
+      priorityClassName: system-cluster-critical
       serviceAccountName: flux-operator
       volumes:
         - emptyDir: {}

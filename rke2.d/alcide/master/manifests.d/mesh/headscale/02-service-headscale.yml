@@ -4,7 +4,7 @@ kind: Service
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: '|Service|headscale|headscale'
-    io.cilium/lb-inetaddram-inetaddrs: 192.168.1.33
+    io.cilium/lb-inetaddram-inetaddrs: 192.168.1.65
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headscale
     tailscale.com/expose: "true"

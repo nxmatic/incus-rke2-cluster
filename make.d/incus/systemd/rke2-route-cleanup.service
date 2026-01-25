@@ -7,7 +7,7 @@ StartLimitIntervalSec=30
 
 [Service]
 Type=oneshot
-ExecStart=/srv/host/rke2/scripts/rke2-route-cleanup.sh
+ExecStart=/srv/host/scripts.d/rke2-route-cleanup.sh
 RemainAfterExit=true
 StandardOutput=journal+console
 StandardError=journal+console

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: # kpt-merge: /kdns-setters
+  name: kdns-setters
+  annotations:
+    config.kubernetes.io/local-config: "true"
+    internal.kpt.dev/function-config: apply-setters
+    description.kpt.dev: Default Helm setters for kdns
+data:
+  helm-repo: oci://ghcr.io/lab42/charts
+  chart-name: kdns
+  chart-version: 0.2.3
+  release-name: kdns
+  serviceaccount-name: kdns
+  target-namespace: kube-system

@@ -10,6 +10,7 @@ include make.d/network/rules.mk
 
 include make.d/kpt/macros.mk
 include make.d/kpt/vars.mk
+include make.d/kpt/env.mk
 include make.d/kpt/targets.mk
 include make.d/kpt/setters.mk
 

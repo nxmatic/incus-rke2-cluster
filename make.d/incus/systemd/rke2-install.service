@@ -3,16 +3,16 @@ Description=Run RKE2 Installation Script
 After=network-online.target systemd-networkd.service local-fs.target rke2-network-config.service rke2-network-wait.service
 Wants=network-online.target systemd-networkd.service rke2-network-config.service rke2-network-wait.service
 Requires=rke2-network-config.service
-RequiresMountsFor=/srv/host/rke2/scripts
-ConditionPathExists=/srv/host/rke2/scripts/rke2-install.sh
+RequiresMountsFor=/srv/host/scripts.d
+ConditionPathExists=/srv/host/scripts.d/rke2-install.sh
 ConditionPathExists=!/etc/systemd/system/rke2-server.service
 ConditionPathExists=!/etc/systemd/system/rke2-agent.service
 
 [Service]
 Type=oneshot
-ExecStartPre=/srv/host/rke2/scripts/rke2-install-pre.sh
-ExecStart=/srv/host/rke2/scripts/rke2-install.sh
-ExecStartPost=/srv/host/rke2/scripts/rke2-install-post.sh
+ExecStartPre=/srv/host/scripts.d/rke2-install-pre.sh
+ExecStart=/srv/host/scripts.d/rke2-install.sh
+ExecStartPost=/srv/host/scripts.d/rke2-install-post.sh
 RemainAfterExit=true
 StandardOutput=journal
 StandardError=journal

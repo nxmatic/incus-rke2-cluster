@@ -43,6 +43,15 @@ apiVersion: v1
 kind: Namespace
 metadata:
   annotations:
+    internal.kpt.dev/upstream-identifier: '|Namespace|default|kdns-system'
+    kpt.dev/package-layer: networking
+    kpt.dev/package-name: kdns
+  name: kube-system
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
     internal.kpt.dev/upstream-identifier: '|Namespace|default|${kube-vip-namespace}'
     kpt.dev/package-layer: ha
     kpt.dev/package-name: kube-vip
@@ -4181,6 +4190,21 @@ automountServiceAccountToken: true
 kind: ServiceAccount
 metadata:
   annotations:
+    kpt.dev/package-layer: networking
+    kpt.dev/package-name: kdns
+  labels:
+    app.kubernetes.io/instance: kdns
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: kdns
+    helm.sh/chart: kdns-0.2.3
+  name: kdns
+  namespace: kube-system
+---
+apiVersion: v1
+automountServiceAccountToken: true
+kind: ServiceAccount
+metadata:
+  annotations:
     kpt.dev/package-layer: replication
     kpt.dev/package-name: replicator
   labels:
@@ -4569,6 +4593,32 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   annotations:
+    kpt.dev/package-layer: networking
+    kpt.dev/package-name: kdns
+  name: kdns-ingress-reader
+rules:
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - services
+  - endpoints
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
     kpt.dev/package-layer: replication
     kpt.dev/package-name: replicator
   labels:
@@ -4871,28 +4921,6 @@ rules:
   - securitycontextconstraints
   verbs:
   - use
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  annotations:
-    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRole|default|tekton-dashboard-rw
-    kpt.dev/package-layer: cicd
-    kpt.dev/package-name: tekton-dashboard
-  name: tekton-dashboard-rw
-rules:
-- apiGroups:
-  - tekton.dev
-  resources:
-  - tasks
-  - taskruns
-  - pipelines
-  - pipelineruns
-  verbs:
-  - get
-  - create
-  - update
-  - patch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -5365,24 +5393,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|RoleBinding|default|tekton-dashboard-rw
-    kpt.dev/package-layer: cicd
-    kpt.dev/package-name: tekton-dashboard
-  name: tekton-dashboard-rw
-  namespace: default
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: tekton-dashboard-rw
-subjects:
-- kind: ServiceAccount
-  name: tekton-dashboard
-  namespace: tekton-pipelines
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|RoleBinding|headscale|headscale-bootstrap
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headscale
@@ -5491,6 +5501,23 @@ subjects:
 - apiGroup: rbac.authorization.k8s.io
   kind: Group
   name: system:authenticated
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    kpt.dev/package-layer: networking
+    kpt.dev/package-name: kdns
+  name: kdns-ingress-reader-binding
+  namespace: kdns-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kdns-ingress-reader
+subjects:
+- kind: ServiceAccount
+  name: kdns
+  namespace: kube-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -6304,7 +6331,7 @@ kind: Service
 metadata:
   annotations:
     internal.kpt.dev/upstream-identifier: '|Service|headscale|headscale'
-    io.cilium/lb-inetaddram-inetaddrs: 192.168.1.33
+    io.cilium/lb-inetaddram-inetaddrs: 192.168.1.65
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headscale
     tailscale.com/expose: "true"
@@ -6560,6 +6587,7 @@ spec:
         volumeMounts:
         - mountPath: /tmp
           name: temp
+      priorityClassName: system-cluster-critical
       serviceAccountName: flux-operator
       volumes:
       - emptyDir: {}
@@ -6770,6 +6798,127 @@ spec:
           - key: authkey
             path: authkey
           secretName: headscale-client-auth
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: apps|Deployment|default|kdns
+    kpt.dev/package-layer: networking
+    kpt.dev/package-name: kdns
+  labels:
+    app.kubernetes.io/instance: kdns
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: kdns
+    helm.sh/chart: kdns-0.2.3
+  name: kdns
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: kdns
+      app.kubernetes.io/name: kdns
+  template:
+    metadata:
+      annotations:
+        debug.kdns.lab42/enabled: "false"
+        kpt.dev/package-layer: networking
+        kpt.dev/package-name: kdns
+      labels:
+        app.kubernetes.io/instance: kdns
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: kdns
+        helm.sh/chart: kdns-0.2.3
+    spec:
+      containers:
+      - args:
+        - |
+          enabled="${KDNS_DEBUG_ENABLED:-}"
+          if [ "$enabled" != "true" ]; then
+            echo "[kdns-dlv] debug disabled (set annotation debug.kdns.lab42/enabled=true to enable); sleeping"
+            sleep 3650d
+          fi
+          target_pid=$(pidof kdns || true)
+          if [ -z "$target_pid" ]; then
+            echo "[kdns-dlv] kdns process not found; sleeping"
+            sleep 1d
+          fi
+          echo "[kdns-dlv] starting delve headless on :${KDNS_DEBUG_PORT} attaching to pid ${target_pid}"
+          exec dlv attach "$target_pid" --headless --listen=":${KDNS_DEBUG_PORT}" --api-version=2 --accept-multiclient --log --continue
+        command:
+        - /bin/sh
+        - -c
+        env:
+        - name: KDNS_DEBUG_ENABLED
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.annotations['debug.kdns.lab42/enabled']
+        - name: KDNS_DEBUG_PORT
+          value: "40000"
+        image: ghcr.io/go-delve/delve:latest
+        imagePullPolicy: IfNotPresent
+        name: kdns-dlv
+        ports:
+        - containerPort: 40000
+          name: dlv
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 50m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            add:
+            - SYS_PTRACE
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+      - env:
+        - name: KUBERNETES_SERVICE_HOST
+          value: 10.80.8.10
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: KUBERNETES_SERVICE_PORT
+          value: "6443"
+        image: ghcr.io/lab42/kdns:v0.2.9
+        imagePullPolicy: IfNotPresent
+        livenessProbe: null
+        name: kdns
+        ports:
+        - containerPort: 5353
+          hostPort: 5353
+          name: http
+          protocol: TCP
+        readinessProbe: null
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        securityContext:
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+      dnsPolicy: Default
+      hostNetwork: true
+      securityContext: {}
+      serviceAccountName: kdns
+      shareProcessNamespace: true
+      tolerations:
+      - operator: Exists
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -8020,7 +8169,7 @@ metadata:
   name: home-lan
 spec:
   blocks:
-  - cidr: 192.168.1.32/27
+  - cidr: 192.168.1.64/27
   serviceSelector:
     matchLabels:
       io.cilium/lb-inetaddram: home-lan
@@ -8035,7 +8184,7 @@ metadata:
   name: lan-load-balancers
 spec:
   blocks:
-  - cidr: 192.168.1.32/27
+  - cidr: 192.168.1.64/27
   serviceSelector:
     matchLabels:
       io.cilium/loadbalancer-ip-pool: lan-lb
@@ -8131,8 +8280,8 @@ spec:
     - configMap:
         cluster-name: alcide
         darwin-host: alcide
-        lan-headscale-inetaddr: 192.168.1.33
-        lan-lb-pool: 192.168.1.32/27
+        lan-headscale-inetaddr: 192.168.1.65
+        lan-lb-pool: 192.168.1.64/27
         vip-network-cidr: ${cluster-vip-network-cidr}
       image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
   upstream:
@@ -8584,7 +8733,6 @@ metadata:
     kpt.dev/package-name: tekton-pipelines
   name: config
 spec:
-  platforms: {}
   profile: all
   pruner:
     keep: 100
@@ -8609,3 +8757,17 @@ spec:
     advertiseRoutes:
     - 10.80.63.10/32
     - 10.80.8.64/26
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: traefik.containo.us|Middleware|tekton-pipelines|tekton-dashboard-strip
+    kpt.dev/package-layer: cicd
+    kpt.dev/package-name: tekton-dashboard
+  name: tekton-dashboard-strip
+  namespace: tekton-pipelines
+spec:
+  stripPrefix:
+    prefixes:
+    - /tekton

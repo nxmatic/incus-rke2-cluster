@@ -8,7 +8,6 @@ metadata:
     kpt.dev/package-name: tekton-pipelines
   name: config
 spec:
-  platforms: {}
   profile: all
   pruner:
     keep: 100

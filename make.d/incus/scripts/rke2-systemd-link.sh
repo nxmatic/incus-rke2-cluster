@@ -1,19 +1,17 @@
 #!/usr/bin/env -S bash -exu -o pipefail
 
-: "Load RKE2 environment defaults" # @codebase
-ENV_FILE=/srv/host/rke2/environment
-if [[ ! -r "${ENV_FILE}" ]]; then
-  echo "[systemd-link] missing environment file: ${ENV_FILE}" >&2
+: "Load RKE2 environment" # @codebase
+RKE2LAB_ENV_FILE=${RKE2LAB_ENV_FILE:-/srv/host/environment}
+[[ ! -r "${RKE2LAB_ENV_FILE}" ]] && {
+  echo "[systemd-link] missing environment file: ${RKE2LAB_ENV_FILE}" >&2
   exit 1
-fi
+}
 set -a
-source "${ENV_FILE}"
+source "${RKE2LAB_ENV_FILE}"
 set +a
 
-LOG_FILE="/var/log/rke2-systemd-link.log"
-
 log() {
-  printf '[systemd-link] %s\n' "$*" | tee -a "${LOG_FILE}"
+  printf '[systemd-link] %s\n' "$*"
 }
 
 # Wait for the bind-mount to appear and contain files (up to 30s)

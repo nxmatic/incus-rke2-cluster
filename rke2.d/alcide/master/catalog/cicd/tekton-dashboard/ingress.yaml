@@ -5,9 +5,9 @@ metadata: # kpt-merge: tekton-pipelines/tekton-dashboard
   namespace: tekton-pipelines
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
-    internal.kpt.dev/upstream-identifier: 'networking.k8s.io|Ingress|tekton-pipelines|tekton-dashboard'
-    kube-vip.io/address-pool: lan-lb
     traefik.ingress.kubernetes.io/router.middlewares: tekton-dashboard-strip@kubernetescrd
+    kube-vip.io/address-pool: lan-lb
+    internal.kpt.dev/upstream-identifier: 'networking.k8s.io|Ingress|tekton-pipelines|tekton-dashboard'
 spec:
   ingressClassName: traefik
   rules:

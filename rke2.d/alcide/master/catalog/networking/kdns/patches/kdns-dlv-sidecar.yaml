@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: # kpt-merge: /kdns
+  name: kdns
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'apps|Deployment|default|kdns'
+spec:
+  template:
+    metadata:
+      annotations:
+        debug.kdns.lab42/enabled: "false"
+    spec:
+      shareProcessNamespace: true
+      containers:
+        - name: kdns-dlv
+          image: ghcr.io/go-delve/delve:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - |
+              enabled="${KDNS_DEBUG_ENABLED:-}"
+              if [ "$enabled" != "true" ]; then
+                echo "[kdns-dlv] debug disabled (set annotation debug.kdns.lab42/enabled=true to enable); sleeping"
+                sleep 3650d
+              fi
+              target_pid=$(pidof kdns || true)
+              if [ -z "$target_pid" ]; then
+                echo "[kdns-dlv] kdns process not found; sleeping"
+                sleep 1d
+              fi
+              echo "[kdns-dlv] starting delve headless on :${KDNS_DEBUG_PORT} attaching to pid ${target_pid}"
+              exec dlv attach "$target_pid" --headless --listen=":${KDNS_DEBUG_PORT}" --api-version=2 --accept-multiclient --log --continue
+          env:
+            - name: KDNS_DEBUG_ENABLED
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.annotations['debug.kdns.lab42/enabled']
+            - name: KDNS_DEBUG_PORT
+              value: "40000"
+          ports:
+            - containerPort: 40000
+              name: dlv
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 50m
+              memory: 128Mi
+            requests:
+              cpu: 10m
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              add:
+                - SYS_PTRACE
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000

@@ -1,0 +1,17 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    kpt.dev/package-layer: networking
+    kpt.dev/package-name: kdns
+  name: kdns-ingress-reader-binding
+  namespace: kdns-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kdns-ingress-reader
+subjects:
+  - kind: ServiceAccount
+    name: kdns
+    namespace: kube-system

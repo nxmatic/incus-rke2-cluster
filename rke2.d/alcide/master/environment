@@ -2,14 +2,14 @@
 USER=root
 HOME=/root
 : "[i] Generating RKE2LAB environment variables"
-RKE2LAB_ROOT=/srv/host/rke2
-RKE2LAB_ENV_FILE=/srv/host/rke2/environment
-RKE2LAB_SCRIPTS_DIR=/srv/host/rke2/scripts
+RKE2LAB_ROOT=/srv/host
+RKE2LAB_ENV_FILE=/srv/host/environment
+RKE2LAB_SCRIPTS_DIR=/srv/host/scripts.d
 RKE2LAB_SYSTEMD_DIR=/srv/host/system.d
-RKE2LAB_CONFIG_DIR=/srv/host/rke2/config
-RKE2LAB_MANIFESTS_DIR=/srv/host/rke2/manifests.d
-RKE2LAB_SHARED_DIR=/srv/host/share
-RKE2LAB_KUBECONFIG_DIR=/srv/host/rke2/kubeconfig
+RKE2LAB_CONFIG_DIR=/srv/host/config.d
+RKE2LAB_MANIFESTS_DIR=/srv/host/manifests.d
+RKE2LAB_SHARED_DIR=/srv/host/share.d
+RKE2LAB_KUBECONFIG_DIR=/srv/host/kubeconfig.d
 RKE2LAB_DEBUG=false
 RKE2LAB_NODE_TYPE=server
 RKE2LAB_CLUSTER_NAME=alcide

@@ -2,15 +2,20 @@
 
 
 : "Load RKE2 environment" # @codebase
-ENV_FILE=/srv/host/rke2/environment
-if [[ ! -r "${ENV_FILE}" ]]; then
-  echo "[rke2-install-pre] missing environment file: ${ENV_FILE}" >&2
+RKE2LAB_ROOT=${RKE2LAB_ROOT:-/srv/host}
+RKE2LAB_ENV_FILE=${RKE2LAB_ENV_FILE:-${RKE2LAB_ROOT}/environment}
+[[ ! -r "${RKE2LAB_ENV_FILE}" ]] && {
+  echo "[common-profile] missing environment file: ${RKE2LAB_ENV_FILE}" >&2
   exit 1
-fi
+}
 
 set -a
-source "${ENV_FILE}"
+source "${RKE2LAB_ENV_FILE}"
 set +a
+
+: "Set flox target system for this host"
+RKE2_FLOX_SYSTEM="$(uname -m)-linux"
+export RKE2_FLOX_SYSTEM
 
 : "Configure direnv to use flox"
 direnv:config:generate() {
@@ -41,13 +46,13 @@ nocloud:env:activate() {
 	source <( flox activate --dir="${FLOX_ENV_DIR}" )
 	return
   fi
+
+  : "Initialize flox environment for nocloud"
   mkdir -p "${FLOX_ENV_DIR}"
   flox init --dir="${FLOX_ENV_DIR}"
-  flox install --dir="${FLOX_ENV_DIR}" \
-    dasel git gh yq-go
+  flox install --dir="${FLOX_ENV_DIR}" dasel yq-go
 
   : "Include common profile in manifest and activate flox environment"
-
   cat <<'EoFloxCommonProfile' | cut -c 3- | tee "${FLOX_ENV_DIR}/.flox/env/profile-common.sh"
 
   shell:indirect() {
@@ -82,10 +87,13 @@ nocloud:env:activate() {
     export "$var=$val"
   }
   
-  set -a
+  RKE2LAB_ROOT=${RKE2LAB_ROOT:-/srv/host}
+  RKE2LAB_ENV_FILE=${RKE2LAB_ENV_FILE:-${RKE2LAB_ROOT}/environment}
 
+  set -a
+  
   : "Source RKE2 environment file"
-  source "/srv/host/rke2/environment"
+  source "${RKE2LAB_ENV_FILE}"
 
   : "Load RKE2-specific dynamic environment variables"
   ARCH="$(dpkg --print-architecture)"
@@ -115,10 +123,14 @@ nocloud:env:activate() {
 EoFloxCommonProfile
 
   dasel -r toml -w yaml < "${FLOX_ENV_DIR}/.flox/env/manifest.toml" |
+    yq eval '.options = {"systems": [env(RKE2_FLOX_SYSTEM)]}' - |
     yq eval '.profile = { "common": "source ${FLOX_ENV_PROJECT}/.flox/env/profile-common.sh" }' - |
     dasel --pretty -r yaml -w toml | tee /tmp/manifest.toml.$$ &&
     mv /tmp/manifest.toml.$$ "${FLOX_ENV_DIR}/.flox/env/manifest.toml"
   source <( flox activate --dir="${FLOX_ENV_DIR}" )
+
+  : "Install GitHub CLI in nocloud flox environment"
+  flox install --dir="${FLOX_ENV_DIR}" git gh@2.86
 
   : "Generate nocloud envrc to load environment variables"
   cat > /var/lib/cloud/.envrc <<'EoEnvrc'
@@ -139,27 +151,44 @@ ${GITHUB_PAT}
 EoF
 gh auth setup-git --hostname "${GITHUB_HOST:-github.com}"\
 
+: "Configure ghcr registry access for containerd" # @codebase
+CONTAINERD_REG_FILE="/etc/rancher/rke2/registries.yaml"
+if [[ ! -f "${CONTAINERD_REG_FILE}" ]]; then
+  : "[rke2-install-pre] registries.yaml not present; creating"
+  mkdir -p "$(dirname "${CONTAINERD_REG_FILE}")"
+  cat >"${CONTAINERD_REG_FILE}" <<EoF | cut -c 3- 
+  mirrors:
+    ghcr.io:
+      endpoint:
+        - https://ghcr.io
+  configs:
+    "ghcr.io":
+      auth:
+        username: x-access-token
+        password: ${GITHUB_PAT}
+EoF
+  chmod 0644 "${CONTAINERD_REG_FILE}"
+fi
+
+
 : "Initialize the flox environment for RKE2"
 [[ ! -d /var/lib/rancher/rke2/.flox ]] &&
   flox init --dir=/var/lib/rancher/rke2
 
-flox install \
-  --dir=/var/lib/rancher/rke2 \
-  ceph-client cilium-cli etcdctl helmfile \
-  kubernetes-helm kubectl # override
-
-: "Install kpt v1 in isolated group to avoid dependency conflicts"
-flox install \
-  --dir=/var/lib/rancher/rke2 \
-  kpt
-
 : "Include cloud environment in RKE2 flox environment and configure groups"
 dasel -r toml -w yaml \
   < /var/lib/rancher/rke2/.flox/env/manifest.toml |
+  yq eval '.options = {"systems": [env(RKE2_FLOX_SYSTEM)]}' - |
   yq eval '.include = {"environments": [{"dir": "/var/lib/cloud"}]}' - |
-  yq eval '.install += {"zfs": {"pkg-path": "zfs", "pkg-group": "linux", "systems": ["aarch64-linux"]}}' - |
-  yq eval '.install += {"nerdctl": {"pkg-path": "nerdctl", "version": "1.7.5", "pkg-group": "containerd-tools", "systems": ["aarch64-linux"]}}' - |
-  yq eval '.install += {"tektoncd-cli": {"pkg-path": "tektoncd-cli", "pkg-group": "tekton-tools"}}' - |
+  yq eval '.install += {"etcdctl": {"pkg-path": "etcdctl", "pkg-group": "etcd-tools"}}' - |	
+  yq eval '.install += {"ceph-client": {"pkg-path": "ceph-client", "pkg-group": "ceph-tools"}}' - |
+  yq eval '.install += {"cilium-cli": {"pkg-path": "cilium-cli", "pkg-group": "cilium-tools"}}' - |	
+  yq eval '.install += {"helmfile": {"pkg-path": "helmfile", "pkg-group": "helm-tools"}}' - |
+  yq eval '.install += {"kubernetes-helm": {"pkg-path": "helm", "pkg-group": "helm-tools"}}' - |	
+  yq eval '.install += {"zfs": {"pkg-path": "zfs", "pkg-group": "linux"}}' - |
+  yq eval '.install += {"nerdctl": {"pkg-path": "nerdctl", "version": "1.7.5", "pkg-group": "containerd-tools"}}' - |
+  yq eval '.install += {"tektoncd-cli": {"pkg-path": "tektoncd-cli", "pkg-group": "tekton-tools"}}' - |	
+  yq eval '.install += {"kubectl": {"pkg-path": "kubectl", "pkg-group": "kubectl-tools"}}' - |
   yq eval '.install += {"krew": {"pkg-path": "krew", "pkg-group": "kubectl-tools"}}' - |
   yq eval '.install += {"kubectl-ai": {"pkg-path": "kubectl-ai", "pkg-group": "kubectl-plugins"}}' - |
   yq eval '.install += {"kubectl-ktop": {"pkg-path": "kubectl-ktop", "pkg-group": "kubectl-plugins"}}' - |
@@ -185,7 +214,7 @@ dasel -r toml -w yaml \
   source "/var/lib/cloud/.flox/env/profile-common.sh" 
  
    : "Create kubectl symlinks for the tekton cli"
-  ln -sf "$(command -v tkn)" /usr/local/bin/kubectl-tkn
+  ln -sf "$(command -v tkn)" /usr/local/bin/kubectl-tkn || true
 
   set -a
   : "Load RKE2-specific dynamic environment variables"

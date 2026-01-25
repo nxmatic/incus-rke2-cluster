@@ -1,15 +1,15 @@
 [Unit]
 Description=Install RKE2 networking manifests from host share (pre-server)
-RequiresMountsFor=/srv/host/system.d /srv/host/rke2
+RequiresMountsFor=/srv/host/system.d /srv/host
 After=local-fs.target
 Before=rke2-server.service
 After=rke2-install.service
-ConditionPathExists=/srv/host/rke2/scripts/rke2-manifests-install.sh
-ConditionPathExists=/srv/host/rke2/manifests.d/networking
+ConditionPathExists=/srv/host/scripts.d/rke2-manifests-install.sh
+ConditionPathExists=/srv/host/manifests.d/networking
 
 [Service]
 Type=oneshot
-ExecStart=/srv/host/rke2/scripts/rke2-manifests-install.sh networking
+ExecStart=/srv/host/scripts.d/rke2-manifests-install.sh networking
 RemainAfterExit=true
 StandardOutput=journal
 StandardError=journal

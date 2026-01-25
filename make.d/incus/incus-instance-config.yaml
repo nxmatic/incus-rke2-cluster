@@ -91,35 +91,35 @@ devices:
   secrets.file:
     type: disk
     source: ${CLUSTER_SECRETS_FILE}
-    path: /srv/host/rke2/secrets
+    path: /srv/host/secrets
   rke2lab.env.file:
     type: disk
     source: ${INCUS_ENV_FILE}
-    path: /srv/host/rke2/environment
+    path: /srv/host/environment
   rke2lab.scripts.dir:
     type: disk
     source: ${INCUS_SCRIPTS_DIR}
-    path: /srv/host/rke2/scripts
+    path: /srv/host/scripts.d
   rke2lab.system.dir:
     type: disk
     source: ${INCUS_SYSTEMD_DIR}
     path: /srv/host/system.d
   manifests.dir:
     type: disk
-    source: ${CLUSTER_SERVER_MANIFESTS_DIR}
-    path: /srv/host/rke2/manifests.d
+    source: ${KPT_MANIFESTS_DIR}
+    path: /srv/host/manifests.d
   rke2.config.dir:
     type: disk
-    source: ${CLUSTER_CONFIG_DIR}
-    path: /srv/host/rke2/config
+    source: ${KPT_CONFIG_DIR}
+    path: /srv/host/config.d
   shared.dir:
     type: disk
     source: ${INCUS_SHARED_DIR}
-    path: /srv/host/share
+    path: /srv/host/share.d
   kubeconfig.dir:
     type: disk
     source: ${INCUS_KUBECONFIG_DIR}
-    path: /srv/host/rke2/kubeconfig
+    path: /srv/host/kubeconfig.d
   user.metadata:
     type: disk
     source: ${CLOUDCONFIG_METADATA_FILE}

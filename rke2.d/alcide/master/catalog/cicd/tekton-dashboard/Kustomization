@@ -8,5 +8,5 @@ resources:
   - release-full.yaml
   # Local ingress to expose the dashboard service
   - ingress.yaml
-  # RBAC to allow dashboard to create Tekton resources in the target namespace
-  - rbac-dashboard.yaml
+  # Middleware to strip the /tekton prefix for dashboard backend
+  - middleware.yaml

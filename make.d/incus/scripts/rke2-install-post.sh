@@ -14,10 +14,9 @@ MANIFESTS_DIR=/var/lib/rancher/rke2/server/manifests
 : "Ensure RKE2 systemd units are visible to systemd"
 SRC_UNIT_DIR="/usr/local/lib/systemd/system"
 DEST_UNIT_DIR="/etc/systemd/system"
-LOG_FILE="/var/log/rke2-install-post.log"
 
 log() {
-	printf '[rke2-install-post] %s\n' "$*" | tee -a "$LOG_FILE"
+	printf '[rke2-install-post] %s\n' "$*"
 }
 
 if [[ ! -d "$SRC_UNIT_DIR" ]]; then

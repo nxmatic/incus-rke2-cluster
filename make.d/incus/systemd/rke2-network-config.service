@@ -6,7 +6,7 @@ Before=rke2-install.service
 
 [Service]
 Type=oneshot
-ExecStart=/srv/host/rke2/scripts/rke2-network-config.sh
+ExecStart=/srv/host/scripts.d/rke2-network-config.sh
 RemainAfterExit=yes
 StandardOutput=journal
 StandardError=journal

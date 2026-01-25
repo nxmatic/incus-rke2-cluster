@@ -1,0 +1,17 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: # kpt-merge: /kdns
+  name: kdns
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'apps|Deployment|default|kdns'
+spec:
+  template:
+    spec:
+      dnsPolicy: Default
+      containers:
+        - name: kdns
+          env:
+            - name: KUBERNETES_SERVICE_HOST
+              value: 10.80.8.10
+            - name: KUBERNETES_SERVICE_PORT
+              value: "6443"

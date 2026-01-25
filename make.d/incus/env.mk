@@ -24,6 +24,7 @@ export INCUS_KUBECONFIG_DIR=$(abspath $(.incus.kubeconfig.dir))
 export INCUS_NO_CLOUD_DIR=$(abspath $(.incus.nocloud.dir))
 export INCUS_IMAGE_BUILD_DIR=$(abspath $(.incus.image.build.dir))
 export INCUS_IMAGE_PACK_CONFIG=$(abspath $(.incus.image.pack.config))
+export INCUS_SECRETS_FILE=$(abspath $(.incus.secrets.file))
 export INCUS_SYSTEMD_DIR=$(abspath $(.incus.systemd.dir))
 export INCUS_SCRIPTS_DIR=$(abspath $(.incus.scripts.dir))
 endef

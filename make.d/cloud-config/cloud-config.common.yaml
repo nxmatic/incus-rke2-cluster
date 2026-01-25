@@ -227,5 +227,5 @@ packages:
 
 
 runcmd:
-  - /srv/host/rke2/scripts/rke2-systemd-link.sh
-  - /srv/host/rke2/scripts/rke2-activate.sh
+  - /srv/host/scripts.d/rke2-systemd-link.sh
+  - /srv/host/scripts.d/rke2-activate.sh

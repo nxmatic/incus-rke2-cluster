@@ -13,7 +13,7 @@ db::check() {
   if [[ "${inet[current]}" != "${inet[last]}" ]]; then
     : "IP address changed: ${inet[last]} - ${inet[current]}, resetting RKE2 server DB"
     rm -rf /var/lib/rancher/rke2/server/db
-	mkdir -p /var/lib/rancher/rke2/server/db
+    mkdir -p /var/lib/rancher/rke2/server/db
     echo "${inet[current]}" > "$file"
   fi
 }
@@ -21,4 +21,4 @@ db::check() {
 : "Check server database for IP address changes"
 db::check
 
-# Manifests are installed pre-start via rke2-cilium.service
+exit 0

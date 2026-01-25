@@ -5,7 +5,7 @@ DefaultDependencies=no
 
 [Service]
 Type=oneshot
-ExecStart=/srv/host/rke2/scripts/rke2-remount-shared.sh
+ExecStart=/srv/host/scripts.d/rke2-remount-shared.sh
 RemainAfterExit=true
 
 [Install]
