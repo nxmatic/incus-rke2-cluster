@@ -70,18 +70,7 @@ tree.pkg-path = "tree"
 ## -------------------------------------------------------------------
 [profile]
 common = '''
-  set -a
-
-  CLUSTER_NAME=${LIMA_HOSTNAME:-=bioskop}
-  case $CLUSTER_NAME in
-    bioskop) CLUSTER_SUBNET=1 ;;
-    alcide) CLUSTER_SUBNET=2 ;;
-    nikopol) CLUSTER_SUBNET=3 ;;
-    *) CLUSTER_SUBNET=254;;
-  esac
-  CLUSTER_SUBNET=${CLUSTER_SUBNET:-1}
-  
-  set +a
+  PATH=${FLOX_ENV_PROJECT}/rke2.d/catalog/bin:$PATH
 '''
 # common = '''
 #   gum style \
