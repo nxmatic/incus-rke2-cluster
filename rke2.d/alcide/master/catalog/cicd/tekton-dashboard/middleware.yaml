@@ -1,0 +1,11 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata: # kpt-merge: tekton-pipelines/tekton-dashboard-strip
+  name: tekton-dashboard-strip
+  namespace: tekton-pipelines
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'traefik.containo.us|Middleware|tekton-pipelines|tekton-dashboard-strip'
+spec:
+  stripPrefix:
+    prefixes:
+      - /tekton

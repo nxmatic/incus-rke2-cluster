@@ -4876,6 +4876,28 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRole|default|tekton-dashboard-rw
+    kpt.dev/package-layer: cicd
+    kpt.dev/package-name: tekton-dashboard
+  name: tekton-dashboard-rw
+rules:
+- apiGroups:
+  - tekton.dev
+  resources:
+  - tasks
+  - taskruns
+  - pipelines
+  - pipelineruns
+  verbs:
+  - get
+  - create
+  - update
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|ClusterRole|default|tekton-dashboard-tenant-view
     kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-dashboard
@@ -5338,6 +5360,24 @@ rules:
   - get
   - watch
   - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|RoleBinding|default|tekton-dashboard-rw
+    kpt.dev/package-layer: cicd
+    kpt.dev/package-name: tekton-dashboard
+  name: tekton-dashboard-rw
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tekton-dashboard-rw
+subjects:
+- kind: ServiceAccount
+  name: tekton-dashboard
+  namespace: tekton-pipelines
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -7989,6 +8029,21 @@ apiVersion: cilium.io/v2alpha1
 kind: CiliumLoadBalancerIPPool
 metadata:
   annotations:
+    internal.kpt.dev/upstream-identifier: cilium.io|CiliumLoadBalancerIPPool|default|lan-load-balancers
+    kpt.dev/package-layer: networking
+    kpt.dev/package-name: cilium-advanced
+  name: lan-load-balancers
+spec:
+  blocks:
+  - cidr: 192.168.1.32/27
+  serviceSelector:
+    matchLabels:
+      io.cilium/loadbalancer-ip-pool: lan-lb
+---
+apiVersion: cilium.io/v2alpha1
+kind: CiliumLoadBalancerIPPool
+metadata:
+  annotations:
     internal.kpt.dev/upstream-identifier: cilium.io|CiliumLoadBalancerIPPool|default|load-balancers
     kpt.dev/package-layer: networking
     kpt.dev/package-name: cilium-advanced
@@ -8474,6 +8529,38 @@ spec:
       websecure:
         expose:
           default: true
+    service:
+      type: LoadBalancer
+      labels:
+        io.cilium/loadbalancer-ip-pool: lan-lb
+      spec:
+        externalTrafficPolicy: Local
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: networking.k8s.io|Ingress|tekton-pipelines|tekton-dashboard
+    kpt.dev/package-layer: cicd
+    kpt.dev/package-name: tekton-dashboard
+    kube-vip.io/address-pool: lan-lb
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.middlewares: tekton-dashboard-strip@kubernetescrd
+  name: tekton-dashboard
+  namespace: tekton-pipelines
+spec:
+  ingressClassName: traefik
+  rules:
+  - host: alcide-web-proxy.lan
+    http:
+      paths:
+      - backend:
+          service:
+            name: tekton-dashboard
+            port:
+              number: 9097
+        path: /tekton
+        pathType: Prefix
 ---
 apiVersion: node.k8s.io/v1
 handler: flox

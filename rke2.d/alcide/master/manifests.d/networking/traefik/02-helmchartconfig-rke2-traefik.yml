@@ -19,3 +19,9 @@ spec:
       websecure:
         expose:
           default: true
+    service:
+      type: LoadBalancer
+      labels:
+        io.cilium/loadbalancer-ip-pool: lan-lb
+      spec:
+        externalTrafficPolicy: Local

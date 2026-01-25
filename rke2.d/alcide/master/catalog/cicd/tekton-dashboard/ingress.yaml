@@ -6,14 +6,16 @@ metadata: # kpt-merge: tekton-pipelines/tekton-dashboard
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
     internal.kpt.dev/upstream-identifier: 'networking.k8s.io|Ingress|tekton-pipelines|tekton-dashboard'
+    kube-vip.io/address-pool: lan-lb
+    traefik.ingress.kubernetes.io/router.middlewares: tekton-dashboard-strip@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
-    - host: ${tekton-dashboard-host} # kpt-set: ${tekton-dashboard-host}
+    - host: ${cluster-name}-web-proxy.lan # kpt-set: ${cluster-name}-web-proxy.lan
       http:
         paths:
-          - path: /
-            pathType: ImplementationSpecific
+          - path: /tekton
+            pathType: Prefix
             backend:
               service:
                 name: tekton-dashboard

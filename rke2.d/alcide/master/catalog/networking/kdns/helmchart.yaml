@@ -1,0 +1,19 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata: # kpt-merge: kube-system/kdns
+  name: kdns
+  namespace: kube-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'helm.cattle.io|HelmChart|kube-system|kdns'
+spec:
+  repo: oci://ghcr.io/lab42/charts
+  chart: kdns
+  version: v0.2.9 # kpt-set: ${kdns-version}
+  targetNamespace: kube-system
+  valuesContent: |-
+    hostNetwork: true
+    serviceAccount:
+      create: true
+      name: kdns
+    tolerations:
+      - operator: Exists

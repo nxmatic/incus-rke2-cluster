@@ -1,0 +1,50 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata: # kpt-merge: kube-system/${release-name}
+  name: ${release-name} # kpt-set: ${release-name}
+  namespace: kube-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'helm.cattle.io|HelmChart|kube-system|${release-name}'
+spec:
+  repo: ${helm-repo} # kpt-set: ${helm-repo}
+  chart: ${chart-name} # kpt-set: ${chart-name}
+  version: ${chart-version} # kpt-set: ${chart-version}
+  targetNamespace: ${target-namespace} # kpt-set: ${target-namespace}
+  valuesContent: |-
+    fullnameOverride: flux
+    instance:
+      distribution:
+        version: ${distribution-version} # kpt-set: ${distribution-version}
+        registry: ${distribution-registry} # kpt-set: ${distribution-registry}
+        artifact: ${distribution-artifact} # kpt-set: ${distribution-artifact}
+      components:
+        - source-controller
+        - kustomize-controller
+        - helm-controller
+        - notification-controller
+      cluster:
+        type: ${cluster-type} # kpt-set: ${cluster-type}
+        size: ${cluster-size} # kpt-set: ${cluster-size}
+        domain: ${cluster-domain} # kpt-set: ${cluster-domain}
+        networkPolicy: true
+        multitenant: false
+        tenantDefaultServiceAccount: default
+      sync:
+        kind: GitRepository
+        interval: ${sync-interval} # kpt-set: ${sync-interval}
+        url: ${sync-url} # kpt-set: ${sync-url}
+        ref: ${sync-ref} # kpt-set: ${sync-ref}
+        path: ${sync-path} # kpt-set: ${sync-path}
+      storage: {}
+      sharding:
+        key: sharding.fluxcd.io/key
+        shards: []
+      commonMetadata:
+        labels: {}
+        annotations: {}
+      kustomize:
+        patches: []
+    commonAnnotations: {}
+    commonLabels: {}
+    healthcheck:
+      enabled: false

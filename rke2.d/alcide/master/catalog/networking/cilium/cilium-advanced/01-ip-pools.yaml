@@ -16,6 +16,20 @@ spec:
 ---
 apiVersion: cilium.io/v2alpha1
 kind: CiliumLoadBalancerIPPool
+metadata: # kpt-merge: /lan-load-balancers
+  name: lan-load-balancers
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'cilium.io|CiliumLoadBalancerIPPool|default|lan-load-balancers'
+spec:
+  blocks:
+    # LAN load balancer pool
+    - cidr: ${lan-lb-pool} # kpt-set: ${lan-lb-pool}
+  serviceSelector:
+    matchLabels:
+      io.cilium/loadbalancer-ip-pool: lan-lb
+---
+apiVersion: cilium.io/v2alpha1
+kind: CiliumLoadBalancerIPPool
 metadata: # kpt-merge: /virtual-addresses
   name: virtual-addresses
   annotations:

@@ -15,6 +15,18 @@ spec:
 apiVersion: cilium.io/v2alpha1
 kind: CiliumLoadBalancerIPPool
 metadata:
+  name: lan-load-balancers
+spec:
+  blocks:
+    # LAN load balancer pool
+    - cidr: ${lan-lb-pool} # kpt-set: ${lan-lb-pool}
+  serviceSelector:
+    matchLabels:
+      io.cilium/loadbalancer-ip-pool: lan-lb
+---
+apiVersion: cilium.io/v2alpha1
+kind: CiliumLoadBalancerIPPool
+metadata:
   name: virtual-addresses
 spec:
   blocks:

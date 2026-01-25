@@ -1,0 +1,25 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata: # kpt-merge: kube-system/${release-name}
+  name: ${release-name} # kpt-set: ${release-name}
+  namespace: kube-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'helm.cattle.io|HelmChart|kube-system|${release-name}'
+spec:
+  repo: ${helm-repo} # kpt-set: ${helm-repo}
+  chart: ${chart-name} # kpt-set: ${chart-name}
+  version: ${chart-version} # kpt-set: ${chart-version}
+  targetNamespace: ${target-namespace} # kpt-set: ${target-namespace}
+  valuesContent: |-
+    replicaCount: ${replicator-replica-count} # kpt-set: ${replicator-replica-count}
+    rbac:
+      create: true
+    podAnnotations:
+      reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
+    resources:
+      requests:
+        cpu: 15m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
