@@ -1,24 +1,34 @@
-apiVersion: experimental.helm.sh/v1alpha1
+apiVersion: fn.kpt.dev/v1alpha1
 kind: RenderHelmChart
 metadata:
   name: flux-operator
   annotations:
     config.kubernetes.io/local-config: "true"
+    config.kubernetes.io/function: |
+      container:
+        network: true
+        image: ghcr.io/kptdev/krm-functions-catalog/render-helm-chart:latest
+        # Optional DNS override if needed:
+        # mounts:
+        #   - type: bind
+        #     src: ./.local.d/resolv.conf
+        #     dst: /etc/resolv.conf
 helmCharts:
   - chartArgs:
-      name: ${chart-name} # kpt-set: ${chart-name}
-      version: ${chart-version} # kpt-set: ${chart-version}
-      repo: ${helm-repo} # kpt-set: ${helm-repo}
+      name: flux-operator # kpt-set: ${chart-name}
+      version: 0.36.0 # kpt-set: ${chart-version}
+      repo: oci://ghcr.io/controlplaneio-fluxcd/charts # kpt-set: ${helm-repo}
     templateOptions:
-      releaseName: ${release-name} # kpt-set: ${release-name}
-      namespace: ${target-namespace} # kpt-set: ${target-namespace}
+      releaseName: flux-operator # kpt-set: ${release-name}
+      namespace: flux-system # kpt-set: ${target-namespace}
       includeCRDs: true
       skipTests: true
-      valuesInline:
-        installCRDs: true
-        logLevel: info
-        priorityClassName: system-cluster-critical
-        serviceMonitor:
-          create: false
-          interval: 60s
-          scrapeTimeout: 30s
+      values:
+        valuesInline:
+          installCRDs: true
+          logLevel: info
+          priorityClassName: system-cluster-critical
+          serviceMonitor:
+            create: false
+            interval: 60s
+            scrapeTimeout: 30s

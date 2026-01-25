@@ -1,6 +1,6 @@
 apiVersion: v1
 kind: ConfigMap
-metadata: # kpt-merge: /rke2-config-setters
+metadata:
   # kpt-merge: /rke2-config-setters
   name: rke2-config-setters
   annotations:
