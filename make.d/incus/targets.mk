@@ -476,18 +476,14 @@ start@incus: create@incus
 start@incus: $(.incus.env.file)
 start@incus: | zfs.allow 
 start@incus: ## Start the Incus instance
-	$(call trace,Entering target: start@incus)
-	$(call trace-var,incus.node.name)
-	$(call trace-incus,Starting instance $(node.name))
-	: "[+] Starting instance $(node.name)...";
-	if incus start $(node.name); then
-		echo "✓ Instance $(node.name) started successfully";
+	: "[+] Starting instance $(node.name)..."
+	if $$( incus info $(node.name) --project=$(.incus.project.name) 2>/dev/null |
+		    yq -r '.Status == "RUNNING"' ); then
+			: "[!] Instance $(node.name) already running; skipping start"
 	else
-		echo "✗ Failed to start instance $(node.name)";
-		exit 1;
+		incus start $(node.name) --project=$(.incus.project.name)
 	fi
-	$(call trace,Completed target: start@incus)
-
+	
 shell@incus: ## Open interactive shell in the instance
 	: "[+] Opening a shell in instance $(node.name)...";
 	if incus info $(node.name) --project=$(.incus.project.name) >/dev/null 2>&1; then
