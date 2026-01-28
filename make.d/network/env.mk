@@ -9,7 +9,7 @@ make.d/network/env.mk := make.d/network/env.mk
 
 define .network.env.mk
 # Generated network layer environment (cluster $(cluster.name)) - do not edit
-export NETWORK_HOST_SUPERNET_CIDR=$(.network.host.supernet.cidr)
+export NETWORK_HOST_SUPER_NETWORK_CIDR=$(.network.host.super-network.cidr)
 export NETWORK_CLUSTER_CIDR=$(.network.cluster.cidr)
 export NETWORK_CLUSTER_SERVICE_CIDR=$(.network.cluster.service.cidr)
 export NETWORK_CLUSTER_POD_CIDR=$(.network.cluster.pod.cidr)
@@ -21,32 +21,32 @@ export NETWORK_CLUSTER_LB_GATEWAY_INETADDR=$(.network.cluster.lb.gateway)
 export NETWORK_CLUSTER_GATEWAY_INETADDR=$(.network.cluster.gateway.inetaddr)
 export NETWORK_NODE_GATEWAY_INETADDR=$(.network.node.gateway.inetaddr)
 export NETWORK_NODE_HOST_INETADDR=$(.network.node.host.inetaddr)
-export NETWORK_NODE_VIP_INETADDR=$(.network.node.vip.inetaddr)
-export NETWORK_NODE_LAN_MACADDR=$(.network.node.lan.macaddr)
-export NETWORK_NODE_WAN_MACADDR=$(.network.node.wan.macaddr)
+export NETWORK_VIP_HOST_INETADDR=$(.network.vip.host.inetaddr)
+export NETWORK_WAN_HOST_MACADDR=$(.network.wan.node.macaddr)
 export NETWORK_LAN_BRIDGE_MACADDR=$(.network.lan.bridge.macaddr)
-export NETWORK_NODE_LAN_STATIC_INETADDR=$(.network.lan.node.inetaddr)
-export NETWORK_NODE_LAN_PREFIX=$(.network.lan.node.prefix)
+export NETWORK_LAN_HOST_MACADDR=$(.network.lan.node.macaddr)
+export NETWORK_LAN_HOST_INETADDR=$(.network.lan.node.inetaddr)
+export NETWORK_LAN_HOST_PREFIX=$(.network.lan.node.prefix)
 export NETWORK_LAN_GATEWAY_INETADDR=$(.network.lan.gateway)
 export NETWORK_LAN_NAMESERVERS=192.168.1.254
 export NETWORK_NODE_PROFILE_NAME=$(.network.node.profile.name)
 export NETWORK_WAN_DHCP_RANGE=$(.network.wan.dhcp.range)
 export NETWORK_CLUSTER_NODE_INETADDR_BASE=$(call .network.cidr.to-base-inetaddr,$(.network.host.split.$(.cluster.id).cidr))
-export NETWORK_NODE_LAN_INTERFACE=$(.network.node.lan.interface)
-export NETWORK_NODE_WAN_INTERFACE=$(.network.node.wan.interface)
+export NETWORK_LAN_INTERFACE=$(.network.lan.node.interface)
+export NETWORK_WAN_INTERFACE=$(.network.wan.node.interface)
 export NETWORK_VIP_INTERFACE=$(.network.cluster.vip.interface)
 export NETWORK_VIP_VLAN_ID=$(.network.vip.vlan.id)
 export NETWORK_VIP_VLAN_NAME=$(.network.vip.vlan.name)
-export NETWORK_MASTER_NODE_INETADDR=$(.network.master.node.inetaddr)
-export NETWORK_LAN_LB_POOL=$(.network.lan.lb.pool)
+export NETWORK_NODE_MASTER_INETADDR=$(.network.node.master.inetaddr)
+export NETWORK_LAN_LB_CIDR=$(.network.lan.lb.cidr)
 export NETWORK_LAN_HEADSCALE_INETADDR=$(.network.lan.lb.headscale)
 export NETWORK_LAN_TAILSCALE_INETADDR=$(.network.lan.tailscale.inetaddr)
-export NETWORK_NODE_WAN_MACADDR_MASTER=$(call .network.node_wan_mac_for,master)
-export NETWORK_NODE_WAN_MACADDR_PEER1=$(call .network.node_wan_mac_for,peer1)
-export NETWORK_NODE_WAN_MACADDR_PEER2=$(call .network.node_wan_mac_for,peer2)
-export NETWORK_NODE_WAN_MACADDR_PEER3=$(call .network.node_wan_mac_for,peer3)
-export NETWORK_NODE_WAN_MACADDR_WORKER1=$(call .network.node_wan_mac_for,worker1)
-export NETWORK_NODE_WAN_MACADDR_WORKER2=$(call .network.node_wan_mac_for,worker2)
+export NETWORK_WAN_HOST_MACADDR_MASTER=$(call .network.node_wan_mac_for,master)
+export NETWORK_WAN_HOST_MACADDR_PEER1=$(call .network.node_wan_mac_for,peer1)
+export NETWORK_WAN_HOST_MACADDR_PEER2=$(call .network.node_wan_mac_for,peer2)
+export NETWORK_WAN_HOST_MACADDR_PEER3=$(call .network.node_wan_mac_for,peer3)
+export NETWORK_WAN_HOST_MACADDR_WORKER1=$(call .network.node_wan_mac_for,worker1)
+export NETWORK_WAN_HOST_MACADDR_WORKER2=$(call .network.node_wan_mac_for,worker2)
 endef
 
 
@@ -61,13 +61,13 @@ metadata:
     config.kubernetes.io/local-config: "true"
     internal.kpt.dev/function-config: apply-setters
 data:
-  host-supernet-cidr: "$(.network.host.supernet.cidr)"
+  host-super-network-cidr: "$(.network.host.super-network.cidr)"
   cluster-network-cidr: "$(.network.cluster.cidr)"
   node-network-cidr: "$(.network.node.cidr)"
   vip-pool-cidr: "$(.network.cluster.vip.cidr)"
   lb-pool-cidr: "$(.network.cluster.lb.cidr)"
   cluster-gateway-inet: "$(.network.cluster.gateway.inetaddr)"
-  node-vip-inet: "$(.network.node.vip.inetaddr)"
+  node-vip-inet: "$(.network.vip.host.inetaddr)"
   node-gateway-inet: "$(.network.node.gateway.inetaddr)"
   node-host-inet: "$(.network.node.host.inetaddr)"
   lan-bridge-hwaddr: "$(.network.lan.bridge.macaddr)"
@@ -102,7 +102,7 @@ data:
     - "$(.network.vip.split.0.cidr)"
     - "$(.network.vip.split.1.cidr)"
     - "$(.network.vip.split.2.cidr)"
-  lan-lb-pool: "$\(.network.lan.lb.pool)"
+  lan-lb-cidr: "$\(.network.lan.lb.cidr)"
   lan-headscale-inetaddr: "$\(.network.lan.lb.headscale)"
     - "$(.network.vip.split.3.cidr)"
     - "$(.network.vip.split.4.cidr)"
@@ -119,12 +119,12 @@ data:
     - "$(.network.lb.split.6.cidr)"
     - "$(.network.lb.split.7.cidr)"
   node-wan-macs: |-
-    master: "$(NETWORK_NODE_WAN_MACADDR_MASTER)"
-    peer1: "$(NETWORK_NODE_WAN_MACADDR_PEER1)"
-    peer2: "$(NETWORK_NODE_WAN_MACADDR_PEER2)"
-    peer3: "$(NETWORK_NODE_WAN_MACADDR_PEER3)"
-    worker1: "$(NETWORK_NODE_WAN_MACADDR_WORKER1)"
-    worker2: "$(NETWORK_NODE_WAN_MACADDR_WORKER2)"
+    master: "$(NETWORK_WAN_HOST_MACADDR_MASTER)"
+    peer1: "$(NETWORK_WAN_HOST_MACADDR_PEER1)"
+    peer2: "$(NETWORK_WAN_HOST_MACADDR_PEER2)"
+    peer3: "$(NETWORK_WAN_HOST_MACADDR_PEER3)"
+    worker1: "$(NETWORK_WAN_HOST_MACADDR_WORKER1)"
+    worker2: "$(NETWORK_WAN_HOST_MACADDR_WORKER2)"
   # RKE2 config setter-friendly fields
   pod-network-cidr: "$(.network.cluster.pod.cidr)"
   service-network-cidr: "$(.network.cluster.service.cidr)"

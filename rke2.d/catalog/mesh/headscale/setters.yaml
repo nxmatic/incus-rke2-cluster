@@ -8,3 +8,5 @@ metadata:
     description.kpt.dev: Headscale sample setters; customize with real LAN and cluster data
 data:
   headscale-version: "0.27.0"
+  headscale-namespace: headscale-system
+  headscale-flox-env: nxmatic/headscale

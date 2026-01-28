@@ -11,8 +11,8 @@ data:
 kind: ConfigMap
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: '|ConfigMap|headscale|headscale-derp'
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|${headscale-namespace}|headscale-derp'
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headscale
   name: headscale-derp
-  namespace: headscale
+  namespace: headscale-system

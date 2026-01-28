@@ -8,6 +8,4 @@ metadata:
     description.kpt.dev: Tailscale operator sample setters for downstream overrides
 data:
   tailscale-version: 1.82.0
-  vip-address: 10.80.63.10
-  lb-pool-cidr: 10.80.56.64/26
   tailscale-namespace: tailscale-system

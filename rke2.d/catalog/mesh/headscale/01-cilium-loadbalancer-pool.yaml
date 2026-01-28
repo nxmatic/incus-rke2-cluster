@@ -1,18 +1,7 @@
 apiVersion: cilium.io/v2alpha1
-kind: CiliumLoadBalancerIPPool
-metadata:
-  name: home-lan
-spec:
-  blocks:
-  - cidr: ${lan-lb-pool} # kpt-set: ${lan-lb-pool}
-  serviceSelector:
-    matchLabels:
-      io.cilium/lb-inetaddram: home-lan
----
-apiVersion: cilium.io/v2alpha1
 kind: CiliumL2AnnouncementPolicy
 metadata:
-  name: home-lan-policy
+  name: lan-policy
 spec:
   interfaces:
   - ^lan0$
@@ -23,4 +12,4 @@ spec:
       operator: Exists
   serviceSelector:
     matchLabels:
-      io.cilium/lb-inetaddram: home-lan
+      io.cilium/lb-ipam-pool: lan

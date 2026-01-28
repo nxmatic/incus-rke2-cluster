@@ -27,13 +27,13 @@ spec:
       - configMap:
           bgp-local-asn: "65001"
           bgp-peer-asn: "65000"
-          cluster-id: 7
+          cluster-id: 1
+          cluster-lb-cidr: 10.80.8.64/26
           cluster-name: alcide-cluster
+          cluster-node-gateway-inetaddr: 10.80.8.1
+          cluster-vip-cidr: 10.80.15.0/24
           l2-interface-1: vmnet0
           l2-interface-2: lan0
-          lb-pool-cidr: ${cluster-lb-pool-cidr}
-          node-gateway-inetaddr: 10.80.8.1
-          vip-pool-cidr: ${cluster-vip-network-cidr}
         image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
   upstream:
     package: networking/cilium

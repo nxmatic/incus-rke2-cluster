@@ -51,7 +51,7 @@ REMOTE_EXEC := $(shell if [ -x /run/wrappers/bin/sudo ]; then echo ""; else echo
 # Network configuration moved to network.mk (@codebase)
 
 # Node configuration now handled by cluster-config.mk (@codebase)
-# NODE_ID, NODE_TYPE, and NODE_ROLE are automatically set
+# NODE_ID, NODE_KIND, and NODE_ROLE are automatically set
 
 # Include layered modules using rules.mk convention (@codebase)
 -include make.d/rke2.mk

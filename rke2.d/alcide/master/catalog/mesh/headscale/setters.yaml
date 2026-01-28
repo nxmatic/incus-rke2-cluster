@@ -9,3 +9,5 @@ metadata: # kpt-merge: /headscale-setters
     internal.kpt.dev/upstream-identifier: '|ConfigMap|default|headscale-setters'
 data:
   headscale-version: "0.27.0"
+  headscale-namespace: headscale-system
+  headscale-flox-env: nxmatic/headscale

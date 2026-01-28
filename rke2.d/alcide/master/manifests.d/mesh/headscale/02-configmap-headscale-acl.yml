@@ -30,8 +30,8 @@ data:
 kind: ConfigMap
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: '|ConfigMap|headscale|headscale-acl'
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|${headscale-namespace}|headscale-acl'
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headscale
   name: headscale-acl
-  namespace: headscale
+  namespace: headscale-system

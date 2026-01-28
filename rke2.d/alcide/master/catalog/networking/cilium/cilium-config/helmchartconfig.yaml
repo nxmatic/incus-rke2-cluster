@@ -31,6 +31,10 @@ spec:
       default: true
       enabled: true
       loadBalancerMode: dedicated
+      service:
+        annotations:
+          io.cilium/lb-ipam-pool: lan
+          io.cilium/lb-ipam-ips: ${cluster-lan-headplane-inetaddr}
     hubble:
       enabled: true
       relay:

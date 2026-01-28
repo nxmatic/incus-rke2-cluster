@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: headplane-agent-sync
+  namespace: ${headplane-namespace} # kpt-set: ${headplane-namespace}
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      annotations:
+        flox.dev/environment: "${headplane-flox-env}" # kpt-set: ${headplane-flox-env}
+    spec:
+      runtimeClassName: flox
+      serviceAccountName: headplane
+      restartPolicy: OnFailure
+      containers:
+        - name: sync
+          image: alpine:3.20
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -euxo pipefail
+              apk add --no-cache kubectl
+              AUTHKEY=$(kubectl get secret headscale-client-auth -n ${headscale-namespace} -o jsonpath='{.data.authkey}' | base64 -d)
+              kubectl create secret generic headplane-agent-auth \
+                -n ${headplane-namespace} \
+                --from-literal=preauthkey="${AUTHKEY}" \
+                --dry-run=client -o yaml | kubectl apply -f -
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+              ephemeral-storage: 128Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+              ephemeral-storage: 256Mi

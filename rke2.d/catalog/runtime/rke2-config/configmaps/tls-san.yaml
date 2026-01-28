@@ -12,5 +12,5 @@ data:
     - 0.0.0.0
     - 127.0.0.1
     - ${cluster-vip-gateway-inetaddr} # kpt-set: ${cluster-vip-gateway-inetaddr}
-    - ${node-gateway-inetaddr} # kpt-set: ${node-gateway-inetaddr}
-    - ${node-host-inetaddr} # kpt-set: ${node-host-inetaddr}
+    - ${cluster-node-gateway-inetaddr} # kpt-set: ${cluster-node-gateway-inetaddr}
+    - ${cluster-node-host-inetaddr} # kpt-set: ${cluster-node-host-inetaddr}

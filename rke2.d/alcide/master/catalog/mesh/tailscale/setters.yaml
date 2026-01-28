@@ -9,6 +9,6 @@ metadata: # kpt-merge: /tailscale-setters
     internal.kpt.dev/upstream-identifier: '|ConfigMap|default|tailscale-setters'
 data:
   tailscale-version: 1.82.0
-  vip-address: 10.80.63.10
-  lb-pool-cidr: 10.80.56.64/26
+  cluster-node-vip-inetaddr: 10.80.63.10
+  cluster-lb-cidr: 10.80.56.64/26
   tailscale-namespace: tailscale-system

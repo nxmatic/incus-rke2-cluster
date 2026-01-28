@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Namespace|default|${tailscale-namespace}'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: tailscale
+  name: tailscale-system

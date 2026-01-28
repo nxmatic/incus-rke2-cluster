@@ -25,11 +25,11 @@ spec:
   pipeline:
     mutators:
       - configMap:
+          cluster-lb-cidr: 10.80.8.64/26
           cluster-name: alcide-cluster
-          lb-pool-cidr: ${cluster-lb-pool-cidr}
+          cluster-node-vip-inetaddr: 10.80.15.10
           tailscale-namespace: tailscale-system
           tailscale-version: 1.82.0
-          vip-address: ${node-vip-inetaddr}
         image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
   upstream:
     package: mesh/tailscale

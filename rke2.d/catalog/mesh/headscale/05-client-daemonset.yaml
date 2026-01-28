@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: headscale-client
-  namespace: headscale
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -12,6 +12,12 @@ rules:
 - apiGroups: [""]
   resources: ["nodes"]
   verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -20,7 +26,7 @@ metadata:
 subjects:
 - kind: ServiceAccount
   name: headscale-client
-  namespace: headscale
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
 roleRef:
   kind: ClusterRole
   name: headscale-client
@@ -30,7 +36,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: headscale-client
-  namespace: headscale
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
   labels:
     app: headscale-client
 spec:
@@ -41,7 +47,10 @@ spec:
     metadata:
       labels:
         app: headscale-client
+      annotations:
+        flox.dev/environment: "${headscale-flox-env}" # kpt-set: ${headscale-flox-env}
     spec:
+      runtimeClassName: flox
       serviceAccountName: headscale-client
       hostNetwork: true
       hostPID: true
@@ -54,35 +63,39 @@ spec:
         effect: NoSchedule
       initContainers:
       - name: wait-for-headscale
-        image: busybox:1.36
+        image: flox/empty:1.0.0
+        env:
+        - name: HEADSCALE_NAMESPACE
+          value: ${headscale-namespace} # kpt-set: ${headscale-namespace}
+        - name: HEADSCALE_URL
+          value: http://headscale.${headscale-namespace}.svc.cluster.local:8080 # kpt-set: http://headscale.${headscale-namespace}.svc.cluster.local:8080
         command:
-        - sh
+        - bash
         - -c
         - |
-          echo "Waiting for Headscale server..."
-          until wget -q -O- http://headscale.headscale.svc.cluster.local:8080/health; do
-            echo "Headscale not ready, retrying in 5s..."
-            sleep 5
-          done
+          echo "Waiting for headscale deployment to be available..."
+          kubectl wait --for=condition=available deployment/headscale \
+            -n "$HEADSCALE_NAMESPACE" --timeout=300s
           echo "Headscale is ready!"
       - name: wait-for-authkey
-        image: busybox:1.36
+        image: flox/empty:1.0.0
+        env:
+        - name: HEADSCALE_NAMESPACE
+          value: ${headscale-namespace} # kpt-set: ${headscale-namespace}
         command:
-        - sh
+        - bash
         - -c
         - |
-          echo "Waiting for auth key Secret..."
-          until [ -f /var/secrets/authkey ]; do
-            echo "Auth key not available, retrying in 5s..."
-            sleep 5
-          done
+          echo "Waiting for auth key Secret to be populated..."
+          kubectl wait --for=jsonpath='{.data.authkey}' secret/headscale-client-auth \
+            -n "$HEADSCALE_NAMESPACE" --timeout=300s
           echo "Auth key found!"
         volumeMounts:
         - name: authkey
           mountPath: /var/secrets
       containers:
       - name: tailscale
-        image: tailscale/tailscale:v1.76.6
+        image: flox/empty:1.0.0
         env:
         - name: DARWIN_HOST
           value: ${cluster-name} # kpt-set: ${cluster-name}
@@ -101,17 +114,26 @@ spec:
           value: /var/lib/tailscale
         - name: TS_SOCKET
           value: /var/run/tailscale/tailscaled.sock
+        - name: HEADSCALE_URL
+          value: http://headscale.${headscale-namespace}.svc.cluster.local:8080 # kpt-set: http://headscale.${headscale-namespace}.svc.cluster.local:8080
         - name: TS_USERSPACE
-          value: "false"
+          value: "true"
         - name: TS_KUBE_SECRET
           value: ""
+        - name: FLOX_NO_TELEMETRY
+          value: "1"
+        - name: FLOX_NONINTERACTIVE
+          value: "1"
         command:
-        - sh
+        - bash
         - -c
         - |
           set -e
           echo "Starting tailscaled..."
-          tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock &
+          tailscaled \
+            --tun=userspace-networking \
+            --state=/var/lib/tailscale/tailscaled.state \
+            --socket=/var/run/tailscale/tailscaled.sock --verbose=1 &
           TAILSCALED_PID=$$!
 
           echo "Waiting for tailscaled socket..."
@@ -119,8 +141,6 @@ spec:
 
           # Use internal cluster service (HTTP) - client is inside the cluster
           # External clients use https://alcide-headscale via Tailscale operator
-          HEADSCALE_URL="http://headscale.headscale.svc.cluster.local:8080"
-
           echo "Connecting to Headscale at $$HEADSCALE_URL..."
           tailscale up \
             --login-server=$$HEADSCALE_URL \
@@ -153,9 +173,11 @@ spec:
           requests:
             cpu: 50m
             memory: 64Mi
+            ephemeral-storage: 64Mi
           limits:
             cpu: 200m
             memory: 256Mi
+            ephemeral-storage: 256Mi
       volumes:
       - name: dev-net-tun
         hostPath:

@@ -60,7 +60,7 @@ spec:
 
               install_deps
 
-              nsenter --target 1 --mount --uts --inetaddrc --net --pid -- env \
+              nsenter --target 1 --mount --uts --ipc --net --pid -- env \
                 CONTAINERD_CONFIG_FILE="${CONTAINERD_CONFIG_FILE}" \
                 bash <<'HOSTSCRIPT'
               set -euxo pipefail
@@ -76,7 +76,7 @@ spec:
 
               mkdir -p "${FLOX_ENV_DIR}"
               if [[ ! -d "${FLOX_ENV_DIR}/.flox" ]]; then
-                (cd "${FLOX_ENV_DIR}" && flox init -b)
+                (cd "${FLOX_ENV_DIR}" && flox init)
               fi
 
               if command -v containerd >/dev/null 2>&1; then

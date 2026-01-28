@@ -9,12 +9,12 @@ metadata:
 data:
   cluster-name: sample
   cluster-token: changeme-token
-  node-host-inetaddr: 10.0.0.10
+  cluster-node-host-inetaddr: 10.0.0.10
   node-role: master
-  node-type: server
+  node-kind: server
   cluster-id: "7"
   cluster-init: "false"
-  pod-network-cidr: 10.42.0.0/16
-  service-network-cidr: 10.43.0.0/16
-  node-gateway-inetaddr: 10.0.0.1
+  cluster-pod-cider: 10.42.0.0/16
+  cluster-service-cidr: 10.43.0.0/16
+  cluster-node-gateway-inetaddr: 10.0.0.1
   cluster-vip-gateway-inetaddr: 10.80.16.1

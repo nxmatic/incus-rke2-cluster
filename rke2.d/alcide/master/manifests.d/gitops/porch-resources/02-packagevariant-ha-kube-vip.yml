@@ -25,7 +25,7 @@ spec:
   pipeline:
     mutators:
       - configMap:
-          cluster-vip-address: ${node-vip-inetaddr}
+          cluster-node-vip-inetaddr: 10.80.15.10
           cluster-vip-interface: rke2-vip0
           kube-vip-namespace: kube-vip
           kube-vip-version: ${kube-vip-version}

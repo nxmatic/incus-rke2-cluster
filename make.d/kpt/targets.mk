@@ -27,12 +27,12 @@ metadata:
     description.kpt.dev: Setters for RKE2 config.yaml.d fragments
 data:
   cluster-name: $(CLUSTER_NAME)
-  node-type: $(NODE_TYPE)
-  node-role: $(NODE_ROLE)
+  node-name: $(NODE_NAME)
+  node-kind: $(NODE_KIND)
   cluster-token: $(CLUSTER_TOKEN)
   node-host-inetaddr: $(NETWORK_NODE_HOST_INETADDR)
   cluster-id: "$(CLUSTER_ID)"
-  cluster-init: "$(if $(filter master,$(NODE_ROLE)),true,false)"
+  cluster-init: "$(if $(filter master,$(NODE_NAME)),true,false)"
   pod-network-cidr: $(NETWORK_CLUSTER_POD_CIDR)
   service-network-cidr: $(NETWORK_CLUSTER_SERVICE_CIDR)
   node-gateway-inetaddr: $(NETWORK_NODE_GATEWAY_INETADDR)

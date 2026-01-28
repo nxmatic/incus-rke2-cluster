@@ -16,6 +16,23 @@ fi
 BASE_DIR="${RKE2LAB_MANIFESTS_DIR}"
 DST_DIR="${RKE2_SERVER_MANIFESTS_DIR}"
 
+ensure_tailscale_operator_oauth() {
+  local namespace="${TAILSCALE_NAMESPACE:-tailscale-system}"
+
+  if [[ -z "${TSKEY_OAUTH_ID:-}" || -z "${TSKEY_OAUTH_TOKEN:-}" ]]; then
+    echo "[rke2-manifests-install] tailscale operator oauth vars missing (TSKEY_OAUTH_ID/TSKEY_OAUTH_TOKEN); skipping operator-oauth Secret" >&2
+    return 0
+  fi
+
+  kubectl get namespace "${namespace}" >/dev/null 2>&1 || kubectl create namespace "${namespace}" >/dev/null
+
+  kubectl -n "${namespace}" create secret generic operator-oauth \
+    --from-literal=client_id="${TSKEY_OAUTH_ID}" \
+    --from-literal=client_secret="${TSKEY_OAUTH_TOKEN}" \
+    --dry-run=client -o yaml | 
+	kubectl apply -f - >/dev/null
+}
+
 usage() {
   echo "Usage: $(basename "$0") <layer|layer/subpath>" >&2
   echo "Example: $(basename "$0") networking" >&2
@@ -40,6 +57,10 @@ src_dir="${BASE_DIR}/${path}"
 if [[ ! -d "${src_dir}" ]]; then
   echo "[rke2-manifests-install] source manifest directory not found: ${src_dir}" >&2
   exit 1
+fi
+
+if [[ "${path}" == "mesh" || "${path}" == "mesh/tailscale" || "${path}" == mesh/tailscale/* ]]; then
+  ensure_tailscale_operator_oauth
 fi
 
 stow_dir="${BASE_DIR}/${parent_dir}"

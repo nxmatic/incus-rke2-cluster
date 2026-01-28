@@ -1,39 +1,39 @@
 apiVersion: cilium.io/v2alpha1
 kind: CiliumLoadBalancerIPPool
-metadata: # kpt-merge: /load-balancers
-  name: load-balancers
+metadata: # kpt-merge: /cluster
+  name: cluster
   annotations:
-    internal.kpt.dev/upstream-identifier: 'cilium.io|CiliumLoadBalancerIPPool|default|load-balancers'
+    internal.kpt.dev/upstream-identifier: 'cilium.io|CiliumLoadBalancerIPPool|default|cluster'
 spec:
   blocks:
     # LoadBalancer pool inside /26 (128/26): usable hosts 129-190
-    - cidr: ${lb-pool-cidr} # kpt-set: ${lb-pool-cidr}
+    - cidr: ${cluster-lb-cidr} # kpt-set: ${cluster-lb-cidr}
   serviceSelector:
     matchExpressions:
       # Default pool backs services that do not request a custom pool label
-      - key: io.cilium/lb-inetaddram
+      - key: io.cilium/lb-ipam-pool
         operator: DoesNotExist
 ---
 apiVersion: cilium.io/v2alpha1
 kind: CiliumLoadBalancerIPPool
-metadata: # kpt-merge: /lan-load-balancers
-  name: lan-load-balancers
+metadata: # kpt-merge: /lan
+  name: lan
   annotations:
-    internal.kpt.dev/upstream-identifier: 'cilium.io|CiliumLoadBalancerIPPool|default|lan-load-balancers'
+    internal.kpt.dev/upstream-identifier: 'cilium.io|CiliumLoadBalancerIPPool|default|lan'
 spec:
   blocks:
     # LAN load balancer pool
-    - cidr: ${lan-lb-pool} # kpt-set: ${lan-lb-pool}
+    - cidr: ${cluster-lan-lb-cidr} # kpt-set: ${cluster-lan-lb-cidr}
   serviceSelector:
     matchLabels:
-      io.cilium/loadbalancer-ip-pool: lan-lb
+      io.cilium/lb-ipam-pool: lan
 ---
 apiVersion: cilium.io/v2alpha1
 kind: CiliumLoadBalancerIPPool
-metadata: # kpt-merge: /virtual-addresses
-  name: virtual-addresses
+metadata: # kpt-merge: /vip
+  name: vip
   annotations:
-    internal.kpt.dev/upstream-identifier: 'cilium.io|CiliumLoadBalancerIPPool|default|virtual-addresses'
+    internal.kpt.dev/upstream-identifier: 'cilium.io|CiliumLoadBalancerIPPool|default|vip'
 spec:
   blocks:
-    - cidr: ${vip-pool-cidr} # kpt-set: ${vip-pool-cidr}
+    - cidr: ${cluster-vip-cidr} # kpt-set: ${cluster-vip-cidr}

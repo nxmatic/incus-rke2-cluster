@@ -8,6 +8,6 @@ metadata:
     description.kpt.dev: Sample kube-vip setters; override per cluster copy downstream
 data:
   kube-vip-version: v0.8.7
-  cluster-vip-address: 10.80.63.10
+  cluster-node-vip-inetaddr: 10.80.63.10
   cluster-vip-interface: vmnet0
   kube-vip-namespace: kube-vip

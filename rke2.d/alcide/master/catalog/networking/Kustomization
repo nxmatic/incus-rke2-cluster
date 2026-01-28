@@ -4,4 +4,3 @@ resources:
   - cilium
   - envoy-gateway
   - kdns
-  - traefik

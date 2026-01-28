@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: headplane-data
+  namespace: ${headplane-namespace} # kpt-set: ${headplane-namespace}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: ${headplane-data-size} # kpt-set: ${headplane-data-size}

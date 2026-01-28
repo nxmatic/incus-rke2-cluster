@@ -1,0 +1,61 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: # kpt-merge: ${headplane-namespace}/headplane-agent-sync
+  name: headplane-agent-sync
+  namespace: ${headplane-namespace} # kpt-set: ${headplane-namespace}
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'rbac.authorization.k8s.io|Role|${headplane-namespace}|headplane-agent-sync'
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: # kpt-merge: ${headplane-namespace}/headplane-agent-sync
+  name: headplane-agent-sync
+  namespace: ${headplane-namespace} # kpt-set: ${headplane-namespace}
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'rbac.authorization.k8s.io|RoleBinding|${headplane-namespace}|headplane-agent-sync'
+subjects:
+  - kind: ServiceAccount
+    name: headplane
+    namespace: ${headplane-namespace} # kpt-set: ${headplane-namespace}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: headplane-agent-sync
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: # kpt-merge: ${headscale-namespace}/headplane-k8s-integration
+  name: headplane-k8s-integration
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'rbac.authorization.k8s.io|Role|${headscale-namespace}|headplane-k8s-integration'
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/exec"]
+    verbs: ["get", "list", "create"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: # kpt-merge: ${headscale-namespace}/headplane-k8s-integration
+  name: headplane-k8s-integration
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'rbac.authorization.k8s.io|RoleBinding|${headscale-namespace}|headplane-k8s-integration'
+subjects:
+  - kind: ServiceAccount
+    name: headplane
+    namespace: ${headplane-namespace} # kpt-set: ${headplane-namespace}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: headplane-k8s-integration

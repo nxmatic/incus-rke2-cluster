@@ -10,10 +10,11 @@ metadata: # kpt-merge: /cilium-setters
 data:
   cluster-name: sample
   cluster-id: 7
-  lb-pool-cidr: lb-pool-cidr
-  vip-pool-cidr: vip-pool-cidr
+  cluster-lb-cidr: cluster-lb-cidr
+  cluster-vip-cidr: cluster-vip-cidr
+  cluster-lan-lb-cidr: cluster-lan-lb-cidr
   l2-interface-1: eth0
   l2-interface-2: lan0
   bgp-local-asn: "65010"
   bgp-peer-asn: "65020"
-  node-gateway-inetaddr: node-gateway-inetaddr
+  cluster-node-gateway-inetaddr: cluster-node-gateway-inetaddr

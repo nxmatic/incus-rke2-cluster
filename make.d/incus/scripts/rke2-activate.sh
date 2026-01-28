@@ -40,4 +40,4 @@ fi
 rke2-enable-containerd-zfs-mount
 
 : "Start the RKE2 service"
-systemctl start --no-block rke2-${RKE2LAB_NODE_TYPE}
+systemctl start --no-block rke2-${RKE2LAB_NODE_KIND}

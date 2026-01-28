@@ -25,11 +25,11 @@ spec:
   pipeline:
     mutators:
       - configMap:
+          cluster-lan-headscale-inetaddr: 192.168.1.65
+          cluster-lan-lb-cidr: 192.168.1.64/27
           cluster-name: alcide
+          cluster-vip-cidr: 10.80.15.0/24
           darwin-host: alcide
-          lan-headscale-inetaddr: 192.168.1.65
-          lan-lb-pool: 192.168.1.64/27
-          vip-network-cidr: ${cluster-vip-network-cidr}
         image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
   upstream:
     package: mesh/headscale

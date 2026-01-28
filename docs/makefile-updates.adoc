@@ -50,13 +50,13 @@ endif
 
 # NEW (comprehensive role detection)
 ifeq ($(NODE_NAME),master)
-	NODE_TYPE := server
+	NODE_KIND := server
 	NODE_ROLE := master
 else ifneq (,$(findstring peer,$(NODE_NAME)))
-	NODE_TYPE := server
+	NODE_KIND := server
 	NODE_ROLE := peer
 else
-	NODE_TYPE := agent
+	NODE_KIND := agent
 	NODE_ROLE := worker
 endif
 ----
@@ -209,7 +209,7 @@ export RKE2_CLUSTER_NAME
 export RKE2_CLUSTER_TOKEN
 export RKE2_CLUSTER_DOMAIN
 export NODE_NAME
-export NODE_TYPE
+export NODE_KIND
 export NODE_ROLE
 export RKE2_POD_NETWORK_CIDR
 export RKE2_SERVICE_NETWORK_CIDR

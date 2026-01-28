@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: headplane
+  namespace: ${headplane-namespace} # kpt-set: ${headplane-namespace}
+  labels:
+    app: headplane
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: headplane
+  template:
+    metadata:
+      labels:
+        app: headplane
+      annotations:
+        flox.dev/environment: "${headplane-flox-env}" # kpt-set: ${headplane-flox-env}
+    spec:
+      runtimeClassName: flox
+      serviceAccountName: headplane
+      containers:
+        - name: headplane
+          image: flox/empty:1.0.0
+          command: ["headplane"]
+          args: ["serve"]
+          ports:
+            - containerPort: 3000
+              name: http
+          env:
+            - name: FLOX_NO_TELEMETRY
+              value: "1"
+            - name: FLOX_NONINTERACTIVE
+              value: "1"
+            - name: HEADPLANE_LOAD_ENV_OVERRIDES
+              value: "true"
+            - name: HEADPLANE_INTEGRATION__KUBERNETES__POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          volumeMounts:
+            - name: config
+              mountPath: /etc/headplane/config.yaml
+              subPath: config.yaml
+            - name: secrets
+              mountPath: /etc/headplane/secrets
+              readOnly: true
+            - name: agent
+              mountPath: /etc/headplane/agent
+              readOnly: true
+            - name: data
+              mountPath: /var/lib/headplane
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+              ephemeral-storage: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+              ephemeral-storage: 512Mi
+      volumes:
+        - name: config
+          secret:
+            secretName: headplane-config
+        - name: secrets
+          secret:
+            secretName: headplane-secrets
+        - name: agent
+          secret:
+            secretName: headplane-agent-auth
+        - name: data
+          persistentVolumeClaim:
+            claimName: headplane-data

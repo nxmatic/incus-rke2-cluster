@@ -25,8 +25,8 @@ spec:
   pipeline:
     mutators:
       - configMap:
-          kubelet-dir: ${kubelet-dir}
-          zfs-pool-name: ${zfs-pool-name}
+          kubelet-dir: /var/lib/kubelet
+          zfs-pool-name: tank
         image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
   upstream:
     package: storage-openebs-zfs

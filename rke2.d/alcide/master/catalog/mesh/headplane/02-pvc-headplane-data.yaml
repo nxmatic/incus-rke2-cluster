@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: # kpt-merge: ${headplane-namespace}/headplane-data
+  name: headplane-data
+  namespace: ${headplane-namespace} # kpt-set: ${headplane-namespace}
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|PersistentVolumeClaim|${headplane-namespace}|headplane-data'
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: ${headplane-data-size} # kpt-set: ${headplane-data-size}

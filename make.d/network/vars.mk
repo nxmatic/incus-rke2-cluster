@@ -28,7 +28,7 @@ endif
 .network.cluster.dir := rke2.d/$(cluster.name)/network
  
 # Physical host network allocation parameters
-.network.host.supernet.cidr = 10.80.0.0/18
+.network.host.super-network.cidr = 10.80.0.0/18
 .network.host.cluster.prefix.length = 21
 .network.host.node.prefix.length = 23
 .network.host.lb.prefix.length = 26
@@ -41,8 +41,8 @@ endif
 
 # Per-node bridge names (isolated bridges for each node)
 # Interface names (macvlan, not bridges)
-.network.node.lan.interface = $(node.name)-lan0
-.network.node.wan.interface = $(node.name)-vmnet0
+.network.lan.node.interface = $(node.name)-lan0
+.network.wan.node.interface = $(node.name)-vmnet0
 .network.cluster.vip.interface = rke2-vip0
 
 # =============================================================================
@@ -53,7 +53,7 @@ endif
 .network.node.profile.name = rke2lab
 
 # Master node IP for peer connections (derived from node 0) using subnet helper (gateway+2 -> .3)
-.network.master.node.inetaddr := $(call .network.subnet-host-inetaddr,node,0,2)
+.network.node.master.inetaddr := $(call .network.subnet-host-inetaddr,node,0,2)
 .network.cluster_third_octet = $(call multiply,$(.cluster.id),8)
 .network.host.cluster.cidr = 10.80.$(.network.cluster_third_octet).0/21
 .network.node.base.cidr = 10.80.$(.network.cluster_third_octet).0/23
@@ -66,7 +66,7 @@ endif
 .network.node.cidr = $(call .network.strip,$(.network.node.split.0.cidr))
 .network.node.gateway.inetaddr = $(call .network.subnet-gateway-inetaddr,node,0)
 .network.node.host.inetaddr = $(call .network.subnet-host-inetaddr,node,0,$(call plus,9,$(node.id)))
-.network.node.vip.inetaddr = $(call .network.subnet-host-inetaddr,vip,7,9)
+.network.vip.host.inetaddr = $(call .network.subnet-host-inetaddr,vip,7,9)
 .network.lan.bridge.macaddr = $(.network.lan_bridge_hwaddr_default)
 
 # LAN slices per documented plan (block 0 = DHCP pool)
@@ -88,7 +88,7 @@ else
 	.network.lan.lb.slice.index := 7
 endif
 
-.network.lan.lb.pool = $(call .network.strip,$(.network.lan.split.$(.network.lan.lb.slice.index).cidr))
+.network.lan.lb.cidr = $(call .network.strip,$(.network.lan.split.$(.network.lan.lb.slice.index).cidr))
 .network.lan.lb.headscale = $(call .network.subnet-host-inetaddr,lan,$(.network.lan.lb.slice.index),0)
 .network.lan.headscale.inetaddr = $(.network.lan.lb.headscale)
 .network.lan.tailscale.inetaddr = $(call .network.subnet-host-inetaddr,lan,$(.network.lan.lb.slice.index),1)
@@ -118,10 +118,10 @@ endif
 .network.node_type_num_for = $(if $(filter server,$(call get-node-attr,$(1),1)),0,1)
 .network.node_id_for = $(call get-node-attr,$(1),3)
 .network.node_wan_mac_for = $(shell printf "52:54:00:%02x:%02x:%02x" $(cluster.id) $(call .network.node_type_num_for,$(1)) $(call .network.node_id_for,$(1)))
-.network.node_type_num := $(if $(filter server,$(node.type)),0,1)
+.network.node_type_num := $(if $(filter server,$(node.kind)),0,1)
 
 .network.wan.dhcp.range = 10.80.$(.network.cluster_third_octet).2-10.80.$(.network.cluster_third_octet).9,10.80.$(.network.cluster_third_octet).31-10.80.$(call plus,$(.network.cluster_third_octet),7).254
-.network.node.wan.macaddr := $(shell printf "52:54:00:%02x:%02x:%02x" $(cluster.id) $(.network.node_type_num) $(node.id))
+.network.wan.node.macaddr := $(shell printf "52:54:00:%02x:%02x:%02x" $(cluster.id) $(.network.node_type_num) $(node.id))
 
 # Generate deterministic MAC address for node's LAN interface (macvlan)
 # Format: 10:66:6a:4c:CC:NN where:
@@ -130,7 +130,7 @@ endif
 #   NN = node ID in hex (00-ff, zero-padded)
 # Example: master (cluster 2, ID 0) = 10:66:6a:4c:02:00
 
-.network.node.lan.macaddr := $(shell printf "10:66:6a:4c:%02x:%02x" $(cluster.id) $(node.id))
+.network.lan.node.macaddr := $(shell printf "10:66:6a:4c:%02x:%02x" $(cluster.id) $(node.id))
 
 
 # RKE2 pod/service CIDRs derived from cluster id (default /16 blocks)

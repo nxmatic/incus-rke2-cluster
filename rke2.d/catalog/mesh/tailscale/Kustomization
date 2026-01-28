@@ -4,3 +4,6 @@ resources:
 - 01-namespace.yaml
 - 02-operator.yaml
 - 03-connector.yaml
+commonAnnotations:
+  kpt.dev/package-layer: mesh
+  kpt.dev/package-name: tailscale

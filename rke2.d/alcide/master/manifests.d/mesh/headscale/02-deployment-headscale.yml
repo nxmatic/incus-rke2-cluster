@@ -3,13 +3,13 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: apps|Deployment|headscale|headscale
+    internal.kpt.dev/upstream-identifier: apps|Deployment|${headscale-namespace}|headscale
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headscale
   labels:
     app: headscale
   name: headscale
-  namespace: headscale
+  namespace: headscale-system
 spec:
   replicas: 1
   selector:
@@ -18,6 +18,7 @@ spec:
   template:
     metadata:
       annotations:
+        flox.dev/environment: nxmatic/headscale
         kpt.dev/package-layer: mesh
         kpt.dev/package-name: headscale
       labels:
@@ -28,7 +29,12 @@ spec:
         - command:
             - headscale
             - serve
-          image: headscale/headscale:0.27.0
+          env:
+            - name: FLOX_NO_TELEMETRY
+              value: "1"
+            - name: FLOX_NONINTERACTIVE
+              value: "1"
+          image: flox/empty:1.0.0
           livenessProbe:
             httpGet:
               path: /health
@@ -52,9 +58,11 @@ spec:
           resources:
             limits:
               cpu: 500m
+              ephemeral-storage: 512Mi
               memory: 512Mi
             requests:
               cpu: 100m
+              ephemeral-storage: 256Mi
               memory: 128Mi
           volumeMounts:
             - mountPath: /etc/headscale/config.yaml
@@ -70,11 +78,35 @@ spec:
               name: data
             - mountPath: /var/run/headscale
               name: run
+      initContainers:
+        - command:
+            - bash
+            - -c
+            - |
+              set -euxo pipefail
+              mkdir -p /config
+              cp /config-source/config.yaml /config/config.yaml
+              mkdir -p /var/lib/headscale
+              if [ ! -f /var/lib/headscale/extra_records.json ]; then echo "[]" > /var/lib/headscale/extra_records.json; fi
+              cp /extra-records-source/extra_records.json /var/lib/headscale/extra_records.json
+          image: flox/empty:1.0.0
+          name: config-init
+          volumeMounts:
+            - mountPath: /config-source
+              name: config-source
+              readOnly: true
+            - mountPath: /config
+              name: config
+            - mountPath: /extra-records-source
+              name: extra-records-source
+              readOnly: true
+            - mountPath: /var/lib/headscale
+              name: data
       nodeSelector:
-        cluster-name.cluster/node-role: '"alcide.cluster/node-role": master'
+        node-role.kubernetes.io/control-plane: "true"
+      runtimeClassName: flox
       volumes:
-        - configMap:
-            name: headscale-config
+        - emptyDir: {}
           name: config
         - configMap:
             name: headscale-acl
@@ -86,3 +118,9 @@ spec:
           name: data
         - emptyDir: {}
           name: run
+        - configMap:
+            name: headscale-config
+          name: config-source
+        - configMap:
+            name: headscale-extra-records
+          name: extra-records-source

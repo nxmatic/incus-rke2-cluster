@@ -10,9 +10,8 @@ include make.d/cloud-config/rules.mk
 include make.d/incus/rules.mk
 include make.d/kpt/rules.mk
 
+-include rke2.d/$(cluster.name)/incus.env.mk
 -include rke2.d/$(cluster.name)/rke2.env.mk
-
-include $(incus.env.mk)
 
 define .rke2.env.mk =
 export CLUSTER_ID=$(cluster.id)
@@ -20,7 +19,7 @@ export CLUSTER_NAME=$(cluster.name)
 export CLUSTER_ENV=$(cluster.env)
 export CLUSTER_TOKEN=$(cluster.token)
 export CLUSTER_DOMAIN=$(cluster.domain)
-export CLUSTER_SECRETS_FILE=$(INCUS_SECRETS_FILE)
+export CLUSTER_FLOX_ENABLED=$(cluster.flox.enabled)
 endef
 
 export RKE2_DIR=$(abspath $(rke2.dir))

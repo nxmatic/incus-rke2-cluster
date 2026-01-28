@@ -72,7 +72,7 @@ $(if $(.network.host.exists), \
 		$(eval $(call .network.split.rule,lan,,$$(.network.lan.cidr),27,Home LAN subnet allocation for clusters)), \
 		$(eval $(call .network.split.rule,node,$$(.network.host.mk),$$(.network.host.cluster.cidr),23,node-level subnet allocation within cluster)) \
 		$(warning [network] node.mk missing; rebuilding it will trigger makefile restart to wire node/vip/lb/lan splits)), \
-	$(eval $(call .network.split.rule,host,,10.80.0.0/18,21,host-level subnet allocation from supernet)) \
+	$(eval $(call .network.split.rule,host,,10.80.0.0/18,21,host-level subnet allocation from super-network)) \
 	$(eval $(call .network.split.rule,node,$$(.network.host.mk),$$(.network.host.cluster.cidr),23,node-level subnet allocation within cluster)) \
 	$(eval $(call .network.split.rule,vip,$$(.network.host.mk),$$(.network.host.cluster.cidr),24,VIP subnet allocation for control plane)) \
 	$(eval $(call .network.split.rule,lb,$$(.network.node.mk),$$(.network.node.base.cidr),26,LoadBalancer subnet allocation within node network)) \

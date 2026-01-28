@@ -21,7 +21,7 @@ generate@network: $(.network.mks) ## Generate all network split files (@codebase
 .PHONY: show@network
 show@network: ## Debug network configuration display
 	echo "=== RKE2 Network Configuration ==="
-	echo "Host supernet: $(.network.host.supernet.cidr)"
+	echo "Host super-network: $(.network.host.super-network.cidr)"
 	echo "Cluster $(cluster.id): $(.network.cluster.cidr)"
 	echo "Node $(node.id): $(.network.node.cidr)"
 	echo "Node host IP: $(.network.node.host.inetaddr)"
@@ -31,8 +31,8 @@ show@network: ## Debug network configuration display
 	echo "LoadBalancer network: $(.network.cluster.lb.cidr)"
 	echo ""
 	echo "=== Bridge Configuration ==="
-	echo "Node LAN interface: $(.network.node.lan.interface) (macvlan on vmlan0)"
-	echo "Node WAN interface: $(.network.node.wan.interface) (bridge on vmnet)"
+	echo "Node LAN interface: $(.network.lan.node.interface) (macvlan on vmlan0)"
+	echo "Node WAN interface: $(.network.wan.node.interface) (bridge on vmnet)"
 	echo "Cluster VIP interface: $(.network.cluster.vip.interface) (on vmnet0)"
 	echo "Cluster VIP VLAN: $(.network.vip.vlan.id) ($(.network.vip.vlan.name)) -> $(.network.cluster.vip.cidr)"
 
@@ -49,7 +49,7 @@ Network Configuration Summary:
 =============================
 Cluster: $(cluster.name) (ID: $(cluster.id))
 Node: $(node.name) (ID: $(node.id), Role: $(node.ROLE))
-Host Supernet: $(.network.host.supernet.cidr)
+Host Supernet: $(.network.host.super-network.cidr)
 Cluster Network: $(.network.cluster.cidr)
 Node Network: $(.network.node.cidr)
 Node IP: $(.network.node.host.inetaddr)
@@ -81,7 +81,7 @@ status@network: ## Show container network status
 	echo "Gateway: $(.network.node.gateway.inetaddr)"
 
 setup-bridge@network: ## Set up network bridge for current node
-	: "[+] Interface $(.network.node.lan.interface) uses macvlan (no setup needed)"
+	: "[+] Interface $(.network.lan.node.interface) uses macvlan (no setup needed)"
 	: "Network: $(.network.node.cidr)"
 	: "Gateway: $(.network.node.gateway.inetaddr)"
 
@@ -117,10 +117,10 @@ validate@network: ## Validate network configuration
 
 test@network: ## Run strict network checks (fails fast) (@codebase)
 	: "[test@network] Validating namespaced network variables"
-	: "[ok] network.host.supernet.cidr=$(.network.host.supernet.cidr)"
+	: "[ok] network.host.super-network.cidr=$(.network.host.super-network.cidr)"
 	: "[ok] network.cluster.cidr=$(.network.cluster.cidr)"
 	: "[ok] network.node.cidr=$(.network.node.cidr)"
-	: "[ok] network.node.host.inetaddr=$(.network.node.host.inetaddr)"
+	: "[ok] network.host.node.inetaddr=$(.network.node.host.inetaddr)"
 	: "[ok] network.node.gateway.inetaddr=$(.network.node.gateway.inetaddr)"
 	: "[ok] network.cluster.vip.cidr=$(.network.cluster.vip.cidr)"
 	: "[PASS] All required network vars present"

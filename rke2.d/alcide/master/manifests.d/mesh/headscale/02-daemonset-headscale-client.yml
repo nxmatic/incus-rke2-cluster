@@ -3,13 +3,13 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: apps|DaemonSet|headscale|headscale-client
+    internal.kpt.dev/upstream-identifier: apps|DaemonSet|${headscale-namespace}|headscale-client
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headscale
   labels:
     app: headscale-client
   name: headscale-client
-  namespace: headscale
+  namespace: headscale-system
 spec:
   selector:
     matchLabels:
@@ -17,6 +17,7 @@ spec:
   template:
     metadata:
       annotations:
+        flox.dev/environment: nxmatic/headscale
         kpt.dev/package-layer: mesh
         kpt.dev/package-name: headscale
       labels:
@@ -24,12 +25,15 @@ spec:
     spec:
       containers:
         - command:
-            - sh
+            - bash
             - -c
             - |
               set -e
               echo "Starting tailscaled..."
-              tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock &
+              tailscaled \
+                --tun=userspace-networking \
+                --state=/var/lib/tailscale/tailscaled.state \
+                --socket=/var/run/tailscale/tailscaled.sock --verbose=1 &
               TAILSCALED_PID=$$!
 
               echo "Waiting for tailscaled socket..."
@@ -37,8 +41,6 @@ spec:
 
               # Use internal cluster service (HTTP) - client is inside the cluster
               # External clients use https://alcide-headscale via Tailscale operator
-              HEADSCALE_URL="http://headscale.headscale.svc.cluster.local:8080"
-
               echo "Connecting to Headscale at $$HEADSCALE_URL..."
               tailscale up \
                 --login-server=$$HEADSCALE_URL \
@@ -70,17 +72,25 @@ spec:
             - name: TS_SOCKET
               value: /var/run/tailscale/tailscaled.sock
             - name: TS_USERSPACE
-              value: "false"
+              value: "true"
             - name: TS_KUBE_SECRET
               value: ""
-          image: tailscale/tailscale:v1.76.6
+            - name: HEADSCALE_URL
+              value: http://headscale.headscale-system.svc.cluster.local:8080
+            - name: FLOX_NO_TELEMETRY
+              value: "1"
+            - name: FLOX_NONINTERACTIVE
+              value: "1"
+          image: flox/empty:1.0.0
           name: tailscale
           resources:
             limits:
               cpu: 200m
+              ephemeral-storage: 256Mi
               memory: 256Mi
             requests:
               cpu: 50m
+              ephemeral-storage: 64Mi
               memory: 64Mi
           securityContext:
             capabilities:
@@ -103,34 +113,39 @@ spec:
       hostPID: true
       initContainers:
         - command:
-            - sh
+            - bash
             - -c
             - |
-              echo "Waiting for Headscale server..."
-              until wget -q -O- http://headscale.headscale.svc.cluster.local:8080/health; do
-                echo "Headscale not ready, retrying in 5s..."
-                sleep 5
-              done
+              echo "Waiting for headscale deployment to be available..."
+              kubectl wait --for=condition=available deployment/headscale \
+                -n "$HEADSCALE_NAMESPACE" --timeout=300s
               echo "Headscale is ready!"
-          image: busybox:1.36
+          env:
+            - name: HEADSCALE_URL
+              value: http://headscale.headscale-system.svc.cluster.local:8080
+            - name: HEADSCALE_NAMESPACE
+              value: headscale-system
+          image: flox/empty:1.0.0
           name: wait-for-headscale
         - command:
-            - sh
+            - bash
             - -c
             - |
-              echo "Waiting for auth key Secret..."
-              until [ -f /var/secrets/authkey ]; do
-                echo "Auth key not available, retrying in 5s..."
-                sleep 5
-              done
+              echo "Waiting for auth key Secret to be populated..."
+              kubectl wait --for=jsonpath='{.data.authkey}' secret/headscale-client-auth \
+                -n "$HEADSCALE_NAMESPACE" --timeout=300s
               echo "Auth key found!"
-          image: busybox:1.36
+          env:
+            - name: HEADSCALE_NAMESPACE
+              value: headscale-system
+          image: flox/empty:1.0.0
           name: wait-for-authkey
           volumeMounts:
             - mountPath: /var/secrets
               name: authkey
       nodeSelector:
         node-role.kubernetes.io/control-plane: "true"
+      runtimeClassName: flox
       serviceAccountName: headscale-client
       tolerations:
         - effect: NoSchedule

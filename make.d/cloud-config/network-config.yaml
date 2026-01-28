@@ -16,11 +16,11 @@ network:
     # Local network access - NOW PRIMARY for internet connectivity
     # Home router provides reliable NAT for internet access
     lan0:
-      macaddress: "${NETWORK_NODE_LAN_MACADDR}"  # Quote to avoid YAML 1.1 sexagesimal parsing (@codebase)
+      macaddress: "${NETWORK_LAN_HOST_MACADDR}"  # Quote to avoid YAML 1.1 sexagesimal parsing (@codebase)
       # Static LAN addressing to avoid DHCP pool conflicts
       dhcp4: false
       addresses:
-        - "${NETWORK_NODE_LAN_STATIC_INETADDR}/${NETWORK_NODE_LAN_PREFIX}"
+        - "${NETWORK_LAN_HOST_INETADDR}/${NETWORK_LAN_HOST_PREFIX}"
       gateway4: "${NETWORK_LAN_GATEWAY_INETADDR}"
       nameservers:
         addresses:
@@ -38,7 +38,7 @@ network:
     # Cluster node-to-node communication ONLY
     # NO internet gateway - lan0 is the exclusive internet path
     vmnet0:
-      macaddress: "${NETWORK_NODE_WAN_MACADDR}"  # Quote to avoid YAML 1.1 sexagesimal parsing (@codebase)
+      macaddress: "${NETWORK_WAN_HOST_MACADDR}"  # Quote to avoid YAML 1.1 sexagesimal parsing (@codebase)
       # DHCP from Incus wan bridge network
       dhcp4: true
       dhcp4-overrides:

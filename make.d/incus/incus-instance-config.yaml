@@ -12,73 +12,8 @@ config:
     lxc.cgroup.devices.allow = b *:* rwm
   security.privileged: true
   security.nesting: true
-  volatile.lan0.hwaddr: ${NETWORK_NODE_LAN_MACADDR}
-  volatile.vmnet0.hwaddr: ${NETWORK_NODE_WAN_MACADDR}
-  # RKE2 Core Configuration
-  environment.RKE2LAB_DEBUG: false
-  environment.RKE2LAB_NODE_TYPE: "${NODE_TYPE}"
-  environment.RKE2LAB_CLUSTER_NAME: "${CLUSTER_NAME}"
-  environment.RKE2LAB_CLUSTER_TOKEN: "${CLUSTER_TOKEN}"
-  environment.RKE2LAB_CLUSTER_DOMAIN: "${CLUSTER_DOMAIN}"
-  # Tailscale / Headscale provisioning
-  environment.RKE2LAB_NODE_ROLE: "${NODE_ROLE}"
-  environment.RKE2LAB_NODE_NAME: "${NODE_NAME}"
-  # RKE2 Network Configuration
-  environment.RKE2LAB_CLUSTER_ID: "${CLUSTER_ID}"
-  environment.RKE2LAB_NODE_ID: "${NODE_ID}"
-  environment.RKE2LAB_NODE_HOST_INETADDR: "${NETWORK_NODE_HOST_INETADDR}"
-  environment.RKE2LAB_NODE_VIP_INETADDR: "${NETWORK_NODE_VIP_INETADDR}"
-  environment.RKE2LAB_NODE_NETWORK_CIDR: "${NETWORK_NODE_CIDR}"
-  environment.RKE2LAB_NODE_GATEWAY_INETADDR: "${NETWORK_NODE_GATEWAY_INETADDR}"
-  environment.RKE2LAB_VIP_INTERFACE: "${NETWORK_VIP_INTERFACE}"
-  environment.RKE2LAB_CLUSTER_VIP_CIDR: "${NETWORK_VIP_CIDR}"
-  environment.RKE2LAB_CLUSTER_VIP_GATEWAY_INETADDR: "${NETWORK_VIP_GATEWAY_INETADDR}"
-  environment.RKE2LAB_CLUSTER_CIDR: "${NETWORK_CLUSTER_CIDR}"
-  environment.RKE2LAB_CLUSTER_LB_CIDR: "${NETWORK_CLUSTER_LB_CIDR}"
-  environment.RKE2LAB_CLUSTER_LB_GATEWAY_INETADDR: "${NETWORK_CLUSTER_LB_GATEWAY_INETADDR}"
-  environment.RKE2LAB_CLUSTER_POD_CIDR: "${NETWORK_CLUSTER_POD_CIDR}"
-  environment.RKE2LAB_CLUSTER_SERVICE_CIDR: "${NETWORK_CLUSTER_SERVICE_CIDR}"
-  environment.RKE2LAB_LAN_LB_POOL: "${NETWORK_LAN_LB_POOL}"
-  environment.RKE2LAB_NODE_LAN_INTERFACE: "${NETWORK_NODE_LAN_INTERFACE}"
-  environment.RKE2LAB_NODE_WAN_INTERFACE: "${NETWORK_NODE_WAN_INTERFACE}"
-  # Cluster Gateway (Lima VM on WAN bridge)
-  environment.RKE2LAB_CLUSTER_GATEWAY_INETADDR: "${NETWORK_CLUSTER_GATEWAY_INETADDR}"
-  # Container Runtime Configuration
-  environment.CONTAINERD_ADDRESS: "/run/k3s/containerd/containerd.sock"
-  environment.CONTAINERD_NAMESPACE: "k8s.io"
-  environment.CONTAINERD_CONFIG_FILE: "/var/lib/rancher/rke2/agent/etc/containerd/config.toml"
-  environment.CRI_CONFIG_FILE: "/var/lib/rancher/rke2/agent/etc/crictl.yaml"
-  # etcdctl Configuration
-  environment.ETCDCTL_API: "3"
-  environment.ETCDCTL_CERT: "/var/lib/rancher/rke2/server/tls/etcd/server-client.crt"
-  environment.ETCDCTL_KEY: "/var/lib/rancher/rke2/server/tls/etcd/server-client.key"
-  environment.ETCDCTL_CACERT: "/var/lib/rancher/rke2/server/tls/etcd/server-ca.crt"
-  environment.ETCDCTL_ENDPOINTS: "https://127.0.0.1:2379"
-  environment.ETCDCTL_WRITE_OUT: "table"
-  environment.ETCDCTL_DIAL_TIMEOUT: "10s"
-  environment.ETCDCTL_COMMAND_TIMEOUT: "30s"
-  # kubectl Configuration
-  environment.KUBECTL_OUTPUT: "yaml"
-  environment.KUBECTL_EXTERNAL_DIFF: "diff"
-  # Cilium CLI Configuration
-  environment.CILIUM_CLI_MODE: "kubernetes"
-  environment.CILIUM_CLI_CONTEXT: "default"
-  # Hubble Configuration
-  environment.HUBBLE_SERVER: "localhost:4245"
-  environment.HUBBLE_TLS: "false"
-  # Helm Configuration
-  environment.HELM_DATA_HOME: "/var/lib/rancher/rke2/helm"
-  environment.HELM_CONFIG_HOME: "/etc/rancher/rke2/helm"
-  environment.HELM_CACHE_HOME: "/var/cache/rancher/rke2/helm"
-  environment.HELM_REPOSITORY_CONFIG: "/etc/rancher/rke2/helm/repositories.yaml"
-  environment.HELM_REPOSITORY_CACHE: "/var/cache/rancher/rke2/helm/repository"
-  environment.HELM_PLUGINS: "/var/lib/rancher/rke2/helm/plugins"
-  # Krew Configuration
-  environment.KREW_ROOT: "/var/lib/rancher/rke2/krew"
-  # Kpt Configuration
-  environment.KRM_FN_RUNTIME: "nerdctl"
-  # Home Directory
-  environment.HOME: "/root"
+  volatile.lan0.hwaddr: ${NETWORK_LAN_HOST_MACADDR}
+  volatile.vmnet0.hwaddr: ${NETWORK_WAN_HOST_MACADDR}
 devices:
   kmsg.dev:
     type: unix-char
@@ -90,7 +25,7 @@ devices:
     path: /dev/zfs
   secrets.file:
     type: disk
-    source: ${CLUSTER_SECRETS_FILE}
+    source: ${INCUS_SECRETS_FILE}
     path: /srv/host/secrets
   rke2lab.env.file:
     type: disk
