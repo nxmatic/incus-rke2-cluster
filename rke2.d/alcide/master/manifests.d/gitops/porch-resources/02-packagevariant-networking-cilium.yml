@@ -27,7 +27,7 @@ spec:
       - configMap:
           bgp-local-asn: "65001"
           bgp-peer-asn: "65000"
-          cluster-id: 1
+          cluster-id: 7
           cluster-name: alcide-cluster
           l2-interface-1: vmnet0
           l2-interface-2: lan0

@@ -1,21 +1,22 @@
 apiVersion: v1
 kind: ConfigMap
-metadata: # kpt-merge: /rke2-config-setters
+metadata:
+  # kpt-merge: /rke2-config-setters
   name: rke2-config-setters
   annotations:
     config.kubernetes.io/local-config: "true"
     internal.kpt.dev/function-config: apply-setters
-    description.kpt.dev: Setters for RKE2 config.yaml.d fragments
     internal.kpt.dev/upstream-identifier: '|ConfigMap|default|rke2-config-setters'
+    description.kpt.dev: Setters for RKE2 config.yaml.d fragments
 data:
-  cluster-name: sample
-  cluster-token: changeme-token
-  node-host-inetaddr: 10.0.0.10
-  node-role: master
+  cluster-name: alcide
   node-type: server
+  node-role: master
+  cluster-token: alcide
+  node-host-inetaddr: 10.80.8.10
   cluster-id: "7"
-  cluster-init: "false"
-  pod-network-cidr: 10.42.0.0/16
-  service-network-cidr: 10.43.0.0/16
-  node-gateway-inetaddr: 10.0.0.1
-  cluster-vip-gateway-inetaddr: 10.80.16.1
+  cluster-init: "true"
+  pod-network-cidr: 10.44.0.0/16
+  service-network-cidr: 10.45.0.0/16
+  node-gateway-inetaddr: 10.80.8.1
+  cluster-vip-gateway-inetaddr: 10.80.15.1

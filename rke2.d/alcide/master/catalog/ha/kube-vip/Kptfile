@@ -5,13 +5,13 @@ metadata:
   annotations:
     config.kubernetes.io/local-config: "true"
 info:
+  site: https://kube-vip.io/
   description: Kube-VIP for Kubernetes API server VIP management
   keywords:
     - kube-vip
     - high-availability
     - vip
     - control-plane
-  site: https://kube-vip.io/
 pipeline:
   mutators:
     - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2

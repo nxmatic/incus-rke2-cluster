@@ -14,12 +14,15 @@ $(.kpt.catalog.dir)/Kptfile: ## Ensure Kptfile includes setters mutator
 	yq --inplace eval "$$YQ_EXPR" "$@"
 
 define .kpt.catalog.kptfile.yqExpr
-( . + [
+(.pipeline.mutators // []) as $m |
+.pipeline.mutators = (
+  $m + [
     {
-      "image": " ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2",
+      "image": "ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2",
       "configPath": "$(.kpt.cluster.setters.file)"
     }
-  ] | unique )
+  ] | unique
+)
 endef
 
 # Cluster setters configmap for rke2 cluster

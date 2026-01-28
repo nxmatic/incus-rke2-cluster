@@ -34,18 +34,31 @@ spec:
       containers:
         - args:
             - |
+              set -euo pipefail
               enabled="${KDNS_DEBUG_ENABLED:-}"
               if [ "$enabled" != "true" ]; then
                 echo "[kdns-dlv] debug disabled (set annotation debug.kdns.lab42/enabled=true to enable); sleeping"
                 sleep 3650d
               fi
+              apk add --no-cache wget ca-certificates >/dev/null
+              arch=$(uname -m)
+              case "$arch" in
+                x86_64) arch=amd64 ;;
+                aarch64) arch=arm64 ;;
+              esac
+              dlv_version="1.22.1"
+              url="https://github.com/go-delve/delve/releases/download/v${dlv_version}/dlv_${dlv_version}_linux_${arch}.tar.gz"
+              echo "[kdns-dlv] fetching dlv ${dlv_version} from ${url}"
+              wget -qO /tmp/dlv.tgz "$url"
+              tar -xzf /tmp/dlv.tgz -C /tmp
+              chmod +x /tmp/dlv
               target_pid=$(pidof kdns || true)
               if [ -z "$target_pid" ]; then
                 echo "[kdns-dlv] kdns process not found; sleeping"
                 sleep 1d
               fi
               echo "[kdns-dlv] starting delve headless on :${KDNS_DEBUG_PORT} attaching to pid ${target_pid}"
-              exec dlv attach "$target_pid" --headless --listen=":${KDNS_DEBUG_PORT}" --api-version=2 --accept-multiclient --log --continue
+              exec /tmp/dlv attach "$target_pid" --headless --listen=":${KDNS_DEBUG_PORT}" --api-version=2 --accept-multiclient --log --continue
           command:
             - /bin/sh
             - -c
@@ -56,7 +69,7 @@ spec:
                   fieldPath: metadata.annotations['debug.kdns.lab42/enabled']
             - name: KDNS_DEBUG_PORT
               value: "40000"
-          image: ghcr.io/go-delve/delve:latest
+          image: alpine:3.19
           imagePullPolicy: IfNotPresent
           name: kdns-dlv
           ports:
@@ -77,15 +90,12 @@ spec:
                 - SYS_PTRACE
               drop:
                 - ALL
-            readOnlyRootFilesystem: true
-            runAsNonRoot: true
-            runAsUser: 1000
+            readOnlyRootFilesystem: false
+            runAsNonRoot: false
+            runAsUser: 0
         - env:
             - name: KUBERNETES_SERVICE_HOST
               value: 10.80.8.10
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.hostIP
             - name: KUBERNETES_SERVICE_PORT
               value: "6443"
           image: ghcr.io/lab42/kdns:v0.2.9

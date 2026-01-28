@@ -11,19 +11,19 @@ version = 1
 
 [include]
   [[include.environments]]
-    dir = '../fleet/flox/git'
+    dir = '.fleet/flox/git'
 
   [[include.environments]]
-    dir = '../fleet/flox/gnumake'
+    dir = '.fleet/flox/gnumake'
 
   [[include.environments]]
-    dir = '../fleet/flox/net-tools'
+    dir = '.fleet/flox/net-tools'
 
   [[include.environments]]
-    dir = '../fleet/flox/docker'
+    dir = '.fleet/flox/docker'
 
   [[include.environments]]
-    dir = '../fleet/flox/k8s'
+    dir = '.fleet/flox/k8s'
 
 
 ## Install Packages --------------------------------------------------

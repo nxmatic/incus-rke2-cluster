@@ -24,7 +24,7 @@ config:
   environment.RKE2LAB_NODE_ROLE: "master"
   environment.RKE2LAB_NODE_NAME: "master"
   # RKE2 Network Configuration
-  environment.RKE2LAB_CLUSTER_ID: "1"
+  environment.RKE2LAB_CLUSTER_ID: "7"
   environment.RKE2LAB_NODE_ID: "0"
   environment.RKE2LAB_NODE_HOST_INETADDR: "10.80.8.10"
   environment.RKE2LAB_NODE_VIP_INETADDR: "10.80.15.10"

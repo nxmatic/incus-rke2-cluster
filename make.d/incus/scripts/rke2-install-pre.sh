@@ -55,7 +55,7 @@ nocloud:env:activate() {
   : "Include common profile in manifest and activate flox environment"
   cat <<'EoFloxCommonProfile' | cut -c 3- | tee "${FLOX_ENV_DIR}/.flox/env/profile-common.sh"
 
-  shell:indirect() {
+  rke2lab::shell:indirect() {
     local var="$1" value=""
 
     set +u
@@ -74,10 +74,10 @@ nocloud:env:activate() {
     printf '%s\n' "${value}"
   }
 
-  secret:value() {
+  rke2lab::secret:value() {
     local var="$1" key="$2" val
 
-    val="$( shell:indirect "${var}" )"
+    val="$( rke2lab::shell:indirect "${var}" )"
 
     if [[ -z "$val" ]]; then
       val=$( "${FLOX_ENV}/bin/yq" -r "${key}" "${RKE2LAB_ROOT}/secrets" 2>/dev/null )
@@ -99,20 +99,17 @@ nocloud:env:activate() {
   ARCH="$(dpkg --print-architecture)"
 
   : "Backfill secrets from ${RKE2LAB_ROOT}/secrets if not already set (local yq wrapper)"
-  secret:value GITHUB_USERNAME '.github.username'
-  secret:value GITHUB_PAT '.github.token'
-  secret:value DOCKER_CONFIG_JSON '.docker.configJson'	
-  secret:value TEKTON_GIT_USERNAME '.tekton.git.username'
-  secret:value TEKTON_GIT_PASSWORD '.tekton.git.password'
-  secret:value TEKTON_DOCKER_CONFIG_JSON '.tekton.docker.configJson'
-  secret:value TEKTON_DOCKER_REGISTRY_URL '.tekton.docker.registryUrl'	
-  secret:value TSKEY_CLIENT_ID '.tailscale.client.id'
-  secret:value TSKEY_CLIENT_TOKEN '.tailscale.client.token'
-  secret:value TSKEY_API_ID '.tailscale.api.id'
-  secret:value TSKEY_API_TOKEN '.tailscale.api.token'	  
-
-  unset secret:value
-  unset shell:indirect
+  rke2lab::secret:value GITHUB_USERNAME '.github.username'
+  rke2lab::secret:value GITHUB_PAT '.github.token'
+  rke2lab::secret:value DOCKER_CONFIG_JSON '.docker.configJson'	
+  rke2lab::secret:value TEKTON_GIT_USERNAME '.tekton.git.username'
+  rke2lab::secret:value TEKTON_GIT_PASSWORD '.tekton.git.password'
+  rke2lab::secret:value TEKTON_DOCKER_CONFIG_JSON '.tekton.docker.configJson'
+  rke2lab::secret:value TEKTON_DOCKER_REGISTRY_URL '.tekton.docker.registryUrl'	
+  rke2lab::secret:value TSKEY_CLIENT_ID '.tailscale.client.id'
+  rke2lab::secret:value TSKEY_CLIENT_TOKEN '.tailscale.client.token'
+  rke2lab::secret:value TSKEY_API_ID '.tailscale.api.id'
+  rke2lab::secret:value TSKEY_API_TOKEN '.tailscale.api.token'	  
 
   : "Determine default gateway IP for cluster networking"
   CLUSTER_GATEWAY=$( ip route show default 2>/dev/null | 
@@ -145,6 +142,38 @@ EoEnvrc
 : "Activate the nocloud environment"
 nocloud:env:activate
 
+: "Bootstrap /srv/host/secrets from flox-loaded env vars" # @codebase
+SECRETS_FILE="${RKE2LAB_ROOT}/secrets"
+mkdir -p "$(dirname "${SECRETS_FILE}")"
+[[ -s "${SECRETS_FILE}" ]] || printf '%s\n' '{}' > "${SECRETS_FILE}"
+
+secret:file:update() {
+  local key="$1" var="$2" val
+
+  set +u
+  val="${!var-}"
+  set -u
+
+  [[ -z "${val}" ]] && return 0
+  export "${var}=${val}"
+  yq eval -i ".${key} = strenv(${var})" "${SECRETS_FILE}"
+}
+
+secret:file:update 'github.username' GITHUB_USERNAME
+secret:file:update 'github.token' GITHUB_PAT
+secret:file:update 'docker.configJson' DOCKER_CONFIG_JSON
+secret:file:update 'tekton.git.username' TEKTON_GIT_USERNAME
+secret:file:update 'tekton.git.password' TEKTON_GIT_PASSWORD
+secret:file:update 'tekton.docker.configJson' TEKTON_DOCKER_CONFIG_JSON
+secret:file:update 'tekton.docker.registryUrl' TEKTON_DOCKER_REGISTRY_URL
+secret:file:update 'tailscale.client.id' TSKEY_CLIENT_ID
+secret:file:update 'tailscale.client.token' TSKEY_CLIENT_TOKEN
+secret:file:update 'tailscale.api.id' TSKEY_API_ID
+secret:file:update 'tailscale.api.token' TSKEY_API_TOKEN
+
+chmod 0600 "${SECRETS_FILE}"
+unset secret:file:update
+
 : "GitHub authentication setup"
 gh auth login --with-token <<EoF
 ${GITHUB_PAT}
@@ -164,7 +193,7 @@ if [[ ! -f "${CONTAINERD_REG_FILE}" ]]; then
   configs:
     "ghcr.io":
       auth:
-        username: x-access-token
+        username: ${GITHUB_USERNAME}
         password: ${GITHUB_PAT}
 EoF
   chmod 0644 "${CONTAINERD_REG_FILE}"

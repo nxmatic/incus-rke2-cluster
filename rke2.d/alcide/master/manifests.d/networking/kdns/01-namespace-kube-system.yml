@@ -3,7 +3,7 @@ apiVersion: v1
 kind: Namespace
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: '|Namespace|default|kdns-system'
+    internal.kpt.dev/upstream-identifier: '|Namespace|default|kube-system'
     kpt.dev/package-layer: networking
     kpt.dev/package-name: kdns
   name: kube-system

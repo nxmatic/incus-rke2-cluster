@@ -157,22 +157,6 @@ $(.incus.env.file):
 	$(file >$(@),$(.incus.env.file.content))
 
 #-----------------------------
-# Runtime secrets rendering
-#-----------------------------
-
-$(.incus.secrets.file): $(.incus.secrets.template)
-$(.incus.secrets.file): | $(dir $(.incus.secrets.file))/
-$(.incus.secrets.file):
-	: "[+] Rendering runtime secrets file with host gh auth token (if available) ...";
-	env \
-	  GH_TOKEN=$$(gh auth token 2>/dev/null || true) \
-	  yq eval '.github.token = strenv(GH_TOKEN)' $(<) > $(@)
-
-.PHONY: secrets@incus
-secrets@incus: $(.incus.secrets.file)
-	: "[i] Secrets file ready at $(.incus.secrets.file)"
-
-#-----------------------------
 # Per-instance NoCloud file generation  
 #-----------------------------
 
@@ -433,7 +417,6 @@ force-build-image@incus:
 # Instance configuration
 create@incus: $(.incus.instance.config.file)
 create@incus: $(.incus.instance.config.marker.file)
-create@incus: $(.incus.secrets.file)
 create@incus: $(.incus.ghcr.secret.manifest)
 # Runtime directories (order-only)
 create@incus: | $(.incus.dir)/

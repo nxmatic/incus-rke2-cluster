@@ -1,6 +1,6 @@
 apiVersion: v1
 kind: ConfigMap
-metadata: # kpt-merge: /cluster-setters
+metadata:
   name: cluster-setters
   annotations:
     config.kubernetes.io/local-config: "true"
@@ -8,9 +8,41 @@ metadata: # kpt-merge: /cluster-setters
     description.kpt.dev: Shared cluster identity/network setters (consumed by catalog bundles)
     internal.kpt.dev/upstream-identifier: '|ConfigMap|default|cluster-setters'
 data:
-  cluster-name: sample
-  cluster-env: sample
+  cluster-name: alcide
+  cluster-env: dave
   cluster-id: 7
-  lan-lb-pool: 10.80.56.64/26
-  lan-headscale-inetaddr: 10.80.56.65
-  github-secret: github-token
+  cluster-domain: cluster.local
+  cluster-network-cidr: 10.80.8.0/21
+  host-supernet-cidr: 10.80.0.0/18
+  node-network-cidr: 10.80.8.0/23
+  vip-pool-cidr: 10.80.15.0/24
+  lb-pool-cidr: 10.80.8.64/26
+  cluster-gateway-inet: 10.80.8.1
+  node-vip-inet: 10.80.15.10
+  node-gateway-inetaddr: 10.80.8.1
+  node-host-inetaddr: 10.80.8.10
+  lan-bridge-hwaddr: 02:00:00:bb:01:00
+  cluster-node-inet-base: 10.80.8
+  pod-network-cidr: 10.44.0.0/16
+  service-network-cidr: 10.45.0.0/16
+  cluster-vip-gateway-inetaddr: 10.80.15.1
+  cluster-lb-gateway-inetaddr: 10.80.8.65
+  node-lan-macaddr: 10:66:6a:4c:01:00
+  node-wan-macaddr: 52:54:00:01:00:00
+  node-profile-name: rke2lab
+  wan-dhcp-range: 10.80.8.2-10.80.8.9,10.80.8.31-10.80.15.254
+  node-lan-interface: master-lan0
+  node-wan-interface: master-vmnet0
+  vip-interface: rke2-vip0
+  vip-vlan-id: 100
+  vip-vlan-name: rke2-vlan
+  master-node-inetaddr: 10.80.8.3
+  lan-lb-pool: 192.168.1.64/27
+  lan-headscale-inetaddr: 192.168.1.65
+  lan-tailscale-inetaddr: 192.168.1.66
+  node-wan-macaddr-master: 52:54:00:01:00:00
+  node-wan-macaddr-peer1: 52:54:00:01:00:01
+  node-wan-macaddr-peer2: 52:54:00:01:00:02
+  node-wan-macaddr-peer3: 52:54:00:01:00:03
+  node-wan-macaddr-worker1: 52:54:00:01:01:0a
+  node-wan-macaddr-worker2: 52:54:00:01:01:0b

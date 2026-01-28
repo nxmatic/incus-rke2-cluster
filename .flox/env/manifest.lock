@@ -3,8 +3,12 @@
   "manifest": {
     "version": 1,
     "install": {
+      "actionlint": {
+        "pkg-path": "actionlint"
+      },
       "age": {
-        "pkg-path": "age"
+        "pkg-path": "age",
+        "pkg-group": "keyhole"
       },
       "autossh": {
         "pkg-path": "autossh"
@@ -22,7 +26,7 @@
       },
       "dasel": {
         "pkg-path": "dasel",
-        "pkg-group": "yaml-tools",
+        "pkg-group": "manifest-tools-yaml-tools",
         "version": "^2.8.1"
       },
       "dhcp": {
@@ -84,7 +88,8 @@
         "pkg-group": "gnumake"
       },
       "gnupg": {
-        "pkg-path": "gnupg"
+        "pkg-path": "gnupg",
+        "pkg-group": "keyhole"
       },
       "helmfile": {
         "pkg-path": "helmfile",
@@ -95,6 +100,10 @@
         "pkg-group": "net-tools",
         "version": "^1.0.3"
       },
+      "iperf3": {
+        "pkg-path": "iperf3",
+        "pkg-group": "net-tools"
+      },
       "iptstate": {
         "pkg-path": "iptstate",
         "pkg-group": "net-tools",
@@ -103,7 +112,8 @@
         ]
       },
       "keychain": {
-        "pkg-path": "keychain"
+        "pkg-path": "keychain",
+        "pkg-group": "keyhole"
       },
       "kpt": {
         "pkg-path": "kpt",
@@ -175,26 +185,38 @@
         "pkg-group": "net-tools"
       },
       "openssh": {
-        "pkg-path": "openssh"
+        "pkg-path": "openssh",
+        "pkg-group": "keyhole"
       },
       "openssl": {
-        "pkg-path": "openssl"
+        "pkg-path": "openssl",
+        "pkg-group": "keyhole"
       },
       "pass": {
-        "pkg-path": "pass"
+        "pkg-path": "pass",
+        "pkg-group": "keyhole"
+      },
+      "podman-wrapper": {
+        "flake": "git+https://github.com/nxmatic/fleet?dir=flox/k8s/.flox/flakes/podman-wrapper"
       },
       "remake": {
         "pkg-path": "remake",
         "pkg-group": "gnumake"
       },
       "sops": {
-        "pkg-path": "sops"
+        "pkg-path": "sops",
+        "pkg-group": "keyhole"
+      },
+      "speedtest": {
+        "pkg-path": "speedtest-go",
+        "pkg-group": "net-tools"
       },
       "squashfsTools": {
         "pkg-path": "squashfsTools"
       },
       "ssh-to-age": {
-        "pkg-path": "ssh-to-age"
+        "pkg-path": "ssh-to-age",
+        "pkg-group": "keyhole"
       },
       "tree": {
         "pkg-path": "tree"
@@ -212,7 +234,7 @@
       },
       "yq-go": {
         "pkg-path": "yq-go",
-        "pkg-group": "k8s-yaml-tools"
+        "pkg-group": "manifest-tools-yaml-tools"
       }
     },
     "hook": {
@@ -1720,51 +1742,561 @@
       "priority": 5
     },
     {
-      "attr_path": "yq-go",
+      "attr_path": "age",
       "broken": false,
-      "derivation": "/nix/store/4ixfalazqk6g077j77k8pq56rir9hksd-yq-go-4.50.1.drv",
-      "description": "Portable command-line YAML processor",
-      "install_id": "yq-go",
-      "license": "[ MIT ]",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=88d3861acdd3d2f0e361767018218e51810df8a1",
-      "name": "yq-go-4.50.1",
-      "pname": "yq-go",
-      "rev": "88d3861acdd3d2f0e361767018218e51810df8a1",
-      "rev_count": 931542,
-      "rev_date": "2026-01-21T18:02:10Z",
-      "scrape_date": "2026-01-23T04:35:03.859597Z",
+      "derivation": "/nix/store/n6iv0xdfz53zk8mrimwnyyqbv783df3r-age-1.3.1.drv",
+      "description": "Modern encryption tool with small explicit keys",
+      "install_id": "age",
+      "license": "BSD-3-Clause",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c5296fdd05cfa2c187990dd909864da9658df755",
+      "name": "age-1.3.1",
+      "pname": "age",
+      "rev": "c5296fdd05cfa2c187990dd909864da9658df755",
+      "rev_count": 933481,
+      "rev_date": "2026-01-23T12:18:02Z",
+      "scrape_date": "2026-01-26T04:35:12.077443Z",
       "stabilities": [
-        "staging",
         "unstable"
       ],
       "unfree": false,
-      "version": "4.50.1",
+      "version": "1.3.1",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/ihnllpwbhrpj6wfgmx4cqhv5qjm117fa-yq-go-4.50.1"
+        "out": "/nix/store/5yq0vy6mmzn6ninasc578fw1wx238haa-age-1.3.1"
       },
       "system": "aarch64-darwin",
-      "group": "k8s-yaml-tools",
+      "group": "keyhole",
+      "priority": 5
+    },
+    {
+      "attr_path": "age",
+      "broken": false,
+      "derivation": "/nix/store/k3sprfbafjm1jwhzp1qxysmzfmr3j10l-age-1.3.1.drv",
+      "description": "Modern encryption tool with small explicit keys",
+      "install_id": "age",
+      "license": "BSD-3-Clause",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c5296fdd05cfa2c187990dd909864da9658df755",
+      "name": "age-1.3.1",
+      "pname": "age",
+      "rev": "c5296fdd05cfa2c187990dd909864da9658df755",
+      "rev_count": 933481,
+      "rev_date": "2026-01-23T12:18:02Z",
+      "scrape_date": "2026-01-26T05:16:57.139338Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.3.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/xcg0m8a2d6panb0wjd3k7zr5i4z3fd3m-age-1.3.1"
+      },
+      "system": "aarch64-linux",
+      "group": "keyhole",
+      "priority": 5
+    },
+    {
+      "attr_path": "gnupg",
+      "broken": false,
+      "derivation": "/nix/store/lmvzsv1jbzjri97yhq9311snq0xhspjc-gnupg-2.4.8.drv",
+      "description": "Modern release of the GNU Privacy Guard, a GPL OpenPGP implementation",
+      "install_id": "gnupg",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c5296fdd05cfa2c187990dd909864da9658df755",
+      "name": "gnupg-2.4.8",
+      "pname": "gnupg",
+      "rev": "c5296fdd05cfa2c187990dd909864da9658df755",
+      "rev_count": 933481,
+      "rev_date": "2026-01-23T12:18:02Z",
+      "scrape_date": "2026-01-26T04:35:13.556718Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.4.8",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/60vj4a86fsy68x1lnb3519vx40l3zmda-gnupg-2.4.8"
+      },
+      "system": "aarch64-darwin",
+      "group": "keyhole",
+      "priority": 5
+    },
+    {
+      "attr_path": "gnupg",
+      "broken": false,
+      "derivation": "/nix/store/8hv1c7fxni7hwylm293iww2rj3hcpwna-gnupg-2.4.8.drv",
+      "description": "Modern release of the GNU Privacy Guard, a GPL OpenPGP implementation",
+      "install_id": "gnupg",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c5296fdd05cfa2c187990dd909864da9658df755",
+      "name": "gnupg-2.4.8",
+      "pname": "gnupg",
+      "rev": "c5296fdd05cfa2c187990dd909864da9658df755",
+      "rev_count": 933481,
+      "rev_date": "2026-01-23T12:18:02Z",
+      "scrape_date": "2026-01-26T05:16:59.448887Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.4.8",
+      "outputs_to_install": [
+        "out",
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/6hi9jwv2svvm5h6cp18kwv4dqlgbs7j3-gnupg-2.4.8"
+      },
+      "system": "aarch64-linux",
+      "group": "keyhole",
+      "priority": 5
+    },
+    {
+      "attr_path": "keychain",
+      "broken": false,
+      "derivation": "/nix/store/1g927c09ln12ksffyzn02i010mxq4grx-keychain-2.9.8.drv",
+      "description": "Manage SSH and GPG keys in a convenient and secure manner",
+      "install_id": "keychain",
+      "license": "GPL-2.0-only",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c5296fdd05cfa2c187990dd909864da9658df755",
+      "name": "keychain-2.9.8",
+      "pname": "keychain",
+      "rev": "c5296fdd05cfa2c187990dd909864da9658df755",
+      "rev_count": 933481,
+      "rev_date": "2026-01-23T12:18:02Z",
+      "scrape_date": "2026-01-26T04:35:29.256486Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.9.8",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/3y6l8ccd7gxi846z3p4gpr8z0yy1h36i-keychain-2.9.8"
+      },
+      "system": "aarch64-darwin",
+      "group": "keyhole",
+      "priority": 5
+    },
+    {
+      "attr_path": "keychain",
+      "broken": false,
+      "derivation": "/nix/store/dqjspbr9q2dkmhl8ysv088h7bsirlh8y-keychain-2.9.8.drv",
+      "description": "Manage SSH and GPG keys in a convenient and secure manner",
+      "install_id": "keychain",
+      "license": "GPL-2.0-only",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c5296fdd05cfa2c187990dd909864da9658df755",
+      "name": "keychain-2.9.8",
+      "pname": "keychain",
+      "rev": "c5296fdd05cfa2c187990dd909864da9658df755",
+      "rev_count": 933481,
+      "rev_date": "2026-01-23T12:18:02Z",
+      "scrape_date": "2026-01-26T05:17:19.116260Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.9.8",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/0ycixg4m53bnp9a8wj8x8fh7vjhp07jz-keychain-2.9.8"
+      },
+      "system": "aarch64-linux",
+      "group": "keyhole",
+      "priority": 5
+    },
+    {
+      "attr_path": "openssh",
+      "broken": false,
+      "derivation": "/nix/store/h4j3inl2nbk1k39knbhpkh1y0fs128ql-openssh-10.2p1.drv",
+      "description": "Implementation of the SSH protocol",
+      "install_id": "openssh",
+      "license": "BSD-2-Clause",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c5296fdd05cfa2c187990dd909864da9658df755",
+      "name": "openssh-10.2p1",
+      "pname": "openssh",
+      "rev": "c5296fdd05cfa2c187990dd909864da9658df755",
+      "rev_count": 933481,
+      "rev_date": "2026-01-23T12:18:02Z",
+      "scrape_date": "2026-01-26T04:35:42.275169Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "10.2p1",
+      "outputs_to_install": [
+        "man",
+        "out"
+      ],
+      "outputs": {
+        "dev": "/nix/store/fj8y6y356y2h39yxjxfgfzjb02vgandj-openssh-10.2p1-dev",
+        "man": "/nix/store/1fjkmpi7aq3wm8mbiz9rjilri7ma1knq-openssh-10.2p1-man",
+        "out": "/nix/store/caimks2d47fksvy7yhjaz34dry18ib09-openssh-10.2p1"
+      },
+      "system": "aarch64-darwin",
+      "group": "keyhole",
+      "priority": 5
+    },
+    {
+      "attr_path": "openssh",
+      "broken": false,
+      "derivation": "/nix/store/prb5mzbfgk2waks3jvhgbb7j979smsb9-openssh-10.2p1.drv",
+      "description": "Implementation of the SSH protocol",
+      "install_id": "openssh",
+      "license": "BSD-2-Clause",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c5296fdd05cfa2c187990dd909864da9658df755",
+      "name": "openssh-10.2p1",
+      "pname": "openssh",
+      "rev": "c5296fdd05cfa2c187990dd909864da9658df755",
+      "rev_count": 933481,
+      "rev_date": "2026-01-23T12:18:02Z",
+      "scrape_date": "2026-01-26T05:17:41.130472Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "10.2p1",
+      "outputs_to_install": [
+        "man",
+        "out"
+      ],
+      "outputs": {
+        "dev": "/nix/store/sqdlnxzhxbldan5d3037hr76idgv6gqm-openssh-10.2p1-dev",
+        "man": "/nix/store/civ3bmy8vmbwdx4mjg5mhmkbhs97zwvj-openssh-10.2p1-man",
+        "out": "/nix/store/sxzcrcqf4dl3ap4r0a8hrkszwx2zbfj9-openssh-10.2p1"
+      },
+      "system": "aarch64-linux",
+      "group": "keyhole",
+      "priority": 5
+    },
+    {
+      "attr_path": "openssl",
+      "broken": false,
+      "derivation": "/nix/store/92w5d3dmhbsfiz184hvwa4lg2cc1c2l4-openssl-3.6.0.drv",
+      "description": "Cryptographic library that implements the SSL and TLS protocols",
+      "install_id": "openssl",
+      "license": "Apache-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c5296fdd05cfa2c187990dd909864da9658df755",
+      "name": "openssl-3.6.0",
+      "pname": "openssl",
+      "rev": "c5296fdd05cfa2c187990dd909864da9658df755",
+      "rev_count": 933481,
+      "rev_date": "2026-01-23T12:18:02Z",
+      "scrape_date": "2026-01-26T04:35:42.285967Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "3.6.0",
+      "outputs_to_install": [
+        "bin",
+        "man"
+      ],
+      "outputs": {
+        "bin": "/nix/store/h4042c9cfv4hykavrh057ybqjiba4y64-openssl-3.6.0-bin",
+        "dev": "/nix/store/kkd3sgaryc9670ynaswljpmay91p8xkr-openssl-3.6.0-dev",
+        "doc": "/nix/store/bbixk61n6x1cibpdqr2119a9k4wk6v3q-openssl-3.6.0-doc",
+        "man": "/nix/store/rc6xgzw3fcdsv8xgpalsi7rj7y4n0p2v-openssl-3.6.0-man",
+        "out": "/nix/store/jwn3ixc462vg8cbza7jyy21lx9g68ial-openssl-3.6.0"
+      },
+      "system": "aarch64-darwin",
+      "group": "keyhole",
+      "priority": 5
+    },
+    {
+      "attr_path": "openssl",
+      "broken": false,
+      "derivation": "/nix/store/5arrf0zlbmc7zlhn4ysg5fjqgyqfwqxr-openssl-3.6.0.drv",
+      "description": "Cryptographic library that implements the SSL and TLS protocols",
+      "install_id": "openssl",
+      "license": "Apache-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c5296fdd05cfa2c187990dd909864da9658df755",
+      "name": "openssl-3.6.0",
+      "pname": "openssl",
+      "rev": "c5296fdd05cfa2c187990dd909864da9658df755",
+      "rev_count": 933481,
+      "rev_date": "2026-01-23T12:18:02Z",
+      "scrape_date": "2026-01-26T05:17:41.144549Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "3.6.0",
+      "outputs_to_install": [
+        "bin",
+        "bin",
+        "man"
+      ],
+      "outputs": {
+        "bin": "/nix/store/4vj9yk5k648jp7m3a9zsina5z1zys775-openssl-3.6.0-bin",
+        "debug": "/nix/store/700z1l6scf1lvvpix1qkanwrxa7syl0k-openssl-3.6.0-debug",
+        "dev": "/nix/store/sj1cs44xx1bfm0njxrrqmxcbxyidb3b9-openssl-3.6.0-dev",
+        "doc": "/nix/store/3dwbxhqdhkl5w8s6csanw3njsvyk4zsm-openssl-3.6.0-doc",
+        "man": "/nix/store/3jxyr0jjifqviifgr38z6avziwv4x9fv-openssl-3.6.0-man",
+        "out": "/nix/store/hw4x8wh7fpipsqc96icii9s3pvndxc1v-openssl-3.6.0"
+      },
+      "system": "aarch64-linux",
+      "group": "keyhole",
+      "priority": 5
+    },
+    {
+      "attr_path": "pass",
+      "broken": false,
+      "derivation": "/nix/store/129vbqbnb0qys9mifvpj728f519g0bqg-password-store-1.7.4.drv",
+      "description": "Stores, retrieves, generates, and synchronizes passwords securely",
+      "install_id": "pass",
+      "license": "GPL-2.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c5296fdd05cfa2c187990dd909864da9658df755",
+      "name": "password-store-1.7.4",
+      "pname": "pass",
+      "rev": "c5296fdd05cfa2c187990dd909864da9658df755",
+      "rev_count": 933481,
+      "rev_date": "2026-01-23T12:18:02Z",
+      "scrape_date": "2026-01-26T04:35:42.841247Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.7.4",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/wyczblndvv8ripm3ypx2m3gymv8xv4b5-password-store-1.7.4"
+      },
+      "system": "aarch64-darwin",
+      "group": "keyhole",
+      "priority": 5
+    },
+    {
+      "attr_path": "pass",
+      "broken": false,
+      "derivation": "/nix/store/rdsxia3mvl7ysb8s1rcb0gsn329r64gz-password-store-1.7.4.drv",
+      "description": "Stores, retrieves, generates, and synchronizes passwords securely",
+      "install_id": "pass",
+      "license": "GPL-2.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c5296fdd05cfa2c187990dd909864da9658df755",
+      "name": "password-store-1.7.4",
+      "pname": "pass",
+      "rev": "c5296fdd05cfa2c187990dd909864da9658df755",
+      "rev_count": 933481,
+      "rev_date": "2026-01-23T12:18:02Z",
+      "scrape_date": "2026-01-26T05:17:42.287225Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.7.4",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/jp7ji7rcj5s5jix76pjp1jgr88yqlm4k-password-store-1.7.4"
+      },
+      "system": "aarch64-linux",
+      "group": "keyhole",
+      "priority": 5
+    },
+    {
+      "attr_path": "sops",
+      "broken": false,
+      "derivation": "/nix/store/zxzvm2h68fpplfvb43n9z0kg00vx1fh6-sops-3.11.0.drv",
+      "description": "Simple and flexible tool for managing secrets",
+      "install_id": "sops",
+      "license": "MPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c5296fdd05cfa2c187990dd909864da9658df755",
+      "name": "sops-3.11.0",
+      "pname": "sops",
+      "rev": "c5296fdd05cfa2c187990dd909864da9658df755",
+      "rev_count": 933481,
+      "rev_date": "2026-01-23T12:18:02Z",
+      "scrape_date": "2026-01-26T04:36:59.803137Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "3.11.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/l4irgcmqagzgy39a8jf5yfsafndg5vy6-sops-3.11.0"
+      },
+      "system": "aarch64-darwin",
+      "group": "keyhole",
+      "priority": 5
+    },
+    {
+      "attr_path": "sops",
+      "broken": false,
+      "derivation": "/nix/store/jxdidf7hdi9bv3r5vmn4jx5a6cqvjldp-sops-3.11.0.drv",
+      "description": "Simple and flexible tool for managing secrets",
+      "install_id": "sops",
+      "license": "MPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c5296fdd05cfa2c187990dd909864da9658df755",
+      "name": "sops-3.11.0",
+      "pname": "sops",
+      "rev": "c5296fdd05cfa2c187990dd909864da9658df755",
+      "rev_count": 933481,
+      "rev_date": "2026-01-23T12:18:02Z",
+      "scrape_date": "2026-01-26T05:19:17.680885Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "3.11.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/8v3sgci7mqilgnjzydz570xbg90b26gg-sops-3.11.0"
+      },
+      "system": "aarch64-linux",
+      "group": "keyhole",
+      "priority": 5
+    },
+    {
+      "attr_path": "ssh-to-age",
+      "broken": false,
+      "derivation": "/nix/store/niq76rg6wrpnnj4vaar1prn9iangdc7k-ssh-to-age-1.2.0.drv",
+      "description": "Convert ssh private keys in ed25519 format to age keys",
+      "install_id": "ssh-to-age",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c5296fdd05cfa2c187990dd909864da9658df755",
+      "name": "ssh-to-age-1.2.0",
+      "pname": "ssh-to-age",
+      "rev": "c5296fdd05cfa2c187990dd909864da9658df755",
+      "rev_count": 933481,
+      "rev_date": "2026-01-23T12:18:02Z",
+      "scrape_date": "2026-01-26T04:37:00.534987Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.2.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/6r7c2blzqq2xc73zqzjjyrg9m87ygf98-ssh-to-age-1.2.0"
+      },
+      "system": "aarch64-darwin",
+      "group": "keyhole",
+      "priority": 5
+    },
+    {
+      "attr_path": "ssh-to-age",
+      "broken": false,
+      "derivation": "/nix/store/6scacj17fy8vlc5zdi8r9ywyf2q7ha44-ssh-to-age-1.2.0.drv",
+      "description": "Convert ssh private keys in ed25519 format to age keys",
+      "install_id": "ssh-to-age",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c5296fdd05cfa2c187990dd909864da9658df755",
+      "name": "ssh-to-age-1.2.0",
+      "pname": "ssh-to-age",
+      "rev": "c5296fdd05cfa2c187990dd909864da9658df755",
+      "rev_count": 933481,
+      "rev_date": "2026-01-23T12:18:02Z",
+      "scrape_date": "2026-01-26T05:19:18.704952Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.2.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/ykvnc0vjyq6b1xd6jrmsw9kxr7r6l1nb-ssh-to-age-1.2.0"
+      },
+      "system": "aarch64-linux",
+      "group": "keyhole",
+      "priority": 5
+    },
+    {
+      "attr_path": "dasel",
+      "broken": false,
+      "derivation": "/nix/store/n8pjqs2dssl3gax5ci6pjzpv7qrg1fqj-dasel-2.8.1.drv",
+      "description": "Query and update data structures from the command line",
+      "install_id": "dasel",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c5296fdd05cfa2c187990dd909864da9658df755",
+      "name": "dasel-2.8.1",
+      "pname": "dasel",
+      "rev": "c5296fdd05cfa2c187990dd909864da9658df755",
+      "rev_count": 933481,
+      "rev_date": "2026-01-23T12:18:02Z",
+      "scrape_date": "2026-01-26T04:35:12.760469Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.8.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/mp4pnj97dblqfzrc8hkgmy5knipjmf6h-dasel-2.8.1"
+      },
+      "system": "aarch64-darwin",
+      "group": "manifest-tools-yaml-tools",
+      "priority": 5
+    },
+    {
+      "attr_path": "dasel",
+      "broken": false,
+      "derivation": "/nix/store/pd8icdkhkhp28y5i97f636fnjhqlr0r7-dasel-2.8.1.drv",
+      "description": "Query and update data structures from the command line",
+      "install_id": "dasel",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c5296fdd05cfa2c187990dd909864da9658df755",
+      "name": "dasel-2.8.1",
+      "pname": "dasel",
+      "rev": "c5296fdd05cfa2c187990dd909864da9658df755",
+      "rev_count": 933481,
+      "rev_date": "2026-01-23T12:18:02Z",
+      "scrape_date": "2026-01-26T05:16:57.919962Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.8.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/r61f0nbvi2clb6lccs47sxxn5n9bpbjr-dasel-2.8.1"
+      },
+      "system": "aarch64-linux",
+      "group": "manifest-tools-yaml-tools",
       "priority": 5
     },
     {
       "attr_path": "yq-go",
       "broken": false,
-      "derivation": "/nix/store/xs2b9j87l5mxa672hiz3bzfqvv7bh001-yq-go-4.50.1.drv",
+      "derivation": "/nix/store/rhdy3sas9pvkpwfa04kdf48hrriz7ag7-yq-go-4.50.1.drv",
       "description": "Portable command-line YAML processor",
       "install_id": "yq-go",
       "license": "[ MIT ]",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=88d3861acdd3d2f0e361767018218e51810df8a1",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c5296fdd05cfa2c187990dd909864da9658df755",
       "name": "yq-go-4.50.1",
       "pname": "yq-go",
-      "rev": "88d3861acdd3d2f0e361767018218e51810df8a1",
-      "rev_count": 931542,
-      "rev_date": "2026-01-21T18:02:10Z",
-      "scrape_date": "2026-01-23T05:15:58.460905Z",
+      "rev": "c5296fdd05cfa2c187990dd909864da9658df755",
+      "rev_count": 933481,
+      "rev_date": "2026-01-23T12:18:02Z",
+      "scrape_date": "2026-01-26T04:37:56.116381Z",
       "stabilities": [
-        "staging",
         "unstable"
       ],
       "unfree": false,
@@ -1773,10 +2305,39 @@
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/n9qa1n3chinld0an3mghq2fiwg341csq-yq-go-4.50.1"
+        "out": "/nix/store/97s2svj2zrsfmwgpdxqrq99n3n40plyd-yq-go-4.50.1"
+      },
+      "system": "aarch64-darwin",
+      "group": "manifest-tools-yaml-tools",
+      "priority": 5
+    },
+    {
+      "attr_path": "yq-go",
+      "broken": false,
+      "derivation": "/nix/store/1vrk0b8qyxcizxw1jqff2k338fplxzvq-yq-go-4.50.1.drv",
+      "description": "Portable command-line YAML processor",
+      "install_id": "yq-go",
+      "license": "[ MIT ]",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=c5296fdd05cfa2c187990dd909864da9658df755",
+      "name": "yq-go-4.50.1",
+      "pname": "yq-go",
+      "rev": "c5296fdd05cfa2c187990dd909864da9658df755",
+      "rev_count": 933481,
+      "rev_date": "2026-01-23T12:18:02Z",
+      "scrape_date": "2026-01-26T05:20:32.081198Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "4.50.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/4vfppipshrf3b604p3nqy6xy34n7hm1r-yq-go-4.50.1"
       },
       "system": "aarch64-linux",
-      "group": "k8s-yaml-tools",
+      "group": "manifest-tools-yaml-tools",
       "priority": 5
     },
     {
@@ -1894,6 +2455,70 @@
       ],
       "outputs": {
         "out": "/nix/store/qx4db6rpa6n42mlcis22farkpp0gpkhd-ipcalc-1.0.3"
+      },
+      "system": "aarch64-linux",
+      "group": "net-tools",
+      "priority": 5
+    },
+    {
+      "attr_path": "iperf3",
+      "broken": false,
+      "derivation": "/nix/store/4kk39q9kwk8ckl7pq4rzq09amr7qxd1q-iperf-3.14.drv",
+      "description": "Tool to measure IP bandwidth using UDP or TCP",
+      "install_id": "iperf3",
+      "license": "BSD-3-Clause",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=9e1960bc196baf6881340d53dccb203a951745a2",
+      "name": "iperf-3.14",
+      "pname": "iperf3",
+      "rev": "9e1960bc196baf6881340d53dccb203a951745a2",
+      "rev_count": 509514,
+      "rev_date": "2023-08-01T09:21:54Z",
+      "scrape_date": "2024-08-16T00:46:51Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "3.14",
+      "outputs_to_install": [
+        "man",
+        "out"
+      ],
+      "outputs": {
+        "man": "/nix/store/darf6f03qmjl25hb32jn7sszpd4j5nzg-iperf-3.14-man",
+        "out": "/nix/store/kf1masskpbkcp1hwip16rrx7s6gan55i-iperf-3.14"
+      },
+      "system": "aarch64-darwin",
+      "group": "net-tools",
+      "priority": 5
+    },
+    {
+      "attr_path": "iperf3",
+      "broken": false,
+      "derivation": "/nix/store/jbafwfzyvdgcw1nn0nbch3wlszmjvx9q-iperf-3.14.drv",
+      "description": "Tool to measure IP bandwidth using UDP or TCP",
+      "install_id": "iperf3",
+      "license": "BSD-3-Clause",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=9e1960bc196baf6881340d53dccb203a951745a2",
+      "name": "iperf-3.14",
+      "pname": "iperf3",
+      "rev": "9e1960bc196baf6881340d53dccb203a951745a2",
+      "rev_count": 509514,
+      "rev_date": "2023-08-01T09:21:54Z",
+      "scrape_date": "2024-08-16T00:46:51Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "3.14",
+      "outputs_to_install": [
+        "man",
+        "out"
+      ],
+      "outputs": {
+        "man": "/nix/store/v3sn7y0v6653wxrxx287ycm0z77yn38c-iperf-3.14-man",
+        "out": "/nix/store/sykhxx21d6v7xs9vy49i47gvpv74ycr1-iperf-3.14"
       },
       "system": "aarch64-linux",
       "group": "net-tools",
@@ -2020,6 +2645,66 @@
       "priority": 5
     },
     {
+      "attr_path": "speedtest-go",
+      "broken": false,
+      "derivation": "/nix/store/xjvba9awfjrf4yaysdgz7iwwmwjpg8q8-speedtest-go-1.6.3.drv",
+      "description": "CLI and Go API to Test Internet Speed using speedtest.net",
+      "install_id": "speedtest",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=9e1960bc196baf6881340d53dccb203a951745a2",
+      "name": "speedtest-go-1.6.3",
+      "pname": "speedtest-go",
+      "rev": "9e1960bc196baf6881340d53dccb203a951745a2",
+      "rev_count": 509514,
+      "rev_date": "2023-08-01T09:21:54Z",
+      "scrape_date": "2024-08-16T00:46:51Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.6.3",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/cmxi52g5rr03s1y3d7p4nwyd1qxblvr7-speedtest-go-1.6.3"
+      },
+      "system": "aarch64-darwin",
+      "group": "net-tools",
+      "priority": 5
+    },
+    {
+      "attr_path": "speedtest-go",
+      "broken": false,
+      "derivation": "/nix/store/g3bgncmj5kb5z11fc2nh3f1vvkz3lvn8-speedtest-go-1.6.3.drv",
+      "description": "CLI and Go API to Test Internet Speed using speedtest.net",
+      "install_id": "speedtest",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=9e1960bc196baf6881340d53dccb203a951745a2",
+      "name": "speedtest-go-1.6.3",
+      "pname": "speedtest-go",
+      "rev": "9e1960bc196baf6881340d53dccb203a951745a2",
+      "rev_count": 509514,
+      "rev_date": "2023-08-01T09:21:54Z",
+      "scrape_date": "2024-08-16T00:46:51Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.6.3",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/nafp8396xm0prm0d94iy1ydsv9xrk9d5-speedtest-go-1.6.3"
+      },
+      "system": "aarch64-linux",
+      "group": "net-tools",
+      "priority": 5
+    },
+    {
       "attr_path": "tshark",
       "broken": false,
       "derivation": "/nix/store/v3jzq23cy12wc9705q024r0kv7qqdn2b-wireshark-cli-4.0.6.drv",
@@ -2082,60 +2767,60 @@
       "priority": 5
     },
     {
-      "attr_path": "age",
+      "attr_path": "actionlint",
       "broken": false,
-      "derivation": "/nix/store/38932mh5dxnnspziz1bi9ngf71f1w2x5-age-1.3.1.drv",
-      "description": "Modern encryption tool with small explicit keys",
-      "install_id": "age",
-      "license": "BSD-3-Clause",
+      "derivation": "/nix/store/3g358h9nfd3qb45hpyngxma41rpys6sa-actionlint-1.7.10.drv",
+      "description": "Static checker for GitHub Actions workflow files",
+      "install_id": "actionlint",
+      "license": "MIT",
       "locked_url": "https://github.com/flox/nixpkgs?rev=88d3861acdd3d2f0e361767018218e51810df8a1",
-      "name": "age-1.3.1",
-      "pname": "age",
+      "name": "actionlint-1.7.10",
+      "pname": "actionlint",
       "rev": "88d3861acdd3d2f0e361767018218e51810df8a1",
       "rev_count": 931542,
       "rev_date": "2026-01-21T18:02:10Z",
-      "scrape_date": "2026-01-23T04:32:29.842873Z",
+      "scrape_date": "2026-01-23T04:32:29.841919Z",
       "stabilities": [
         "staging",
         "unstable"
       ],
       "unfree": false,
-      "version": "1.3.1",
+      "version": "1.7.10",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/q47vdnd6gvvk5wzx0gv8q5w169y4r015-age-1.3.1"
+        "out": "/nix/store/7xibqr4r119hgy8wvlp44cr1bpgkw6l1-actionlint-1.7.10"
       },
       "system": "aarch64-darwin",
       "group": "toplevel",
       "priority": 5
     },
     {
-      "attr_path": "age",
+      "attr_path": "actionlint",
       "broken": false,
-      "derivation": "/nix/store/n1ga2b3xpvhsh0ar32pbv8xclgjr54sk-age-1.3.1.drv",
-      "description": "Modern encryption tool with small explicit keys",
-      "install_id": "age",
-      "license": "BSD-3-Clause",
+      "derivation": "/nix/store/a5yl1my9jfpksfq2q49z7khwl08h5l3q-actionlint-1.7.10.drv",
+      "description": "Static checker for GitHub Actions workflow files",
+      "install_id": "actionlint",
+      "license": "MIT",
       "locked_url": "https://github.com/flox/nixpkgs?rev=88d3861acdd3d2f0e361767018218e51810df8a1",
-      "name": "age-1.3.1",
-      "pname": "age",
+      "name": "actionlint-1.7.10",
+      "pname": "actionlint",
       "rev": "88d3861acdd3d2f0e361767018218e51810df8a1",
       "rev_count": 931542,
       "rev_date": "2026-01-21T18:02:10Z",
-      "scrape_date": "2026-01-23T05:12:33.591956Z",
+      "scrape_date": "2026-01-23T05:12:33.590651Z",
       "stabilities": [
         "staging",
         "unstable"
       ],
       "unfree": false,
-      "version": "1.3.1",
+      "version": "1.7.10",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/bngripg1vq5br4d4iz0xhhj42i68yg9l-age-1.3.1"
+        "out": "/nix/store/5w5vwrrbphvps3di3rplhq7i0cjik048-actionlint-1.7.10"
       },
       "system": "aarch64-linux",
       "group": "toplevel",
@@ -2509,127 +3194,6 @@
       "priority": 5
     },
     {
-      "attr_path": "gnupg",
-      "broken": false,
-      "derivation": "/nix/store/w672wlknmp11v3qcx2yy7vwga6y0v6s3-gnupg-2.4.8.drv",
-      "description": "Modern release of the GNU Privacy Guard, a GPL OpenPGP implementation",
-      "install_id": "gnupg",
-      "license": "GPL-3.0-or-later",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=88d3861acdd3d2f0e361767018218e51810df8a1",
-      "name": "gnupg-2.4.8",
-      "pname": "gnupg",
-      "rev": "88d3861acdd3d2f0e361767018218e51810df8a1",
-      "rev_count": 931542,
-      "rev_date": "2026-01-21T18:02:10Z",
-      "scrape_date": "2026-01-23T04:32:31.238552Z",
-      "stabilities": [
-        "staging",
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "2.4.8",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/19w3rkcl18f43ha7qckc8hl3wlgziqsh-gnupg-2.4.8"
-      },
-      "system": "aarch64-darwin",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "gnupg",
-      "broken": false,
-      "derivation": "/nix/store/ddsn1qsiq4fjm62d9s8r2ib0r62s8hsv-gnupg-2.4.8.drv",
-      "description": "Modern release of the GNU Privacy Guard, a GPL OpenPGP implementation",
-      "install_id": "gnupg",
-      "license": "GPL-3.0-or-later",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=88d3861acdd3d2f0e361767018218e51810df8a1",
-      "name": "gnupg-2.4.8",
-      "pname": "gnupg",
-      "rev": "88d3861acdd3d2f0e361767018218e51810df8a1",
-      "rev_count": 931542,
-      "rev_date": "2026-01-21T18:02:10Z",
-      "scrape_date": "2026-01-23T05:12:35.917913Z",
-      "stabilities": [
-        "staging",
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "2.4.8",
-      "outputs_to_install": [
-        "out",
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/cblm88571ab1prmbibsv1pm56ny63ckx-gnupg-2.4.8"
-      },
-      "system": "aarch64-linux",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "keychain",
-      "broken": false,
-      "derivation": "/nix/store/zdrfmn383jkd2s6v1jp4kv6xvhvl11vs-keychain-2.9.8.drv",
-      "description": "Manage SSH and GPG keys in a convenient and secure manner",
-      "install_id": "keychain",
-      "license": "GPL-2.0-only",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=88d3861acdd3d2f0e361767018218e51810df8a1",
-      "name": "keychain-2.9.8",
-      "pname": "keychain",
-      "rev": "88d3861acdd3d2f0e361767018218e51810df8a1",
-      "rev_count": 931542,
-      "rev_date": "2026-01-21T18:02:10Z",
-      "scrape_date": "2026-01-23T04:32:46.116383Z",
-      "stabilities": [
-        "staging",
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "2.9.8",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/vlkjkqd10xgjh6yq76xsn3j6d6nxlws4-keychain-2.9.8"
-      },
-      "system": "aarch64-darwin",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "keychain",
-      "broken": false,
-      "derivation": "/nix/store/f1dqcj6ycic3wqpf84dan5vrv0r6smkb-keychain-2.9.8.drv",
-      "description": "Manage SSH and GPG keys in a convenient and secure manner",
-      "install_id": "keychain",
-      "license": "GPL-2.0-only",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=88d3861acdd3d2f0e361767018218e51810df8a1",
-      "name": "keychain-2.9.8",
-      "pname": "keychain",
-      "rev": "88d3861acdd3d2f0e361767018218e51810df8a1",
-      "rev_count": 931542,
-      "rev_date": "2026-01-21T18:02:10Z",
-      "scrape_date": "2026-01-23T05:12:55.417875Z",
-      "stabilities": [
-        "staging",
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "2.9.8",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/hd4nlrb9n196j2ddkvl1ysr7mc1w04f6-keychain-2.9.8"
-      },
-      "system": "aarch64-linux",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
       "attr_path": "lsof",
       "broken": false,
       "derivation": "/nix/store/8a9cis5c9sv9mkgk42jx5a95iyzr9py2-lsof-4.99.5.drv",
@@ -2750,264 +3314,6 @@
       "priority": 5
     },
     {
-      "attr_path": "openssh",
-      "broken": false,
-      "derivation": "/nix/store/2lrcd1z148l7livblgwph1d9fpcbbjrl-openssh-10.2p1.drv",
-      "description": "Implementation of the SSH protocol",
-      "install_id": "openssh",
-      "license": "BSD-2-Clause",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=88d3861acdd3d2f0e361767018218e51810df8a1",
-      "name": "openssh-10.2p1",
-      "pname": "openssh",
-      "rev": "88d3861acdd3d2f0e361767018218e51810df8a1",
-      "rev_count": 931542,
-      "rev_date": "2026-01-21T18:02:10Z",
-      "scrape_date": "2026-01-23T04:32:57.802831Z",
-      "stabilities": [
-        "staging",
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "10.2p1",
-      "outputs_to_install": [
-        "man",
-        "out"
-      ],
-      "outputs": {
-        "dev": "/nix/store/9mbrhyigjb2aq0nhf66r8hh4g0s37f0k-openssh-10.2p1-dev",
-        "man": "/nix/store/8mp3kyc3rlwi1aqwn79ps9fz0p09gdcn-openssh-10.2p1-man",
-        "out": "/nix/store/65lckylin1y0yasx8fa6ifynj5bcbh2q-openssh-10.2p1"
-      },
-      "system": "aarch64-darwin",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "openssh",
-      "broken": false,
-      "derivation": "/nix/store/3wznkvsqpg4hav6lzxq92zyk3wicfphm-openssh-10.2p1.drv",
-      "description": "Implementation of the SSH protocol",
-      "install_id": "openssh",
-      "license": "BSD-2-Clause",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=88d3861acdd3d2f0e361767018218e51810df8a1",
-      "name": "openssh-10.2p1",
-      "pname": "openssh",
-      "rev": "88d3861acdd3d2f0e361767018218e51810df8a1",
-      "rev_count": 931542,
-      "rev_date": "2026-01-21T18:02:10Z",
-      "scrape_date": "2026-01-23T05:13:16.561663Z",
-      "stabilities": [
-        "staging",
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "10.2p1",
-      "outputs_to_install": [
-        "man",
-        "out"
-      ],
-      "outputs": {
-        "dev": "/nix/store/a1g712k7d1sg77fdqmdwqvszfqnia7wq-openssh-10.2p1-dev",
-        "man": "/nix/store/7x77z882l1zdz6820fhv3phy25vsmkxw-openssh-10.2p1-man",
-        "out": "/nix/store/sfvjixdkylgqhk0zx2v3znwir8rp278m-openssh-10.2p1"
-      },
-      "system": "aarch64-linux",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "openssl",
-      "broken": false,
-      "derivation": "/nix/store/zw6k0ld3sl3i7jbs4dfbg4wxprdm654n-openssl-3.6.0.drv",
-      "description": "Cryptographic library that implements the SSL and TLS protocols",
-      "install_id": "openssl",
-      "license": "Apache-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=88d3861acdd3d2f0e361767018218e51810df8a1",
-      "name": "openssl-3.6.0",
-      "pname": "openssl",
-      "rev": "88d3861acdd3d2f0e361767018218e51810df8a1",
-      "rev_count": 931542,
-      "rev_date": "2026-01-21T18:02:10Z",
-      "scrape_date": "2026-01-23T04:32:57.813176Z",
-      "stabilities": [
-        "staging",
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "3.6.0",
-      "outputs_to_install": [
-        "bin",
-        "man"
-      ],
-      "outputs": {
-        "bin": "/nix/store/qjl9insn7qgdz4i8ijvc6j7w2pivny8f-openssl-3.6.0-bin",
-        "dev": "/nix/store/26n1vs5p0jl8sr12j5jqcimll05v4qf7-openssl-3.6.0-dev",
-        "doc": "/nix/store/cdvrzgvcdhb3xkj6gpa3q9x0f8dilf3x-openssl-3.6.0-doc",
-        "man": "/nix/store/f573s0zcxd5i83wxgdvsda43n159wazr-openssl-3.6.0-man",
-        "out": "/nix/store/5ffn4pdw6mvabzrrlss7k3gabnqw2f9g-openssl-3.6.0"
-      },
-      "system": "aarch64-darwin",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "openssl",
-      "broken": false,
-      "derivation": "/nix/store/4hfl3qxy4nlz557ca5ybhr639igp489v-openssl-3.6.0.drv",
-      "description": "Cryptographic library that implements the SSL and TLS protocols",
-      "install_id": "openssl",
-      "license": "Apache-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=88d3861acdd3d2f0e361767018218e51810df8a1",
-      "name": "openssl-3.6.0",
-      "pname": "openssl",
-      "rev": "88d3861acdd3d2f0e361767018218e51810df8a1",
-      "rev_count": 931542,
-      "rev_date": "2026-01-21T18:02:10Z",
-      "scrape_date": "2026-01-23T05:13:16.574819Z",
-      "stabilities": [
-        "staging",
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "3.6.0",
-      "outputs_to_install": [
-        "bin",
-        "bin",
-        "man"
-      ],
-      "outputs": {
-        "bin": "/nix/store/snvrlxnzmc3y4xwzpmq1jdqwkzxkb67c-openssl-3.6.0-bin",
-        "debug": "/nix/store/916jk4vhdnbi9vpl6kal7qfali45kd59-openssl-3.6.0-debug",
-        "dev": "/nix/store/pzqq7d1nnx8xkvccmgl51cf1aqim3x59-openssl-3.6.0-dev",
-        "doc": "/nix/store/a36f9ngp4qv7vjyfhxcq30qn82cal8rz-openssl-3.6.0-doc",
-        "man": "/nix/store/rby0jincslb44gxrcn9vyr7z5q48qy9i-openssl-3.6.0-man",
-        "out": "/nix/store/k0wfscy8mjfzkhrzm4r6yy8bxs3v4s5w-openssl-3.6.0"
-      },
-      "system": "aarch64-linux",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "pass",
-      "broken": false,
-      "derivation": "/nix/store/8pa5xyajkirzv439z4y5z2n8s3sbnpyd-password-store-1.7.4.drv",
-      "description": "Stores, retrieves, generates, and synchronizes passwords securely",
-      "install_id": "pass",
-      "license": "GPL-2.0-or-later",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=88d3861acdd3d2f0e361767018218e51810df8a1",
-      "name": "password-store-1.7.4",
-      "pname": "pass",
-      "rev": "88d3861acdd3d2f0e361767018218e51810df8a1",
-      "rev_count": 931542,
-      "rev_date": "2026-01-21T18:02:10Z",
-      "scrape_date": "2026-01-23T04:32:58.337898Z",
-      "stabilities": [
-        "staging",
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "1.7.4",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/n6zsz8h2zq2yp9n5fmam8i90vaah0ra7-password-store-1.7.4"
-      },
-      "system": "aarch64-darwin",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "pass",
-      "broken": false,
-      "derivation": "/nix/store/f7k1kf5ys83x5avfl282g82wnkahjl86-password-store-1.7.4.drv",
-      "description": "Stores, retrieves, generates, and synchronizes passwords securely",
-      "install_id": "pass",
-      "license": "GPL-2.0-or-later",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=88d3861acdd3d2f0e361767018218e51810df8a1",
-      "name": "password-store-1.7.4",
-      "pname": "pass",
-      "rev": "88d3861acdd3d2f0e361767018218e51810df8a1",
-      "rev_count": 931542,
-      "rev_date": "2026-01-21T18:02:10Z",
-      "scrape_date": "2026-01-23T05:13:17.680977Z",
-      "stabilities": [
-        "staging",
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "1.7.4",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/p0ds0llmvzv1dh1v7b46g8zkk18gy0xi-password-store-1.7.4"
-      },
-      "system": "aarch64-linux",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "sops",
-      "broken": false,
-      "derivation": "/nix/store/dgji6r6s1027xz90zx7h7qifzsiqzdah-sops-3.11.0.drv",
-      "description": "Simple and flexible tool for managing secrets",
-      "install_id": "sops",
-      "license": "MPL-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=88d3861acdd3d2f0e361767018218e51810df8a1",
-      "name": "sops-3.11.0",
-      "pname": "sops",
-      "rev": "88d3861acdd3d2f0e361767018218e51810df8a1",
-      "rev_count": 931542,
-      "rev_date": "2026-01-21T18:02:10Z",
-      "scrape_date": "2026-01-23T04:34:11.974105Z",
-      "stabilities": [
-        "staging",
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "3.11.0",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/0wvbpq91jvgzkz59gfqh8kkqil6ism3n-sops-3.11.0"
-      },
-      "system": "aarch64-darwin",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "sops",
-      "broken": false,
-      "derivation": "/nix/store/6w24x7vv0x0z4rw6vdbszmr7s9pdwj7d-sops-3.11.0.drv",
-      "description": "Simple and flexible tool for managing secrets",
-      "install_id": "sops",
-      "license": "MPL-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=88d3861acdd3d2f0e361767018218e51810df8a1",
-      "name": "sops-3.11.0",
-      "pname": "sops",
-      "rev": "88d3861acdd3d2f0e361767018218e51810df8a1",
-      "rev_count": 931542,
-      "rev_date": "2026-01-21T18:02:10Z",
-      "scrape_date": "2026-01-23T05:14:48.984457Z",
-      "stabilities": [
-        "staging",
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "3.11.0",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/n36ipdkbifaz7jay125wqizr229n730k-sops-3.11.0"
-      },
-      "system": "aarch64-linux",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
       "attr_path": "squashfsTools",
       "broken": false,
       "derivation": "/nix/store/ap9gian8fjqp6bcn0hhjjzjm969khayg-squashfs-4.7.4.drv",
@@ -3062,66 +3368,6 @@
       ],
       "outputs": {
         "out": "/nix/store/a3h0lg3vakwm8xnd002jxmk2id1jfqlr-squashfs-4.7.4"
-      },
-      "system": "aarch64-linux",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "ssh-to-age",
-      "broken": false,
-      "derivation": "/nix/store/svsmi0cpcj2c214dy349593pfifn8xva-ssh-to-age-1.2.0.drv",
-      "description": "Convert ssh private keys in ed25519 format to age keys",
-      "install_id": "ssh-to-age",
-      "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=88d3861acdd3d2f0e361767018218e51810df8a1",
-      "name": "ssh-to-age-1.2.0",
-      "pname": "ssh-to-age",
-      "rev": "88d3861acdd3d2f0e361767018218e51810df8a1",
-      "rev_count": 931542,
-      "rev_date": "2026-01-21T18:02:10Z",
-      "scrape_date": "2026-01-23T04:34:12.660110Z",
-      "stabilities": [
-        "staging",
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "1.2.0",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/cpf5505mlr8hzjd85wxvybambc9y60h5-ssh-to-age-1.2.0"
-      },
-      "system": "aarch64-darwin",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "ssh-to-age",
-      "broken": false,
-      "derivation": "/nix/store/livldzx96a985p7vysvgi5qm4cs6di78-ssh-to-age-1.2.0.drv",
-      "description": "Convert ssh private keys in ed25519 format to age keys",
-      "install_id": "ssh-to-age",
-      "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=88d3861acdd3d2f0e361767018218e51810df8a1",
-      "name": "ssh-to-age-1.2.0",
-      "pname": "ssh-to-age",
-      "rev": "88d3861acdd3d2f0e361767018218e51810df8a1",
-      "rev_count": 931542,
-      "rev_date": "2026-01-21T18:02:10Z",
-      "scrape_date": "2026-01-23T05:14:49.973427Z",
-      "stabilities": [
-        "staging",
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "1.2.0",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/s2jckp3a8rkic3yfam5agsbnai89h7rf-ssh-to-age-1.2.0"
       },
       "system": "aarch64-linux",
       "group": "toplevel",
@@ -3248,63 +3494,49 @@
       "priority": 5
     },
     {
-      "attr_path": "dasel",
-      "broken": false,
-      "derivation": "/nix/store/albx75fg38krspm2bjcz4hzi5gpivdg8-dasel-2.8.1.drv",
-      "description": "Query and update data structures from the command line",
-      "install_id": "dasel",
-      "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=88d3861acdd3d2f0e361767018218e51810df8a1",
-      "name": "dasel-2.8.1",
-      "pname": "dasel",
-      "rev": "88d3861acdd3d2f0e361767018218e51810df8a1",
-      "rev_count": 931542,
-      "rev_date": "2026-01-21T18:02:10Z",
-      "scrape_date": "2026-01-23T04:32:30.523194Z",
-      "stabilities": [
-        "staging",
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "2.8.1",
-      "outputs_to_install": [
+      "install_id": "podman-wrapper",
+      "locked-url": "git+https://github.com/nxmatic/fleet?dir=flox/k8s/.flox/flakes/podman-wrapper&ref=refs/heads/main&rev=57d53644fd90b348cf14fe32f058bdb0168ddc9f",
+      "flake-description": "podman-wrapper flake for k8s env",
+      "locked-flake-attr-path": "packages.aarch64-darwin.default",
+      "derivation": "/nix/store/fhm1g30xb8d8g6sdqlpxchri8x60bmhz-docker.drv",
+      "outputs": {
+        "out": "/nix/store/r0plqb00fjkbb34965yf6wdms1sm8a1c-docker"
+      },
+      "output-names": [
         "out"
       ],
-      "outputs": {
-        "out": "/nix/store/8rzi48v49pr8zyi10zz6im2r68xz9p2q-dasel-2.8.1"
-      },
+      "outputs-to-install": [
+        "out"
+      ],
+      "requested-outputs-to-install": [],
+      "package-system": "aarch64-darwin",
       "system": "aarch64-darwin",
-      "group": "yaml-tools",
+      "name": "docker",
+      "broken": false,
+      "unfree": false,
       "priority": 5
     },
     {
-      "attr_path": "dasel",
-      "broken": false,
-      "derivation": "/nix/store/vbynhnl61byq8irzci9srqs6s7ymqn7v-dasel-2.8.1.drv",
-      "description": "Query and update data structures from the command line",
-      "install_id": "dasel",
-      "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=88d3861acdd3d2f0e361767018218e51810df8a1",
-      "name": "dasel-2.8.1",
-      "pname": "dasel",
-      "rev": "88d3861acdd3d2f0e361767018218e51810df8a1",
-      "rev_count": 931542,
-      "rev_date": "2026-01-21T18:02:10Z",
-      "scrape_date": "2026-01-23T05:12:34.386539Z",
-      "stabilities": [
-        "staging",
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "2.8.1",
-      "outputs_to_install": [
+      "install_id": "podman-wrapper",
+      "locked-url": "git+https://github.com/nxmatic/fleet?dir=flox/k8s/.flox/flakes/podman-wrapper&ref=refs/heads/main&rev=57d53644fd90b348cf14fe32f058bdb0168ddc9f",
+      "flake-description": "podman-wrapper flake for k8s env",
+      "locked-flake-attr-path": "packages.aarch64-linux.default",
+      "derivation": "/nix/store/8r5zz6ac8lg2lm79a016pcdzxsm1zckc-docker.drv",
+      "outputs": {
+        "out": "/nix/store/9v75kqd23v9jfkis13fyzyd96sqic4kk-docker"
+      },
+      "output-names": [
         "out"
       ],
-      "outputs": {
-        "out": "/nix/store/3g13gdd7lgph75lmzhfhagsr96jjrc19-dasel-2.8.1"
-      },
+      "outputs-to-install": [
+        "out"
+      ],
+      "requested-outputs-to-install": [],
+      "package-system": "aarch64-linux",
       "system": "aarch64-linux",
-      "group": "yaml-tools",
+      "name": "docker",
+      "broken": false,
+      "unfree": false,
       "priority": 5
     }
   ],
@@ -3348,19 +3580,19 @@
       "include": {
         "environments": [
           {
-            "dir": "../fleet/flox/git"
+            "dir": ".fleet/flox/git"
           },
           {
-            "dir": "../fleet/flox/gnumake"
+            "dir": ".fleet/flox/gnumake"
           },
           {
-            "dir": "../fleet/flox/net-tools"
+            "dir": ".fleet/flox/net-tools"
           },
           {
-            "dir": "../fleet/flox/docker"
+            "dir": ".fleet/flox/docker"
           },
           {
-            "dir": "../fleet/flox/k8s"
+            "dir": ".fleet/flox/k8s"
           }
         ]
       }
@@ -3370,8 +3602,12 @@
         "manifest": {
           "version": 1,
           "install": {
+            "actionlint": {
+              "pkg-path": "actionlint"
+            },
             "age": {
-              "pkg-path": "age"
+              "pkg-path": "age",
+              "pkg-group": "keyhole"
             },
             "gh": {
               "pkg-path": "gh",
@@ -3390,19 +3626,32 @@
               "pkg-group": "git"
             },
             "gnupg": {
-              "pkg-path": "gnupg"
+              "pkg-path": "gnupg",
+              "pkg-group": "keyhole"
             },
             "keychain": {
-              "pkg-path": "keychain"
+              "pkg-path": "keychain",
+              "pkg-group": "keyhole"
+            },
+            "openssh": {
+              "pkg-path": "openssh",
+              "pkg-group": "keyhole"
+            },
+            "openssl": {
+              "pkg-path": "openssl",
+              "pkg-group": "keyhole"
             },
             "pass": {
-              "pkg-path": "pass"
+              "pkg-path": "pass",
+              "pkg-group": "keyhole"
             },
             "sops": {
-              "pkg-path": "sops"
+              "pkg-path": "sops",
+              "pkg-group": "keyhole"
             },
             "ssh-to-age": {
-              "pkg-path": "ssh-to-age"
+              "pkg-path": "ssh-to-age",
+              "pkg-group": "keyhole"
             }
           },
           "hook": {
@@ -3415,7 +3664,7 @@
         },
         "name": "git",
         "descriptor": {
-          "dir": "../fleet/flox/git"
+          "dir": ".fleet/flox/git"
         }
       },
       {
@@ -3435,7 +3684,7 @@
         },
         "name": "gnumake",
         "descriptor": {
-          "dir": "../fleet/flox/gnumake"
+          "dir": ".fleet/flox/gnumake"
         }
       },
       {
@@ -3443,7 +3692,8 @@
           "version": 1,
           "install": {
             "age": {
-              "pkg-path": "age"
+              "pkg-path": "age",
+              "pkg-group": "keyhole"
             },
             "dhcp": {
               "pkg-path": "dhcp",
@@ -3460,12 +3710,17 @@
               ]
             },
             "gnupg": {
-              "pkg-path": "gnupg"
+              "pkg-path": "gnupg",
+              "pkg-group": "keyhole"
             },
             "ipcalc": {
               "pkg-path": "ipcalc",
               "pkg-group": "net-tools",
               "version": "^1.0.3"
+            },
+            "iperf3": {
+              "pkg-path": "iperf3",
+              "pkg-group": "net-tools"
             },
             "iptstate": {
               "pkg-path": "iptstate",
@@ -3475,7 +3730,8 @@
               ]
             },
             "keychain": {
-              "pkg-path": "keychain"
+              "pkg-path": "keychain",
+              "pkg-group": "keyhole"
             },
             "netplan": {
               "pkg-path": "netplan",
@@ -3489,19 +3745,28 @@
               "pkg-group": "net-tools"
             },
             "openssh": {
-              "pkg-path": "openssh"
+              "pkg-path": "openssh",
+              "pkg-group": "keyhole"
             },
             "openssl": {
-              "pkg-path": "openssl"
+              "pkg-path": "openssl",
+              "pkg-group": "keyhole"
             },
             "pass": {
-              "pkg-path": "pass"
+              "pkg-path": "pass",
+              "pkg-group": "keyhole"
             },
             "sops": {
-              "pkg-path": "sops"
+              "pkg-path": "sops",
+              "pkg-group": "keyhole"
+            },
+            "speedtest": {
+              "pkg-path": "speedtest-go",
+              "pkg-group": "net-tools"
             },
             "ssh-to-age": {
-              "pkg-path": "ssh-to-age"
+              "pkg-path": "ssh-to-age",
+              "pkg-group": "keyhole"
             },
             "tshark": {
               "pkg-path": "tshark",
@@ -3522,7 +3787,7 @@
         },
         "name": "net-tools",
         "descriptor": {
-          "dir": "../fleet/flox/net-tools"
+          "dir": ".fleet/flox/net-tools"
         }
       },
       {
@@ -3542,7 +3807,7 @@
         },
         "name": "docker",
         "descriptor": {
-          "dir": "../fleet/flox/docker"
+          "dir": ".fleet/flox/docker"
         }
       },
       {
@@ -3562,7 +3827,7 @@
             },
             "dasel": {
               "pkg-path": "dasel",
-              "pkg-group": "yaml-tools",
+              "pkg-group": "manifest-tools-yaml-tools",
               "version": "^2.8.1"
             },
             "etcdctl": {
@@ -3630,13 +3895,16 @@
               "pkg-path": "kubernetes-helm",
               "pkg-group": "k8s-kubectl-tools"
             },
+            "podman-wrapper": {
+              "flake": "git+https://github.com/nxmatic/fleet?dir=flox/k8s/.flox/flakes/podman-wrapper"
+            },
             "tubekit": {
               "pkg-path": "tubekit",
               "pkg-group": "k8s-kubectl-tools"
             },
             "yq-go": {
               "pkg-path": "yq-go",
-              "pkg-group": "k8s-yaml-tools"
+              "pkg-group": "manifest-tools-yaml-tools"
             }
           },
           "options": {
@@ -3648,7 +3916,7 @@
         },
         "name": "k8s",
         "descriptor": {
-          "dir": "../fleet/flox/k8s"
+          "dir": ".fleet/flox/k8s"
         }
       }
     ],
@@ -3676,6 +3944,24 @@
           "Overriding": [
             "install",
             "keychain"
+          ]
+        },
+        "higher_priority_name": "net-tools"
+      },
+      {
+        "warning": {
+          "Overriding": [
+            "install",
+            "openssh"
+          ]
+        },
+        "higher_priority_name": "net-tools"
+      },
+      {
+        "warning": {
+          "Overriding": [
+            "install",
+            "openssl"
           ]
         },
         "higher_priority_name": "net-tools"

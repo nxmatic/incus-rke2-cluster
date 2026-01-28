@@ -28,10 +28,6 @@ make.d/incus/vars.mk := make.d/incus/vars.mk
 .incus.secrets.template = $(top-dir)/.secrets
 .incus.secrets.file = $(.incus.private.dir)/secrets.yaml
 
-# Cluster-level manifests directory (resolved via kpt render output) (@codebase)
-CLUSTER_SERVER_MANIFESTS_DIR ?= $(kpt.manifests.dir)
-.incus.ghcr.secret.manifest = $(CLUSTER_SERVER_MANIFESTS_DIR)/runtime/ghcr-pull-secret/90-ghcr-pull-secret.yaml
-
 # Incus image / config artifacts  
 .incus.preseed.filename = incus-preseed.yaml
 .incus.preseed.file = $(.incus.instance.dir)/preseed.yaml
