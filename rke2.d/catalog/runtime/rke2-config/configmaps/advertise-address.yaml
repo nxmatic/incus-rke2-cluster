@@ -6,4 +6,4 @@ metadata: # kpt-merge: /rke2-advertise-address
     description.kpt.dev: Advertise address fragment
     config.kubernetes.io/local-config: "true"
 data:
-  advertise-address: ${node-host-inetaddr} # kpt-set: ${node-host-inetaddr}
+  advertise-address: ${cluster-node-host-inetaddr} # kpt-set: ${cluster-node-host-inetaddr}

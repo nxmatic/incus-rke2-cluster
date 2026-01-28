@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: # kpt-merge: ${headscale-namespace}/headscale-gateway-script
+  name: headscale-gateway-script
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
+  labels:
+    app: headscale-gateway
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|${headscale-namespace}|headscale-gateway-script'
+data:
+  gateway.sh: |-
+    #!/usr/bin/env -S bash -exuo pipefail
+
+    : "[i] Enabling IP forwarding..."
+    sysctl -w net.ipv4.ip_forward=1
+    sysctl -w net.ipv6.conf.all.forwarding=1 || true
+
+    : "[i] Starting tailscaled router..."
+    tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock &
+    TAILSCALED_PID=$$!
+
+    until [ -S /var/run/tailscale/tailscaled.sock ]; do sleep 1; done
+
+    tailscale up \
+      --login-server=$HEADSCALE_URL \
+      --authkey=file:/var/secrets/authkey \
+      --hostname=${DARWIN_HOST}-gateway \
+      --advertise-routes=${VIP_NETWORK_CIDR} \
+      --accept-dns=false \
+      --ssh \
+      --reset
+
+    tailscale set --advertise-routes=${VIP_NETWORK_CIDR}
+
+    wait $TAILSCALED_PID

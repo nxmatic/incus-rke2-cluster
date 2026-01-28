@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata: # kpt-merge: /kdns
   name: kdns
+  namespace: ${target-namespace} # kpt-set: ${target-namespace}
   annotations:
     internal.kpt.dev/upstream-identifier: 'apps|Deployment|default|kdns'
 spec:
@@ -73,3 +74,7 @@ spec:
             readOnlyRootFilesystem: false
             runAsNonRoot: false
             runAsUser: 0
+          volumeMounts: []
+      volumes:
+        - configMap: {}
+          name: kdns-dlv-script

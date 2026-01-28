@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: headscale
-  namespace: headscale
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
   labels:
     app: headscale
 spec:
@@ -14,13 +14,35 @@ spec:
     metadata:
       labels:
         app: headscale
+      annotations:
+        flox.dev/environment: "${headscale-flox-env}" # kpt-set: ${headscale-flox-env}
     spec:
+      runtimeClassName: flox
       automountServiceAccountToken: false
       nodeSelector:
-        "cluster-name.cluster/node-role": master # kpt-set: "${cluster-name}.cluster/node-role": master
+        node-role.kubernetes.io/control-plane: "true"
+      initContainers:
+      - name: config-init
+        image: flox/empty:1.0.0
+        command:
+        - bash
+        - /scripts/config-init.sh
+        volumeMounts:
+        - name: config-init-script
+          mountPath: /scripts
+        - name: config-source
+          mountPath: /config-source
+          readOnly: true
+        - name: config
+          mountPath: /config
+        - name: extra-records-source
+          mountPath: /extra-records-source
+          readOnly: true
+        - name: data
+          mountPath: /var/lib/headscale
       containers:
       - name: headscale
-        image: headscale/headscale:0.27.0
+        image: flox/empty:1.0.0
         ports:
         - name: http
           containerPort: 8080
@@ -42,6 +64,11 @@ spec:
           mountPath: /var/lib/headscale
         - name: run
           mountPath: /var/run/headscale
+        env:
+        - name: FLOX_NO_TELEMETRY
+          value: "1"
+        - name: FLOX_NONINTERACTIVE
+          value: "1"
         command:
         - headscale
         - serve
@@ -61,13 +88,24 @@ spec:
           requests:
             cpu: 100m
             memory: 128Mi
+            ephemeral-storage: 256Mi
           limits:
             cpu: 500m
             memory: 512Mi
+            ephemeral-storage: 512Mi
       volumes:
-      - name: config
+      - name: config-source
         configMap:
           name: headscale-config
+      - name: config
+        emptyDir: {}
+      - name: config-init-script
+        configMap:
+          name: headscale-config-init-script
+          defaultMode: 0755
+      - name: extra-records-source
+        configMap:
+          name: headscale-extra-records
       - name: acl
         configMap:
           name: headscale-acl
@@ -83,12 +121,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: headscale
-  namespace: headscale
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
   labels:
     app: headscale
-    io.cilium/lb-inetaddram: home-lan
+    io.cilium/lb-ipam-pool: lan
   annotations:
-    io.cilium/lb-inetaddram-inetaddrs: ${lan-headscale-inetaddr} # kpt-set: ${lan-headscale-inetaddr}
+    io.cilium/lb-ipam-ips: ${cluster-lan-headscale-inetaddr} # kpt-set: ${cluster-lan-headscale-inetaddr}
     tailscale.com/expose: "true"
     tailscale.com/hostname: ${cluster-name}-headscale # kpt-set: ${cluster-name}-headscale
 spec:

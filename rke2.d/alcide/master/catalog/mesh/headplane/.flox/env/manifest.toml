@@ -1,0 +1,38 @@
+## Flox Environment Manifest -----------------------------------------
+##
+##   _Everything_ you need to know about the _manifest_ is here:
+##
+##               https://flox.dev/docs/concepts/manifest
+##
+## -------------------------------------------------------------------
+# Flox manifest version managed by Flox CLI
+version = 1
+
+
+## Install Packages --------------------------------------------------
+##  $ flox install gum  <- puts a package in [install] section below
+##  $ flox search gum   <- search for a package
+##  $ flox show gum     <- show all versions of a package
+## -------------------------------------------------------------------
+[install]
+
+  [install.kubectl]
+  pkg-path = "kubectl"
+
+  [install.bash]
+  pkg-path = "bash"
+
+  [install.coreutils]
+  pkg-path = "coreutils"
+
+  [install.headplane]
+  flake = "git+https://github.com/nxmatic/rke2lab?dir=rke2.d/catalog/mesh/headplane"
+
+
+## Other Environment Options -----------------------------------------
+[options]
+# Systems that environment is compatible with
+systems = [
+  "aarch64-linux",
+  "aarch64-darwin",
+]

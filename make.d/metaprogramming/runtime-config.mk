@@ -25,7 +25,7 @@ define RUNTIME_CONFIG_TEMPLATE
 # Current runtime context
 CURRENT_CLUSTER := $(CLUSTER_NAME)
 CURRENT_NODE := $(NODE_NAME)  
-CURRENT_NODE_TYPE := $(NODE_TYPE)
+CURRENT_NODE_KIND := $(NODE_KIND)
 
 # Generated network variables
 ## Removed recursive $(MAKE) calls to non-existent show@rke2-node-host-inetaddr/show@rke2-node-vip-inetaddr to avoid infinite recursion.
@@ -70,7 +70,7 @@ check-runtime-state: ## Check current runtime state of cluster and nodes
 	echo "Current Runtime State:"
 	echo "====================="
 	echo "Cluster: $(CLUSTER_NAME)"
-	echo "Node: $(NODE_NAME) ($(NODE_TYPE)/$(NODE_ROLE))"
+	echo "Node: $(NODE_NAME) ($(NODE_KIND)/$(NODE_NAME))"
 	echo "Instance exists: $(shell incus info $(NODE_NAME) --project=$(.incus.project.name) >/dev/null 2>&1 && echo "yes" || echo "no")"
 	echo "Instance running: $(shell incus info $(NODE_NAME) --project=$(.incus.project.name) 2>/dev/null | grep -q "Status: Running" && echo "yes" || echo "no")"
 	echo "Network allocated: $(shell test -f $(CLUSTER_ENV_FILE) && echo "yes" || echo "no")"

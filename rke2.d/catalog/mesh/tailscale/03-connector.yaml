@@ -12,9 +12,9 @@ spec:
   subnetRouter:
     advertiseRoutes:
       # Control-plane virtual IP (host route)
-      - 10.80.15.1/32 # kpt-set: ${vip-address}/32
+      - 10.80.15.1/32 # kpt-set: ${cluster-node-vip-inetaddr}/32
       # LoadBalancer allocation pool (so in-cluster LB IPs are reachable directly)
-      - 10.80.8.64/26 # kpt-set: ${lb-pool-cidr}
+      - 10.80.8.64/26 # kpt-set: ${cluster-lb-cidr}
       # NOTE: Additional service-specific Tailscale exposure can still be done
       # via Service annotations (tailscale.com/expose, hostname, tags, etc.).
   # NOTE: Additional service-specific Tailscale exposure can still be done

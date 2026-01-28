@@ -9,40 +9,14 @@ spec:
         debug.kdns.lab42/enabled: "false"
     spec:
       shareProcessNamespace: true
+      automountServiceAccountToken: false
       containers:
         - name: kdns-dlv
           image: alpine:3.19
           imagePullPolicy: IfNotPresent
           command:
             - /bin/sh
-            - -c
-          args:
-            - |
-              set -euo pipefail
-              enabled="${KDNS_DEBUG_ENABLED:-}"
-              if [ "$enabled" != "true" ]; then
-                echo "[kdns-dlv] debug disabled (set annotation debug.kdns.lab42/enabled=true to enable); sleeping"
-                sleep 3650d
-              fi
-              apk add --no-cache wget ca-certificates >/dev/null
-              arch=$(uname -m)
-              case "$arch" in
-                x86_64) arch=amd64 ;;
-                aarch64) arch=arm64 ;;
-              esac
-              dlv_version="1.22.1"
-              url="https://github.com/go-delve/delve/releases/download/v${dlv_version}/dlv_${dlv_version}_linux_${arch}.tar.gz"
-              echo "[kdns-dlv] fetching dlv ${dlv_version} from ${url}"
-              wget -qO /tmp/dlv.tgz "$url"
-              tar -xzf /tmp/dlv.tgz -C /tmp
-              chmod +x /tmp/dlv
-              target_pid=$(pidof kdns || true)
-              if [ -z "$target_pid" ]; then
-                echo "[kdns-dlv] kdns process not found; sleeping"
-                sleep 1d
-              fi
-              echo "[kdns-dlv] starting delve headless on :${KDNS_DEBUG_PORT} attaching to pid ${target_pid}"
-              exec /tmp/dlv attach "$target_pid" --headless --listen=":${KDNS_DEBUG_PORT}" --api-version=2 --accept-multiclient --log --continue
+            - /scripts/kdns-dlv.sh
           env:
             - name: KDNS_DEBUG_ENABLED
               valueFrom:
@@ -58,9 +32,15 @@ spec:
             limits:
               cpu: 50m
               memory: 128Mi
+              ephemeral-storage: 128Mi
             requests:
               cpu: 10m
               memory: 64Mi
+              ephemeral-storage: 64Mi
+          volumeMounts:
+            - name: kdns-dlv-script
+              mountPath: /scripts
+              readOnly: true
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -71,3 +51,8 @@ spec:
             readOnlyRootFilesystem: false
             runAsNonRoot: false
             runAsUser: 0
+      volumes:
+        - name: kdns-dlv-script
+          configMap:
+            name: kdns-dlv-script
+            defaultMode: 0755

@@ -26,8 +26,8 @@ spec:
     mutators:
       - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
         configMap:
-          zfs-pool-name: ${zfs-pool-name} # kpt-set: ${zfs-pool-name}
-          kubelet-dir: ${kubelet-dir} # kpt-set: ${kubelet-dir}
+          zfs-pool-name: ${cluster-zfs-pool-name} # kpt-set: ${cluster-zfs-pool-name}
+          kubelet-dir: ${cluster-kubelet-dir} # kpt-set: ${cluster-kubelet-dir}
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
@@ -58,7 +58,7 @@ spec:
       - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
         configMap:
           kube-vip-version: ${kube-vip-version} # kpt-set: ${kube-vip-version}
-          cluster-vip-address: ${node-vip-inetaddr} # kpt-set: ${node-vip-inetaddr}
+          cluster-node-vip-inetaddr: ${cluster-node-vip-inetaddr} # kpt-set: ${cluster-node-vip-inetaddr}
           cluster-vip-interface: rke2-vip0
           kube-vip-namespace: kube-vip
 ---
@@ -92,13 +92,13 @@ spec:
         configMap:
           cluster-name: ${cluster-name}-cluster # kpt-set: ${cluster-name}-cluster
           cluster-id: ${cluster-id} # kpt-set: ${cluster-id}
-          lb-pool-cidr: ${cluster-lb-pool-cidr} # kpt-set: ${cluster-lb-pool-cidr}
-          vip-pool-cidr: ${cluster-vip-network-cidr} # kpt-set: ${cluster-vip-network-cidr}
+          cluster-lb-cidr: ${cluster-lb-cidr} # kpt-set: ${cluster-lb-cidr}
+          cluster-vip-cidr: ${cluster-vip-cidr} # kpt-set: ${cluster-vip-cidr}
           l2-interface-1: vmnet0
           l2-interface-2: lan0
           bgp-local-asn: "65001"
           bgp-peer-asn: "65000"
-          node-gateway-inetaddr: ${node-gateway-inetaddr} # kpt-set: ${node-gateway-inetaddr}
+          cluster-node-gateway-inetaddr: ${cluster-node-gateway-inetaddr} # kpt-set: ${cluster-node-gateway-inetaddr}
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
@@ -130,8 +130,8 @@ spec:
         configMap:
           tailscale-version: 1.82.0
           cluster-name: ${cluster-name}-cluster # kpt-set: ${cluster-name}-cluster
-          vip-address: ${node-vip-inetaddr} # kpt-set: ${node-vip-inetaddr}
-          lb-pool-cidr: ${cluster-lb-pool-cidr} # kpt-set: ${cluster-lb-pool-cidr}
+          cluster-node-vip-inetaddr: ${cluster-node-vip-inetaddr} # kpt-set: ${cluster-node-vip-inetaddr}
+          cluster-lb-cidr: ${cluster-lb-cidr} # kpt-set: ${cluster-lb-cidr}
           tailscale-namespace: tailscale-system
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
@@ -164,9 +164,9 @@ spec:
         configMap:
           cluster-name: ${cluster-name} # kpt-set: ${cluster-name}
           darwin-host: ${cluster-name} # kpt-set: ${cluster-name}
-          lan-lb-pool: ${lan-lb-pool} # kpt-set: ${lan-lb-pool}
-          lan-headscale-inetaddr: ${lan-headscale-inetaddr} # kpt-set: ${lan-headscale-inetaddr}
-          vip-network-cidr: ${cluster-vip-network-cidr} # kpt-set: ${cluster-vip-network-cidr}
+          cluster-lan-lb-cidr: ${cluster-lan-lb-cidr} # kpt-set: ${cluster-lan-lb-cidr}
+          cluster-lan-headscale-inetaddr: ${cluster-lan-headscale-inetaddr} # kpt-set: ${cluster-lan-headscale-inetaddr}
+          cluster-vip-cidr: ${cluster-vip-cidr} # kpt-set: ${cluster-vip-cidr}
 ---
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant

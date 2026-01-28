@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: porch-git-script
+  namespace: porch-system
+data:
+  install-git.sh: |
+    #!/usr/bin/env -S bash -exuo pipefail
+    apk add --no-cache git ca-certificates openssh-client
+    cp -r /usr/bin/git* /git-bin/
+    cp /usr/bin/ssh* /git-bin/ || true

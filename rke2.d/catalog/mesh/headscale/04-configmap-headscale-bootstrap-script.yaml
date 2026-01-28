@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: headscale-bootstrap-script
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
+  labels:
+    app: headscale
+data:
+  bootstrap.sh: |
+    #!/usr/bin/env -S bash -exuo pipefail
+    
+    : "Waiting for headscale deployment to be available..."
+    kubectl wait --for=condition=available deployment/headscale \
+      -n "$HEADSCALE_NAMESPACE" --timeout=300s
+
+    : "Waiting for headscale pod to be Ready..."
+    kubectl wait --for=condition=Ready pod -l app=headscale \
+      -n "$HEADSCALE_NAMESPACE" --timeout=300s
+
+    # Use kubectl exec to run headscale CLI inside the pod
+    # The CLI has direct access to headscale without API key requirements
+
+    : "Creating admin user..."
+    kubectl exec -n "$HEADSCALE_NAMESPACE" deployment/headscale -- \
+      headscale users create admin 2>/dev/null || echo "User admin already exists"
+
+    : "Getting admin user ID..."
+    USER_ID=$( kubectl exec -n "$HEADSCALE_NAMESPACE" deployment/headscale -c headscale -- \
+                 headscale users list -o yaml |
+                 yq -r '.[] | select( .name == "admin" ) | .id' - )
+    if [ -z "$USER_ID" ]; then
+      echo "ERROR: Failed to get admin user ID"
+      exit 1
+    fi
+
+    : "Creating reusable preauth key... (10 years expiration)"
+    PREAUTH_KEY=$( kubectl exec -n "$HEADSCALE_NAMESPACE" deployment/headscale -c headscale -- \
+      headscale preauthkeys --user "$USER_ID" \
+        create --reusable --expiration 87600h -o yaml |
+      yq -r '.key' - )
+    if [ -z "$PREAUTH_KEY" ]; then
+      echo "ERROR: Failed to extract preauth key"
+      exit 1
+    fi
+
+    : "Storing preauth key in Secret..."
+    kubectl create secret generic headscale-client-auth \
+      --from-literal=authkey="$PREAUTH_KEY" \
+      --dry-run=client -o yaml | kubectl apply -f -

@@ -24,9 +24,9 @@ make.d/incus/vars.mk := make.d/incus/vars.mk
 .incus.scripts.dir = $(make-dir)/incus/scripts
 .incus.kubeconfig.dir = $(var-dir)/kube
 .incus.shared.dir = $(local-dir)/share
-.incus.private.dir = $(local-dir)/var/private
-.incus.secrets.template = $(top-dir)/.secrets
-.incus.secrets.file = $(.incus.private.dir)/secrets.yaml
+.incus.secrets.template =  $(top-dir)/.secrets
+.incus.private.dir = $(var-dir)/private/incus
+.incus.secrets.file = $(.incus.private.dir)/secrets
 
 # Incus image / config artifacts  
 .incus.preseed.filename = incus-preseed.yaml

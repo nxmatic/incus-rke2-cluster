@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: # kpt-merge: ${headplane-namespace}/headplane-agent-sync-script
+  name: headplane-agent-sync-script
+  namespace: ${headplane-namespace} # kpt-set: ${headplane-namespace}
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|${headplane-namespace}|headplane-agent-sync-script'
+data:
+  agent-sync.sh: |-
+    #!/usr/bin/env -S bash -exuo pipefail
+    apk add --no-cache kubectl
+    AUTHKEY=$(kubectl get secret headscale-client-auth -n ${headscale-namespace} -o jsonpath='{.data.authkey}' | base64 -d)
+    kubectl create secret generic headplane-agent-auth \
+      -n ${headplane-namespace} \
+      --from-literal=preauthkey="${AUTHKEY}" \
+      --dry-run=client -o yaml | kubectl apply -f -

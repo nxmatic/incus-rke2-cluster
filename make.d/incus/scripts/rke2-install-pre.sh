@@ -109,7 +109,9 @@ nocloud:env:activate() {
   rke2lab::secret:value TSKEY_CLIENT_ID '.tailscale.client.id'
   rke2lab::secret:value TSKEY_CLIENT_TOKEN '.tailscale.client.token'
   rke2lab::secret:value TSKEY_API_ID '.tailscale.api.id'
-  rke2lab::secret:value TSKEY_API_TOKEN '.tailscale.api.token'	  
+  rke2lab::secret:value TSKEY_API_TOKEN '.tailscale.api.token'	
+  rke2lab::secret:value TSKEY_OAUTH_ID '.tailscale.oauth.id' 
+  rke2lab::secret:value TSKEY_OAUTH_TOKEN '.tailscale.oauth.token' 
 
   : "Determine default gateway IP for cluster networking"
   CLUSTER_GATEWAY=$( ip route show default 2>/dev/null | 
@@ -213,7 +215,7 @@ dasel -r toml -w yaml \
   yq eval '.install += {"ceph-client": {"pkg-path": "ceph-client", "pkg-group": "ceph-tools"}}' - |
   yq eval '.install += {"cilium-cli": {"pkg-path": "cilium-cli", "pkg-group": "cilium-tools"}}' - |	
   yq eval '.install += {"helmfile": {"pkg-path": "helmfile", "pkg-group": "helm-tools"}}' - |
-  yq eval '.install += {"kubernetes-helm": {"pkg-path": "helm", "pkg-group": "helm-tools"}}' - |	
+  yq eval '.install += {"kubernetes-helm": {"pkg-path": "kubernetes-helm", "pkg-group": "helm-tools"}}' - |	
   yq eval '.install += {"zfs": {"pkg-path": "zfs", "pkg-group": "linux"}}' - |
   yq eval '.install += {"nerdctl": {"pkg-path": "nerdctl", "version": "1.7.5", "pkg-group": "containerd-tools"}}' - |
   yq eval '.install += {"tektoncd-cli": {"pkg-path": "tektoncd-cli", "pkg-group": "tekton-tools"}}' - |	

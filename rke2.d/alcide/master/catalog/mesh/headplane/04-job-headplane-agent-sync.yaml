@@ -1,0 +1,41 @@
+apiVersion: batch/v1
+kind: Job
+metadata: # kpt-merge: ${headplane-namespace}/headplane-agent-sync
+  name: headplane-agent-sync
+  namespace: ${headplane-namespace} # kpt-set: ${headplane-namespace}
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'batch|Job|${headplane-namespace}|headplane-agent-sync'
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      serviceAccountName: headplane
+      restartPolicy: OnFailure
+      containers:
+        - name: sync
+          image: alpine:3.20
+          command:
+            - /bin/sh
+            - /scripts/agent-sync.sh
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+              ephemeral-storage: 128Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+              ephemeral-storage: 256Mi
+          volumeMounts:
+            - mountPath: /scripts
+              name: agent-sync-script
+              readOnly: true
+      runtimeClassName: flox
+      volumes:
+        - configMap:
+            defaultMode: 0755
+            name: headplane-agent-sync-script
+          name: agent-sync-script
+    metadata:
+      annotations:
+        flox.dev/environment: "${headplane-flox-env}" # kpt-set: ${headplane-flox-env}

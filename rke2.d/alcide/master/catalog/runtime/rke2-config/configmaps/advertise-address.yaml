@@ -7,4 +7,4 @@ metadata: # kpt-merge: /rke2-advertise-address
     config.kubernetes.io/local-config: "true"
     internal.kpt.dev/upstream-identifier: '|ConfigMap|default|rke2-advertise-address'
 data:
-  advertise-address: ${node-host-inetaddr} # kpt-set: ${node-host-inetaddr}
+  advertise-address: ${cluster-node-host-inetaddr} # kpt-set: ${cluster-node-host-inetaddr}

@@ -6,4 +6,4 @@ metadata: # kpt-merge: /rke2-node-inetaddr
     description.kpt.dev: Node IP fragment
     config.kubernetes.io/local-config: "true"
 data:
-  node-inetaddr: ${node-host-inetaddr} # kpt-set: ${node-host-inetaddr}
+  node-inetaddr: ${cluster-node-host-inetaddr} # kpt-set: ${cluster-node-host-inetaddr}

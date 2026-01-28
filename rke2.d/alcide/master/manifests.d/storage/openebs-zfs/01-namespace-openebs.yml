@@ -1,9 +1,0 @@
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  annotations:
-    internal.kpt.dev/upstream-identifier: '|Namespace|default|openebs'
-    kpt.dev/package-layer: storage
-    kpt.dev/package-name: openebs-zfs
-  name: openebs

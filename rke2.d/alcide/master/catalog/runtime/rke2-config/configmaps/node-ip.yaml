@@ -7,4 +7,4 @@ metadata: # kpt-merge: /rke2-node-inetaddr
     config.kubernetes.io/local-config: "true"
     internal.kpt.dev/upstream-identifier: '|ConfigMap|default|rke2-node-inetaddr'
 data:
-  node-inetaddr: ${node-host-inetaddr} # kpt-set: ${node-host-inetaddr}
+  node-inetaddr: ${cluster-node-host-inetaddr} # kpt-set: ${cluster-node-host-inetaddr}

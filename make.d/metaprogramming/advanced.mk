@@ -20,7 +20,7 @@ bioskop_CPU_LIMIT := 2
 alcide_MEMORY_LIMIT := 8GiB  
 alcide_CPU_LIMIT := 4
 
-# Per-node-type specific configuration
+# Per-node-kind specific configuration
 server_MIN_MEMORY := 2GiB
 server_MIN_CPU := 2
 agent_MIN_MEMORY := 1GiB
@@ -37,10 +37,10 @@ config-instance@incus:
 	echo "  Special flags: $($(NODE_NAME)_SPECIAL_FLAGS)"
 	echo "  Memory limit: $($(CLUSTER_NAME)_MEMORY_LIMIT)"
 	echo "  CPU limit: $($(CLUSTER_NAME)_CPU_LIMIT)"
-	echo "  Min memory: $($(NODE_TYPE)_MIN_MEMORY)"
-	echo "  Min CPU: $($(NODE_TYPE)_MIN_CPU)"
-	incus config set $(NODE_NAME) --project=$(.incus.project.name) limits.memory=$(or $($(CLUSTER_NAME)_MEMORY_LIMIT),$($(NODE_TYPE)_MIN_MEMORY))
-	incus config set $(NODE_NAME) --project=$(.incus.project.name) limits.cpu=$(or $($(CLUSTER_NAME)_CPU_LIMIT),$($(NODE_TYPE)_MIN_CPU))
+	echo "  Min memory: $($(NODE_KIND)_MIN_MEMORY)"
+	echo "  Min CPU: $($(NODE_KIND)_MIN_CPU)"
+	incus config set $(NODE_NAME) --project=$(.incus.project.name) limits.memory=$(or $($(CLUSTER_NAME)_MEMORY_LIMIT),$($(NODE_KIND)_MIN_MEMORY))
+	incus config set $(NODE_NAME) --project=$(.incus.project.name) limits.cpu=$(or $($(CLUSTER_NAME)_CPU_LIMIT),$($(NODE_KIND)_MIN_CPU))
 
 #-----------------------------
 # Context-Aware Recipe Generation
@@ -68,26 +68,26 @@ debug-variables: ## Show constructed variable values for debugging
 	echo "Variable Construction Debug:"
 	echo "=========================="
 	echo "Node name: $(NODE_NAME)"
-	echo "Node type: $(NODE_TYPE)"
+	echo "Node type: $(NODE_KIND)"
 	echo "Cluster name: $(CLUSTER_NAME)"
 	echo ""
 	echo "Constructed Variables:"
 	echo "$(NODE_NAME)_SPECIAL_FLAGS = $($(NODE_NAME)_SPECIAL_FLAGS)"
 	echo "$(CLUSTER_NAME)_MEMORY_LIMIT = $($(CLUSTER_NAME)_MEMORY_LIMIT)"
-	echo "$(NODE_TYPE)_MIN_MEMORY = $($(NODE_TYPE)_MIN_MEMORY)"
+	echo "$(NODE_KIND)_MIN_MEMORY = $($(NODE_KIND)_MIN_MEMORY)"
 
 # Target-specific variable demonstration
 debug-target-vars: ## Show target-specific variables for current node
 	echo "Target-specific variables for current node:"
-	$(foreach var,SPECIAL_FLAGS MEMORY_LIMIT CPU_LIMIT MIN_MEMORY MIN_CPU, echo "  $(var): $($(NODE_NAME)_$(var)) $($(CLUSTER_NAME)_$(var)) $($(NODE_TYPE)_$(var))";)
+	$(foreach var,SPECIAL_FLAGS MEMORY_LIMIT CPU_LIMIT MIN_MEMORY MIN_CPU, echo "  $(var): $($(NODE_NAME)_$(var)) $($(CLUSTER_NAME)_$(var)) $($(NODE_KIND)_$(var))";)
 
 show-constructed-values: ## Show current constructed variable values
 	echo "Current Constructed Values:"
 	echo "=========================="
 	echo "Node flags: $($(NODE_NAME)_SPECIAL_FLAGS)"
 	echo "Cluster memory: $($(CLUSTER_NAME)_MEMORY_LIMIT)"
-	echo "Type memory: $($(NODE_TYPE)_MIN_MEMORY)"
-	echo "Effective memory: $(or $($(CLUSTER_NAME)_MEMORY_LIMIT),$($(NODE_TYPE)_MIN_MEMORY))"
+	echo "Type memory: $($(NODE_KIND)_MIN_MEMORY)"
+	echo "Effective memory: $(or $($(CLUSTER_NAME)_MEMORY_LIMIT),$($(NODE_KIND)_MIN_MEMORY))"
 
 #-----------------------------
 # Advanced Foreach Usage
@@ -100,7 +100,7 @@ show-constructed-values: ## Show current constructed variable values
 
 define STATUS_CHECK_TEMPLATE
 echo "=== Status for $(1) ==="
-echo "Node type: $$($(1)_NODE_TYPE)"
+echo "Node type: $$($(1)_NODE_KIND)"
 echo "Special flags: $$($(1)_SPECIAL_FLAGS)" 
 echo "Instance status: $$(incus info $(1) --project=$(.incus.project.name) 2>/dev/null | grep Status || echo "Not found")"
 echo ""

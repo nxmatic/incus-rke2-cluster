@@ -1,2 +1,4 @@
 # Exclude Kptfiles from render output; function configs have local-config annotation
 Kptfile
+.flox
+flake.nix

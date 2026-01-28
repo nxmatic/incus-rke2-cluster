@@ -1,0 +1,48 @@
+## Flox Environment Manifest -----------------------------------------
+##
+##   _Everything_ you need to know about the _manifest_ is here:
+##
+##               https://flox.dev/docs/concepts/manifest
+##
+## -------------------------------------------------------------------
+# Flox manifest version managed by Flox CLI
+version = 1
+
+
+## Install Packages --------------------------------------------------
+##  $ flox install gum  <- puts a package in [install] section below
+##  $ flox search gum   <- search for a package
+##  $ flox show gum     <- show all versions of a package
+## -------------------------------------------------------------------
+[install]
+yq-go.pkg-path = "yq-go"
+
+	[install.headscale]
+	pkg-path = "headscale"
+
+	[install.tailscale]
+	pkg-path = "tailscale"
+
+	[install.kubectl]
+	pkg-path = "kubectl"
+
+	[install.curl]
+	pkg-path = "curl"
+
+	[install.jq]
+	pkg-path = "jq"
+
+	[install.bash]
+	pkg-path = "bash"
+
+	[install.coreutils]
+	pkg-path = "coreutils"
+
+
+## Other Environment Options -----------------------------------------
+[options]
+# Systems that environment is compatible with
+systems = [
+	"aarch64-linux",
+	"aarch64-darwin",
+]

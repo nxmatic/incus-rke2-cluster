@@ -1,0 +1,571 @@
+{
+  "lockfile-version": 1,
+  "manifest": {
+    "version": 1,
+    "install": {
+      "bash": {
+        "pkg-path": "bash"
+      },
+      "coreutils": {
+        "pkg-path": "coreutils"
+      },
+      "curl": {
+        "pkg-path": "curl"
+      },
+      "headscale": {
+        "pkg-path": "headscale"
+      },
+      "jq": {
+        "pkg-path": "jq"
+      },
+      "kubectl": {
+        "pkg-path": "kubectl"
+      },
+      "tailscale": {
+        "pkg-path": "tailscale"
+      },
+      "yq-go": {
+        "pkg-path": "yq-go"
+      }
+    },
+    "options": {
+      "systems": [
+        "aarch64-linux",
+        "aarch64-darwin"
+      ]
+    }
+  },
+  "packages": [
+    {
+      "attr_path": "bash",
+      "broken": false,
+      "derivation": "/nix/store/ks9q95cq6503d0hwnv7m1880xhbmw9ic-bash-interactive-5.3p9.drv",
+      "description": "GNU Bourne-Again Shell, the de facto standard shell on Linux (for interactive use)",
+      "install_id": "bash",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "name": "bash-interactive-5.3p9",
+      "pname": "bash",
+      "rev": "bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "rev_count": 935279,
+      "rev_date": "2026-01-26T21:10:04Z",
+      "scrape_date": "2026-01-29T04:35:22.760971Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "5.3p9",
+      "outputs_to_install": [
+        "man",
+        "man",
+        "out",
+        "out"
+      ],
+      "outputs": {
+        "dev": "/nix/store/vhhwpi6h16bxbrvx1sdg5ag973dln1r9-bash-interactive-5.3p9-dev",
+        "doc": "/nix/store/dahmvcafcvsp553w8lhkqy2ppv7gd6m5-bash-interactive-5.3p9-doc",
+        "info": "/nix/store/lqd7rdyads0i42dhxj8zwzj0d01hbgqf-bash-interactive-5.3p9-info",
+        "man": "/nix/store/k23hpm86ymd7l92c7cg0a2wsjadr8mx6-bash-interactive-5.3p9-man",
+        "out": "/nix/store/ngqf98amj0hv0jhzhz540p03wxjj0chj-bash-interactive-5.3p9"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "bash",
+      "broken": false,
+      "derivation": "/nix/store/nvmynjjgaln144r8vy2y0m5km2fj8m3i-bash-interactive-5.3p9.drv",
+      "description": "GNU Bourne-Again Shell, the de facto standard shell on Linux (for interactive use)",
+      "install_id": "bash",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "name": "bash-interactive-5.3p9",
+      "pname": "bash",
+      "rev": "bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "rev_count": 935279,
+      "rev_date": "2026-01-26T21:10:04Z",
+      "scrape_date": "2026-01-29T05:05:10.092079Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "5.3p9",
+      "outputs_to_install": [
+        "man",
+        "out",
+        "out"
+      ],
+      "outputs": {
+        "debug": "/nix/store/j1i5n2snbiim8s63x9d41yiqv1anmsvi-bash-interactive-5.3p9-debug",
+        "dev": "/nix/store/n2i7ipwdbxiypxfballikvp8gx4jkivz-bash-interactive-5.3p9-dev",
+        "doc": "/nix/store/3a9xbr58hfgbj42rmsd9x2fwnir2aasy-bash-interactive-5.3p9-doc",
+        "info": "/nix/store/h87j74dh8b6lrj11720bda5qq1zfzac0-bash-interactive-5.3p9-info",
+        "man": "/nix/store/1ma79ibx4dn0hdbflsxyxccrxzjqqwr3-bash-interactive-5.3p9-man",
+        "out": "/nix/store/62p6g8nz491c6z224wc6ci1m699y2jhn-bash-interactive-5.3p9"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "coreutils",
+      "broken": false,
+      "derivation": "/nix/store/3gvkbxgddq18asyf9vymkj0yzh5j6shb-coreutils-9.9.drv",
+      "description": "GNU Core Utilities",
+      "install_id": "coreutils",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "name": "coreutils-9.9",
+      "pname": "coreutils",
+      "rev": "bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "rev_count": 935279,
+      "rev_date": "2026-01-26T21:10:04Z",
+      "scrape_date": "2026-01-29T04:35:23.212322Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "9.9",
+      "outputs_to_install": [
+        "out",
+        "out"
+      ],
+      "outputs": {
+        "info": "/nix/store/6bf622yq75zzhq5mdn187sk70sxs6fkh-coreutils-9.9-info",
+        "out": "/nix/store/hf6y9njhfwvigr25kzrwmsvmv6jpni5n-coreutils-9.9"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "coreutils",
+      "broken": false,
+      "derivation": "/nix/store/caqk8xfwlilw31mnym143qs0xf7yxkwf-coreutils-9.9.drv",
+      "description": "GNU Core Utilities",
+      "install_id": "coreutils",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "name": "coreutils-9.9",
+      "pname": "coreutils",
+      "rev": "bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "rev_count": 935279,
+      "rev_date": "2026-01-26T21:10:04Z",
+      "scrape_date": "2026-01-29T05:05:10.562474Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "9.9",
+      "outputs_to_install": [
+        "out",
+        "out"
+      ],
+      "outputs": {
+        "debug": "/nix/store/q3bqmaf9gi315ghy600wsyamzmnahkhk-coreutils-9.9-debug",
+        "info": "/nix/store/fxvw68h1qhpydph2l8j9p4hhs48va1fc-coreutils-9.9-info",
+        "out": "/nix/store/5pwllqskykz2by85b87kp1a8af587vcn-coreutils-9.9"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "curl",
+      "broken": false,
+      "derivation": "/nix/store/vn7qyigb9aqbzk93v3yjz3zdacbp48vw-curl-8.17.0.drv",
+      "description": "Command line tool for transferring files with URL syntax",
+      "install_id": "curl",
+      "license": "curl",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "name": "curl-8.17.0",
+      "pname": "curl",
+      "rev": "bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "rev_count": 935279,
+      "rev_date": "2026-01-26T21:10:04Z",
+      "scrape_date": "2026-01-29T04:35:23.259381Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "8.17.0",
+      "outputs_to_install": [
+        "bin",
+        "man"
+      ],
+      "outputs": {
+        "bin": "/nix/store/qncd2qavd8nj797izhqzyzz5q9cr5bwx-curl-8.17.0-bin",
+        "dev": "/nix/store/27hnypizfhndg47s81v9gvc9ywsiqq5p-curl-8.17.0-dev",
+        "devdoc": "/nix/store/izi1l0h196fyaf7w06wqziq02m43acij-curl-8.17.0-devdoc",
+        "man": "/nix/store/2swlvcnn1xrsanyd4fc8mdlmx6c216dd-curl-8.17.0-man",
+        "out": "/nix/store/vzv2n6g3g6ynxdzflh4s5crn6px9b0wb-curl-8.17.0"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "curl",
+      "broken": false,
+      "derivation": "/nix/store/sbj1ds2n743q4zhfccjaylg7jvjp9q9n-curl-8.17.0.drv",
+      "description": "Command line tool for transferring files with URL syntax",
+      "install_id": "curl",
+      "license": "curl",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "name": "curl-8.17.0",
+      "pname": "curl",
+      "rev": "bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "rev_count": 935279,
+      "rev_date": "2026-01-26T21:10:04Z",
+      "scrape_date": "2026-01-29T05:05:10.724483Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "8.17.0",
+      "outputs_to_install": [
+        "bin",
+        "bin",
+        "man",
+        "man"
+      ],
+      "outputs": {
+        "bin": "/nix/store/wqz5jf32ywajllzfry6gjxhddbh21lvs-curl-8.17.0-bin",
+        "debug": "/nix/store/vwgx2lvkk8kygx6006a81qhb48f9hn7f-curl-8.17.0-debug",
+        "dev": "/nix/store/638hqfczwic54cln0cavh38l1a140ij3-curl-8.17.0-dev",
+        "devdoc": "/nix/store/gl74x82b8xiprhpqnw86rvha06gjzk8v-curl-8.17.0-devdoc",
+        "man": "/nix/store/9bpk7v03yq152wvf5rbv7pr7f5mvj7xp-curl-8.17.0-man",
+        "out": "/nix/store/7rls1f8815qd0b6lgicc53jwl7qs3fa2-curl-8.17.0"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "headscale",
+      "broken": false,
+      "derivation": "/nix/store/lhkcxgsnq58aprnrsjmxrzwispzp4vnc-headscale-0.27.1.drv",
+      "description": "Open source, self-hosted implementation of the Tailscale control server",
+      "install_id": "headscale",
+      "license": "BSD-3-Clause",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "name": "headscale-0.27.1",
+      "pname": "headscale",
+      "rev": "bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "rev_count": 935279,
+      "rev_date": "2026-01-26T21:10:04Z",
+      "scrape_date": "2026-01-29T04:35:38.082105Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.27.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/gg4l50j7k1wyylf25qi19g74r9qwcb5p-headscale-0.27.1"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "headscale",
+      "broken": false,
+      "derivation": "/nix/store/92fvq8w2aflpqmq2k7vl2wkp4f6phkgz-headscale-0.27.1.drv",
+      "description": "Open source, self-hosted implementation of the Tailscale control server",
+      "install_id": "headscale",
+      "license": "BSD-3-Clause",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "name": "headscale-0.27.1",
+      "pname": "headscale",
+      "rev": "bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "rev_count": 935279,
+      "rev_date": "2026-01-26T21:10:04Z",
+      "scrape_date": "2026-01-29T05:05:28.208748Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.27.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/qskm70gcgnyn1vcwarfv6iipz03zj1bw-headscale-0.27.1"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "jq",
+      "broken": false,
+      "derivation": "/nix/store/44r4r3dsjbhqmddw2vvxn9jra5sl12cq-jq-1.8.1.drv",
+      "description": "Lightweight and flexible command-line JSON processor",
+      "install_id": "jq",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "name": "jq-1.8.1",
+      "pname": "jq",
+      "rev": "bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "rev_count": 935279,
+      "rev_date": "2026-01-26T21:10:04Z",
+      "scrape_date": "2026-01-29T04:35:39.457234Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.8.1",
+      "outputs_to_install": [
+        "bin",
+        "man"
+      ],
+      "outputs": {
+        "bin": "/nix/store/qjs0qndyz1g97rsc1zp4cd692y5iph64-jq-1.8.1-bin",
+        "dev": "/nix/store/bhryp10d5w5h9rsav5k9m9jb55z26bsl-jq-1.8.1-dev",
+        "doc": "/nix/store/238sn0gg3i3i9v6kgx4g1k6b19frzy49-jq-1.8.1-doc",
+        "man": "/nix/store/jlpyybc7pdh4gk17dc266d6a1szm7dk6-jq-1.8.1-man",
+        "out": "/nix/store/n64h0247s3674kry90l6kszx06zyrgfn-jq-1.8.1"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "jq",
+      "broken": false,
+      "derivation": "/nix/store/gcqa6ab6iifng1rpfs5bb34nx9czg705-jq-1.8.1.drv",
+      "description": "Lightweight and flexible command-line JSON processor",
+      "install_id": "jq",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "name": "jq-1.8.1",
+      "pname": "jq",
+      "rev": "bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "rev_count": 935279,
+      "rev_date": "2026-01-26T21:10:04Z",
+      "scrape_date": "2026-01-29T05:05:30.378005Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.8.1",
+      "outputs_to_install": [
+        "bin",
+        "bin",
+        "man"
+      ],
+      "outputs": {
+        "bin": "/nix/store/c1qm5fsn6qbl09xdjx649vifabypyywd-jq-1.8.1-bin",
+        "dev": "/nix/store/2sy4y09ddbi64pbg4is078110z70jsdw-jq-1.8.1-dev",
+        "doc": "/nix/store/vx81xggapqwdd2l64mmxrkbafih461jc-jq-1.8.1-doc",
+        "man": "/nix/store/2pjwv0ab8nilrg1lvjazf9y9w6g6pk5y-jq-1.8.1-man",
+        "out": "/nix/store/cfhajjz1k7gf31krbj18q9acb54xp5z9-jq-1.8.1"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "kubectl",
+      "broken": false,
+      "derivation": "/nix/store/hd4qh8y8mpfw9rafh4qg9f05wb232mml-kubectl-1.35.0.drv",
+      "description": "Kubernetes CLI",
+      "install_id": "kubectl",
+      "license": "Apache-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "name": "kubectl-1.35.0",
+      "pname": "kubectl",
+      "rev": "bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "rev_count": 935279,
+      "rev_date": "2026-01-26T21:10:04Z",
+      "scrape_date": "2026-01-29T04:35:40.185276Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.35.0",
+      "outputs_to_install": [
+        "man",
+        "out"
+      ],
+      "outputs": {
+        "convert": "/nix/store/rb8ivxqdljfpqfrf7br9pwvgk3m7aj4k-kubectl-1.35.0-convert",
+        "man": "/nix/store/lzn4s3mnjmyhbfckaizm6vg5rnpshyl2-kubectl-1.35.0-man",
+        "out": "/nix/store/zh9jp24f14avckd99vs54g82ws1i2qpk-kubectl-1.35.0"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "kubectl",
+      "broken": false,
+      "derivation": "/nix/store/h0zk0wrynk6ws0wgp4s2s5digghi73mg-kubectl-1.35.0.drv",
+      "description": "Kubernetes CLI",
+      "install_id": "kubectl",
+      "license": "Apache-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "name": "kubectl-1.35.0",
+      "pname": "kubectl",
+      "rev": "bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "rev_count": 935279,
+      "rev_date": "2026-01-26T21:10:04Z",
+      "scrape_date": "2026-01-29T05:05:32.006475Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.35.0",
+      "outputs_to_install": [
+        "man",
+        "out"
+      ],
+      "outputs": {
+        "convert": "/nix/store/lbrbsz8zmyzkabn3rr5nxwn4ji0q5wl9-kubectl-1.35.0-convert",
+        "man": "/nix/store/b9av4ayjma48ch5wy7k85grkiigls84a-kubectl-1.35.0-man",
+        "out": "/nix/store/h2wbgv9grql0bhrpqdab77mw1pd1zr7x-kubectl-1.35.0"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "tailscale",
+      "broken": false,
+      "derivation": "/nix/store/76d9fl1n8x76lac6havmqhvgd3hchazq-tailscale-1.94.0.drv",
+      "description": "Node agent for Tailscale, a mesh VPN built on WireGuard",
+      "install_id": "tailscale",
+      "license": "BSD-3-Clause",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "name": "tailscale-1.94.0",
+      "pname": "tailscale",
+      "rev": "bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "rev_count": 935279,
+      "rev_date": "2026-01-26T21:10:04Z",
+      "scrape_date": "2026-01-29T04:37:09.780983Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.94.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "derper": "/nix/store/cbg20gfj9gw2m9l5mdxdx8akz281jgax-tailscale-1.94.0-derper",
+        "out": "/nix/store/s1igyazdy3iyyy2x4p7zbymw3g1ql8jc-tailscale-1.94.0"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "tailscale",
+      "broken": false,
+      "derivation": "/nix/store/b5m1ym9bqp5idqvjjfbwrsd3giy66nfb-tailscale-1.94.0.drv",
+      "description": "Node agent for Tailscale, a mesh VPN built on WireGuard",
+      "install_id": "tailscale",
+      "license": "BSD-3-Clause",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "name": "tailscale-1.94.0",
+      "pname": "tailscale",
+      "rev": "bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "rev_count": 935279,
+      "rev_date": "2026-01-26T21:10:04Z",
+      "scrape_date": "2026-01-29T05:07:25.121553Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.94.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "derper": "/nix/store/4qfgmx2xg3mc003myf20ki8d0b3f7x7i-tailscale-1.94.0-derper",
+        "out": "/nix/store/av1a245ivxmfvyx81dbp1w7kj1snjryg-tailscale-1.94.0"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "yq-go",
+      "broken": false,
+      "derivation": "/nix/store/rhdy3sas9pvkpwfa04kdf48hrriz7ag7-yq-go-4.50.1.drv",
+      "description": "Portable command-line YAML processor",
+      "install_id": "yq-go",
+      "license": "[ MIT ]",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "name": "yq-go-4.50.1",
+      "pname": "yq-go",
+      "rev": "bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "rev_count": 935279,
+      "rev_date": "2026-01-26T21:10:04Z",
+      "scrape_date": "2026-01-29T04:38:01.995175Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "4.50.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/97s2svj2zrsfmwgpdxqrq99n3n40plyd-yq-go-4.50.1"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "yq-go",
+      "broken": false,
+      "derivation": "/nix/store/1vrk0b8qyxcizxw1jqff2k338fplxzvq-yq-go-4.50.1.drv",
+      "description": "Portable command-line YAML processor",
+      "install_id": "yq-go",
+      "license": "[ MIT ]",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "name": "yq-go-4.50.1",
+      "pname": "yq-go",
+      "rev": "bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "rev_count": 935279,
+      "rev_date": "2026-01-26T21:10:04Z",
+      "scrape_date": "2026-01-29T05:08:30.995264Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "4.50.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/4vfppipshrf3b604p3nqy6xy34n7hm1r-yq-go-4.50.1"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    }
+  ]
+}

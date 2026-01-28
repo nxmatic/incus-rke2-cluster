@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: # kpt-merge: /headplane-setters
+  name: headplane-setters
+  annotations:
+    config.kubernetes.io/local-config: "true"
+    internal.kpt.dev/function-config: apply-setters
+    description.kpt.dev: Headplane sample setters; customize for your cluster
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|default|headplane-setters'
+  labels:
+    app.kubernetes.io/name: headplane
+    app.kubernetes.io/component: config
+data:
+  headscale-namespace: headscale-system
+  headplane-flox-env: nxmatic/headplane
+  headplane-base-url: http://headplane.headplane.svc.cluster.local:3000
+  headscale-service-url: http://headscale.headscale-system.svc.cluster.local:8080
+  headplane-ingress-host: "headplane.local"
+  headplane-ingress-class: cilium
+  headplane-cookie-secure: "true"
+  headplane-data-size: 128Mi

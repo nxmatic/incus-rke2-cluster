@@ -10,9 +10,6 @@ spec:
   targetNamespace: ${tailscale-namespace} # kpt-set: ${tailscale-namespace}
   createNamespace: true
   valuesContent: |-
-    oauth:
-      clientId: kT715erNJB21CNTRL # sops:encrypted
-      clientSecret: tskey-client-kT715erNJB21CNTRL-BQPzAaha7Keq7CRE3NkXKezuo7yJCTfqE # sops:encrypted
     operatorConfig:
       hostname: ${cluster-name}-tailscale-operator # kpt-set: ${cluster-name}-tailscale-operator
       debug: true

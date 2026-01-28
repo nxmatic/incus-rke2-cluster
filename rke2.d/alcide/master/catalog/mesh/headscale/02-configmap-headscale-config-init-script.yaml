@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: # kpt-merge: ${headscale-namespace}/headscale-config-init-script
+  name: headscale-config-init-script
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
+  labels:
+    app: headscale
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|${headscale-namespace}|headscale-config-init-script'
+data:
+  config-init.sh: "#!/usr/bin/env -S bash -exuo pipefail\nmkdir -p /config\ncp /config-source/config.yaml /config/config.yaml\nmkdir -p /var/lib/headscale\nif [ ! -f /var/lib/headscale/extra_records.json ]; then \n  echo \"[]\" > /var/lib/headscale/extra_records.json; \nfi\ncp /extra-records-source/extra_records.json /var/lib/headscale/extra_records.json"

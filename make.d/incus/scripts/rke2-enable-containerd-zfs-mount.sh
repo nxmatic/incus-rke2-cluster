@@ -10,7 +10,7 @@ cat <<EOF > /etc/systemd/system/$UNIT
 Description=Mount containerd zfs snapshotter directory for RKE2 (ZFS dataset)
 DefaultDependencies=no
 Before=cloud-init.service
-Before=rke2-${RKE2LAB_NODE_TYPE}.service
+Before=rke2-${RKE2LAB_NODE_KIND}.service
 
 [Mount]
 What=tank/rke2/control-nodes/${RKE2LAB_NODE_NAME}/containerd
@@ -20,7 +20,7 @@ Options=defaults
 
 [Install]
 WantedBy=multi-user.target
-RequiredBy=rke2-${RKE2LAB_NODE_TYPE}.service
+RequiredBy=rke2-${RKE2LAB_NODE_KIND}.service
 EOF
 
 : "Enable the mount unit"

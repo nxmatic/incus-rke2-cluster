@@ -1,0 +1,283 @@
+{
+  "lockfile-version": 1,
+  "manifest": {
+    "version": 1,
+    "install": {
+      "bash": {
+        "pkg-path": "bash"
+      },
+      "coreutils": {
+        "pkg-path": "coreutils"
+      },
+      "headplane": {
+        "flake": "git+https://github.com/nxmatic/rke2lab?dir=rke2.d/catalog/mesh/headplane"
+      },
+      "kubectl": {
+        "pkg-path": "kubectl"
+      }
+    },
+    "options": {
+      "systems": [
+        "aarch64-linux",
+        "aarch64-darwin"
+      ]
+    }
+  },
+  "packages": [
+    {
+      "attr_path": "bash",
+      "broken": false,
+      "derivation": "/nix/store/ks9q95cq6503d0hwnv7m1880xhbmw9ic-bash-interactive-5.3p9.drv",
+      "description": "GNU Bourne-Again Shell, the de facto standard shell on Linux (for interactive use)",
+      "install_id": "bash",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "name": "bash-interactive-5.3p9",
+      "pname": "bash",
+      "rev": "bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "rev_count": 935279,
+      "rev_date": "2026-01-26T21:10:04Z",
+      "scrape_date": "2026-01-29T04:35:22.760971Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "5.3p9",
+      "outputs_to_install": [
+        "man",
+        "man",
+        "out",
+        "out"
+      ],
+      "outputs": {
+        "dev": "/nix/store/vhhwpi6h16bxbrvx1sdg5ag973dln1r9-bash-interactive-5.3p9-dev",
+        "doc": "/nix/store/dahmvcafcvsp553w8lhkqy2ppv7gd6m5-bash-interactive-5.3p9-doc",
+        "info": "/nix/store/lqd7rdyads0i42dhxj8zwzj0d01hbgqf-bash-interactive-5.3p9-info",
+        "man": "/nix/store/k23hpm86ymd7l92c7cg0a2wsjadr8mx6-bash-interactive-5.3p9-man",
+        "out": "/nix/store/ngqf98amj0hv0jhzhz540p03wxjj0chj-bash-interactive-5.3p9"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "bash",
+      "broken": false,
+      "derivation": "/nix/store/nvmynjjgaln144r8vy2y0m5km2fj8m3i-bash-interactive-5.3p9.drv",
+      "description": "GNU Bourne-Again Shell, the de facto standard shell on Linux (for interactive use)",
+      "install_id": "bash",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "name": "bash-interactive-5.3p9",
+      "pname": "bash",
+      "rev": "bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "rev_count": 935279,
+      "rev_date": "2026-01-26T21:10:04Z",
+      "scrape_date": "2026-01-29T05:05:10.092079Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "5.3p9",
+      "outputs_to_install": [
+        "man",
+        "out",
+        "out"
+      ],
+      "outputs": {
+        "debug": "/nix/store/j1i5n2snbiim8s63x9d41yiqv1anmsvi-bash-interactive-5.3p9-debug",
+        "dev": "/nix/store/n2i7ipwdbxiypxfballikvp8gx4jkivz-bash-interactive-5.3p9-dev",
+        "doc": "/nix/store/3a9xbr58hfgbj42rmsd9x2fwnir2aasy-bash-interactive-5.3p9-doc",
+        "info": "/nix/store/h87j74dh8b6lrj11720bda5qq1zfzac0-bash-interactive-5.3p9-info",
+        "man": "/nix/store/1ma79ibx4dn0hdbflsxyxccrxzjqqwr3-bash-interactive-5.3p9-man",
+        "out": "/nix/store/62p6g8nz491c6z224wc6ci1m699y2jhn-bash-interactive-5.3p9"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "coreutils",
+      "broken": false,
+      "derivation": "/nix/store/3gvkbxgddq18asyf9vymkj0yzh5j6shb-coreutils-9.9.drv",
+      "description": "GNU Core Utilities",
+      "install_id": "coreutils",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "name": "coreutils-9.9",
+      "pname": "coreutils",
+      "rev": "bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "rev_count": 935279,
+      "rev_date": "2026-01-26T21:10:04Z",
+      "scrape_date": "2026-01-29T04:35:23.212322Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "9.9",
+      "outputs_to_install": [
+        "out",
+        "out"
+      ],
+      "outputs": {
+        "info": "/nix/store/6bf622yq75zzhq5mdn187sk70sxs6fkh-coreutils-9.9-info",
+        "out": "/nix/store/hf6y9njhfwvigr25kzrwmsvmv6jpni5n-coreutils-9.9"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "coreutils",
+      "broken": false,
+      "derivation": "/nix/store/caqk8xfwlilw31mnym143qs0xf7yxkwf-coreutils-9.9.drv",
+      "description": "GNU Core Utilities",
+      "install_id": "coreutils",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "name": "coreutils-9.9",
+      "pname": "coreutils",
+      "rev": "bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "rev_count": 935279,
+      "rev_date": "2026-01-26T21:10:04Z",
+      "scrape_date": "2026-01-29T05:05:10.562474Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "9.9",
+      "outputs_to_install": [
+        "out",
+        "out"
+      ],
+      "outputs": {
+        "debug": "/nix/store/q3bqmaf9gi315ghy600wsyamzmnahkhk-coreutils-9.9-debug",
+        "info": "/nix/store/fxvw68h1qhpydph2l8j9p4hhs48va1fc-coreutils-9.9-info",
+        "out": "/nix/store/5pwllqskykz2by85b87kp1a8af587vcn-coreutils-9.9"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "kubectl",
+      "broken": false,
+      "derivation": "/nix/store/hd4qh8y8mpfw9rafh4qg9f05wb232mml-kubectl-1.35.0.drv",
+      "description": "Kubernetes CLI",
+      "install_id": "kubectl",
+      "license": "Apache-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "name": "kubectl-1.35.0",
+      "pname": "kubectl",
+      "rev": "bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "rev_count": 935279,
+      "rev_date": "2026-01-26T21:10:04Z",
+      "scrape_date": "2026-01-29T04:35:40.185276Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.35.0",
+      "outputs_to_install": [
+        "man",
+        "out"
+      ],
+      "outputs": {
+        "convert": "/nix/store/rb8ivxqdljfpqfrf7br9pwvgk3m7aj4k-kubectl-1.35.0-convert",
+        "man": "/nix/store/lzn4s3mnjmyhbfckaizm6vg5rnpshyl2-kubectl-1.35.0-man",
+        "out": "/nix/store/zh9jp24f14avckd99vs54g82ws1i2qpk-kubectl-1.35.0"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "kubectl",
+      "broken": false,
+      "derivation": "/nix/store/h0zk0wrynk6ws0wgp4s2s5digghi73mg-kubectl-1.35.0.drv",
+      "description": "Kubernetes CLI",
+      "install_id": "kubectl",
+      "license": "Apache-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "name": "kubectl-1.35.0",
+      "pname": "kubectl",
+      "rev": "bfc1b8a4574108ceef22f02bafcf6611380c100d",
+      "rev_count": 935279,
+      "rev_date": "2026-01-26T21:10:04Z",
+      "scrape_date": "2026-01-29T05:05:32.006475Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.35.0",
+      "outputs_to_install": [
+        "man",
+        "out"
+      ],
+      "outputs": {
+        "convert": "/nix/store/lbrbsz8zmyzkabn3rr5nxwn4ji0q5wl9-kubectl-1.35.0-convert",
+        "man": "/nix/store/b9av4ayjma48ch5wy7k85grkiigls84a-kubectl-1.35.0-man",
+        "out": "/nix/store/h2wbgv9grql0bhrpqdab77mw1pd1zr7x-kubectl-1.35.0"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "install_id": "headplane",
+      "locked-url": "git+https://github.com/nxmatic/rke2lab?dir=rke2.d/catalog/mesh/headplane&ref=refs/heads/main&rev=50c0eab8c684b1dfd099c4e986472884ede975d8",
+      "flake-description": "headplane overlay with aarch64-linux",
+      "locked-flake-attr-path": "defaultPackage.aarch64-linux",
+      "derivation": "/nix/store/ya5f9hfxzmh0zpzzfr1w6dsxxh9751cp-headplane-0.6.1.drv",
+      "outputs": {
+        "out": "/nix/store/15ng86jmka6lff9615dyww141jj06wn9-headplane-0.6.1"
+      },
+      "output-names": [
+        "out"
+      ],
+      "outputs-to-install": [
+        "out"
+      ],
+      "requested-outputs-to-install": [],
+      "package-system": "aarch64-linux",
+      "system": "aarch64-linux",
+      "name": "headplane-0.6.1",
+      "pname": "headplane",
+      "version": "0.6.1",
+      "broken": false,
+      "unfree": false,
+      "priority": 5
+    },
+    {
+      "install_id": "headplane",
+      "locked-url": "git+https://github.com/nxmatic/rke2lab?dir=rke2.d/catalog/mesh/headplane&ref=refs/heads/main&rev=50c0eab8c684b1dfd099c4e986472884ede975d8",
+      "flake-description": "headplane overlay with aarch64-linux",
+      "locked-flake-attr-path": "defaultPackage.aarch64-darwin",
+      "derivation": "/nix/store/xikj9wk2pg1sa47hcnqjnmkrx34llqfs-headplane-0.6.1.drv",
+      "outputs": {
+        "out": "/nix/store/gs0s5zj8fzmic9bc0y1dag1jmbvif2qp-headplane-0.6.1"
+      },
+      "output-names": [
+        "out"
+      ],
+      "outputs-to-install": [
+        "out"
+      ],
+      "requested-outputs-to-install": [],
+      "package-system": "aarch64-darwin",
+      "system": "aarch64-darwin",
+      "name": "headplane-0.6.1",
+      "pname": "headplane",
+      "version": "0.6.1",
+      "broken": false,
+      "unfree": false,
+      "priority": 5
+    }
+  ]
+}

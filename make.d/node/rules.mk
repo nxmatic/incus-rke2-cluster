@@ -41,7 +41,7 @@ endef
 
 # Derive node role/type using metaprogramming lookup
 ifdef .node.config.$(.node.name)
-  .node.type := $(call get-node-attr,$(.node.name),1)
+  .node.kind := $(call get-node-attr,$(.node.name),1)
   .node.role := $(call get-node-attr,$(.node.name),2)
   .node.id := $(call get-node-attr,$(.node.name),3)
 else
@@ -51,7 +51,7 @@ endif
 # Public node API
 
 node.name := $(.node.name)
-node.type := $(.node.type)
+node.kind := $(.node.kind)
 node.role := $(.node.role)
 node.id := $(.node.id)
 
@@ -64,7 +64,7 @@ test@node: ## Validate node role/type derivation
   : "[ok] cluster.id=$(cluster.id)"
   : "[ok] cluster.name=$(cluster.name)"
 	: "[ok] node.name=$(node.name)"
-	: "[ok] node.type=$(node.type)" 
+	: "[ok] node.kind=$(node.kind)" 
 	: "[ok] node.role=$(node.role)"
 	: "[ok] node.id=$(node.id)"
 	: "[ok] .node.config_key=$(.node.config_key)"

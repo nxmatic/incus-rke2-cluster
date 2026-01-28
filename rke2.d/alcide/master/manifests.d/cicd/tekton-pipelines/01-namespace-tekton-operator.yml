@@ -1,9 +1,0 @@
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  annotations:
-    internal.kpt.dev/upstream-identifier: '|Namespace|default|tekton-operator'
-    kpt.dev/package-layer: cicd
-    kpt.dev/package-name: tekton-pipelines
-  name: tekton-operator

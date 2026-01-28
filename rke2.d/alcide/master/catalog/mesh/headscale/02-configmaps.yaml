@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: ConfigMap
-metadata: # kpt-merge: headscale/headscale-config
+metadata: # kpt-merge: ${headscale-namespace}/headscale-config
   name: headscale-config
-  namespace: headscale
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
   annotations:
-    internal.kpt.dev/upstream-identifier: '|ConfigMap|headscale|headscale-config'
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|${headscale-namespace}|headscale-config'
 data:
   config.yaml: |
-    server_url: http://192.168.1.193:8080 # kpt-set: http://${lan-headscale-inetaddr}:8080
+    server_url: http://headscale.hs.net:8080
     listen_addr: 0.0.0.0:8080
     metrics_listen_addr: 0.0.0.0:9090
     grpc_listen_addr: 0.0.0.0:50443
@@ -49,12 +49,13 @@ data:
       path: /etc/headscale/acl.json
 
     dns:
-      base_domain: lan
+      base_domain: hs.net
       nameservers:
         global:
           - 192.168.1.254
           - 1.1.1.1
           - 8.8.8.8
+      extra_records_path: /var/lib/headscale/extra_records.json
       magic_dns: true
 
     log:
@@ -63,11 +64,33 @@ data:
 ---
 apiVersion: v1
 kind: ConfigMap
-metadata: # kpt-merge: headscale/headscale-acl
-  name: headscale-acl
-  namespace: headscale
+metadata: # kpt-merge: ${headscale-namespace}/headscale-extra-records
+  name: headscale-extra-records
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
   annotations:
-    internal.kpt.dev/upstream-identifier: '|ConfigMap|headscale|headscale-acl'
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|${headscale-namespace}|headscale-extra-records'
+data:
+  extra_records.json: |
+    [
+      {
+        "name": "headscale.hs.net",
+        "type": "A",
+        "value": "${cluster-lan-headscale-inetaddr}"
+      },
+      {
+        "name": "headplane.hs.net",
+        "type": "A",
+        "value": "${cluster-lan-headplane-inetaddr}"
+      }
+    ]
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: # kpt-merge: ${headscale-namespace}/headscale-acl
+  name: headscale-acl
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|${headscale-namespace}|headscale-acl'
 data:
   acl.json: |
     {
@@ -98,11 +121,11 @@ data:
 ---
 apiVersion: v1
 kind: ConfigMap
-metadata: # kpt-merge: headscale/headscale-derp
+metadata: # kpt-merge: ${headscale-namespace}/headscale-derp
   name: headscale-derp
-  namespace: headscale
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
   annotations:
-    internal.kpt.dev/upstream-identifier: '|ConfigMap|headscale|headscale-derp'
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|${headscale-namespace}|headscale-derp'
 data:
   derp.yaml: |
     regions:

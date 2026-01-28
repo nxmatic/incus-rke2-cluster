@@ -7,5 +7,5 @@ metadata: # kpt-merge: /rke2-etcd
     config.kubernetes.io/local-config: "true"
 data:
   etcd-expose-metrics: true
-  node-name: ${cluster-name}-${node-type}-node # kpt-set: ${cluster-name}-${node-type}-node
+  node-name: ${cluster-name}-${node-kind}-node # kpt-set: ${cluster-name}-${node-kind}-node
   with-node-id: false

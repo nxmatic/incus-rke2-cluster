@@ -1,0 +1,53 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: headplane-agent-sync
+  namespace: ${headplane-namespace} # kpt-set: ${headplane-namespace}
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: headplane-agent-sync
+  namespace: ${headplane-namespace} # kpt-set: ${headplane-namespace}
+subjects:
+  - kind: ServiceAccount
+    name: headplane
+    namespace: ${headplane-namespace} # kpt-set: ${headplane-namespace}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: headplane-agent-sync
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: headplane-k8s-integration
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/exec"]
+    verbs: ["get", "list", "create"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: headplane-k8s-integration
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
+subjects:
+  - kind: ServiceAccount
+    name: headplane
+    namespace: ${headplane-namespace} # kpt-set: ${headplane-namespace}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: headplane-k8s-integration

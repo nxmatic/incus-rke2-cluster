@@ -10,11 +10,11 @@ metadata:
     description.kpt.dev: Setters for RKE2 config.yaml.d fragments
 data:
   cluster-name: alcide
-  node-type: server
-  node-role: master
+  node-name: master
+  node-kind: server
   cluster-token: alcide
   node-host-inetaddr: 10.80.8.10
-  cluster-id: "7"
+  cluster-id: "1"
   cluster-init: "true"
   pod-network-cidr: 10.44.0.0/16
   service-network-cidr: 10.45.0.0/16

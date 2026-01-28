@@ -39,12 +39,12 @@ networks:
       # MACs use QEMU prefix 52:54:00 + cluster_id:node_type:node_id (in hex, zero-padded)
       # IPs use cluster network base + node offset (10 for master, 11-13 for peers, 20+ for workers)
       raw.dnsmasq: |
-        dhcp-host=${NETWORK_NODE_WAN_MACADDR_MASTER},${NETWORK_CLUSTER_NODE_INETADDR_BASE}.10,master
-        dhcp-host=${NETWORK_NODE_WAN_MACADDR_PEER1},${NETWORK_CLUSTER_NODE_INETADDR_BASE}.11,peer1
-        dhcp-host=${NETWORK_NODE_WAN_MACADDR_PEER2},${NETWORK_CLUSTER_NODE_INETADDR_BASE}.12,peer2
-        dhcp-host=${NETWORK_NODE_WAN_MACADDR_PEER3},${NETWORK_CLUSTER_NODE_INETADDR_BASE}.13,peer3
-        dhcp-host=${NETWORK_NODE_WAN_MACADDR_WORKER1},${NETWORK_CLUSTER_NODE_INETADDR_BASE}.20,worker1
-        dhcp-host=${NETWORK_NODE_WAN_MACADDR_WORKER2},${NETWORK_CLUSTER_NODE_INETADDR_BASE}.21,worker2
+        dhcp-host=${NETWORK_WAN_HOST_MACADDR_MASTER},${NETWORK_CLUSTER_NODE_INETADDR_BASE}.10,master
+        dhcp-host=${NETWORK_WAN_HOST_MACADDR_PEER1},${NETWORK_CLUSTER_NODE_INETADDR_BASE}.11,peer1
+        dhcp-host=${NETWORK_WAN_HOST_MACADDR_PEER2},${NETWORK_CLUSTER_NODE_INETADDR_BASE}.12,peer2
+        dhcp-host=${NETWORK_WAN_HOST_MACADDR_PEER3},${NETWORK_CLUSTER_NODE_INETADDR_BASE}.13,peer3
+        dhcp-host=${NETWORK_WAN_HOST_MACADDR_WORKER1},${NETWORK_CLUSTER_NODE_INETADDR_BASE}.20,worker1
+        dhcp-host=${NETWORK_WAN_HOST_MACADDR_WORKER2},${NETWORK_CLUSTER_NODE_INETADDR_BASE}.21,worker2
 profiles:
   - name: ${NETWORK_NODE_PROFILE_NAME}
     description: RKE2 profile (LAN bridge + cluster bridge)

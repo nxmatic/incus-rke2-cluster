@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: ServiceAccount
-metadata: # kpt-merge: headscale/headscale-client
+metadata: # kpt-merge: ${headscale-namespace}/headscale-client
   name: headscale-client
-  namespace: headscale
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
   annotations:
-    internal.kpt.dev/upstream-identifier: '|ServiceAccount|headscale|headscale-client'
+    internal.kpt.dev/upstream-identifier: '|ServiceAccount|${headscale-namespace}|headscale-client'
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -16,6 +16,12 @@ rules:
 - apiGroups: [""]
   resources: ["nodes"]
   verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -26,7 +32,7 @@ metadata: # kpt-merge: /headscale-client
 subjects:
 - kind: ServiceAccount
   name: headscale-client
-  namespace: headscale
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
 roleRef:
   kind: ClusterRole
   name: headscale-client
@@ -34,13 +40,13 @@ roleRef:
 ---
 apiVersion: apps/v1
 kind: DaemonSet
-metadata: # kpt-merge: headscale/headscale-client
+metadata: # kpt-merge: ${headscale-namespace}/headscale-client
   name: headscale-client
-  namespace: headscale
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
   labels:
     app: headscale-client
   annotations:
-    internal.kpt.dev/upstream-identifier: 'apps|DaemonSet|headscale|headscale-client'
+    internal.kpt.dev/upstream-identifier: 'apps|DaemonSet|${headscale-namespace}|headscale-client'
 spec:
   selector:
     matchLabels:
@@ -49,6 +55,8 @@ spec:
     metadata:
       labels:
         app: headscale-client
+      annotations:
+        flox.dev/environment: "${headscale-flox-env}" # kpt-set: ${headscale-flox-env}
     spec:
       serviceAccountName: headscale-client
       hostNetwork: true
@@ -62,35 +70,36 @@ spec:
         effect: NoSchedule
       initContainers:
       - name: wait-for-headscale
-        image: busybox:1.36
+        image: flox/empty:1.0.0
+        env:
+        - name: HEADSCALE_URL
+          value: http://headscale.${headscale-namespace}.svc.cluster.local:8080 # kpt-set: http://headscale.${headscale-namespace}.svc.cluster.local:8080
+        - name: HEADSCALE_NAMESPACE
+          value: ${headscale-namespace} # kpt-set: ${headscale-namespace}
         command:
-        - sh
-        - -c
-        - |
-          echo "Waiting for Headscale server..."
-          until wget -q -O- http://headscale.headscale.svc.cluster.local:8080/health; do
-            echo "Headscale not ready, retrying in 5s..."
-            sleep 5
-          done
-          echo "Headscale is ready!"
+        - bash
+        - /scripts/wait-for-headscale.sh
+        volumeMounts:
+        - mountPath: /scripts
+          name: client-scripts
+          readOnly: true
       - name: wait-for-authkey
-        image: busybox:1.36
+        image: flox/empty:1.0.0
         command:
-        - sh
-        - -c
-        - |
-          echo "Waiting for auth key Secret..."
-          until [ -f /var/secrets/authkey ]; do
-            echo "Auth key not available, retrying in 5s..."
-            sleep 5
-          done
-          echo "Auth key found!"
+        - bash
+        - /scripts/wait-for-authkey.sh
         volumeMounts:
         - name: authkey
           mountPath: /var/secrets
+        - mountPath: /scripts
+          name: client-scripts
+          readOnly: true
+        env:
+        - name: HEADSCALE_NAMESPACE
+          value: ${headscale-namespace} # kpt-set: ${headscale-namespace}
       containers:
       - name: tailscale
-        image: tailscale/tailscale:v1.76.6
+        image: flox/empty:1.0.0
         env:
         - name: DARWIN_HOST
           value: ${cluster-name} # kpt-set: ${cluster-name}
@@ -110,37 +119,18 @@ spec:
         - name: TS_SOCKET
           value: /var/run/tailscale/tailscaled.sock
         - name: TS_USERSPACE
-          value: "false"
+          value: "true"
         - name: TS_KUBE_SECRET
           value: ""
+        - name: HEADSCALE_URL
+          value: http://headscale.${headscale-namespace}.svc.cluster.local:8080 # kpt-set: http://headscale.${headscale-namespace}.svc.cluster.local:8080
+        - name: FLOX_NO_TELEMETRY
+          value: "1"
+        - name: FLOX_NONINTERACTIVE
+          value: "1"
         command:
-        - sh
-        - -c
-        - |
-          set -e
-          echo "Starting tailscaled..."
-          tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock &
-          TAILSCALED_PID=$$!
-
-          echo "Waiting for tailscaled socket..."
-          until [ -S /var/run/tailscale/tailscaled.sock ]; do sleep 1; done
-
-          # Use internal cluster service (HTTP) - client is inside the cluster
-          # External clients use https://alcide-headscale via Tailscale operator
-          HEADSCALE_URL="http://headscale.headscale.svc.cluster.local:8080"
-
-          echo "Connecting to Headscale at $$HEADSCALE_URL..."
-          tailscale up \
-            --login-server=$$HEADSCALE_URL \
-            --authkey=file:/var/secrets/authkey \
-            --hostname=$${DARWIN_HOST}-$$RKE2_NODENAME \
-            --advertise-tags=tag:rke2,tag:alcide \
-            --accept-routes \
-            --ssh \
-            --reset
-
-          echo "Headscale client connected!"
-          wait $$TAILSCALED_PID
+        - bash
+        - /scripts/tailscale-client.sh
         securityContext:
           privileged: true
           capabilities:
@@ -157,13 +147,18 @@ spec:
         - name: authkey
           mountPath: /var/secrets
           readOnly: true
+        - mountPath: /scripts
+          name: client-scripts
+          readOnly: true
         resources:
           requests:
             cpu: 50m
             memory: 64Mi
+            ephemeral-storage: 64Mi
           limits:
             cpu: 200m
             memory: 256Mi
+            ephemeral-storage: 256Mi
       volumes:
       - name: dev-net-tun
         hostPath:
@@ -181,3 +176,8 @@ spec:
           items:
           - key: authkey
             path: authkey
+      - configMap:
+          defaultMode: 0755
+          name: headscale-client-scripts
+        name: client-scripts
+      runtimeClassName: flox

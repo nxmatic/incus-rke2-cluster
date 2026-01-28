@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: headscale-config-init-script
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
+  labels:
+    app: headscale
+data:
+  config-init.sh: |
+    #!/usr/bin/env -S bash -exuo pipefail
+    mkdir -p /config
+    cp /config-source/config.yaml /config/config.yaml
+    mkdir -p /var/lib/headscale
+    if [ ! -f /var/lib/headscale/extra_records.json ]; then 
+      echo "[]" > /var/lib/headscale/extra_records.json; 
+    fi
+    cp /extra-records-source/extra_records.json /var/lib/headscale/extra_records.json

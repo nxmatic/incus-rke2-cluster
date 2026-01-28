@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata: # kpt-merge: ${headplane-namespace}/headplane
+  name: headplane
+  namespace: ${headplane-namespace} # kpt-set: ${headplane-namespace}
+  labels:
+    app: headplane
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Service|${headplane-namespace}|headplane'
+spec:
+  type: ClusterIP
+  selector:
+    app: headplane
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http

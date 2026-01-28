@@ -1,12 +1,12 @@
 apiVersion: apps/v1
 kind: Deployment
-metadata: # kpt-merge: headscale/headscale
+metadata: # kpt-merge: ${headscale-namespace}/headscale
   name: headscale
-  namespace: headscale
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
   labels:
     app: headscale
   annotations:
-    internal.kpt.dev/upstream-identifier: 'apps|Deployment|headscale|headscale'
+    internal.kpt.dev/upstream-identifier: 'apps|Deployment|${headscale-namespace}|headscale'
 spec:
   replicas: 1
   selector:
@@ -16,13 +16,15 @@ spec:
     metadata:
       labels:
         app: headscale
+      annotations:
+        flox.dev/environment: "${headscale-flox-env}" # kpt-set: ${headscale-flox-env}
     spec:
       automountServiceAccountToken: false
       nodeSelector:
-        "cluster-name.cluster/node-role": master # kpt-set: "${cluster-name}.cluster/node-role": master
+        node-role.kubernetes.io/control-plane: "true"
       containers:
       - name: headscale
-        image: headscale/headscale:0.27.0
+        image: flox/empty:1.0.0
         ports:
         - name: http
           containerPort: 8080
@@ -63,13 +65,19 @@ spec:
           requests:
             cpu: 100m
             memory: 128Mi
+            ephemeral-storage: 256Mi
           limits:
             cpu: 500m
             memory: 512Mi
+            ephemeral-storage: 512Mi
+        env:
+        - name: FLOX_NO_TELEMETRY
+          value: "1"
+        - name: FLOX_NONINTERACTIVE
+          value: "1"
       volumes:
       - name: config
-        configMap:
-          name: headscale-config
+        emptyDir: {}
       - name: acl
         configMap:
           name: headscale-acl
@@ -80,20 +88,50 @@ spec:
         emptyDir: {}
       - name: run
         emptyDir: {}
+      - configMap:
+          name: headscale-config
+        name: config-source
+      - configMap:
+          name: headscale-extra-records
+        name: extra-records-source
+      - configMap:
+          defaultMode: 0755
+          name: headscale-config-init-script
+        name: config-init-script
+      initContainers:
+      - command:
+        - bash
+        - /scripts/config-init.sh
+        image: flox/empty:1.0.0
+        name: config-init
+        volumeMounts:
+        - mountPath: /config-source
+          name: config-source
+          readOnly: true
+        - mountPath: /config
+          name: config
+        - mountPath: /extra-records-source
+          name: extra-records-source
+          readOnly: true
+        - mountPath: /var/lib/headscale
+          name: data
+        - mountPath: /scripts
+          name: config-init-script
+      runtimeClassName: flox
 ---
 apiVersion: v1
 kind: Service
-metadata: # kpt-merge: headscale/headscale
+metadata: # kpt-merge: ${headscale-namespace}/headscale
   name: headscale
-  namespace: headscale
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
   labels:
     app: headscale
-    io.cilium/lb-inetaddram: home-lan
+    io.cilium/lb-ipam-pool: lan
   annotations:
-    io.cilium/lb-inetaddram-inetaddrs: ${lan-headscale-inetaddr} # kpt-set: ${lan-headscale-inetaddr}
+    io.cilium/lb-ipam-ips: ${cluster-lan-headscale-inetaddr} # kpt-set: ${cluster-lan-headscale-inetaddr}
     tailscale.com/expose: "true"
     tailscale.com/hostname: ${cluster-name}-headscale # kpt-set: ${cluster-name}-headscale
-    internal.kpt.dev/upstream-identifier: '|Service|headscale|headscale'
+    internal.kpt.dev/upstream-identifier: '|Service|${headscale-namespace}|headscale'
 spec:
   type: LoadBalancer
   ports:

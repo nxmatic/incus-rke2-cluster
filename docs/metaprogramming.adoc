@@ -43,10 +43,10 @@ $(foreach node,$(SUPPORTED_NODES),$(eval $(call GENERATE_NODE_RULES_TEMPLATE,$(n
 # Old approach
 ifeq ($(NODE_NAME),master)
     NODE_ID := 0
-    NODE_TYPE := server  
+    NODE_KIND := server  
 else ifeq ($(NODE_NAME),peer1)
     NODE_ID := 1
-    NODE_TYPE := server
+    NODE_KIND := server
 # ... many more conditions
 
 # New approach  
@@ -160,7 +160,7 @@ SUPPORTED_CLUSTERS := bioskop alcide newcluster
 # In cluster-config.mk
 define NODE_storage1_CONFIG
 NODE_ID := 6
-NODE_TYPE := agent
+NODE_KIND := agent
 NODE_ROLE := storage
 endef
 
@@ -213,13 +213,13 @@ endif
 
 # Automatic node type detection
 ifneq (,$(findstring peer,$(NODE_NAME)))
-    NODE_TYPE := server
+    NODE_KIND := server
     NODE_ROLE := peer
 else ifeq ($(NODE_NAME),master)
-    NODE_TYPE := server
+    NODE_KIND := server
     NODE_ROLE := master
 else
-    NODE_TYPE := agent
+    NODE_KIND := agent
     NODE_ROLE := worker
 endif
 ----

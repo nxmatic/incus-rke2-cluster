@@ -209,7 +209,7 @@ actions:
         : "==> flox already present: $(flox --version || true)"
         exit 0
       fi
-      FLOX_VERSION="${FLOX_VERSION:-1.5.0}"
+      FLOX_VERSION="${FLOX_VERSION:-1.8.3}"
       FLOX_BASE_URL="${FLOX_BASE_URL:-https://downloads.flox.dev/by-env/stable/deb}"
       DEB_ARCH="$(dpkg --print-architecture)"
       case "$DEB_ARCH" in
@@ -234,6 +234,7 @@ actions:
       : "==> Installing flox .deb"
       apt-get install -y "$TMP_DEB"
       rm -f "$TMP_DEB"
+      : "==> Creating /etc/flox/config.toml if absent"
       install -d -m 0755 /etc/flox
       if [[ ! -f /etc/flox/config.toml ]]; then
         cat > /etc/flox/config.toml <<'EOF'
@@ -248,6 +249,11 @@ actions:
     action: |
       #!/usr/bin/env bash
       set -euxo pipefail 
+      : "==> Performing system upgrade post-flox installation"
+      apt-get update -y
+      apt-get full-upgrade -y
+      apt-get autoremove -y
+      apt-get autoclean -y
       : "==> Running APT debug update (pkgProblemResolver)"
       LOG_DIR=/var/lib/build-diagnostics
       mkdir -p "$LOG_DIR"

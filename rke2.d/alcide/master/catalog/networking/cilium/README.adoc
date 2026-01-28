@@ -7,8 +7,9 @@ remains in RKE2 cloud-config for bootstrap.
 === Components
 
 * *IP Pools*: LoadBalancer and VIP address pools for Cilium IPAM
-** `+load-balancers+`: 10.80.8.128/26 (addresses 129-190)
-** `+virtual-addresses+`: 10.80.15.0/24 (addresses 1-254)
+** `+cluster+`: 10.80.8.128/26 (addresses 129-190)
+** `+lan+`: 192.168.1.64/27 (addresses 65-94)
+** `+vip+`: 10.80.15.0/24 (addresses 1-254)
 * *L2 Announcements*: ARP-based IP advertisement on vmnet0/lan0
 interfaces
 * *BGP Configuration*: Peering with gateway router (ASN 65001 ↔ 65000)
@@ -89,7 +90,7 @@ cilium bgp peers
 # Test LoadBalancer IP assignment
 kubectl create service loadbalancer test-lb --tcp=80:80
 kubectl get svc test-lb -o wide
-# Should get IP from 10.80.8.129-190 range
+# Should get IP from 10.80.8.129-190 range (cluster pool)
 kubectl delete svc test-lb
 
 # Check Cilium status
@@ -210,8 +211,9 @@ IPs
 │ Advanced Features (kpt package)                             │
 ├─────────────────────────────────────────────────────────────┤
 │ IP Pools:                                                   │
-│ • LoadBalancer: 10.80.8.129-190 (62 IPs)                  │
-│ • VIP: 10.80.15.1-254 (254 IPs)                           │
+│ • Cluster LB: 10.80.8.129-190 (62 IPs)                    │
+│ • LAN LB: 192.168.1.65-94 (30 IPs)                        │
+│ • VIP LB: 10.80.15.1-254 (254 IPs)                           │
 ├─────────────────────────────────────────────────────────────┤
 │ L2 Announcements:                                           │
 │ • Interfaces: vmnet0, lan0                                  │

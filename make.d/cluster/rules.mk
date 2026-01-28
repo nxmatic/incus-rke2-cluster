@@ -67,19 +67,25 @@ cluster.service.cidr := $(.cluster.service.cidr)
 cluster.lima_lan_interface := $(.cluster.lima_lan_interface)
 cluster.lima_vmnet_interface := $(.cluster.lima_vmnet_interface)
 cluster.state_repo := $(.cluster.state_repo)
+cluster.flox.enabled := true
+
 
 $(call make.trace,[cluster] Derived, cluster.name cluster.id)
 
 include make.d/make.mk # Ensure availability when file used standalone (@codebase)
+include make.d/network/rules.mk # Network layer variables (@codebase)
 include make.d/node/rules.mk # Node identity and role variables (@codebase)
 include make.d/kpt/rules.mk  # KPT Packages (@codebase)
+include make.d/cloud-config/rules.mk # Cloud-Init config generation (@codebase)
+include make.d/incus/rules.mk # Incus integration (@codebase)
+
 
 # -----------------------------------------------------------------------------
 # Hierarchical Addressing Reference (moved from Makefile) (@codebase)
 # -----------------------------------------------------------------------------
 # Global
-#   IPv4 supernet: 10.80.0.0/12
-#   IPv6 supernet: fd70:80::/32
+#   IPv4 super-network: 10.80.0.0/12
+#   IPv6 super-network: fd70:80::/32
 # Per-cluster aggregate:
 #   IPv4 /20 block: 10.80.(CLUSTER_ID*16).0/20
 #   IPv6 /48 block: fd70:80:CLUSTER_ID::/48

@@ -10,7 +10,7 @@ Arguments:
   incus_project  Optional. Defaults to "${INCUS_PROJECT:-rke2}".
 
 Environment variables:
-  HOST_INTERFACE      Interface name to inspect on the host (default: enp0s3).
+  INTERFACE      Interface name to inspect on the host (default: enp0s3).
   INSTANCE_INTERFACE  Interface name to inspect inside Incus instances (default: wan0; set to lan0 for LAN focus).
   INCUS_PROJECT       Default Incus project name (overridden by argument #3).
 
@@ -33,7 +33,7 @@ DEFAULT_INCUS_PROJECT="${INCUS_PROJECT:-rke2}"
 output_dir="${1:-$DEFAULT_OUTPUT_DIR}"
 incus_project="${2:-$DEFAULT_INCUS_PROJECT}"
 
-HOST_INTERFACE="${HOST_INTERFACE:-enp0s3}"
+INTERFACE="${INTERFACE:-enp0s3}"
 INSTANCE_INTERFACE="${INSTANCE_INTERFACE:-wan0}"
 
 mkdir -p "$output_dir"
@@ -69,8 +69,8 @@ HOST_COMMANDS=(
   "iptables-save|sudo iptables-save"
   "conntrack -S|sudo conntrack -S"
   "ss -tnp|sudo ss -tnp"
-  "ethtool ${HOST_INTERFACE}|sudo ethtool ${HOST_INTERFACE}"
-  "ethtool -k ${HOST_INTERFACE}|sudo ethtool -k ${HOST_INTERFACE}"
+  "ethtool ${INTERFACE}|sudo ethtool ${INTERFACE}"
+  "ethtool -k ${INTERFACE}|sudo ethtool -k ${INTERFACE}"
   "bridge link|sudo bridge link"
   "bridge fdb show|sudo bridge fdb show"
 )
@@ -175,7 +175,7 @@ timestamp: "$(date --iso-8601=seconds || date)"
 hostname: "$(hostname)"
 output_directory: "$output_dir"
 incus_project: "$incus_project"
-host_interface: "$HOST_INTERFACE"
+host_interface: "$INTERFACE"
 instance_interface: "$INSTANCE_INTERFACE"
 incus_available: $INCUS_AVAILABLE
 host:
