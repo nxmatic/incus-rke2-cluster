@@ -40,14 +40,14 @@ data:
 endef
 
 # ----------------------------------------------------------------------------
-# Catalog Kustomization management (@codebase)
+# Catalog kustomization.yaml management (@codebase)
 # ----------------------------------------------------------------------------
 
-.PHONY: update-kustomizations@kpt
+.PHONY: update-kustomization.yamls@kpt
 
-update-kustomizations@kpt: $(.kpt.render.stamp)
-update-kustomizations@kpt: ## Update Kustomization files from rendered catalog packages
-	: "[kpt] Generating Kustomizations from rendered packages"
+update-kustomization.yamls@kpt: $(.kpt.render.stamp)
+update-kustomization.yamls@kpt: ## Update kustomization.yaml files from rendered catalog packages
+	: "[kpt] Generating kustomization.yamls from rendered packages"
 	for layer in "$(.kpt.render.dir)"/*/; do
 		[ -d "$$layer" ] || continue
 		layer_name=$$(basename "$$layer")
@@ -55,7 +55,7 @@ update-kustomizations@kpt: ## Update Kustomization files from rendered catalog p
 			pkg=$$(realpath "$$pkg")
 			[ -d "$$pkg" ] || continue
 			pkg_name=$$(basename "$$pkg")
-			: "[kpt] Generating Kustomization for $$layer_name/$$pkg_name"
+			: "[kpt] Generating kustomization.yaml for $$layer_name/$$pkg_name"
 			pushd "$$pkg" > /dev/null
 			kustomize create \
 				--autodetect \
@@ -63,8 +63,8 @@ update-kustomizations@kpt: ## Update Kustomization files from rendered catalog p
 				--annotations "kpt.dev/package-layer:$$layer_name,kpt.dev/package-name:$$pkg_name"
 			popd > /dev/null
 			source_pkg="$(.kpt.catalog.dir)/$$layer_name/$$pkg_name"
-			: "[kpt] Copying Kustomization back to $$source_pkg"
-			cp "$$pkg/kustomization.yaml" "$$source_pkg/Kustomization"
+			: "[kpt] Copying kustomization.yaml back to $$source_pkg"
+			cp "$$pkg/kustomization.yaml.yaml" "$$source_pkg/kustomization.yaml"
 		done
 	done
 
@@ -84,11 +84,9 @@ $(.kpt.render.stamp):
 	kpt fn render --allow-network --allow-exec --truncate-output=false "$(.kpt.catalog.dir)" -o "$(.kpt.render.dir)"
 	touch "$(@)"
 
-$(.kpt.manifests.file): $(.kpt.Kustomization.file)
+$(.kpt.manifests.file): $(.kpt.kustomization.yaml.file)
 $(.kpt.manifests.file): $(.kpt.render.stamp)
 $(.kpt.manifests.file):
-	: "Copying Kustomization files to rendered output"
-	rsync -a --include='*/' --include='Kustomization' --exclude='*' "$(.kpt.catalog.dir)/" "$(.kpt.render.dir)/"
 	: "Building manifests for cluster $(cluster.name) via kustomize build"
 	kustomize build "$(.kpt.render.dir)" > "$@"
 
@@ -170,15 +168,15 @@ sync@kpt:
 	fi
 
 
-# --- Kustomization file generation (@codebase) ------------------------------------
+# --- kustomization.yaml file generation (@codebase) ------------------------------------
 
-$(.kpt.overlays.Kustomization.file): | $(dir $(.kpt.overlays.Kustomization.file))/
-$(.kpt.overlays.Kustomization.file):
+$(.kpt.overlays.kustomization.yaml.file): | $(dir $(.kpt.overlays.kustomization.yaml.file))/
+$(.kpt.overlays.kustomization.yaml.file):
 	$(file >$(@), $(.cluster.overlays.kustomize.content))
 
-$(.kpt.Kustomization.file): $(.kpt.overlays.Kustomization.file)
-$(.kpt.Kustomization.file): $(.kpt.overlays.dir)/
-$(.kpt.Kustomization.file):
+$(.kpt.kustomization.yaml.file): $(.kpt.overlays.kustomization.yaml.file)
+$(.kpt.kustomization.yaml.file): $(.kpt.overlays.dir)/
+$(.kpt.kustomization.yaml.file):
 	$(file >$(@), $(.cluster.kustomize.content))
 
 # ----------------------------------------------------------------------------

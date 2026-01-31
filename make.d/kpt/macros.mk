@@ -12,7 +12,7 @@ define .kpt.require-bin
 	fi
 endef
 
-# Utility macros for Kustomization generation (@codebase)
+# Utility macros for kustomization.yaml generation (@codebase)
 define .kpt.yaml.comma-join =
 $(subst $(space),$1,$(strip $2))
 endef
@@ -21,16 +21,16 @@ define .kpt.yaml.rangeOf =
 [ $(call .kpt.yaml.comma-join,$(comma)$(newline),$(foreach value,$(1),"$(value)")) ]
 endef 
 
-define .Kustomization.file.content =
-$(warning generating Kustomization content for $(1))
+define .kustomization.yaml.file.content =
+$(warning generating kustomization.yaml content for $(1))
 apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
+kind: kustomization.yaml
 resources: $(call .kpt.yaml.rangeOf,$(1))
 endef
 
 define .cluster.kustomize.content = 
 	apiVersion: kustomize.config.k8s.io/v1beta1
-	kind: Kustomization
+	kind: kustomization.yaml
 	resources:
 	- catalog
 	- overlays
@@ -38,7 +38,7 @@ endef
 
 define .cluster.overlays.kustomize.content = 
 	apiVersion: kustomize.config.k8s.io/v1beta1
-	kind: Kustomization
+	kind: kustomization.yaml
 	resources:
 	- ../catalog
 endef
