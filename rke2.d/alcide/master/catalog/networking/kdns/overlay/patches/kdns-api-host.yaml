@@ -1,9 +1,10 @@
 apiVersion: apps/v1
 kind: Deployment
-metadata: # kpt-merge: /kdns
+metadata: # kpt-merge: ${target-namespace}/kdns
   name: kdns
+  namespace: ${target-namespace} # kpt-set: ${target-namespace}
   annotations:
-    internal.kpt.dev/upstream-identifier: 'apps|Deployment|default|kdns'
+    internal.kpt.dev/upstream-identifier: 'apps|Deployment|${target-namespace}|kdns'
 spec:
   template:
     spec:
@@ -12,6 +13,6 @@ spec:
         - name: kdns
           env: # {"$patch": "replace"}
             - name: KUBERNETES_SERVICE_HOST
-              value: 10.80.8.10
+              value: 10.80.8.10 # kpt-set: ${cluster-node-host-inetaddr}
             - name: KUBERNETES_SERVICE_PORT
               value: "6443"

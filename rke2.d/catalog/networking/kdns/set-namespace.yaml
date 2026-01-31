@@ -5,4 +5,4 @@ metadata:
   annotations:
     config.kubernetes.io/local-config: "true"
 data:
-  namespace: kdns-system # kpt-set: ${target-namespace}
+  namespace: ${target-namespace} # kpt-set: ${target-namespace}

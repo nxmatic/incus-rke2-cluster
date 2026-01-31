@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: kdns
+  namespace: ${target-namespace} # kpt-set: ${target-namespace}
 spec:
   template:
     metadata:

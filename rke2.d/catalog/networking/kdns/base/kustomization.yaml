@@ -7,7 +7,7 @@ metadata:
 resources:
 - 02-configmap-kdns-dlv-script.yaml
 - clusterrole_kdns-ingress-reader.yaml
-- kdns-system/clusterrolebinding_kdns-ingress-reader-binding.yaml
-- kdns-system/deployment_kdns.yaml
-- kdns-system/serviceaccount_kdns.yaml
+- ${target-namespace}/clusterrolebinding_kdns-ingress-reader-binding.yaml # kpt-set: ${target-namespace}/clusterrolebinding_kdns-ingress-reader-binding.yaml
+- ${target-namespace}/deployment_kdns.yaml # kpt-set: ${target-namespace}/deployment_kdns.yaml
+- ${target-namespace}/serviceaccount_kdns.yaml # kpt-set: ${target-namespace}/serviceaccount_kdns.yaml
 
