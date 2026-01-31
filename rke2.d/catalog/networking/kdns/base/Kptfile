@@ -6,5 +6,8 @@ info:
   description: Helm-rendered kdns deployment
 pipeline:
   mutators:
+    - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+      configPath: setters.yaml
     - image: ghcr.io/kptdev/krm-functions-catalog/render-helm-chart:v0.3
       configPath: render-helm-chart.yaml
+

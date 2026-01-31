@@ -6,4 +6,4 @@ metadata: # kpt-merge: /target-namespace-setter
     config.kubernetes.io/local-config: "true"
     internal.kpt.dev/upstream-identifier: '|ConfigMap|default|target-namespace-setter'
 data:
-  namespace: kdns-system # kpt-set: ${target-namespace}
+  namespace: ${target-namespace} # kpt-set: ${target-namespace}

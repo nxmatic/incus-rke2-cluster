@@ -16,7 +16,7 @@ helmCharts:
       repo: oci://ghcr.io/lab42/charts # kpt-set: ${helm-repo}
     templateOptions:
       releaseName: kdns # kpt-set: ${release-name}
-      namespace: kdns-system # kpt-set: ${target-namespace}
+      namespace: ${target-namespace} # kpt-set: ${target-namespace}
       includeCRDs: true
       skipTests: true
       values:
