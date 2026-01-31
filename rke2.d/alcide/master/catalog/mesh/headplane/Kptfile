@@ -15,5 +15,5 @@ info:
     - Optional ingress for /admin
 pipeline:
   mutators:
-  - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
-    configPath: setters.yaml
+    - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
+      configPath: setters.yaml

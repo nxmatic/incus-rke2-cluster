@@ -7,6 +7,5 @@ metadata: # kpt-merge: /porch-resources-setters
     internal.kpt.dev/function-config: apply-setters
     description.kpt.dev: Sample Porch resources setters (override per cluster downstream)
     internal.kpt.dev/upstream-identifier: '|ConfigMap|default|porch-resources-setters'
-data:
 
 # Overrides live in catalog/setters.yaml; leave empty here unless per-package overrides are needed.

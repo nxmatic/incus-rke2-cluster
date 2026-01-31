@@ -3,4 +3,4 @@ kind: Kptfile
 metadata:
   name: tekton-pipelines
 info:
-  description: "Tekton Operator v0.78.1 (profile: all) targeting namespace tekton-pipelines"
+  description: 'Tekton Operator v0.78.1 (profile: all) targeting namespace tekton-pipelines'
