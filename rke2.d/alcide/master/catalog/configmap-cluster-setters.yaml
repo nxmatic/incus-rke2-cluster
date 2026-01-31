@@ -1,6 +1,6 @@
 apiVersion: v1
 kind: ConfigMap
-metadata:
+metadata: # kpt-merge: /cluster-setters
   name: cluster-setters
   annotations:
     config.kubernetes.io/local-config: "true"
@@ -8,47 +8,42 @@ metadata:
     description.kpt.dev: Shared cluster identity/network setters (consumed by catalog bundles)
     internal.kpt.dev/upstream-identifier: '|ConfigMap|default|cluster-setters'
 data:
-  cluster-name: alcide
-  cluster-env: dave
-  cluster-id: 1
-  cluster-domain: cluster.local
-  cluster-node-name: master
-  cluster-node-kind: server
-  cluster-flox-enabled: 
-  cluster-cidr: 10.80.8.0/21
-  cluster-lb-cidr: 10.80.8.64/26
-  cluster-vip-cidr: 10.80.15.0/24
-  cluster-host-cidr: 
-  cluster-node-cidr: 10.80.8.0/23
-  cluster-gateway-inetaddr: 10.80.8.1
-  cluster-node-vip-inetaddr: 10.80.15.10
-  cluster-node-gateway-inetaddr: 10.80.8.1
-  cluster-node-host-inetaddr: 10.80.8.10
-  cluster-node-inetaddr-base: 10.80.8
-  cluster-pod-cider: 10.44.0.0/16
-  cluster-service-cidr: 10.45.0.0/16
-  cluster-vip-gateway-inetaddr: 10.80.15.1
-  cluster-lb-gateway-inetaddr: 10.80.8.65
-  cluster-node-lan-macaddr: 10:66:6a:4c:01:00
-  cluster-node-wan-macaddr: 52:54:00:01:00:00
+  cluster-name: sample
+  cluster-env: sample
+  cluster-id: "7"
+  cluster-domain: example.local
+  cluster-cidr: 10.80.56.0/21
+  cluster-lb-cidr: 10.80.56.64/26
+  cluster-vip-cidr: 10.80.63.0/24
+  cluster-host-cidr: 10.80.56.0/21
+  cluster-node-cidr: 10.80.56.0/23
+  cluster-gateway-inetaddr: 10.80.56.1
+  cluster-node-vip-inetaddr: 10.80.63.1
+  cluster-node-gateway-inetaddr: 10.80.56.1
+  cluster-node-host-inetaddr: 10.80.56.10
+  cluster-node-inetaddr-base: 10.80.56
+  cluster-pod-cider: 10.42.0.0/16
+  cluster-service-cidr: 10.43.0.0/16
+  cluster-vip-gateway-inetaddr: 10.80.63.1
+  cluster-lb-gateway-inetaddr: 10.80.56.65
+  cluster-node-lan-macaddr: "10:66:6a:4c:07:00"
+  cluster-node-wan-macaddr: "52:54:00:07:00:00"
   cluster-node-profile-name: rke2lab
-  cluster-wan-dhcp-range: 10.80.8.2-10.80.8.9,10.80.8.31-10.80.15.254
+  cluster-lan-bridge-macaddr: "02:00:00:bb:07:00"
+  cluster-wan-dhcp-range: 10.80.56.2-10.80.63.254
   cluster-node-lan-interface: master-lan0
   cluster-node-wan-interface: master-vmnet0
   cluster-vip-interface: rke2-vip0
-  cluster-vip-vlan-id: 100
+  cluster-vip-vlan-id: "100"
   cluster-vip-vlan-name: rke2-vlan
-  cluster-master-node-inetaddr: 10.80.8.3
+  cluster-master-node-inetaddr: 10.80.56.3
   cluster-lan-lb-cidr: 192.168.1.64/27
-  cluster-lan-bridge-macaddr: 02:00:00:bb:01:00
-  cluster-lan-host-inetaddr: 192.168.1.35
   cluster-lan-headscale-inetaddr: 192.168.1.65
   cluster-lan-tailscale-inetaddr: 192.168.1.66
-  cluster-node-wan-macaddr-master: 52:54:00:01:00:00
-  cluster-node-wan-macaddr-peer1: 52:54:00:01:00:01
-  cluster-node-wan-macaddr-peer2: 52:54:00:01:00:02
-  cluster-node-wan-macaddr-peer3: 52:54:00:01:00:03
-  cluster-node-wan-macaddr-worker1: 52:54:00:01:01:0a
-  cluster-node-wan-macaddr-worker2: 52:54:00:01:01:0b
-  cluster-zfs-pool-name: tank
-  cluster-kubelet-dir: /var/lib/kubelet
+  cluster-lan-headplane-inetaddr: 192.168.1.67
+  cluster-node-wan-macaddr-master: "52:54:00:07:00:00"
+  cluster-node-wan-macaddr-peer1: "52:54:00:07:00:01"
+  cluster-node-wan-macaddr-peer2: "52:54:00:07:00:02"
+  cluster-node-wan-macaddr-peer3: "52:54:00:07:00:03"
+  cluster-node-wan-macaddr-worker1: "52:54:00:07:01:0a"
+  cluster-node-wan-macaddr-worker2: "52:54:00:07:01:0b"

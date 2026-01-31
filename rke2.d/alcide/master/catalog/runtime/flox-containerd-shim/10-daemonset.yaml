@@ -23,6 +23,7 @@ spec:
         app.kubernetes.io/component: runtime-shim
     spec:
       serviceAccountName: flox-runtime-installer
+      automountServiceAccountToken: false
       hostPID: true
       restartPolicy: Always
       tolerations:
@@ -48,8 +49,8 @@ spec:
             - /bin/sh
             - /scripts/shim-installer.sh
           volumeMounts:
-            - mountPath: /scripts
-              name: runtime-installer-script
+            - name: runtime-installer-script
+              mountPath: /scripts
               readOnly: true
       containers:
         - name: pause
@@ -63,5 +64,8 @@ spec:
               cpu: 10m
               memory: 64Mi
               ephemeral-storage: 64Mi
-      volumes: [{configMap: {defaultMode: 0755, name: flox-runtime-installer-script}, name: runtime-installer-script}]
-      automountServiceAccountToken: false
+      volumes:
+        - name: runtime-installer-script
+          configMap:
+            name: flox-runtime-installer-script
+            defaultMode: 0755

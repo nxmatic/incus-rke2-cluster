@@ -10,14 +10,14 @@ upstream:
     repo: /net/alcide.lan/private/var/lib/git/nxmatic/rke2lab
     directory: /rke2.d/catalog
     ref: main
-  updateStrategy: resource-merge
+  updateStrategy: force-delete-replace
 upstreamLock:
   type: git
   git:
     repo: /net/alcide.lan/private/var/lib/git/nxmatic/rke2lab
     directory: /rke2.d/catalog
     ref: main
-    commit: 188efdd85ff3f2b0a5f403c5d8183ab4fc520c31
+    commit: 00554ba3b9d0aba5081fe90a63dd67d0e5e66916
 info:
   site: https://github.com/nxmatic/rke2lab
   description: |

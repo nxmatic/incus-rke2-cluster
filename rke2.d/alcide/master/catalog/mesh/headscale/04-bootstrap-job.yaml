@@ -53,12 +53,33 @@ metadata: # kpt-merge: ${headscale-namespace}/headscale-bootstrap
 spec:
   ttlSecondsAfterFinished: 300
   template:
+    metadata:
+      annotations:
+        flox.dev/environment: "${headscale-flox-env}" # kpt-set: ${headscale-flox-env}
     spec:
+      runtimeClassName: flox
       serviceAccountName: headscale-bootstrap
       restartPolicy: OnFailure
+      volumes:
+      - name: bootstrap-script
+        configMap:
+          name: headscale-bootstrap-script
+          defaultMode: 0755
       containers:
       - name: bootstrap
         image: flox/empty:1.0.0
+        command:
+        - bash
+        - /scripts/bootstrap.sh
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+            ephemeral-storage: 64Mi
+          limits:
+            cpu: 250m
+            memory: 256Mi
+            ephemeral-storage: 256Mi
         env:
         - name: HEADSCALE_NAMESPACE
           value: ${headscale-namespace} # kpt-set: ${headscale-namespace}
@@ -66,28 +87,7 @@ spec:
           value: "1"
         - name: FLOX_NONINTERACTIVE
           value: "1"
-        command:
-        - bash
-        - /scripts/bootstrap.sh
-        resources:
-          limits:
-            cpu: 250m
-            ephemeral-storage: 256Mi
-            memory: 256Mi
-          requests:
-            cpu: 50m
-            ephemeral-storage: 64Mi
-            memory: 64Mi
         volumeMounts:
-        - mountPath: /scripts
-          name: bootstrap-script
+        - name: bootstrap-script
+          mountPath: /scripts
           readOnly: true
-      runtimeClassName: flox
-      volumes:
-      - configMap:
-          defaultMode: 0755
-          name: headscale-bootstrap-script
-        name: bootstrap-script
-    metadata:
-      annotations:
-        flox.dev/environment: "${headscale-flox-env}" # kpt-set: ${headscale-flox-env}

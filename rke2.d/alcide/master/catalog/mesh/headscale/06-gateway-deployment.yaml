@@ -27,6 +27,7 @@ spec:
       annotations:
         flox.dev/environment: "${headscale-flox-env}" # kpt-set: ${headscale-flox-env}
     spec:
+      runtimeClassName: flox
       serviceAccountName: headscale-gateway
       automountServiceAccountToken: false
       hostNetwork: true
@@ -45,13 +46,13 @@ spec:
           value: ${cluster-name} # kpt-set: ${cluster-name}
         - name: VIP_NETWORK_CIDR
           value: ${cluster-vip-cidr} # kpt-set: ${cluster-vip-cidr}
+        - name: HEADSCALE_URL
+          value: http://headscale.${headscale-namespace}.svc.cluster.local:8080 # kpt-set: http://headscale.${headscale-namespace}.svc.cluster.local:8080
         - name: TS_AUTHKEY
           valueFrom:
             secretKeyRef:
               name: headscale-client-auth
               key: authkey
-        - name: HEADSCALE_URL
-          value: http://headscale.${headscale-namespace}.svc.cluster.local:8080 # kpt-set: http://headscale.${headscale-namespace}.svc.cluster.local:8080
         - name: FLOX_NO_TELEMETRY
           value: "1"
         - name: FLOX_NONINTERACTIVE
@@ -75,8 +76,8 @@ spec:
         - name: authkey
           mountPath: /var/secrets
           readOnly: true
-        - mountPath: /scripts
-          name: gateway-script
+        - name: gateway-script
+          mountPath: /scripts
           readOnly: true
         resources:
           requests:
@@ -98,14 +99,13 @@ spec:
           type: DirectoryOrCreate
       - name: tailscale-socket
         emptyDir: {}
+      - name: gateway-script
+        configMap:
+          name: headscale-gateway-script
+          defaultMode: 0755
       - name: authkey
         secret:
           secretName: headscale-client-auth
           items:
           - key: authkey
             path: authkey
-      - configMap:
-          defaultMode: 0755
-          name: headscale-gateway-script
-        name: gateway-script
-      runtimeClassName: flox

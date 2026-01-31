@@ -13,4 +13,5 @@ spec:
   createNamespace: true
   valuesContent: |-
     operatorConfig:
+      hostname: ${cluster-name}-tailscale-operator # kpt-set: ${cluster-name}-tailscale-operator
       debug: true

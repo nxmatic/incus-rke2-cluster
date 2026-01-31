@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: # kpt-merge: /kdns
+  name: kdns
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'apps|Deployment|default|kdns'
+spec:
+  template:
+    metadata:
+      annotations:
+        debug.kdns.lab42/enabled: "false"
+    spec:
+      shareProcessNamespace: true
+      automountServiceAccountToken: false
+      containers:
+        - name: kdns-dlv
+          image: alpine:3.19
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - /scripts/kdns-dlv.sh
+          env:
+            - name: KDNS_DEBUG_ENABLED
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.annotations['debug.kdns.lab42/enabled']
+            - name: KDNS_DEBUG_PORT
+              value: "40000"
+          ports:
+            - containerPort: 40000
+              name: dlv
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 50m
+              memory: 128Mi
+              ephemeral-storage: 128Mi
+            requests:
+              cpu: 10m
+              memory: 64Mi
+              ephemeral-storage: 64Mi
+          volumeMounts:
+            - name: kdns-dlv-script
+              mountPath: /scripts
+              readOnly: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              add:
+                - SYS_PTRACE
+              drop:
+                - ALL
+            readOnlyRootFilesystem: false
+            runAsNonRoot: false
+            runAsUser: 0
+      volumes:
+        - name: kdns-dlv-script
+          configMap:
+            name: kdns-dlv-script
+            defaultMode: 0755

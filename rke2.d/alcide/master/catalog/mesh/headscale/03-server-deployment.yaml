@@ -19,9 +19,29 @@ spec:
       annotations:
         flox.dev/environment: "${headscale-flox-env}" # kpt-set: ${headscale-flox-env}
     spec:
+      runtimeClassName: flox
       automountServiceAccountToken: false
       nodeSelector:
         node-role.kubernetes.io/control-plane: "true"
+      initContainers:
+      - name: config-init
+        image: flox/empty:1.0.0
+        command:
+        - bash
+        - /scripts/config-init.sh
+        volumeMounts:
+        - name: config-init-script
+          mountPath: /scripts
+        - name: config-source
+          mountPath: /config-source
+          readOnly: true
+        - name: config
+          mountPath: /config
+        - name: extra-records-source
+          mountPath: /extra-records-source
+          readOnly: true
+        - name: data
+          mountPath: /var/lib/headscale
       containers:
       - name: headscale
         image: flox/empty:1.0.0
@@ -46,6 +66,11 @@ spec:
           mountPath: /var/lib/headscale
         - name: run
           mountPath: /var/run/headscale
+        env:
+        - name: FLOX_NO_TELEMETRY
+          value: "1"
+        - name: FLOX_NONINTERACTIVE
+          value: "1"
         command:
         - headscale
         - serve
@@ -70,14 +95,19 @@ spec:
             cpu: 500m
             memory: 512Mi
             ephemeral-storage: 512Mi
-        env:
-        - name: FLOX_NO_TELEMETRY
-          value: "1"
-        - name: FLOX_NONINTERACTIVE
-          value: "1"
       volumes:
+      - name: config-source
+        configMap:
+          name: headscale-config
       - name: config
         emptyDir: {}
+      - name: config-init-script
+        configMap:
+          name: headscale-config-init-script
+          defaultMode: 0755
+      - name: extra-records-source
+        configMap:
+          name: headscale-extra-records
       - name: acl
         configMap:
           name: headscale-acl
@@ -88,36 +118,6 @@ spec:
         emptyDir: {}
       - name: run
         emptyDir: {}
-      - configMap:
-          name: headscale-config
-        name: config-source
-      - configMap:
-          name: headscale-extra-records
-        name: extra-records-source
-      - configMap:
-          defaultMode: 0755
-          name: headscale-config-init-script
-        name: config-init-script
-      initContainers:
-      - command:
-        - bash
-        - /scripts/config-init.sh
-        image: flox/empty:1.0.0
-        name: config-init
-        volumeMounts:
-        - mountPath: /config-source
-          name: config-source
-          readOnly: true
-        - mountPath: /config
-          name: config
-        - mountPath: /extra-records-source
-          name: extra-records-source
-          readOnly: true
-        - mountPath: /var/lib/headscale
-          name: data
-        - mountPath: /scripts
-          name: config-init-script
-      runtimeClassName: flox
 ---
 apiVersion: v1
 kind: Service

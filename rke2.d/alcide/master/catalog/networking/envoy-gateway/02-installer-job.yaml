@@ -18,21 +18,21 @@ spec:
         - sh
         - /scripts/install.sh
         resources:
-          limits:
-            cpu: 200m
-            ephemeral-storage: 256Mi
-            memory: 256Mi
           requests:
             cpu: 50m
-            ephemeral-storage: 128Mi
             memory: 64Mi
+            ephemeral-storage: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+            ephemeral-storage: 256Mi
         volumeMounts:
-        - mountPath: /scripts
-          name: installer-script
+        - name: installer-script
+          mountPath: /scripts
           readOnly: true
       volumes:
-      - configMap:
-          defaultMode: 0755
+      - name: installer-script
+        configMap:
           name: envoy-gateway-installer-script
-        name: installer-script
+          defaultMode: 0755
   backoffLimit: 3

@@ -8,7 +8,11 @@ metadata: # kpt-merge: ${headplane-namespace}/headplane-agent-sync
 spec:
   ttlSecondsAfterFinished: 300
   template:
+    metadata:
+      annotations:
+        flox.dev/environment: "${headplane-flox-env}" # kpt-set: ${headplane-flox-env}
     spec:
+      runtimeClassName: flox
       serviceAccountName: headplane
       restartPolicy: OnFailure
       containers:
@@ -27,15 +31,11 @@ spec:
               memory: 128Mi
               ephemeral-storage: 256Mi
           volumeMounts:
-            - mountPath: /scripts
-              name: agent-sync-script
+            - name: agent-sync-script
+              mountPath: /scripts
               readOnly: true
-      runtimeClassName: flox
       volumes:
-        - configMap:
-            defaultMode: 0755
+        - name: agent-sync-script
+          configMap:
             name: headplane-agent-sync-script
-          name: agent-sync-script
-    metadata:
-      annotations:
-        flox.dev/environment: "${headplane-flox-env}" # kpt-set: ${headplane-flox-env}
+            defaultMode: 0755

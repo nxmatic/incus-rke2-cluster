@@ -15,7 +15,7 @@ data:
   headplane-flox-env: nxmatic/headplane
   headplane-base-url: http://headplane.headplane.svc.cluster.local:3000
   headscale-service-url: http://headscale.headscale-system.svc.cluster.local:8080
-  headplane-ingress-host: "headplane.local"
+  headplane-ingress-host: headplane.local
   headplane-ingress-class: cilium
   headplane-cookie-secure: "true"
   headplane-data-size: 128Mi
