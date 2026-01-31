@@ -8,6 +8,3 @@ pipeline:
   mutators:
     - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2
       configPath: setters.yaml
-  # Deleted the set-namespace mutator (causing crashes)
-  # - image: ghcr.io/kptdev/krm-functions-catalog/set-namespace:v0.4
-  #   configPath: set-namespace.yaml

@@ -8,26 +8,39 @@ metadata: # kpt-merge: porch-system/porch-server
 spec:
   template:
     spec:
+      automountServiceAccountToken: false
       volumes:
         - name: git-bin
           emptyDir: {}
+        - name: porch-git-script
+          configMap:
+            name: porch-git-script
+            defaultMode: 0755
       initContainers:
         - name: install-git
           image: alpine:latest
           command:
             - sh
-            - -c
-            - |
-              apk add --no-cache git ca-certificates openssh-client
-              cp -r /usr/bin/git* /git-bin/
-              cp /usr/bin/ssh* /git-bin/ || true
+            - /scripts/install-git.sh
           volumeMounts:
             - name: git-bin
               mountPath: /git-bin
+            - name: porch-git-script
+              mountPath: /scripts
+              readOnly: true
           securityContext:
             runAsUser: 0
       containers:
         - name: porch-server
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+              ephemeral-storage: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+              ephemeral-storage: 512Mi
           volumeMounts:
             - name: git-bin
               mountPath: /usr/bin/git

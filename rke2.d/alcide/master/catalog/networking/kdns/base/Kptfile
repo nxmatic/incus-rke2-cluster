@@ -10,4 +10,3 @@ pipeline:
       configPath: setters.yaml
     - image: ghcr.io/kptdev/krm-functions-catalog/render-helm-chart:v0.3
       configPath: render-helm-chart.yaml
-

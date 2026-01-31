@@ -1,0 +1,69 @@
+---
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: helm.cattle.io|HelmChartConfig|kube-system|rke2-cilium
+    kpt.dev/package-layer: networking
+    kpt.dev/package-name: cilium-config
+  name: rke2-cilium
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    installCRDs: true
+    bpf:
+      hostLegacyRouting: true
+    bgpControlPlane:
+      enabled: true
+    cluster:
+      name: sample
+      id: 7
+    clustermesh:
+      enabled: true
+      useAPIServer: true
+      apiserver:
+        enabled: true
+        service:
+          type: LoadBalancer
+          # Using BGP announcements for cluster mesh
+    envoy:
+      enabled: true
+    gatewayAPI:
+      enabled: true
+    ingressController:
+      default: true
+      enabled: true
+      loadBalancerMode: dedicated
+      service:
+        annotations:
+          io.cilium/lb-ipam-pool: lan
+          io.cilium/lb-ipam-ips: lan-headplane-inetaddr
+    hubble:
+      enabled: true
+      relay:
+        enabled: true
+      ui:
+        enabled: true
+    ipv4:
+      enabled: true
+    ipv6:
+      enabled: false
+    kubeProxyReplacement: true
+    l2announcements:
+      enabled: true
+      leaseDuration: 15s
+      leaseRenewDeadline: 5s
+      leaseRetryPeriod: 2s
+    l2NeighDiscovery:
+      enabled: true
+      refresh: true
+      refreshPeriod: 30s
+    l7Proxy: true
+    routingMode: tunnel
+    tunnelProtocol: vxlan
+    operator:
+      replicas: 1
+      podDisruptionBudget:
+        enabled: true
+    socketLB:
+      enabled: true

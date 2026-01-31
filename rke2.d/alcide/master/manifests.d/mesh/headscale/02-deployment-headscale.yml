@@ -1,0 +1,125 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: apps|Deployment|${headscale-namespace}|headscale
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  labels:
+    app: headscale
+  name: headscale
+  namespace: headscale-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: headscale
+  template:
+    metadata:
+      annotations:
+        flox.dev/environment: nxmatic/headscale
+        kpt.dev/package-layer: mesh
+        kpt.dev/package-name: headscale
+      labels:
+        app: headscale
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - command:
+            - headscale
+            - serve
+          env:
+            - name: FLOX_NO_TELEMETRY
+              value: "1"
+            - name: FLOX_NONINTERACTIVE
+              value: "1"
+          image: flox/empty:1.0.0
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          name: headscale
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+            - containerPort: 9090
+              name: metrics
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            limits:
+              cpu: 500m
+              ephemeral-storage: 512Mi
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              ephemeral-storage: 256Mi
+              memory: 128Mi
+          volumeMounts:
+            - mountPath: /etc/headscale/config.yaml
+              name: config
+              subPath: config.yaml
+            - mountPath: /etc/headscale/acl.json
+              name: acl
+              subPath: acl.json
+            - mountPath: /etc/headscale/derp.yaml
+              name: derp
+              subPath: derp.yaml
+            - mountPath: /var/lib/headscale
+              name: data
+            - mountPath: /var/run/headscale
+              name: run
+      initContainers:
+        - command:
+            - bash
+            - /scripts/config-init.sh
+          image: flox/empty:1.0.0
+          name: config-init
+          volumeMounts:
+            - mountPath: /scripts
+              name: config-init-script
+            - mountPath: /config-source
+              name: config-source
+              readOnly: true
+            - mountPath: /config
+              name: config
+            - mountPath: /extra-records-source
+              name: extra-records-source
+              readOnly: true
+            - mountPath: /var/lib/headscale
+              name: data
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+      runtimeClassName: flox
+      volumes:
+        - configMap:
+            name: headscale-config
+          name: config-source
+        - emptyDir: {}
+          name: config
+        - configMap:
+            defaultMode: 493
+            name: headscale-config-init-script
+          name: config-init-script
+        - configMap:
+            name: headscale-extra-records
+          name: extra-records-source
+        - configMap:
+            name: headscale-acl
+          name: acl
+        - configMap:
+            name: headscale-derp
+          name: derp
+        - emptyDir: {}
+          name: data
+        - emptyDir: {}
+          name: run

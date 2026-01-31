@@ -1,0 +1,53 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: batch|Job|${headscale-namespace}|headscale-bootstrap
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  name: headscale-bootstrap
+  namespace: headscale-system
+spec:
+  template:
+    metadata:
+      annotations:
+        flox.dev/environment: nxmatic/headscale
+        kpt.dev/package-layer: mesh
+        kpt.dev/package-name: headscale
+    spec:
+      containers:
+        - command:
+            - bash
+            - /scripts/bootstrap.sh
+          env:
+            - name: HEADSCALE_NAMESPACE
+              value: headscale-system
+            - name: FLOX_NO_TELEMETRY
+              value: "1"
+            - name: FLOX_NONINTERACTIVE
+              value: "1"
+          image: flox/empty:1.0.0
+          name: bootstrap
+          resources:
+            limits:
+              cpu: 250m
+              ephemeral-storage: 256Mi
+              memory: 256Mi
+            requests:
+              cpu: 50m
+              ephemeral-storage: 64Mi
+              memory: 64Mi
+          volumeMounts:
+            - mountPath: /scripts
+              name: bootstrap-script
+              readOnly: true
+      restartPolicy: OnFailure
+      runtimeClassName: flox
+      serviceAccountName: headscale-bootstrap
+      volumes:
+        - configMap:
+            defaultMode: 493
+            name: headscale-bootstrap-script
+          name: bootstrap-script
+  ttlSecondsAfterFinished: 300

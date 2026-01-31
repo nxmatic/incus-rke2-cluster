@@ -1,0 +1,45 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: batch|Job|${envoy-gateway-namespace}|envoy-gateway-installer
+    kpt.dev/package-layer: networking
+    kpt.dev/package-name: envoy-gateway
+  name: envoy-gateway-installer
+  namespace: envoy-gateway-system
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      annotations:
+        kpt.dev/package-layer: networking
+        kpt.dev/package-name: envoy-gateway
+    spec:
+      containers:
+        - command:
+            - sh
+            - /scripts/install.sh
+          image: alpine/k8s:1.29.8
+          name: installer
+          resources:
+            limits:
+              cpu: 200m
+              ephemeral-storage: 256Mi
+              memory: 256Mi
+            requests:
+              cpu: 50m
+              ephemeral-storage: 128Mi
+              memory: 64Mi
+          volumeMounts:
+            - mountPath: /scripts
+              name: installer-script
+              readOnly: true
+      restartPolicy: OnFailure
+      serviceAccountName: envoy-gateway-installer
+      volumes:
+        - configMap:
+            defaultMode: 493
+            name: envoy-gateway-installer-script
+          name: installer-script
+  ttlSecondsAfterFinished: 300

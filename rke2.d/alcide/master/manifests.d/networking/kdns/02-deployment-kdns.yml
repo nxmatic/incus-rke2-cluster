@@ -1,0 +1,116 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: apps|Deployment|${target-namespace}|kdns
+    kpt.dev/package-layer: networking
+    kpt.dev/package-name: kdns
+  labels:
+    app.kubernetes.io/instance: kdns
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: kdns
+    helm.sh/chart: kdns-0.2.3
+  name: kdns
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: kdns
+      app.kubernetes.io/name: kdns
+  template:
+    metadata:
+      annotations:
+        debug.kdns.lab42/enabled: "false"
+        kpt.dev/package-layer: networking
+        kpt.dev/package-name: kdns
+      labels:
+        app.kubernetes.io/instance: kdns
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: kdns
+        helm.sh/chart: kdns-0.2.3
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - command:
+            - /bin/sh
+            - /scripts/kdns-dlv.sh
+          env:
+            - name: KDNS_DEBUG_ENABLED
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.annotations['debug.kdns.lab42/enabled']
+            - name: KDNS_DEBUG_PORT
+              value: "40000"
+          image: alpine:3.19
+          imagePullPolicy: IfNotPresent
+          name: kdns-dlv
+          ports:
+            - containerPort: 40000
+              name: dlv
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 50m
+              ephemeral-storage: 128Mi
+              memory: 128Mi
+            requests:
+              cpu: 10m
+              ephemeral-storage: 64Mi
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              add:
+                - SYS_PTRACE
+              drop:
+                - ALL
+            readOnlyRootFilesystem: false
+            runAsNonRoot: false
+            runAsUser: 0
+          volumeMounts:
+            - mountPath: /scripts
+              name: kdns-dlv-script
+              readOnly: true
+        - env:
+            - name: KUBERNETES_SERVICE_HOST
+              value: 10.80.8.10
+            - name: KUBERNETES_SERVICE_PORT
+              value: "6443"
+          image: ghcr.io/lab42/kdns:v0.2.9
+          imagePullPolicy: IfNotPresent
+          livenessProbe: null
+          name: kdns
+          ports:
+            - containerPort: 5353
+              hostPort: 5353
+              name: http
+              protocol: TCP
+          readinessProbe: null
+          resources:
+            limits:
+              cpu: 200m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          securityContext:
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+      dnsPolicy: Default
+      hostNetwork: true
+      securityContext: {}
+      serviceAccountName: kdns
+      shareProcessNamespace: true
+      tolerations:
+        - operator: Exists
+      volumes:
+        - configMap:
+            defaultMode: 493
+            name: kdns-dlv-script
+          name: kdns-dlv-script

@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: # kpt-merge: porch-system/porch-git-script
+  name: porch-git-script
+  namespace: porch-system
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|porch-system|porch-git-script'
+data:
+  install-git.sh: |-
+    #!/usr/bin/env -S bash -exuo pipefail
+    apk add --no-cache git ca-certificates openssh-client
+    cp -r /usr/bin/git* /git-bin/
+    cp /usr/bin/ssh* /git-bin/ || true

@@ -1,0 +1,22 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|Role|tekton-pipelines|tekton-dashboard-info
+    kpt.dev/package-layer: cicd
+    kpt.dev/package-name: tekton-dashboard
+  labels:
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: tekton-dashboard
+  name: tekton-dashboard-info
+  namespace: tekton-pipelines
+rules:
+  - apiGroups:
+      - ""
+    resourceNames:
+      - dashboard-info
+    resources:
+      - configmaps
+    verbs:
+      - get
