@@ -1,29 +1,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+metadata: # kpt-merge: /porch
+  name: porch
+  annotations:
+    config.kubernetes.io/local-config: "true"
+    internal.kpt.dev/upstream-identifier: 'kustomize.config.k8s.io|Kustomization|default|porch'
 resources:
-- 0-packagerevs.yaml
-- 0-packagevariants.yaml
-- 0-packagevariantsets.yaml
-- 0-repositories.yaml
-- 1-namespace.yaml
-- 2-function-runner.yaml
-- 3-porch-server.yaml
-- 4-apiservice.yaml
-- 5-rbac.yaml
-- 6-rbac-bind.yaml
-- 7-auth-reader.yaml
-- 8-auth-delegator.yaml
-- 9-controllers.yaml
-- 9-porch-controller-clusterrole.yaml
-- 9-porch-controller-packagevariants-clusterrole.yaml
-- 9-porch-controller-packagevariants-clusterrolebinding.yaml
-- 9-porch-controller-packagevariantsets-clusterrole.yaml
-- 9-porch-controller-packagevariantsets-clusterrolebinding.yaml
-patches:
-- path: patch-porch-server-git.yaml
-  target:
-    kind: Deployment
-    name: porch-server
-commonAnnotations:
-  kpt.dev/package-layer: gitops
-  kpt.dev/package-name: porch
+- overlay
