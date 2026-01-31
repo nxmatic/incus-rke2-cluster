@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: ConfigMap
-metadata: # kpt-merge: ${kdns-namespace}/kdns-dlv-script
+metadata: # kpt-merge: ${target-namespace}/kdns-dlv-script
   name: kdns-dlv-script
-  namespace: ${kdns-namespace} # kpt-set: ${kdns-namespace}
+  namespace: ${target-namespace} # kpt-set: ${target-namespace}
   annotations:
-    internal.kpt.dev/upstream-identifier: '|ConfigMap|${kdns-namespace}|kdns-dlv-script'
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|${target-namespace}|kdns-dlv-script'
 data:
   kdns-dlv.sh: |-
     #!/usr/bin/env -S bash -exuo pipefail

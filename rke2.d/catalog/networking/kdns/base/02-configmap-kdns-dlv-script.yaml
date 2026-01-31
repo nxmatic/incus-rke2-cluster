@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: kdns-dlv-script
-  namespace: ${kdns-namespace} # kpt-set: ${kdns-namespace}
+  namespace: ${target-namespace} # kpt-set: ${target-namespace}
 data:
   kdns-dlv.sh: |
     #!/usr/bin/env -S bash -exuo pipefail
