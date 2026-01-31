@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+metadata:
+  name: kdns-base
+resources:
+- 02-configmap-kdns-dlv-script.yaml
+- clusterrole_kdns-ingress-reader.yaml
+- kdns-system/clusterrolebinding_kdns-ingress-reader-binding.yaml
+- kdns-system/deployment_kdns.yaml
+- kdns-system/serviceaccount_kdns.yaml
+
