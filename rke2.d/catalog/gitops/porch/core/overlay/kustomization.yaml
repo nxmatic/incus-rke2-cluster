@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+metadata:
+  name: porch-core-base
+  annotations:
+    config.kubernetes.io/local-config: "true"
+resources:
+- ../base
+- resources.d/configmap-porch-git-script.yaml
+patches:
+- path: patches.d/patch-porch-server-git.yaml
+  target:
+    kind: Deployment
+    name: porch-server
+commonAnnotations:
+  kpt.dev/package-layer: gitops
+  kpt.dev/package-name: porch
