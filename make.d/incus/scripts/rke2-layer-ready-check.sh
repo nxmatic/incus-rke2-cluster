@@ -8,17 +8,57 @@ log() {
 }
 
 usage() {
-  echo "Usage: $(basename "$0") <layer|layer/subpath>" >&2
+  echo "Usage: $(basename "$0") <layer|layer/subpath> [--package <name>]" >&2
   echo "Example: $(basename "$0") networking" >&2
   echo "         $(basename "$0") mesh" >&2
+  echo "         $(basename "$0") storage --package openebs-zfs" >&2
 }
 
-if [[ $# -ne 1 ]]; then
+layer=""
+package_filter=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -p|--package)
+      package_filter="${2:-}"
+      if [[ -z "${package_filter}" ]]; then
+        log "Missing package name for $1"
+        usage
+        exit 1
+      fi
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -* )
+      log "Unknown option: $1"
+      usage
+      exit 1
+      ;;
+    * )
+      if [[ -n "${layer}" ]]; then
+        log "Unexpected argument: $1"
+        usage
+        exit 1
+      fi
+      layer="$1"
+      shift
+      ;;
+  esac
+done
+
+if [[ -z "${layer}" ]]; then
   usage
   exit 1
 fi
 
-layer="${1%/}"
+layer="${layer%/}"
 base_dir="${RKE2LAB_MANIFESTS_DIR:-/srv/host/manifests.d}"
 src_dir="${base_dir}/${layer}"
 timeout="${RKE2_LAYER_READY_TIMEOUT:-300s}"
@@ -28,11 +68,21 @@ if [[ ! -d "${src_dir}" ]]; then
   exit 1
 fi
 
-declare -a crds
-declare -a workloads
+if [[ -n "${package_filter}" ]]; then
+  package_dir="${src_dir}/${package_filter}"
+  if [[ -d "${package_dir}" ]]; then
+    src_dir="${package_dir}"
+  else
+    log "Package directory not found: ${package_dir}; falling back to layer scan"
+  fi
+fi
+
+declare -a crds=()
+declare -a workloads=()
 
 collect_with_yq() {
   local -a files
+  local package_selector
   while IFS= read -r -d '' file; do
     files+=("$file")
   done < <(find "${src_dir}" -type f \( -name '*.yaml' -o -name '*.yml' \) -print0)
@@ -41,60 +91,26 @@ collect_with_yq() {
     return 0
   fi
 
+  package_selector='.'
+  if [[ -n "${package_filter}" ]]; then
+    package_selector='select(.metadata.annotations["kpt.dev/package-name"] == "'"${package_filter}"'")'
+  fi
+
   while IFS= read -r line; do
     [[ -z "${line}" ]] && continue
     crds+=("${line}")
-  done < <(yq -r 'select(.kind == "CustomResourceDefinition") | .metadata.name' "${files[@]}" | sort -u)
+  done < <(yq -r "${package_selector} | select(.kind == \"CustomResourceDefinition\") | .metadata.name" "${files[@]}" | sort -u)
 
   while IFS= read -r line; do
     [[ -z "${line}" ]] && continue
     workloads+=("${line}")
   done < <(
-    yq -r 'select(.kind == "Deployment" or .kind == "DaemonSet" or .kind == "StatefulSet") |
-      "\(.kind)\t\(.metadata.name)\t\(.metadata.namespace // "default")"' "${files[@]}" | sort -u
+    yq -r "${package_selector} | select(.kind == \"Deployment\" or .kind == \"DaemonSet\" or .kind == \"StatefulSet\") |
+      [.kind, .metadata.name, (.metadata.namespace // \"default\")] | @tsv" "${files[@]}" | sort -u
   )
 }
 
-collect_with_awk() {
-  while IFS= read -r -d '' file; do
-    while IFS= read -r line; do
-      [[ -z "${line}" ]] && continue
-      if [[ "${line}" == CRD* ]]; then
-        crds+=("${line#CRD\t}")
-      else
-        workloads+=("${line}")
-      fi
-    done < <(
-      awk '
-        function flush_doc() {
-          if (kind == "CustomResourceDefinition" && name != "") {
-            print "CRD\t" name
-          } else if (kind == "Deployment" || kind == "DaemonSet" || kind == "StatefulSet") {
-            if (name != "") {
-              if (ns == "") ns = "default"
-              print kind "\t" name "\t" ns
-            }
-          }
-          kind=""; name=""; ns=""; inmeta=0
-        }
-        /^---/ { flush_doc(); next }
-        /^kind:/ { kind=$2; next }
-        /^metadata:/ { inmeta=1; next }
-        inmeta && /^[[:space:]]+name:/ { name=$2; next }
-        inmeta && /^[[:space:]]+namespace:/ { ns=$2; next }
-        /^[^[:space:]]/ { inmeta=0 }
-        END { flush_doc() }
-      ' "${file}" | sort -u
-    )
-  done < <(find "${src_dir}" -type f \( -name '*.yaml' -o -name '*.yml' \) -print0)
-}
-
-if command -v yq >/dev/null 2>&1; then
-  collect_with_yq
-else
-  log "yq not found; falling back to awk-based parsing"
-  collect_with_awk
-fi
+collect_with_yq
 
 if [[ ${#crds[@]} -gt 0 ]]; then
   log "Waiting for CRDs to be established"
@@ -104,11 +120,11 @@ if [[ ${#crds[@]} -gt 0 ]]; then
 fi
 
 if [[ ${#workloads[@]} -eq 0 ]]; then
-  log "No workloads found for layer ${layer}; skipping workload readiness"
+  log "No workloads found for layer ${layer}${package_filter:+ (package ${package_filter})}; skipping workload readiness"
   exit 0
 fi
 
-log "Waiting for workloads in layer ${layer}"
+log "Waiting for workloads in layer ${layer}${package_filter:+ (package ${package_filter})}"
 for entry in "${workloads[@]}"; do
   IFS=$'\t' read -r kind name namespace <<<"${entry}"
   resource=$(echo "${kind}" | tr '[:upper:]' '[:lower:]')
