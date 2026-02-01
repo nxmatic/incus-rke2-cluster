@@ -4,6 +4,8 @@ RequiresMountsFor=/srv/host/system.d /srv/host
 After=local-fs.target
 After=rke2-server.service
 Requires=rke2-server.service
+After=rke2-mesh-ready-check.service
+Requires=rke2-mesh-ready-check.service
 ConditionPathExists=/srv/host/scripts.d/rke2-manifests-install.sh
 ConditionPathExists=/srv/host/manifests.d/cicd/tekton-pipelines
 

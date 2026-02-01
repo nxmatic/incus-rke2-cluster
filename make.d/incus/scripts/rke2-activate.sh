@@ -14,7 +14,14 @@ systemctl enable \
 	rke2-route-cleanup.service \
 	zfs-early-umount.service \
 	rke2-remount-shared.service \
+	rke2-runtime-manifests-install.service \
+	rke2-runtime-ready-check.service \
+	rke2-storage-manifests-install.service \
+	rke2-storage-ready-check.service \
 	rke2-networking-manifests-install.service \
+	rke2-networking-ready-check.service \
+	rke2-mesh-manifests-install.service \
+	rke2-mesh-ready-check.service \
 	rke2-tekton-pipelines-manifests-install.service
 
 : "Start network configuration service immediately"
