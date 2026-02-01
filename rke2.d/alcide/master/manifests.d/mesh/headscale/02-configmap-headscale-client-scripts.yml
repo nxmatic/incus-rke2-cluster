@@ -1,0 +1,51 @@
+---
+apiVersion: v1
+data:
+  tailscale-client.sh: |-
+    #!/usr/bin/env -S bash -exuo pipefail
+
+    : "[i] Starting tailscaled..."
+    tailscaled \
+      --tun=userspace-networking \
+      --state=/var/lib/tailscale/tailscaled.state \
+      --socket=/var/run/tailscale/tailscaled.sock --verbose=1 &
+    TAILSCALED_PID=$$!
+
+    : "[i] Waiting for tailscaled socket..."
+    until [ -S /var/run/tailscale/tailscaled.sock ]; do sleep 1; done
+
+    # Use internal cluster service (HTTP) - client is inside the cluster
+    # External clients use https://alcide-headscale via Tailscale operator
+    : "[i] Connecting to Headscale at $HEADSCALE_URL..."
+    tailscale up \
+      --login-server=$HEADSCALE_URL \
+      --authkey=file:/var/secrets/authkey \
+      --hostname=${DARWIN_HOST}-${RKE2_NODENAME} \
+      --advertise-tags=tag:rke2,tag:alcide \
+      --accept-routes \
+      --ssh \
+      --reset
+
+    wait $TAILSCALED_PID
+  wait-for-authkey.sh: |
+    #!/usr/bin/env -S bash -exuo pipefail
+
+    : "[i] Waiting for auth key Secret to be populated..."
+    kubectl wait --for=jsonpath='{.data.authkey}' secret/headscale-client-auth \
+      -n "$HEADSCALE_NAMESPACE" --timeout=300s
+  wait-for-headscale.sh: |
+    #!/usr/bin/env -S bash -exuo pipefail
+
+    : "[i] Waiting for headscale deployment to be available..."
+    kubectl wait --for=condition=available deployment/headscale \
+      -n "$HEADSCALE_NAMESPACE" --timeout=300s
+kind: ConfigMap
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|${headscale-namespace}|headscale-client-scripts'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  labels:
+    app: headscale-client
+  name: headscale-client-scripts
+  namespace: headscale-system

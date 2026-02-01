@@ -4,9 +4,13 @@ resources:
 - 00-namespace.yaml
 - 01-cilium-loadbalancer-pool.yaml
 - 02-configmaps.yaml
+- 02-configmap-headscale-config-init-script.yaml
 - 03-server-deployment.yaml
+- 04-configmap-headscale-bootstrap-script.yaml
 - 04-bootstrap-job.yaml
+- 05-configmap-headscale-client-scripts.yaml
 - 05-client-daemonset.yaml
+- 06-configmap-headscale-gateway-script.yaml
 - 06-gateway-deployment.yaml
 commonAnnotations:
   kpt.dev/package-layer: mesh

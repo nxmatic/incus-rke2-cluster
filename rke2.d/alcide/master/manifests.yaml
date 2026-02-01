@@ -5900,6 +5900,170 @@ subjects:
 ---
 apiVersion: v1
 data:
+  install.sh: |
+    #!/usr/bin/env -S bash -exuo pipefail
+
+    : "[i] Installing Envoy Gateway v1.4.2..." # kpt-set: Installing Envoy Gateway ${envoy-gateway-version}...
+    kubectl apply \
+      --server-side \
+      --force-conflicts \
+      -f https://github.com/envoyproxy/gateway/releases/download/v1.4.2/install.yaml # kpt-set: -f https://github.com/envoyproxy/gateway/releases/download/${envoy-gateway-version}/install.yaml
+
+    : "[i] Waiting for Envoy Gateway deployment..."
+    kubectl wait --timeout=300s \
+      --namespace envoy-gateway-system \
+      --for=condition=available \
+      deployment/envoy-gateway
+kind: ConfigMap
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|${envoy-gateway-namespace}|envoy-gateway-installer-script'
+    kpt.dev/package-layer: networking
+    kpt.dev/package-name: envoy-gateway
+  name: envoy-gateway-installer-script
+  namespace: envoy-gateway-system
+---
+apiVersion: v1
+data:
+  shim-installer.sh: |-
+    #!/usr/bin/env -S bash -exuo pipefail
+
+    install_deps() {
+      local attempt=0
+      local max_attempts=${APK_MAX_RETRIES:-5}
+      while true; do
+        attempt=$((attempt + 1))
+        if apk update && apk add --no-cache bash util-linux coreutils >/tmp/apk.log; then
+          return 0
+        fi
+        if [[ ${attempt} -ge ${max_attempts} ]]; then
+          echo "apk install failed after ${attempt} attempts" >&2
+          sleep infinity
+        fi
+        sleep $((attempt * 2))
+      done
+    }
+
+    install_deps
+
+    nsenter --target 1 --mount --uts --ipc --net --pid -- env \
+      CONTAINERD_CONFIG_FILE="${CONTAINERD_CONFIG_FILE}" \
+      bash <<'HOSTSCRIPT'
+    set -euxo pipefail
+    export PATH="/var/lib/rancher/rke2/bin:/var/lib/rancher/rke2/agent/bin:${PATH}"
+    export FLOX_NO_TELEMETRY=1
+    export FLOX_NONINTERACTIVE=1
+
+    CONFIG_FILE="${CONTAINERD_CONFIG_FILE}"
+    CONFIG_DIR="$(dirname "${CONFIG_FILE}")"
+    CONFIG_TEMPLATE="${CONFIG_DIR}/config.toml.tmpl"
+    FLOX_ENV_DIR="/var/lib/flox-runtime/containerd-shim"
+    ARCH="$(uname -m)"
+
+    mkdir -p "${FLOX_ENV_DIR}"
+    if [[ ! -d "${FLOX_ENV_DIR}/.flox" ]]; then
+      (cd "${FLOX_ENV_DIR}" && flox init)
+    fi
+
+    if command -v containerd >/dev/null 2>&1; then
+      CONTAINERD_BIN="$(command -v containerd)"
+    elif [[ -x /var/lib/rancher/rke2/bin/containerd ]]; then
+      CONTAINERD_BIN="/var/lib/rancher/rke2/bin/containerd"
+    elif [[ -x /var/lib/rancher/rke2/agent/bin/containerd ]]; then
+      CONTAINERD_BIN="/var/lib/rancher/rke2/agent/bin/containerd"
+    else
+      echo "containerd binary not found" >&2
+      exit 1
+    fi
+
+    CONTAINERD_VERSION="$(${CONTAINERD_BIN} --version | awk '{print $3}')"
+    CONTAINERD_VERSION="${CONTAINERD_VERSION#v}"
+    CONTAINERD_MAJOR="${CONTAINERD_VERSION%%.*}"
+    if [[ -z "${CONTAINERD_MAJOR}" ]]; then
+      echo "unable to determine containerd version" >&2
+      exit 1
+    fi
+    if [[ "${CONTAINERD_MAJOR}" -ge 2 ]]; then
+      SHIM_PKG="flox/containerd-shim-flox-2x"
+    else
+      SHIM_PKG="flox/containerd-shim-flox-17"
+    fi
+
+    flox install --dir "${FLOX_ENV_DIR}" "${SHIM_PKG}"
+
+    SHIM_RUN_DIR="$(find "${FLOX_ENV_DIR}/.flox/run" -maxdepth 1 -name "${ARCH}-linux.containerd-shim*.run" -print -quit || true)"
+    if [[ -z "${SHIM_RUN_DIR}" ]]; then
+      echo "unable to locate Flox shim run directory" >&2
+      exit 1
+    fi
+    SHIM_PATH="$(realpath "${SHIM_RUN_DIR}")/bin/containerd-shim-flox-v2"
+    if [[ ! -f "${SHIM_PATH}" ]]; then
+      echo "shim binary missing at ${SHIM_PATH}" >&2
+      exit 1
+    fi
+    install -D -m 0755 "${SHIM_PATH}" /usr/local/bin/containerd-shim-flox-v2
+
+    if [[ ! -f "${CONFIG_TEMPLATE}" ]]; then
+      cp "${CONFIG_FILE}" "${CONFIG_TEMPLATE}"
+    fi
+
+    CONFIG_VERSION="$(grep -m1 '^version' "${CONFIG_FILE}" | awk -F '=' '{print $2}' | tr -d ' "')"
+    if [[ "${CONFIG_VERSION}" == "3" ]]; then
+      RUNTIME_SECTION='plugins."io.containerd.cri.v1.runtime".containerd.runtimes.flox'
+    else
+      RUNTIME_SECTION='plugins."io.containerd.grpc.v1.cri".containerd.runtimes.flox'
+    fi
+
+    update_config() {
+      local target="$1"
+      [[ -f "${target}" ]] || return 0
+      local tmp
+      tmp="$(mktemp)"
+      awk '
+        BEGIN {skip=0}
+        /^## Flox runtime shim/ {skip=1; next}
+        /^\[plugins\..*containerd\.runtimes\.flox/ {skip=1; next}
+        skip && /^\[/ && $0 !~ /containerd\.runtimes\.flox/ {skip=0}
+        skip {next}
+        {print}
+      ' "${target}" > "${tmp}"
+      mv "${tmp}" "${target}"
+      cat <<EOF_BLOCK | sed "s|__RUNTIME_SECTION__|${RUNTIME_SECTION}|" | sed 's/^          //' >> "${target}"
+    ## Flox runtime shim
+    [__RUNTIME_SECTION__]
+      runtime_path = "/usr/local/bin/containerd-shim-flox-v2"
+      runtime_type = "io.containerd.runc.v2"
+      pod_annotations = [ "flox.dev/*" ]
+      container_annotations = [ "flox.dev/*" ]
+    [__RUNTIME_SECTION__.options]
+      SystemdCgroup = true
+    EOF_BLOCK
+    }
+
+    update_config "${CONFIG_FILE}"
+    update_config "${CONFIG_TEMPLATE}"
+
+    if systemctl is-active rke2-server >/dev/null; then
+      systemctl restart rke2-server
+    elif systemctl is-active rke2-agent >/dev/null; then
+      systemctl restart rke2-agent
+    elif systemctl is-active containerd >/dev/null; then
+      systemctl restart containerd
+    else
+      echo "no known service to restart" >&2
+    fi
+    HOSTSCRIPT
+kind: ConfigMap
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|flox-runtime|flox-runtime-installer-script'
+    kpt.dev/package-layer: runtime
+    kpt.dev/package-name: flox-containerd-shim
+  name: flox-runtime-installer-script
+  namespace: flox-runtime
+---
+apiVersion: v1
+data:
   acl.json: |
     {
       "groups": {
@@ -5933,6 +6097,111 @@ metadata:
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headscale
   name: headscale-acl
+  namespace: headscale-system
+---
+apiVersion: v1
+data:
+  bootstrap.sh: |-
+    #!/usr/bin/env -S bash -exuo pipefail
+
+    : "Waiting for headscale deployment to be available..."
+    kubectl wait --for=condition=available deployment/headscale \
+      -n "$HEADSCALE_NAMESPACE" --timeout=300s
+
+    : "Waiting for headscale pod to be Ready..."
+    kubectl wait --for=condition=Ready pod -l app=headscale \
+      -n "$HEADSCALE_NAMESPACE" --timeout=300s
+
+    # Use kubectl exec to run headscale CLI inside the pod
+    # The CLI has direct access to headscale without API key requirements
+
+    : "Creating admin user..."
+    kubectl exec -n "$HEADSCALE_NAMESPACE" deployment/headscale -- \
+      headscale users create admin 2>/dev/null || echo "User admin already exists"
+
+    : "Getting admin user ID..."
+    USER_ID=$( kubectl exec -n "$HEADSCALE_NAMESPACE" deployment/headscale -c headscale -- \
+                 headscale users list -o yaml |
+                 yq -r '.[] | select( .name == "admin" ) | .id' - )
+    if [ -z "$USER_ID" ]; then
+      echo "ERROR: Failed to get admin user ID"
+      exit 1
+    fi
+
+    : "Creating reusable preauth key... (10 years expiration)"
+    PREAUTH_KEY=$( kubectl exec -n "$HEADSCALE_NAMESPACE" deployment/headscale -c headscale -- \
+      headscale preauthkeys --user "$USER_ID" \
+        create --reusable --expiration 87600h -o yaml |
+      yq -r '.key' - )
+    if [ -z "$PREAUTH_KEY" ]; then
+      echo "ERROR: Failed to extract preauth key"
+      exit 1
+    fi
+
+    : "Storing preauth key in Secret..."
+    kubectl create secret generic headscale-client-auth \
+      --from-literal=authkey="$PREAUTH_KEY" \
+      --dry-run=client -o yaml | kubectl apply -f -
+kind: ConfigMap
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|${headscale-namespace}|headscale-bootstrap-script'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  labels:
+    app: headscale
+  name: headscale-bootstrap-script
+  namespace: headscale-system
+---
+apiVersion: v1
+data:
+  tailscale-client.sh: |-
+    #!/usr/bin/env -S bash -exuo pipefail
+
+    : "[i] Starting tailscaled..."
+    tailscaled \
+      --tun=userspace-networking \
+      --state=/var/lib/tailscale/tailscaled.state \
+      --socket=/var/run/tailscale/tailscaled.sock --verbose=1 &
+    TAILSCALED_PID=$$!
+
+    : "[i] Waiting for tailscaled socket..."
+    until [ -S /var/run/tailscale/tailscaled.sock ]; do sleep 1; done
+
+    # Use internal cluster service (HTTP) - client is inside the cluster
+    # External clients use https://alcide-headscale via Tailscale operator
+    : "[i] Connecting to Headscale at $HEADSCALE_URL..."
+    tailscale up \
+      --login-server=$HEADSCALE_URL \
+      --authkey=file:/var/secrets/authkey \
+      --hostname=${DARWIN_HOST}-${RKE2_NODENAME} \
+      --advertise-tags=tag:rke2,tag:alcide \
+      --accept-routes \
+      --ssh \
+      --reset
+
+    wait $TAILSCALED_PID
+  wait-for-authkey.sh: |
+    #!/usr/bin/env -S bash -exuo pipefail
+
+    : "[i] Waiting for auth key Secret to be populated..."
+    kubectl wait --for=jsonpath='{.data.authkey}' secret/headscale-client-auth \
+      -n "$HEADSCALE_NAMESPACE" --timeout=300s
+  wait-for-headscale.sh: |
+    #!/usr/bin/env -S bash -exuo pipefail
+
+    : "[i] Waiting for headscale deployment to be available..."
+    kubectl wait --for=condition=available deployment/headscale \
+      -n "$HEADSCALE_NAMESPACE" --timeout=300s
+kind: ConfigMap
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|${headscale-namespace}|headscale-client-scripts'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  labels:
+    app: headscale-client
+  name: headscale-client-scripts
   namespace: headscale-system
 ---
 apiVersion: v1
@@ -6003,6 +6272,23 @@ metadata:
 ---
 apiVersion: v1
 data:
+  config-init.sh: "#!/usr/bin/env -S bash -exuo pipefail\nmkdir -p /config\ncp /config-source/config.yaml
+    /config/config.yaml\nmkdir -p /var/lib/headscale\nif [ ! -f /var/lib/headscale/extra_records.json
+    ]; then \n  echo \"[]\" > /var/lib/headscale/extra_records.json; \nfi\ncp /extra-records-source/extra_records.json
+    /var/lib/headscale/extra_records.json"
+kind: ConfigMap
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|${headscale-namespace}|headscale-config-init-script'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  labels:
+    app: headscale
+  name: headscale-config-init-script
+  namespace: headscale-system
+---
+apiVersion: v1
+data:
   derp.yaml: |
     regions:
       900:
@@ -6041,6 +6327,44 @@ metadata:
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headscale
   name: headscale-extra-records
+  namespace: headscale-system
+---
+apiVersion: v1
+data:
+  gateway.sh: |-
+    #!/usr/bin/env -S bash -exuo pipefail
+
+    : "[i] Enabling IP forwarding..."
+    sysctl -w net.ipv4.ip_forward=1
+    sysctl -w net.ipv6.conf.all.forwarding=1 || true
+
+    : "[i] Starting tailscaled router..."
+    tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock &
+    TAILSCALED_PID=$$!
+
+    until [ -S /var/run/tailscale/tailscaled.sock ]; do sleep 1; done
+
+    tailscale up \
+      --login-server=$HEADSCALE_URL \
+      --authkey=file:/var/secrets/authkey \
+      --hostname=${DARWIN_HOST}-gateway \
+      --advertise-routes=${VIP_NETWORK_CIDR} \
+      --accept-dns=false \
+      --ssh \
+      --reset
+
+    tailscale set --advertise-routes=${VIP_NETWORK_CIDR}
+
+    wait $TAILSCALED_PID
+kind: ConfigMap
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|${headscale-namespace}|headscale-gateway-script'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  labels:
+    app: headscale-gateway
+  name: headscale-gateway-script
   namespace: headscale-system
 ---
 apiVersion: v1

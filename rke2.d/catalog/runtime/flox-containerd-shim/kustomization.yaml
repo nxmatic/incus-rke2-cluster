@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
 - 00-namespace.yaml
 - 05-serviceaccount.yaml
+- 09-configmap-flox-runtime-installer-script.yaml
 - 10-daemonset.yaml
 - 20-runtimeclass.yaml
 commonAnnotations:

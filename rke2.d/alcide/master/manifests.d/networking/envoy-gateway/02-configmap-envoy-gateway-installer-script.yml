@@ -1,0 +1,25 @@
+---
+apiVersion: v1
+data:
+  install.sh: |
+    #!/usr/bin/env -S bash -exuo pipefail
+
+    : "[i] Installing Envoy Gateway v1.4.2..." # kpt-set: Installing Envoy Gateway ${envoy-gateway-version}...
+    kubectl apply \
+      --server-side \
+      --force-conflicts \
+      -f https://github.com/envoyproxy/gateway/releases/download/v1.4.2/install.yaml # kpt-set: -f https://github.com/envoyproxy/gateway/releases/download/${envoy-gateway-version}/install.yaml
+
+    : "[i] Waiting for Envoy Gateway deployment..."
+    kubectl wait --timeout=300s \
+      --namespace envoy-gateway-system \
+      --for=condition=available \
+      deployment/envoy-gateway
+kind: ConfigMap
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|${envoy-gateway-namespace}|envoy-gateway-installer-script'
+    kpt.dev/package-layer: networking
+    kpt.dev/package-name: envoy-gateway
+  name: envoy-gateway-installer-script
+  namespace: envoy-gateway-system

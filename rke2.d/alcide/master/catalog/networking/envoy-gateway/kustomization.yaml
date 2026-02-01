@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
 - 00-namespace.yaml
 - 01-rbac.yaml
+- 02-configmap-envoy-gateway-installer-script.yaml
 - 02-installer-job.yaml
 - 03-gatewayclass.yaml
 commonAnnotations:
