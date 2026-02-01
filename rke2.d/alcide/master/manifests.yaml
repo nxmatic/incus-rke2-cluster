@@ -6011,9 +6011,9 @@ data:
   agent-sync.sh: |-
     #!/usr/bin/env -S bash -exuo pipefail
     apk add --no-cache kubectl
-    AUTHKEY=$(kubectl get secret headscale-client-auth -n ${headscale-namespace} -o jsonpath='{.data.authkey}' | base64 -d)
+    AUTHKEY=$(kubectl get secret headscale-client-auth -n "${HEADSCALE_NAMESPACE}" -o jsonpath='{.data.authkey}' | base64 -d)
     kubectl create secret generic headplane-agent-auth \
-      -n ${headplane-namespace} \
+      -n "${HEADPLANE_NAMESPACE}" \
       --from-literal=preauthkey="${AUTHKEY}" \
       --dry-run=client -o yaml | kubectl apply -f -
 kind: ConfigMap
@@ -6030,15 +6030,15 @@ data:
   install.sh: |
     #!/usr/bin/env -S bash -exuo pipefail
 
-    : "[i] Installing Envoy Gateway v1.4.2..." # kpt-set: Installing Envoy Gateway ${envoy-gateway-version}...
+    : "[i] Installing Envoy Gateway ${ENVOY_GATEWAY_VERSION}..."
     kubectl apply \
       --server-side \
       --force-conflicts \
-      -f https://github.com/envoyproxy/gateway/releases/download/v1.4.2/install.yaml # kpt-set: -f https://github.com/envoyproxy/gateway/releases/download/${envoy-gateway-version}/install.yaml
+      -f "https://github.com/envoyproxy/gateway/releases/download/${ENVOY_GATEWAY_VERSION}/install.yaml"
 
     : "[i] Waiting for Envoy Gateway deployment..."
     kubectl wait --timeout=300s \
-      --namespace envoy-gateway-system \
+      --namespace "${ENVOY_GATEWAY_NAMESPACE}" \
       --for=condition=available \
       deployment/envoy-gateway
 kind: ConfigMap
@@ -6895,6 +6895,18 @@ apiVersion: v1
 kind: Secret
 metadata:
   annotations:
+    internal.kpt.dev/upstream-identifier: '|Secret|${tailscale-namespace}|operator-oauth'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: tailscale
+    replicator.v1.mittwald.de/replicate-from: kube-system/operator-oauth
+  name: operator-oauth
+  namespace: tailscale-system
+type: Opaque
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
     internal.kpt.dev/upstream-identifier: '|Secret|tekton-operator|tekton-operator-webhook-certs'
     kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
@@ -6903,6 +6915,30 @@ metadata:
     name: tekton-operator-webhook
   name: tekton-operator-webhook-certs
   namespace: tekton-operator
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Secret|tekton-pipelines|tekton-docker-config'
+    kpt.dev/package-layer: cicd
+    kpt.dev/package-name: tekton-pipelines
+    replicator.v1.mittwald.de/replicate-from: kube-system/tekton-docker-config
+  name: tekton-docker-config
+  namespace: tekton-pipelines
+type: kubernetes.io/dockerconfigjson
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Secret|tekton-pipelines|tekton-git-auth'
+    kpt.dev/package-layer: cicd
+    kpt.dev/package-name: tekton-pipelines
+    replicator.v1.mittwald.de/replicate-from: kube-system/tekton-git-auth
+  name: tekton-git-auth
+  namespace: tekton-pipelines
+type: kubernetes.io/basic-auth
 ---
 apiVersion: v1
 kind: Service
@@ -8596,6 +8632,11 @@ spec:
       - command:
         - /bin/sh
         - /scripts/agent-sync.sh
+        env:
+        - name: HEADSCALE_NAMESPACE
+          value: headscale-system
+        - name: HEADPLANE_NAMESPACE
+          value: ${headplane-namespace}
         image: alpine:3.20
         name: sync
         resources:
@@ -8642,6 +8683,11 @@ spec:
       - command:
         - sh
         - /scripts/install.sh
+        env:
+        - name: ENVOY_GATEWAY_VERSION
+          value: v1.4.2
+        - name: ENVOY_GATEWAY_NAMESPACE
+          value: envoy-gateway-system
         image: alpine/k8s:1.29.8
         name: installer
         resources:

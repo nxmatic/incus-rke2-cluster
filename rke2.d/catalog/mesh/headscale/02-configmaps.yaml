@@ -126,3 +126,17 @@ data:
         regioncode: local
         regionname: Local LAN
         nodes: []
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: headscale-env
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
+data:
+  HEADPLANE_NAMESPACE: ${headplane-namespace} # kpt-set: ${headplane-namespace}
+  HEADSCALE_NAMESPACE: ${headscale-namespace} # kpt-set: ${headscale-namespace}
+  HEADSCALE_URL: http://headscale.${headscale-namespace}.svc.cluster.local:8080 # kpt-set: http://headscale.${headscale-namespace}.svc.cluster.local:8080
+  DARWIN_HOST: ${cluster-name} # kpt-set: ${cluster-name}
+  RKE2_CLUSTER_NAME: ${cluster-name} # kpt-set: ${cluster-name}
+  VIP_NETWORK_CIDR: ${cluster-vip-cidr} # kpt-set: ${cluster-vip-cidr}
+  CLUSTER_LAN_HEADSCALE_INETADDR: ${cluster-lan-headscale-inetaddr} # kpt-set: ${cluster-lan-headscale-inetaddr}

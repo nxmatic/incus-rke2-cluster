@@ -1,4 +1,4 @@
-x[Unit]
+[Unit]
 Description=Wait for RKE2 storage workloads to be ready
 RequiresMountsFor=/srv/host/system.d /srv/host
 After=local-fs.target

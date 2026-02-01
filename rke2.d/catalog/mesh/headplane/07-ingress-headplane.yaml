@@ -2,7 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: headplane
-  namespace: ${headplane-namespace} # kpt-set: ${headplane-namespace}
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
   annotations:
     kubernetes.io/ingress.class: ${headplane-ingress-class} # kpt-set: ${headplane-ingress-class}
 spec:

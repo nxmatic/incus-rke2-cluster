@@ -2,7 +2,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: headplane-agent-sync
-  namespace: ${headplane-namespace} # kpt-set: ${headplane-namespace}
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
 rules:
   - apiGroups: [""]
     resources: ["secrets"]
@@ -12,11 +12,11 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: headplane-agent-sync
-  namespace: ${headplane-namespace} # kpt-set: ${headplane-namespace}
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
 subjects:
   - kind: ServiceAccount
     name: headplane
-    namespace: ${headplane-namespace} # kpt-set: ${headplane-namespace}
+    namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -46,7 +46,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: headplane
-    namespace: ${headplane-namespace} # kpt-set: ${headplane-namespace}
+    namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role

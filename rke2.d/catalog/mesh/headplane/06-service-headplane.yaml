@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: headplane
-  namespace: ${headplane-namespace} # kpt-set: ${headplane-namespace}
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
   labels:
     app: headplane
 spec:

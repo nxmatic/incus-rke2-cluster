@@ -64,11 +64,10 @@ spec:
       initContainers:
       - name: wait-for-headscale
         image: flox/empty:1.0.0
+        envFrom:
+        - configMapRef:
+            name: headscale-env
         env:
-        - name: HEADSCALE_NAMESPACE
-          value: ${headscale-namespace} # kpt-set: ${headscale-namespace}
-        - name: HEADSCALE_URL
-          value: http://headscale.${headscale-namespace}.svc.cluster.local:8080 # kpt-set: http://headscale.${headscale-namespace}.svc.cluster.local:8080
         command:
         - bash
         - /scripts/wait-for-headscale.sh
@@ -78,9 +77,10 @@ spec:
           readOnly: true
       - name: wait-for-authkey
         image: flox/empty:1.0.0
+        envFrom:
+        - configMapRef:
+            name: headscale-env
         env:
-        - name: HEADSCALE_NAMESPACE
-          value: ${headscale-namespace} # kpt-set: ${headscale-namespace}
         command:
         - bash
         - /scripts/wait-for-authkey.sh
@@ -93,11 +93,10 @@ spec:
       containers:
       - name: tailscale
         image: flox/empty:1.0.0
+        envFrom:
+        - configMapRef:
+            name: headscale-env
         env:
-        - name: DARWIN_HOST
-          value: ${cluster-name} # kpt-set: ${cluster-name}
-        - name: RKE2_CLUSTER_NAME
-          value: ${cluster-name} # kpt-set: ${cluster-name}
         - name: RKE2_NODENAME
           valueFrom:
             fieldRef:
@@ -111,8 +110,6 @@ spec:
           value: /var/lib/tailscale
         - name: TS_SOCKET
           value: /var/run/tailscale/tailscaled.sock
-        - name: HEADSCALE_URL
-          value: http://headscale.${headscale-namespace}.svc.cluster.local:8080 # kpt-set: http://headscale.${headscale-namespace}.svc.cluster.local:8080
         - name: TS_USERSPACE
           value: "true"
         - name: TS_KUBE_SECRET

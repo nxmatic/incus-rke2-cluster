@@ -81,7 +81,7 @@ declare -a namespaces=()
 declare -a crds=()
 declare -a workloads=()
 
-collect_with_yq() {
+loadMetadataFromManifestFiles() {
   local -a files
   local package_selector
   while IFS= read -r -d '' file; do
@@ -113,7 +113,7 @@ collect_with_yq() {
   )
 }
 
-collect_with_yq
+loadMetadataFromManifestFiles
 
 if [[ ${#crds[@]} -gt 0 ]]; then
   log "Waiting for CRDs to be established"

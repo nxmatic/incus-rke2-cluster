@@ -4,9 +4,9 @@ data:
   agent-sync.sh: |-
     #!/usr/bin/env -S bash -exuo pipefail
     apk add --no-cache kubectl
-    AUTHKEY=$(kubectl get secret headscale-client-auth -n ${headscale-namespace} -o jsonpath='{.data.authkey}' | base64 -d)
+    AUTHKEY=$(kubectl get secret headscale-client-auth -n "${HEADSCALE_NAMESPACE}" -o jsonpath='{.data.authkey}' | base64 -d)
     kubectl create secret generic headplane-agent-auth \
-      -n ${headplane-namespace} \
+      -n "${HEADPLANE_NAMESPACE}" \
       --from-literal=preauthkey="${AUTHKEY}" \
       --dry-run=client -o yaml | kubectl apply -f -
 kind: ConfigMap

@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: headplane-agent-sync
-  namespace: ${headplane-namespace} # kpt-set: ${headplane-namespace}
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
 spec:
   ttlSecondsAfterFinished: 300
   template:
@@ -19,11 +19,10 @@ spec:
           command:
             - /bin/sh
             - /scripts/agent-sync.sh
+          envFrom:
+            - configMapRef:
+                name: headplane-env
           env:
-            - name: HEADSCALE_NAMESPACE
-              value: ${headscale-namespace} # kpt-set: ${headscale-namespace}
-            - name: HEADPLANE_NAMESPACE
-              value: ${headplane-namespace} # kpt-set: ${headplane-namespace}
           resources:
             requests:
               cpu: 50m

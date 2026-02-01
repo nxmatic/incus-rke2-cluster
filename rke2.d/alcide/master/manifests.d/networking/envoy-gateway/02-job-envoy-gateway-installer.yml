@@ -20,6 +20,11 @@ spec:
         - command:
             - sh
             - /scripts/install.sh
+          env:
+            - name: ENVOY_GATEWAY_VERSION
+              value: v1.4.2
+            - name: ENVOY_GATEWAY_NAMESPACE
+              value: envoy-gateway-system
           image: alpine/k8s:1.29.8
           name: installer
           resources:

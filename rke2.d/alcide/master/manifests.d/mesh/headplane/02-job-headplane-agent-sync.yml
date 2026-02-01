@@ -20,6 +20,11 @@ spec:
         - command:
             - /bin/sh
             - /scripts/agent-sync.sh
+          env:
+            - name: HEADSCALE_NAMESPACE
+              value: headscale-system
+            - name: HEADPLANE_NAMESPACE
+              value: ${headplane-namespace}
           image: alpine:3.20
           name: sync
           resources:

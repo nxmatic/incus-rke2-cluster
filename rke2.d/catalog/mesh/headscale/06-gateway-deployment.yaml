@@ -37,13 +37,10 @@ spec:
       containers:
       - name: tailscale-gateway
         image: flox/empty:1.0.0
+        envFrom:
+        - configMapRef:
+            name: headscale-env
         env:
-        - name: DARWIN_HOST
-          value: ${cluster-name} # kpt-set: ${cluster-name}
-        - name: VIP_NETWORK_CIDR
-          value: ${cluster-vip-cidr} # kpt-set: ${cluster-vip-cidr}
-        - name: HEADSCALE_URL
-          value: http://headscale.${headscale-namespace}.svc.cluster.local:8080 # kpt-set: http://headscale.${headscale-namespace}.svc.cluster.local:8080
         - name: TS_AUTHKEY
           valueFrom:
             secretKeyRef:

@@ -28,12 +28,13 @@ if [[ $# -ne 1 ]]; then
 fi
 
 path="${1%/}"
-parent_dir=$(dirname "${path}")
+layer_dir=$(dirname "${path}")
 pkg_name=$(basename "${path}")
 
-# Normalize parent_dir when no slash was provided
-if [[ "${parent_dir}" == "." ]]; then
-  parent_dir=""
+# Normalize layer_dir when no slash was provided
+if [[ "${layer_dir}" == "." ]]; then
+  layer_dir="${pkg_name}"
+  pkg_name=""
 fi
 
 src_dir="${BASE_DIR}/${path}"
@@ -42,10 +43,16 @@ if [[ ! -d "${src_dir}" ]]; then
   exit 1
 fi
 
-stow_dir="${BASE_DIR}/${parent_dir}"
-target_dir="${DST_DIR}/${path}"
-
-: "Restow to refresh symlinks if they already exist in ${target_dir} for package ${pkg_name}"
-[[ -e "${target_dir}" ]] && xstow -D -d "${stow_dir}" -t "${target_dir}" "${pkg_name}" || true
-mkdir -p "${target_dir}"
-xstow -d "${stow_dir}" -t "${target_dir}" "${pkg_name}"
+if [[ -z "${pkg_name}" ]]; then
+  : "Install all manifests for layer ${layer_dir}"
+  stow_dir="${BASE_DIR}"
+  target_dir="${DST_DIR}/${layer_dir}"
+  mkdir -p "${target_dir}"
+  xstow -d "${stow_dir}" -t "${target_dir}" "${layer_dir}"
+else
+  : "Install package ${pkg_name} for layer ${layer_dir}"
+  stow_dir="${BASE_DIR}/${layer_dir}"
+  target_dir="${DST_DIR}/${layer_dir}/${pkg_name}"
+  mkdir -p "${target_dir}"
+  xstow -d "${stow_dir}" -t "${target_dir}" "${pkg_name}"
+fi

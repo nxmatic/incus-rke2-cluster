@@ -1,16 +1,16 @@
 [Unit]
-Description=Install RKE2 Cilium manifests before server start
+Description=Install RKE2 Cilium config manifests before server start
 RequiresMountsFor=/srv/host/system.d /srv/host
 After=local-fs.target
 Requires=rke2-install.service
 After=rke2-install.service
 Before=rke2-server.service
 ConditionPathExists=/srv/host/scripts.d/rke2-manifests-install.sh
-ConditionPathExists=/srv/host/manifests.d/networking/cilium
+ConditionPathExists=/srv/host/manifests.d
 
 [Service]
 Type=oneshot
-ExecStart=/srv/host/scripts.d/rke2-manifests-install.sh networking/cilium
+ExecStart=/srv/host/scripts.d/rke2-manifests-install.sh networking/cilium-config
 RemainAfterExit=true
 StandardOutput=journal
 StandardError=journal

@@ -34,6 +34,11 @@ spec:
             - name: agent-sync-script
               mountPath: /scripts
               readOnly: true
+          env:
+            - name: HEADSCALE_NAMESPACE
+              value: ${headscale-namespace} # kpt-set: ${headscale-namespace}
+            - name: HEADPLANE_NAMESPACE
+              value: ${headplane-namespace} # kpt-set: ${headplane-namespace}
       volumes:
         - name: agent-sync-script
           configMap:

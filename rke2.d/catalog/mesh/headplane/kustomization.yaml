@@ -5,13 +5,13 @@ metadata:
   annotations:
     config.kubernetes.io/local-config: "true"  
 resources:
-- 00-namespace.yaml
 - 01-secret-headplane-agent-auth.yaml
 - 01-secret-headplane-config.yaml
 - 01-secret-headplane-secrets.yaml
 - 02-pvc-headplane-data.yaml
 - 03-rbac-headplane.yaml
 - 03-serviceaccount-headplane.yaml
+- 02-configmap-headplane-env.yaml
 - 04-configmap-headplane-agent-sync-script.yaml
 - 04-job-headplane-agent-sync.yaml
 - 05-deployment-headplane.yaml
