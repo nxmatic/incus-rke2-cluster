@@ -2,6 +2,15 @@ apiVersion: v1
 kind: Namespace
 metadata:
   annotations:
+    internal.kpt.dev/upstream-identifier: '|Namespace|default|${headplane-namespace}'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headplane
+  name: ${headplane-namespace}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
     internal.kpt.dev/upstream-identifier: '|Namespace|default|${envoy-gateway-namespace}'
     kpt.dev/package-layer: networking
     kpt.dev/package-name: envoy-gateway
@@ -4116,6 +4125,16 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   annotations:
+    internal.kpt.dev/upstream-identifier: '|ServiceAccount|${headplane-namespace}|headplane'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headplane
+  name: headplane
+  namespace: ${headplane-namespace}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
     internal.kpt.dev/upstream-identifier: '|ServiceAccount|${envoy-gateway-namespace}|envoy-gateway-installer'
     kpt.dev/package-layer: networking
     kpt.dev/package-name: envoy-gateway
@@ -4272,6 +4291,59 @@ metadata:
     app.kubernetes.io/part-of: tekton-dashboard
   name: tekton-dashboard
   namespace: tekton-pipelines
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|Role|${headplane-namespace}|headplane-agent-sync
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headplane
+  name: headplane-agent-sync
+  namespace: ${headplane-namespace}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - create
+  - update
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|Role|${headscale-namespace}|headplane-k8s-integration
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headplane
+  name: headplane-k8s-integration
+  namespace: headscale-system
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - pods/exec
+  verbs:
+  - get
+  - list
+  - create
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -5404,6 +5476,42 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|RoleBinding|${headplane-namespace}|headplane-agent-sync
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headplane
+  name: headplane-agent-sync
+  namespace: ${headplane-namespace}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: headplane-agent-sync
+subjects:
+- kind: ServiceAccount
+  name: headplane
+  namespace: ${headplane-namespace}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|RoleBinding|${headscale-namespace}|headplane-k8s-integration
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headplane
+  name: headplane-k8s-integration
+  namespace: headscale-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: headplane-k8s-integration
+subjects:
+- kind: ServiceAccount
+  name: headplane
+  namespace: ${headplane-namespace}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  annotations:
     internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|RoleBinding|${headscale-namespace}|headscale-bootstrap
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headscale
@@ -5897,6 +6005,25 @@ subjects:
 - apiGroup: rbac.authorization.k8s.io
   kind: Group
   name: system:authenticated
+---
+apiVersion: v1
+data:
+  agent-sync.sh: |-
+    #!/usr/bin/env -S bash -exuo pipefail
+    apk add --no-cache kubectl
+    AUTHKEY=$(kubectl get secret headscale-client-auth -n ${headscale-namespace} -o jsonpath='{.data.authkey}' | base64 -d)
+    kubectl create secret generic headplane-agent-auth \
+      -n ${headplane-namespace} \
+      --from-literal=preauthkey="${AUTHKEY}" \
+      --dry-run=client -o yaml | kubectl apply -f -
+kind: ConfigMap
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|${headplane-namespace}|headplane-agent-sync-script'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headplane
+  name: headplane-agent-sync-script
+  namespace: ${headplane-namespace}
 ---
 apiVersion: v1
 data:
@@ -6707,6 +6834,67 @@ apiVersion: v1
 kind: Secret
 metadata:
   annotations:
+    internal.kpt.dev/upstream-identifier: '|Secret|${headplane-namespace}|headplane-agent-auth'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headplane
+  name: headplane-agent-auth
+  namespace: ${headplane-namespace}
+stringData:
+  preauthkey: REPLACE_WITH_HEADSCALE_PREAUTH_KEY
+type: Opaque
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Secret|${headplane-namespace}|headplane-config'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headplane
+  name: headplane-config
+  namespace: ${headplane-namespace}
+stringData:
+  config.yaml: |
+    server:
+      host: "0.0.0.0"
+      port: 3000
+      base_url: "${headplane-base-url}" # kpt-set: ${headplane-base-url}
+      cookie_secret_path: "/etc/headplane/secrets/cookie_secret"
+      cookie_secure: ${headplane-cookie-secure} # kpt-set: ${headplane-cookie-secure}
+      data_path: "/var/lib/headplane"
+
+    headscale:
+      url: "${headscale-service-url}" # kpt-set: ${headscale-service-url}
+      config_path: "/etc/headscale/config.yaml"
+      dns_records_path: "/var/lib/headscale/extra_records.json"
+      config_strict: true
+
+    integration:
+      agent:
+        enabled: true
+        pre_authkey_path: "/etc/headplane/agent/preauthkey"
+      kubernetes:
+        enabled: true
+        validate_manifest: true
+        pod_name: "headscale"
+type: Opaque
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Secret|${headplane-namespace}|headplane-secrets'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headplane
+  name: headplane-secrets
+  namespace: ${headplane-namespace}
+stringData:
+  cookie_secret: 0123456789abcdef0123456789abcdef
+type: Opaque
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
     internal.kpt.dev/upstream-identifier: '|Secret|tekton-operator|tekton-operator-webhook-certs'
     kpt.dev/package-layer: cicd
     kpt.dev/package-name: tekton-pipelines
@@ -6715,6 +6903,26 @@ metadata:
     name: tekton-operator-webhook
   name: tekton-operator-webhook-certs
   namespace: tekton-operator
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Service|${headplane-namespace}|headplane'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headplane
+  labels:
+    app: headplane
+  name: headplane
+  namespace: ${headplane-namespace}
+spec:
+  ports:
+  - name: http
+    port: 3000
+    targetPort: http
+  selector:
+    app: headplane
+  type: ClusterIP
 ---
 apiVersion: v1
 kind: Service
@@ -6906,6 +7114,105 @@ spec:
     app.kubernetes.io/instance: default
     app.kubernetes.io/name: dashboard
     app.kubernetes.io/part-of: tekton-dashboard
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|PersistentVolumeClaim|${headplane-namespace}|headplane-data'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headplane
+  name: headplane-data
+  namespace: ${headplane-namespace}
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 128Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: apps|Deployment|${headplane-namespace}|headplane
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headplane
+  labels:
+    app: headplane
+  name: headplane
+  namespace: ${headplane-namespace}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: headplane
+  template:
+    metadata:
+      annotations:
+        flox.dev/environment: nxmatic/headplane
+        kpt.dev/package-layer: mesh
+        kpt.dev/package-name: headplane
+      labels:
+        app: headplane
+    spec:
+      containers:
+      - args:
+        - serve
+        command:
+        - headplane
+        env:
+        - name: FLOX_NO_TELEMETRY
+          value: "1"
+        - name: FLOX_NONINTERACTIVE
+          value: "1"
+        - name: HEADPLANE_LOAD_ENV_OVERRIDES
+          value: "true"
+        - name: HEADPLANE_INTEGRATION__KUBERNETES__POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        image: flox/empty:1.0.0
+        name: headplane
+        ports:
+        - containerPort: 3000
+          name: http
+        resources:
+          limits:
+            cpu: 500m
+            ephemeral-storage: 512Mi
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            ephemeral-storage: 256Mi
+            memory: 128Mi
+        volumeMounts:
+        - mountPath: /etc/headplane/config.yaml
+          name: config
+          subPath: config.yaml
+        - mountPath: /etc/headplane/secrets
+          name: secrets
+          readOnly: true
+        - mountPath: /etc/headplane/agent
+          name: agent
+          readOnly: true
+        - mountPath: /var/lib/headplane
+          name: data
+      runtimeClassName: flox
+      serviceAccountName: headplane
+      volumes:
+      - name: config
+        secret:
+          secretName: headplane-config
+      - name: secrets
+        secret:
+          secretName: headplane-secrets
+      - name: agent
+        secret:
+          secretName: headplane-agent-auth
+      - name: data
+        persistentVolumeClaim:
+          claimName: headplane-data
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -8272,6 +8579,52 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   annotations:
+    internal.kpt.dev/upstream-identifier: batch|Job|${headplane-namespace}|headplane-agent-sync
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headplane
+  name: headplane-agent-sync
+  namespace: ${headplane-namespace}
+spec:
+  template:
+    metadata:
+      annotations:
+        flox.dev/environment: nxmatic/headplane
+        kpt.dev/package-layer: mesh
+        kpt.dev/package-name: headplane
+    spec:
+      containers:
+      - command:
+        - /bin/sh
+        - /scripts/agent-sync.sh
+        image: alpine:3.20
+        name: sync
+        resources:
+          limits:
+            cpu: 200m
+            ephemeral-storage: 256Mi
+            memory: 128Mi
+          requests:
+            cpu: 50m
+            ephemeral-storage: 128Mi
+            memory: 64Mi
+        volumeMounts:
+        - mountPath: /scripts
+          name: agent-sync-script
+          readOnly: true
+      restartPolicy: OnFailure
+      runtimeClassName: flox
+      serviceAccountName: headplane
+      volumes:
+      - configMap:
+          defaultMode: 493
+          name: headplane-agent-sync-script
+        name: agent-sync-script
+  ttlSecondsAfterFinished: 300
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
     internal.kpt.dev/upstream-identifier: batch|Job|${envoy-gateway-namespace}|envoy-gateway-installer
     kpt.dev/package-layer: networking
     kpt.dev/package-name: envoy-gateway
@@ -8934,6 +9287,30 @@ spec:
         enabled: true
     socketLB:
       enabled: true
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: networking.k8s.io|Ingress|${headplane-namespace}|headplane
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headplane
+    kubernetes.io/ingress.class: cilium
+  name: headplane
+  namespace: ${headplane-namespace}
+spec:
+  ingressClassName: cilium
+  rules:
+  - host: headplane.local
+    http:
+      paths:
+      - backend:
+          service:
+            name: headplane
+            port:
+              number: 3000
+        path: /admin
+        pathType: Prefix
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress

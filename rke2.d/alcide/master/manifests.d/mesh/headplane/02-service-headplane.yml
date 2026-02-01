@@ -1,0 +1,20 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Service|${headplane-namespace}|headplane'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headplane
+  labels:
+    app: headplane
+  name: headplane
+  namespace: ${headplane-namespace}
+spec:
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+  selector:
+    app: headplane
+  type: ClusterIP

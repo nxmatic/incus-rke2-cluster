@@ -1,0 +1,18 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|RoleBinding|${headscale-namespace}|headplane-k8s-integration
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headplane
+  name: headplane-k8s-integration
+  namespace: headscale-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: headplane-k8s-integration
+subjects:
+  - kind: ServiceAccount
+    name: headplane
+    namespace: ${headplane-namespace}

@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Namespace|default|${headplane-namespace}'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headplane
+  name: ${headplane-namespace}
