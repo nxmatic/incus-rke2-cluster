@@ -3,11 +3,11 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|Role|${headplane-namespace}|headplane-agent-sync
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|Role|${headscale-namespace}|headplane-agent-sync
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headplane
   name: headplane-agent-sync
-  namespace: ${headplane-namespace}
+  namespace: headscale-system
 rules:
   - apiGroups:
       - ""

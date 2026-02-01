@@ -3,11 +3,11 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: batch|Job|${headplane-namespace}|headplane-agent-sync
+    internal.kpt.dev/upstream-identifier: batch|Job|${headscale-namespace}|headplane-agent-sync
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headplane
   name: headplane-agent-sync
-  namespace: ${headplane-namespace}
+  namespace: headscale-system
 spec:
   template:
     metadata:
@@ -20,11 +20,9 @@ spec:
         - command:
             - /bin/sh
             - /scripts/agent-sync.sh
-          env:
-            - name: HEADSCALE_NAMESPACE
-              value: headscale-system
-            - name: HEADPLANE_NAMESPACE
-              value: ${headplane-namespace}
+          envFrom:
+            - configMapRef:
+                name: headplane-env
           image: alpine:3.20
           name: sync
           resources:

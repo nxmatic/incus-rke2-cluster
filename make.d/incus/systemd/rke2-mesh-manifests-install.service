@@ -2,6 +2,8 @@
 Description=Install RKE2 mesh manifests from host share (post-server)
 RequiresMountsFor=/srv/host/system.d /srv/host
 After=local-fs.target
+After=rke2-runtime-ready-check.service
+Requires=rke2-runtime-ready-check.service
 After=rke2-networking-ready-check.service
 Requires=rke2-networking-ready-check.service
 After=rke2-replication-ready-check.service

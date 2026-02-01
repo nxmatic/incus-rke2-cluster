@@ -26,7 +26,8 @@ wait_for_storageclass() {
 
 log "Waiting for OpenEBS components..."
 
-kubectl wait --for=jsonpath='{.status.phase}'=Active namespace/openebs --timeout=30s
+kubectl wait --for=create namespace/openebs --timeout=30s
+kubectl wait --for=jsonpath='{.status.phase}'=Active namespace/openebs --timeout=10s
 kubectl wait --for=condition=complete job/helm-install-openebs-zfs --namespace=openebs --timeout=300s
 kubectl -n openebs rollout status deployment/openebs-zfs-zfs-localpv-controller --timeout=300s
 kubectl -n openebs rollout status daemonset/openebs-zfs-zfs-localpv-node --timeout=300s

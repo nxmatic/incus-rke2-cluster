@@ -11,7 +11,7 @@ metadata:
   name: openebs-zfs
 parameters:
   fstype: zfs
-  zfs.poolname: tank
+  poolname: tank/rke2lab
 provisioner: zfs.csi.openebs.io
 reclaimPolicy: Delete
 volumeBindingMode: WaitForFirstConsumer

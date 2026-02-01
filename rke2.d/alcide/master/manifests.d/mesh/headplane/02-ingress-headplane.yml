@@ -3,12 +3,12 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: networking.k8s.io|Ingress|${headplane-namespace}|headplane
+    internal.kpt.dev/upstream-identifier: networking.k8s.io|Ingress|${headscale-namespace}|headplane
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headplane
     kubernetes.io/ingress.class: cilium
   name: headplane
-  namespace: ${headplane-namespace}
+  namespace: headscale-system
 spec:
   ingressClassName: cilium
   rules:

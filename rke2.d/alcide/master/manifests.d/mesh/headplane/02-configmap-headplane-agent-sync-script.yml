@@ -12,8 +12,8 @@ data:
 kind: ConfigMap
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: '|ConfigMap|${headplane-namespace}|headplane-agent-sync-script'
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|${headscale-namespace}|headplane-agent-sync-script'
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headplane
   name: headplane-agent-sync-script
-  namespace: ${headplane-namespace}
+  namespace: headscale-system

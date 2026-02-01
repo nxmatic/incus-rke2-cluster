@@ -2,15 +2,6 @@ apiVersion: v1
 kind: Namespace
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: '|Namespace|default|${headplane-namespace}'
-    kpt.dev/package-layer: mesh
-    kpt.dev/package-name: headplane
-  name: ${headplane-namespace}
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  annotations:
     internal.kpt.dev/upstream-identifier: '|Namespace|default|${envoy-gateway-namespace}'
     kpt.dev/package-layer: networking
     kpt.dev/package-name: envoy-gateway
@@ -128,7 +119,7 @@ metadata:
   name: openebs-zfs
 parameters:
   fstype: zfs
-  zfs.poolname: tank
+  poolname: tank/rke2lab
 provisioner: zfs.csi.openebs.io
 reclaimPolicy: Delete
 volumeBindingMode: WaitForFirstConsumer
@@ -4125,16 +4116,6 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: '|ServiceAccount|${headplane-namespace}|headplane'
-    kpt.dev/package-layer: mesh
-    kpt.dev/package-name: headplane
-  name: headplane
-  namespace: ${headplane-namespace}
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  annotations:
     internal.kpt.dev/upstream-identifier: '|ServiceAccount|${envoy-gateway-namespace}|envoy-gateway-installer'
     kpt.dev/package-layer: networking
     kpt.dev/package-name: envoy-gateway
@@ -4166,6 +4147,16 @@ metadata:
     helm.sh/chart: flux-operator-0.36.0
   name: flux-operator
   namespace: flux-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ServiceAccount|${headscale-namespace}|headplane'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headplane
+  name: headplane
+  namespace: headscale-system
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -4296,11 +4287,11 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|Role|${headplane-namespace}|headplane-agent-sync
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|Role|${headscale-namespace}|headplane-agent-sync
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headplane
   name: headplane-agent-sync
-  namespace: ${headplane-namespace}
+  namespace: headscale-system
 rules:
 - apiGroups:
   - ""
@@ -5476,11 +5467,11 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|RoleBinding|${headplane-namespace}|headplane-agent-sync
+    internal.kpt.dev/upstream-identifier: rbac.authorization.k8s.io|RoleBinding|${headscale-namespace}|headplane-agent-sync
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headplane
   name: headplane-agent-sync
-  namespace: ${headplane-namespace}
+  namespace: headscale-system
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -5488,7 +5479,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: headplane
-  namespace: ${headplane-namespace}
+  namespace: headscale-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -5506,7 +5497,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: headplane
-  namespace: ${headplane-namespace}
+  namespace: headscale-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -6008,25 +5999,6 @@ subjects:
 ---
 apiVersion: v1
 data:
-  agent-sync.sh: |-
-    #!/usr/bin/env -S bash -exuo pipefail
-    apk add --no-cache kubectl
-    AUTHKEY=$(kubectl get secret headscale-client-auth -n "${HEADSCALE_NAMESPACE}" -o jsonpath='{.data.authkey}' | base64 -d)
-    kubectl create secret generic headplane-agent-auth \
-      -n "${HEADPLANE_NAMESPACE}" \
-      --from-literal=preauthkey="${AUTHKEY}" \
-      --dry-run=client -o yaml | kubectl apply -f -
-kind: ConfigMap
-metadata:
-  annotations:
-    internal.kpt.dev/upstream-identifier: '|ConfigMap|${headplane-namespace}|headplane-agent-sync-script'
-    kpt.dev/package-layer: mesh
-    kpt.dev/package-name: headplane
-  name: headplane-agent-sync-script
-  namespace: ${headplane-namespace}
----
-apiVersion: v1
-data:
   install.sh: |
     #!/usr/bin/env -S bash -exuo pipefail
 
@@ -6188,6 +6160,38 @@ metadata:
     kpt.dev/package-name: flox-containerd-shim
   name: flox-runtime-installer-script
   namespace: flox-runtime
+---
+apiVersion: v1
+data:
+  agent-sync.sh: |-
+    #!/usr/bin/env -S bash -exuo pipefail
+    apk add --no-cache kubectl
+    AUTHKEY=$(kubectl get secret headscale-client-auth -n "${HEADSCALE_NAMESPACE}" -o jsonpath='{.data.authkey}' | base64 -d)
+    kubectl create secret generic headplane-agent-auth \
+      -n "${HEADPLANE_NAMESPACE}" \
+      --from-literal=preauthkey="${AUTHKEY}" \
+      --dry-run=client -o yaml | kubectl apply -f -
+kind: ConfigMap
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|${headscale-namespace}|headplane-agent-sync-script'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headplane
+  name: headplane-agent-sync-script
+  namespace: headscale-system
+---
+apiVersion: v1
+data:
+  HEADPLANE_NAMESPACE: headscale-system
+  HEADSCALE_NAMESPACE: headscale-system
+kind: ConfigMap
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|${headscale-namespace}|headplane-env'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headplane
+  name: headplane-env
+  namespace: headscale-system
 ---
 apiVersion: v1
 data:
@@ -6430,6 +6434,24 @@ metadata:
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headscale
   name: headscale-derp
+  namespace: headscale-system
+---
+apiVersion: v1
+data:
+  CLUSTER_LAN_HEADSCALE_INETADDR: 192.168.1.65
+  DARWIN_HOST: alcide
+  HEADPLANE_NAMESPACE: ${headplane-namespace}
+  HEADSCALE_NAMESPACE: headscale-system
+  HEADSCALE_URL: http://headscale.headscale-system.svc.cluster.local:8080
+  RKE2_CLUSTER_NAME: alcide
+  VIP_NETWORK_CIDR: 10.80.15.0/24
+kind: ConfigMap
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|${headscale-namespace}|headscale-env'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  name: headscale-env
   namespace: headscale-system
 ---
 apiVersion: v1
@@ -6834,11 +6856,11 @@ apiVersion: v1
 kind: Secret
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: '|Secret|${headplane-namespace}|headplane-agent-auth'
+    internal.kpt.dev/upstream-identifier: '|Secret|${headscale-namespace}|headplane-agent-auth'
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headplane
   name: headplane-agent-auth
-  namespace: ${headplane-namespace}
+  namespace: headscale-system
 stringData:
   preauthkey: REPLACE_WITH_HEADSCALE_PREAUTH_KEY
 type: Opaque
@@ -6847,11 +6869,11 @@ apiVersion: v1
 kind: Secret
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: '|Secret|${headplane-namespace}|headplane-config'
+    internal.kpt.dev/upstream-identifier: '|Secret|${headscale-namespace}|headplane-config'
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headplane
   name: headplane-config
-  namespace: ${headplane-namespace}
+  namespace: headscale-system
 stringData:
   config.yaml: |
     server:
@@ -6882,11 +6904,11 @@ apiVersion: v1
 kind: Secret
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: '|Secret|${headplane-namespace}|headplane-secrets'
+    internal.kpt.dev/upstream-identifier: '|Secret|${headscale-namespace}|headplane-secrets'
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headplane
   name: headplane-secrets
-  namespace: ${headplane-namespace}
+  namespace: headscale-system
 stringData:
   cookie_secret: 0123456789abcdef0123456789abcdef
 type: Opaque
@@ -6944,26 +6966,6 @@ apiVersion: v1
 kind: Service
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: '|Service|${headplane-namespace}|headplane'
-    kpt.dev/package-layer: mesh
-    kpt.dev/package-name: headplane
-  labels:
-    app: headplane
-  name: headplane
-  namespace: ${headplane-namespace}
-spec:
-  ports:
-  - name: http
-    port: 3000
-    targetPort: http
-  selector:
-    app: headplane
-  type: ClusterIP
----
-apiVersion: v1
-kind: Service
-metadata:
-  annotations:
     kpt.dev/package-layer: gitops
     kpt.dev/package-name: flux-operator
   labels:
@@ -6983,6 +6985,26 @@ spec:
   selector:
     app.kubernetes.io/instance: flux-operator
     app.kubernetes.io/name: flux-operator
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Service|${headscale-namespace}|headplane'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headplane
+  labels:
+    app: headplane
+  name: headplane
+  namespace: headscale-system
+spec:
+  ports:
+  - name: http
+    port: 3000
+    targetPort: http
+  selector:
+    app: headplane
+  type: ClusterIP
 ---
 apiVersion: v1
 kind: Service
@@ -7155,100 +7177,17 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: '|PersistentVolumeClaim|${headplane-namespace}|headplane-data'
+    internal.kpt.dev/upstream-identifier: '|PersistentVolumeClaim|${headscale-namespace}|headplane-data'
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headplane
   name: headplane-data
-  namespace: ${headplane-namespace}
+  namespace: headscale-system
 spec:
   accessModes:
   - ReadWriteOnce
   resources:
     requests:
       storage: 128Mi
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  annotations:
-    internal.kpt.dev/upstream-identifier: apps|Deployment|${headplane-namespace}|headplane
-    kpt.dev/package-layer: mesh
-    kpt.dev/package-name: headplane
-  labels:
-    app: headplane
-  name: headplane
-  namespace: ${headplane-namespace}
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: headplane
-  template:
-    metadata:
-      annotations:
-        flox.dev/environment: nxmatic/headplane
-        kpt.dev/package-layer: mesh
-        kpt.dev/package-name: headplane
-      labels:
-        app: headplane
-    spec:
-      containers:
-      - args:
-        - serve
-        command:
-        - headplane
-        env:
-        - name: FLOX_NO_TELEMETRY
-          value: "1"
-        - name: FLOX_NONINTERACTIVE
-          value: "1"
-        - name: HEADPLANE_LOAD_ENV_OVERRIDES
-          value: "true"
-        - name: HEADPLANE_INTEGRATION__KUBERNETES__POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        image: flox/empty:1.0.0
-        name: headplane
-        ports:
-        - containerPort: 3000
-          name: http
-        resources:
-          limits:
-            cpu: 500m
-            ephemeral-storage: 512Mi
-            memory: 512Mi
-          requests:
-            cpu: 100m
-            ephemeral-storage: 256Mi
-            memory: 128Mi
-        volumeMounts:
-        - mountPath: /etc/headplane/config.yaml
-          name: config
-          subPath: config.yaml
-        - mountPath: /etc/headplane/secrets
-          name: secrets
-          readOnly: true
-        - mountPath: /etc/headplane/agent
-          name: agent
-          readOnly: true
-        - mountPath: /var/lib/headplane
-          name: data
-      runtimeClassName: flox
-      serviceAccountName: headplane
-      volumes:
-      - name: config
-        secret:
-          secretName: headplane-config
-      - name: secrets
-        secret:
-          secretName: headplane-secrets
-      - name: agent
-        secret:
-          secretName: headplane-agent-auth
-      - name: data
-        persistentVolumeClaim:
-          claimName: headplane-data
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -7349,6 +7288,89 @@ spec:
       volumes:
       - emptyDir: {}
         name: temp
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: apps|Deployment|${headscale-namespace}|headplane
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headplane
+  labels:
+    app: headplane
+  name: headplane
+  namespace: headscale-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: headplane
+  template:
+    metadata:
+      annotations:
+        flox.dev/environment: nxmatic/headplane
+        kpt.dev/package-layer: mesh
+        kpt.dev/package-name: headplane
+      labels:
+        app: headplane
+    spec:
+      containers:
+      - args:
+        - serve
+        command:
+        - headplane
+        env:
+        - name: FLOX_NO_TELEMETRY
+          value: "1"
+        - name: FLOX_NONINTERACTIVE
+          value: "1"
+        - name: HEADPLANE_LOAD_ENV_OVERRIDES
+          value: "true"
+        - name: HEADPLANE_INTEGRATION__KUBERNETES__POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        image: flox/empty:1.0.0
+        name: headplane
+        ports:
+        - containerPort: 3000
+          name: http
+        resources:
+          limits:
+            cpu: 500m
+            ephemeral-storage: 512Mi
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            ephemeral-storage: 256Mi
+            memory: 128Mi
+        volumeMounts:
+        - mountPath: /etc/headplane/config.yaml
+          name: config
+          subPath: config.yaml
+        - mountPath: /etc/headplane/secrets
+          name: secrets
+          readOnly: true
+        - mountPath: /etc/headplane/agent
+          name: agent
+          readOnly: true
+        - mountPath: /var/lib/headplane
+          name: data
+      runtimeClassName: flox
+      serviceAccountName: headplane
+      volumes:
+      - name: config
+        secret:
+          secretName: headplane-config
+      - name: secrets
+        secret:
+          secretName: headplane-secrets
+      - name: agent
+        secret:
+          secretName: headplane-agent-auth
+      - name: data
+        persistentVolumeClaim:
+          claimName: headplane-data
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -7506,12 +7528,6 @@ spec:
         - bash
         - /scripts/gateway.sh
         env:
-        - name: DARWIN_HOST
-          value: alcide
-        - name: VIP_NETWORK_CIDR
-          value: 10.80.15.0/24
-        - name: HEADSCALE_URL
-          value: http://headscale.headscale-system.svc.cluster.local:8080
         - name: TS_AUTHKEY
           valueFrom:
             secretKeyRef:
@@ -7521,6 +7537,9 @@ spec:
           value: "1"
         - name: FLOX_NONINTERACTIVE
           value: "1"
+        envFrom:
+        - configMapRef:
+            name: headscale-env
         image: flox/empty:1.0.0
         name: tailscale-gateway
         resources:
@@ -8404,10 +8423,6 @@ spec:
         - bash
         - /scripts/tailscale-client.sh
         env:
-        - name: DARWIN_HOST
-          value: alcide
-        - name: RKE2_CLUSTER_NAME
-          value: alcide
         - name: RKE2_NODENAME
           valueFrom:
             fieldRef:
@@ -8421,8 +8436,6 @@ spec:
           value: /var/lib/tailscale
         - name: TS_SOCKET
           value: /var/run/tailscale/tailscaled.sock
-        - name: HEADSCALE_URL
-          value: http://headscale.headscale-system.svc.cluster.local:8080
         - name: TS_USERSPACE
           value: "true"
         - name: TS_KUBE_SECRET
@@ -8431,6 +8444,9 @@ spec:
           value: "1"
         - name: FLOX_NONINTERACTIVE
           value: "1"
+        envFrom:
+        - configMapRef:
+            name: headscale-env
         image: flox/empty:1.0.0
         name: tailscale
         resources:
@@ -8468,11 +8484,9 @@ spec:
       - command:
         - bash
         - /scripts/wait-for-headscale.sh
-        env:
-        - name: HEADSCALE_NAMESPACE
-          value: headscale-system
-        - name: HEADSCALE_URL
-          value: http://headscale.headscale-system.svc.cluster.local:8080
+        envFrom:
+        - configMapRef:
+            name: headscale-env
         image: flox/empty:1.0.0
         name: wait-for-headscale
         volumeMounts:
@@ -8482,9 +8496,9 @@ spec:
       - command:
         - bash
         - /scripts/wait-for-authkey.sh
-        env:
-        - name: HEADSCALE_NAMESPACE
-          value: headscale-system
+        envFrom:
+        - configMapRef:
+            name: headscale-env
         image: flox/empty:1.0.0
         name: wait-for-authkey
         volumeMounts:
@@ -8716,6 +8730,55 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   annotations:
+    internal.kpt.dev/upstream-identifier: batch|Job|${headscale-namespace}|headplane-agent-sync
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headplane
+  name: headplane-agent-sync
+  namespace: headscale-system
+spec:
+  template:
+    metadata:
+      annotations:
+        flox.dev/environment: nxmatic/headplane
+        kpt.dev/package-layer: mesh
+        kpt.dev/package-name: headplane
+    spec:
+      containers:
+      - command:
+        - /bin/sh
+        - /scripts/agent-sync.sh
+        envFrom:
+        - configMapRef:
+            name: headplane-env
+        image: alpine:3.20
+        name: sync
+        resources:
+          limits:
+            cpu: 200m
+            ephemeral-storage: 256Mi
+            memory: 128Mi
+          requests:
+            cpu: 50m
+            ephemeral-storage: 128Mi
+            memory: 64Mi
+        volumeMounts:
+        - mountPath: /scripts
+          name: agent-sync-script
+          readOnly: true
+      restartPolicy: OnFailure
+      runtimeClassName: flox
+      serviceAccountName: headplane
+      volumes:
+      - configMap:
+          defaultMode: 493
+          name: headplane-agent-sync-script
+        name: agent-sync-script
+  ttlSecondsAfterFinished: 300
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
     internal.kpt.dev/upstream-identifier: batch|Job|${headscale-namespace}|headscale-bootstrap
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headscale
@@ -8734,12 +8797,13 @@ spec:
         - bash
         - /scripts/bootstrap.sh
         env:
-        - name: HEADSCALE_NAMESPACE
-          value: headscale-system
         - name: FLOX_NO_TELEMETRY
           value: "1"
         - name: FLOX_NONINTERACTIVE
           value: "1"
+        envFrom:
+        - configMapRef:
+            name: headscale-env
         image: flox/empty:1.0.0
         name: bootstrap
         resources:
@@ -9338,12 +9402,12 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: networking.k8s.io|Ingress|${headplane-namespace}|headplane
+    internal.kpt.dev/upstream-identifier: networking.k8s.io|Ingress|${headscale-namespace}|headplane
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headplane
     kubernetes.io/ingress.class: cilium
   name: headplane
-  namespace: ${headplane-namespace}
+  namespace: headscale-system
 spec:
   ingressClassName: cilium
   rules:

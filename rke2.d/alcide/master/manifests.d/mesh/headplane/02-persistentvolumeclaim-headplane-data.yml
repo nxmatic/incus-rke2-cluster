@@ -3,11 +3,11 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: '|PersistentVolumeClaim|${headplane-namespace}|headplane-data'
+    internal.kpt.dev/upstream-identifier: '|PersistentVolumeClaim|${headscale-namespace}|headplane-data'
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headplane
   name: headplane-data
-  namespace: ${headplane-namespace}
+  namespace: headscale-system
 spec:
   accessModes:
     - ReadWriteOnce

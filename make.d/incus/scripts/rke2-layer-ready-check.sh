@@ -128,7 +128,8 @@ if [[ ${#namespaces[@]} -eq 0 ]]; then
   exit 0
 fi
 for namespace in "${namespaces[@]}"; do
-  kubectl wait --for=jsonpath='{.status.phase}'=Active "namespace/${namespace}" --timeout="${timeout}"
+  kubectl wait --for=create "namespace/${namespace}" --timeout=30s
+  kubectl wait --for=jsonpath='{.status.phase}'=Active "namespace/${namespace}" --timeout="10s"
 done
 
 log "Waiting for workloads in layer ${layer}${package_filter:+ (package ${package_filter})}"

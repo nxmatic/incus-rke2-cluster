@@ -1,11 +1,11 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
-metadata: # kpt-merge: ${headplane-namespace}/headplane
+metadata: # kpt-merge: ${headscale-namespace}/headplane
   name: headplane
-  namespace: ${headplane-namespace} # kpt-set: ${headplane-namespace}
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
   annotations:
     kubernetes.io/ingress.class: ${headplane-ingress-class} # kpt-set: ${headplane-ingress-class}
-    internal.kpt.dev/upstream-identifier: 'networking.k8s.io|Ingress|${headplane-namespace}|headplane'
+    internal.kpt.dev/upstream-identifier: 'networking.k8s.io|Ingress|${headscale-namespace}|headplane'
 spec:
   ingressClassName: ${headplane-ingress-class} # kpt-set: ${headplane-ingress-class}
   rules:

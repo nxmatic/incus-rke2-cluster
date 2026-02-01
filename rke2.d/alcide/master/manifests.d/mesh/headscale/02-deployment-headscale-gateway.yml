@@ -30,12 +30,6 @@ spec:
             - bash
             - /scripts/gateway.sh
           env:
-            - name: DARWIN_HOST
-              value: alcide
-            - name: VIP_NETWORK_CIDR
-              value: 10.80.15.0/24
-            - name: HEADSCALE_URL
-              value: http://headscale.headscale-system.svc.cluster.local:8080
             - name: TS_AUTHKEY
               valueFrom:
                 secretKeyRef:
@@ -45,6 +39,9 @@ spec:
               value: "1"
             - name: FLOX_NONINTERACTIVE
               value: "1"
+          envFrom:
+            - configMapRef:
+                name: headscale-env
           image: flox/empty:1.0.0
           name: tailscale-gateway
           resources:

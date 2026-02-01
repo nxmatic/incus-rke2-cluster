@@ -42,12 +42,6 @@ spec:
       - name: tailscale-gateway
         image: flox/empty:1.0.0
         env:
-        - name: DARWIN_HOST
-          value: ${cluster-name} # kpt-set: ${cluster-name}
-        - name: VIP_NETWORK_CIDR
-          value: ${cluster-vip-cidr} # kpt-set: ${cluster-vip-cidr}
-        - name: HEADSCALE_URL
-          value: http://headscale.${headscale-namespace}.svc.cluster.local:8080 # kpt-set: http://headscale.${headscale-namespace}.svc.cluster.local:8080
         - name: TS_AUTHKEY
           valueFrom:
             secretKeyRef:
@@ -88,6 +82,9 @@ spec:
             cpu: 200m
             memory: 256Mi
             ephemeral-storage: 500Mi
+        envFrom:
+        - configMapRef:
+            name: headscale-env
       volumes:
       - name: dev-net-tun
         hostPath:

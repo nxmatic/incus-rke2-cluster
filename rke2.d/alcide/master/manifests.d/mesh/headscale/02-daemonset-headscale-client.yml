@@ -28,10 +28,6 @@ spec:
             - bash
             - /scripts/tailscale-client.sh
           env:
-            - name: DARWIN_HOST
-              value: alcide
-            - name: RKE2_CLUSTER_NAME
-              value: alcide
             - name: RKE2_NODENAME
               valueFrom:
                 fieldRef:
@@ -45,8 +41,6 @@ spec:
               value: /var/lib/tailscale
             - name: TS_SOCKET
               value: /var/run/tailscale/tailscaled.sock
-            - name: HEADSCALE_URL
-              value: http://headscale.headscale-system.svc.cluster.local:8080
             - name: TS_USERSPACE
               value: "true"
             - name: TS_KUBE_SECRET
@@ -55,6 +49,9 @@ spec:
               value: "1"
             - name: FLOX_NONINTERACTIVE
               value: "1"
+          envFrom:
+            - configMapRef:
+                name: headscale-env
           image: flox/empty:1.0.0
           name: tailscale
           resources:
@@ -92,11 +89,9 @@ spec:
         - command:
             - bash
             - /scripts/wait-for-headscale.sh
-          env:
-            - name: HEADSCALE_NAMESPACE
-              value: headscale-system
-            - name: HEADSCALE_URL
-              value: http://headscale.headscale-system.svc.cluster.local:8080
+          envFrom:
+            - configMapRef:
+                name: headscale-env
           image: flox/empty:1.0.0
           name: wait-for-headscale
           volumeMounts:
@@ -106,9 +101,9 @@ spec:
         - command:
             - bash
             - /scripts/wait-for-authkey.sh
-          env:
-            - name: HEADSCALE_NAMESPACE
-              value: headscale-system
+          envFrom:
+            - configMapRef:
+                name: headscale-env
           image: flox/empty:1.0.0
           name: wait-for-authkey
           volumeMounts:

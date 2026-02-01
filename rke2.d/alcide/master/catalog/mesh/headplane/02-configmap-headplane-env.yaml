@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: # kpt-merge: ${headscale-namespace}/headplane-env
+  name: headplane-env
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|${headscale-namespace}|headplane-env'
+data:
+  HEADPLANE_NAMESPACE: ${headscale-namespace} # kpt-set: ${headscale-namespace}
+  HEADSCALE_NAMESPACE: ${headscale-namespace} # kpt-set: ${headscale-namespace}

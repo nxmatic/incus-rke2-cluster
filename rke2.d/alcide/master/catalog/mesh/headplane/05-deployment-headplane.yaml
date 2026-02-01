@@ -1,12 +1,12 @@
 apiVersion: apps/v1
 kind: Deployment
-metadata: # kpt-merge: ${headplane-namespace}/headplane
+metadata: # kpt-merge: ${headscale-namespace}/headplane
   name: headplane
-  namespace: ${headplane-namespace} # kpt-set: ${headplane-namespace}
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
   labels:
     app: headplane
   annotations:
-    internal.kpt.dev/upstream-identifier: 'apps|Deployment|${headplane-namespace}|headplane'
+    internal.kpt.dev/upstream-identifier: 'apps|Deployment|${headscale-namespace}|headplane'
 spec:
   replicas: 1
   selector:

@@ -3,13 +3,13 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: apps|Deployment|${headplane-namespace}|headplane
+    internal.kpt.dev/upstream-identifier: apps|Deployment|${headscale-namespace}|headplane
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headplane
   labels:
     app: headplane
   name: headplane
-  namespace: ${headplane-namespace}
+  namespace: headscale-system
 spec:
   replicas: 1
   selector:

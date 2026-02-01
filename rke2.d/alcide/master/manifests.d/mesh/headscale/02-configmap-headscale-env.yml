@@ -1,0 +1,18 @@
+---
+apiVersion: v1
+data:
+  CLUSTER_LAN_HEADSCALE_INETADDR: 192.168.1.65
+  DARWIN_HOST: alcide
+  HEADPLANE_NAMESPACE: ${headplane-namespace}
+  HEADSCALE_NAMESPACE: headscale-system
+  HEADSCALE_URL: http://headscale.headscale-system.svc.cluster.local:8080
+  RKE2_CLUSTER_NAME: alcide
+  VIP_NETWORK_CIDR: 10.80.15.0/24
+kind: ConfigMap
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|${headscale-namespace}|headscale-env'
+    kpt.dev/package-layer: mesh
+    kpt.dev/package-name: headscale
+  name: headscale-env
+  namespace: headscale-system
