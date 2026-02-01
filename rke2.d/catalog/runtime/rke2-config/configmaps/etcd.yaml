@@ -6,6 +6,6 @@ metadata: # kpt-merge: /rke2-etcd
     description.kpt.dev: Etcd settings fragment
     config.kubernetes.io/local-config: "true"
 data:
-  etcd-expose-metrics: true
-  node-name: ${cluster-name}-${node-kind}-node # kpt-set: ${cluster-name}-${node-kind}-node
+  etcd-expose-metrics: false
+  node-name: ${cluster-name}-${node-name} # kpt-set: ${cluster-name}-${node-name}
   with-node-id: false
