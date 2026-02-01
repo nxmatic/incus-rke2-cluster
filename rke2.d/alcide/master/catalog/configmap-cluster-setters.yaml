@@ -14,7 +14,7 @@ data:
   cluster-domain: cluster.local
   cluster-node-name: master
   cluster-node-kind: server
-  cluster-flox-enabled: 
+  cluster-flox-enabled: true
   cluster-cidr: 10.80.8.0/21
   cluster-lb-cidr: 10.80.8.64/26
   cluster-vip-cidr: 10.80.15.0/24
