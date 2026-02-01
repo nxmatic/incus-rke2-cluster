@@ -10,6 +10,7 @@ resources:
 - 0-packagevariantsets.yaml
 - 0-repositories.yaml
 - 1-namespace.yaml
+- 2-secrets-porch-auth.yaml
 - 2-function-runner.yaml
 - 3-porch-server.yaml
 - 4-apiservice.yaml

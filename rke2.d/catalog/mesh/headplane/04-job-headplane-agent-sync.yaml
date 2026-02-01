@@ -19,6 +19,11 @@ spec:
           command:
             - /bin/sh
             - /scripts/agent-sync.sh
+          env:
+            - name: HEADSCALE_NAMESPACE
+              value: ${headscale-namespace} # kpt-set: ${headscale-namespace}
+            - name: HEADPLANE_NAMESPACE
+              value: ${headplane-namespace} # kpt-set: ${headplane-namespace}
           resources:
             requests:
               cpu: 50m

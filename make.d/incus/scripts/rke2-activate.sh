@@ -17,6 +17,9 @@ systemctl enable \
 	rke2-runtime-secrets.service \
 	rke2-runtime-manifests-install.service \
 	rke2-runtime-ready-check.service \
+	rke2-cilium-manifests-install.service \
+	rke2-replication-manifests-install.service \
+	rke2-replication-ready-check.service \
 	rke2-mesh-secrets.service \
 	rke2-gitops-secrets.service \
 	rke2-gitops-manifests-install.service \

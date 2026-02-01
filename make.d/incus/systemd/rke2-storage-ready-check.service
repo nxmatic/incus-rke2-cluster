@@ -1,9 +1,10 @@
-[Unit]
+x[Unit]
 Description=Wait for RKE2 storage workloads to be ready
 RequiresMountsFor=/srv/host/system.d /srv/host
 After=local-fs.target
 After=rke2-storage-manifests-install.service
 Requires=rke2-storage-manifests-install.service
+Wants=rke2-networking-manifests-install.service
 ConditionPathExists=/srv/host/scripts.d/rke2-openebs-ready-check.sh
 ConditionPathExists=/srv/host/manifests.d/storage
 

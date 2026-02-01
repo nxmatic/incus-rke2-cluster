@@ -36,14 +36,12 @@ if [[ -z "${SECRETS_FILE}" ]]; then
   exit 0
 fi
 
-YQ_BIN="$(command -v yq)"
-
-if ! "${YQ_BIN}" eval -e '.kubernetes' "${SECRETS_FILE}" >/dev/null 2>&1; then
+if ! yq eval -e '.kubernetes' "${SECRETS_FILE}" >/dev/null 2>&1; then
   log "no kubernetes secrets config in ${SECRETS_FILE}; skipping"
   exit 0
 fi
 
-source_namespace="$("${YQ_BIN}" eval -r '.kubernetes.sourceNamespace // "kube-system"' "${SECRETS_FILE}")"
+source_namespace="kube-system"
 
 rke2lab::kube:apply_secret() {
   local namespace="$1" name="$2" type="$3" replicate_to="$4"
@@ -61,7 +59,7 @@ rke2lab::kube:apply_secret() {
 
   if [[ -n "${replicate_to}" ]]; then
     manifest=$(printf '%s\n' "${manifest}" | \
-      "${YQ_BIN}" eval \
+      yq eval \
         ".metadata.annotations.\"replicator.v1.mittwald.de/replicate-to\" = \"${replicate_to}\"" -)
   fi
 
@@ -72,14 +70,14 @@ set +x
 
 case "${layer}" in
   mesh)
-    tailscale_name="$("${YQ_BIN}" eval -r '.kubernetes.secrets.tailscale.name // "operator-oauth"' "${SECRETS_FILE}")"
-    tailscale_replicate_to="$("${YQ_BIN}" eval -r '.kubernetes.secrets.tailscale.replicateTo // [] | join(",")' "${SECRETS_FILE}")"
-    tailscale_oauth_id="$("${YQ_BIN}" eval -r '.tailscale.oauth.id // ""' "${SECRETS_FILE}")"
-    tailscale_oauth_token="$("${YQ_BIN}" eval -r '.tailscale.oauth.token // ""' "${SECRETS_FILE}")"
+    tailscale_name="$(yq eval -r '.kubernetes.secrets.tailscale.name // "operator-oauth"' "${SECRETS_FILE}")"
+    tailscale_replicate_to="$(yq eval -r '.kubernetes.secrets.tailscale.replicateTo // [] | join(",")' "${SECRETS_FILE}")"
+    tailscale_oauth_id="$(yq eval -r '.tailscale.oauth.id // ""' "${SECRETS_FILE}")"
+    tailscale_oauth_token="$(yq eval -r '.tailscale.oauth.token // ""' "${SECRETS_FILE}")"
 
     if [[ -z "${tailscale_oauth_id}" || -z "${tailscale_oauth_token}" ]]; then
-      tailscale_oauth_id="$("${YQ_BIN}" eval -r '.tailscale.client.id // ""' "${SECRETS_FILE}")"
-      tailscale_oauth_token="$("${YQ_BIN}" eval -r '.tailscale.client.token // ""' "${SECRETS_FILE}")"
+      tailscale_oauth_id="$(yq eval -r '.tailscale.client.id // ""' "${SECRETS_FILE}")"
+      tailscale_oauth_token="$(yq eval -r '.tailscale.client.token // ""' "${SECRETS_FILE}")"
     fi
 
     if [[ -n "${tailscale_oauth_id}" && -n "${tailscale_oauth_token}" ]]; then
@@ -89,39 +87,39 @@ case "${layer}" in
     fi
     ;;
   cicd)
-    tekton_git_name="$("${YQ_BIN}" eval -r '.kubernetes.secrets.tekton.git.name // "tekton-git-auth"' "${SECRETS_FILE}")"
-    tekton_git_replicate_to="$("${YQ_BIN}" eval -r '.kubernetes.secrets.tekton.git.replicateTo // [] | join(",")' "${SECRETS_FILE}")"
-    tekton_git_username="$("${YQ_BIN}" eval -r '.tekton.git.username // ""' "${SECRETS_FILE}")"
-    tekton_git_password="$("${YQ_BIN}" eval -r '.tekton.git.password // ""' "${SECRETS_FILE}")"
+    tekton_git_name="$(yq eval -r '.kubernetes.secrets.tekton.git.name // "tekton-git-auth"' "${SECRETS_FILE}")"
+    tekton_git_replicate_to="$(yq eval -r '.kubernetes.secrets.tekton.git.replicateTo // [] | join(",")' "${SECRETS_FILE}")"
+    tekton_git_username="$(yq eval -r '.tekton.git.username // ""' "${SECRETS_FILE}")"
+    tekton_git_password="$(yq eval -r '.tekton.git.password // ""' "${SECRETS_FILE}")"
     if [[ -n "${tekton_git_username}" && -n "${tekton_git_password}" ]]; then
       rke2lab::kube:apply_secret "${source_namespace}" "${tekton_git_name}" "kubernetes.io/basic-auth" "${tekton_git_replicate_to}" \
         --from-literal=username="${tekton_git_username}" \
         --from-literal=password="${tekton_git_password}"
     fi
 
-    tekton_docker_name="$("${YQ_BIN}" eval -r '.kubernetes.secrets.tekton.docker.name // "tekton-docker-config"' "${SECRETS_FILE}")"
-    tekton_docker_replicate_to="$("${YQ_BIN}" eval -r '.kubernetes.secrets.tekton.docker.replicateTo // [] | join(",")' "${SECRETS_FILE}")"
-    tekton_docker_config="$("${YQ_BIN}" eval -r '.tekton.docker.configJson // ""' "${SECRETS_FILE}")"
+    tekton_docker_name="$(yq eval -r '.kubernetes.secrets.tekton.docker.name // "tekton-docker-config"' "${SECRETS_FILE}")"
+    tekton_docker_replicate_to="$(yq eval -r '.kubernetes.secrets.tekton.docker.replicateTo // [] | join(",")' "${SECRETS_FILE}")"
+    tekton_docker_config="$(yq eval -r '.tekton.docker.configJson // ""' "${SECRETS_FILE}")"
     if [[ -n "${tekton_docker_config}" ]]; then
       rke2lab::kube:apply_secret "${source_namespace}" "${tekton_docker_name}" "kubernetes.io/dockerconfigjson" "${tekton_docker_replicate_to}" \
         --from-literal=.dockerconfigjson="${tekton_docker_config}"
     fi
     ;;
   runtime|gitops)
-    porch_git_name="$("${YQ_BIN}" eval -r '.kubernetes.secrets.porch.git.name // "porch-git-auth"' "${SECRETS_FILE}")"
-    porch_git_replicate_to="$("${YQ_BIN}" eval -r '.kubernetes.secrets.porch.git.replicateTo // [] | join(",")' "${SECRETS_FILE}")"
-    porch_git_username="$("${YQ_BIN}" eval -r '.porch.git.username // ""' "${SECRETS_FILE}")"
-    porch_git_password="$("${YQ_BIN}" eval -r '.porch.git.password // ""' "${SECRETS_FILE}")"
+    porch_git_name="$(yq eval -r '.kubernetes.secrets.porch.git.name // "porch-git-auth"' "${SECRETS_FILE}")"
+    porch_git_replicate_to="$(yq eval -r '.kubernetes.secrets.porch.git.replicateTo // [] | join(",")' "${SECRETS_FILE}")"
+    porch_git_username="$(yq eval -r '.porch.git.username // ""' "${SECRETS_FILE}")"
+    porch_git_password="$(yq eval -r '.porch.git.password // ""' "${SECRETS_FILE}")"
     if [[ -n "${porch_git_username}" && -n "${porch_git_password}" ]]; then
       rke2lab::kube:apply_secret "${source_namespace}" "${porch_git_name}" "kubernetes.io/basic-auth" "${porch_git_replicate_to}" \
         --from-literal=username="${porch_git_username}" \
         --from-literal=password="${porch_git_password}"
     fi
 
-    porch_ssh_name="$("${YQ_BIN}" eval -r '.kubernetes.secrets.porch.ssh.name // "porch-git-ssh"' "${SECRETS_FILE}")"
-    porch_ssh_replicate_to="$("${YQ_BIN}" eval -r '.kubernetes.secrets.porch.ssh.replicateTo // [] | join(",")' "${SECRETS_FILE}")"
-    porch_ssh_private_key="$("${YQ_BIN}" eval -r '.porch.ssh.privateKey // ""' "${SECRETS_FILE}")"
-    porch_ssh_known_hosts="$("${YQ_BIN}" eval -r '.porch.ssh.knownHosts // ""' "${SECRETS_FILE}")"
+    porch_ssh_name="$(yq eval -r '.kubernetes.secrets.porch.ssh.name // "porch-git-ssh"' "${SECRETS_FILE}")"
+    porch_ssh_replicate_to="$(yq eval -r '.kubernetes.secrets.porch.ssh.replicateTo // [] | join(",")' "${SECRETS_FILE}")"
+    porch_ssh_private_key="$(yq eval -r '.porch.ssh.privateKey // ""' "${SECRETS_FILE}")"
+    porch_ssh_known_hosts="$(yq eval -r '.porch.ssh.knownHosts // ""' "${SECRETS_FILE}")"
     if [[ -n "${porch_ssh_private_key}" ]]; then
       if [[ -n "${porch_ssh_known_hosts}" ]]; then
         rke2lab::kube:apply_secret "${source_namespace}" "${porch_ssh_name}" "kubernetes.io/ssh-auth" "${porch_ssh_replicate_to}" \

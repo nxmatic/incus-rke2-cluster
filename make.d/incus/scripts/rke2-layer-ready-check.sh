@@ -77,6 +77,7 @@ if [[ -n "${package_filter}" ]]; then
   fi
 fi
 
+declare -a namespaces=()
 declare -a crds=()
 declare -a workloads=()
 
@@ -90,6 +91,8 @@ collect_with_yq() {
   if [[ ${#files[@]} -eq 0 ]]; then
     return 0
   fi
+
+  namespaces=( $( yq ea '[.. | select(has("namespace")) | .namespace | select(.)] | unique | .[]' "${files[@]}" ) )
 
   package_selector='.'
   if [[ -n "${package_filter}" ]]; then
@@ -119,10 +122,14 @@ if [[ ${#crds[@]} -gt 0 ]]; then
   done
 fi
 
-if [[ ${#workloads[@]} -eq 0 ]]; then
-  log "No workloads found for layer ${layer}${package_filter:+ (package ${package_filter})}; skipping workload readiness"
+log "Ensuring namespaces exist for layer ${layer}${package_filter:+ (package ${package_filter})}"
+if [[ ${#namespaces[@]} -eq 0 ]]; then
+  log "No namespaces found for layer ${layer}${package_filter:+ (package ${package_filter})}; skipping namespace creation"
   exit 0
 fi
+for namespace in "${namespaces[@]}"; do
+  kubectl wait --for=jsonpath='{.status.phase}'=Active "namespace/${namespace}" --timeout="${timeout}"
+done
 
 log "Waiting for workloads in layer ${layer}${package_filter:+ (package ${package_filter})}"
 for entry in "${workloads[@]}"; do

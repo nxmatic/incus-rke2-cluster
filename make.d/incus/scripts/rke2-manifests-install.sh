@@ -45,7 +45,7 @@ fi
 stow_dir="${BASE_DIR}/${parent_dir}"
 target_dir="${DST_DIR}/${path}"
 
-mkdir -p "${target_dir}"
-
 : "Restow to refresh symlinks if they already exist in ${target_dir} for package ${pkg_name}"
-xstow -R -d "${stow_dir}" -t "${target_dir}" "${pkg_name}"
+[[ -e "${target_dir}" ]] && xstow -D -d "${stow_dir}" -t "${target_dir}" "${pkg_name}" || true
+mkdir -p "${target_dir}"
+xstow -d "${stow_dir}" -t "${target_dir}" "${pkg_name}"

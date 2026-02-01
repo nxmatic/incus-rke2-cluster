@@ -7,14 +7,14 @@ data:
   install.sh: |
     #!/usr/bin/env -S bash -exuo pipefail
 
-    : "[i] Installing Envoy Gateway v1.4.2..." # kpt-set: Installing Envoy Gateway ${envoy-gateway-version}...
+    : "[i] Installing Envoy Gateway ${ENVOY_GATEWAY_VERSION}..."
     kubectl apply \
       --server-side \
       --force-conflicts \
-      -f https://github.com/envoyproxy/gateway/releases/download/v1.4.2/install.yaml # kpt-set: -f https://github.com/envoyproxy/gateway/releases/download/${envoy-gateway-version}/install.yaml
+      -f "https://github.com/envoyproxy/gateway/releases/download/${ENVOY_GATEWAY_VERSION}/install.yaml"
 
     : "[i] Waiting for Envoy Gateway deployment..."
     kubectl wait --timeout=300s \
-      --namespace envoy-gateway-system \
+      --namespace "${ENVOY_GATEWAY_NAMESPACE}" \
       --for=condition=available \
       deployment/envoy-gateway
