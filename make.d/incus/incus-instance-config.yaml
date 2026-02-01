@@ -26,7 +26,7 @@ devices:
   secrets.file:
     type: disk
     source: ${INCUS_SECRETS_FILE}
-    path: /srv/host/secrets
+    path: /srv/host/.secrets
   rke2lab.env.file:
     type: disk
     source: ${INCUS_ENV_FILE}

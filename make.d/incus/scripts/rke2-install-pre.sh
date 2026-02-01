@@ -80,7 +80,7 @@ nocloud:env:activate() {
     val="$( rke2lab::shell:indirect "${var}" )"
 
     if [[ -z "$val" ]]; then
-      val=$( "${FLOX_ENV}/bin/yq" -r "${key}" "${RKE2LAB_ROOT}/secrets" 2>/dev/null )
+      val=$( "${FLOX_ENV}/bin/yq" -r "${key}" "${RKE2LAB_SECRETS_FILE}" 2>/dev/null )
     fi
     
     [[ -z "$val" ]] && return  
@@ -89,6 +89,11 @@ nocloud:env:activate() {
   
   RKE2LAB_ROOT=${RKE2LAB_ROOT:-/srv/host}
   RKE2LAB_ENV_FILE=${RKE2LAB_ENV_FILE:-${RKE2LAB_ROOT}/environment}
+  RKE2LAB_SECRETS_FILE="${RKE2LAB_ROOT}/.secrets"
+  
+  : "Ensure RKE2 secrets file exists"
+  mkdir -p "$(dirname "${RKE2LAB_SECRETS_FILE}")"
+  [[ -s "${RKE2LAB_SECRETS_FILE}" ]] || printf '%s\n' '{}' > "${RKE2LAB_SECRETS_FILE}"
 
   set -a
   
@@ -144,11 +149,6 @@ EoEnvrc
 : "Activate the nocloud environment"
 nocloud:env:activate
 
-: "Bootstrap /srv/host/secrets from flox-loaded env vars" # @codebase
-SECRETS_FILE="${RKE2LAB_ROOT}/secrets"
-mkdir -p "$(dirname "${SECRETS_FILE}")"
-[[ -s "${SECRETS_FILE}" ]] || printf '%s\n' '{}' > "${SECRETS_FILE}"
-
 secret:file:update() {
   local key="$1" var="$2" val
 
@@ -158,7 +158,7 @@ secret:file:update() {
 
   [[ -z "${val}" ]] && return 0
   export "${var}=${val}"
-  yq eval -i ".${key} = strenv(${var})" "${SECRETS_FILE}"
+  yq eval -i ".${key} = strenv(${var})" "${RKE2LAB_SECRETS_FILE}"
 }
 
 secret:file:update 'github.username' GITHUB_USERNAME
@@ -173,7 +173,7 @@ secret:file:update 'tailscale.client.token' TSKEY_CLIENT_TOKEN
 secret:file:update 'tailscale.api.id' TSKEY_API_ID
 secret:file:update 'tailscale.api.token' TSKEY_API_TOKEN
 
-chmod 0600 "${SECRETS_FILE}"
+chmod 0600 "${RKE2LAB_SECRETS_FILE}"
 unset secret:file:update
 
 : "GitHub authentication setup"

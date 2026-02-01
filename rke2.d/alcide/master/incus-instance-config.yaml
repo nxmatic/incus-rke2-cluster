@@ -26,7 +26,7 @@ devices:
   secrets.file:
     type: disk
     source: /net/alcide.local/private/var/lib/git/nxmatic/rke2lab/.local.d/var/private/incus/secrets
-    path: /srv/host/secrets
+    path: /srv/host/.secrets
   rke2lab.env.file:
     type: disk
     source: /net/alcide.local/private/var/lib/git/nxmatic/rke2lab/rke2.d/alcide/master/environment
