@@ -15,7 +15,8 @@ make.d/incus/vars.mk := make.d/incus/vars.mk
 .incus.image.build.dir = $(.incus.image.dir)/rootfs
 .incus.image.build.files = $(.incus.image.dir)/incus.tar.xz $(.incus.image.dir)/rootfs.squashfs
 .incus.image.pack.config = $(.incus.image.dir)/pack.yaml
-.incus.mksquashfs.opts = -comp xz -b 1048576 -noappend -info -progress
+# Prefer zstd over xz to avoid extract failures; 512K blocks balance size vs random-read latency. (@codebase)
+.incus.mksquashfs.opts = -comp zstd -b 1M -noappend
 	
 # should be kept outside of ZFS
 .incus.nocloud.dir = $(.incus.instance.dir)

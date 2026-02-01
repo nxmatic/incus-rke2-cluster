@@ -377,8 +377,8 @@ $(.incus.image.build.files)&: $(.incus.distrobuilder.file) | ensure-image-tmpfs@
 	$(SUDO) distrobuilder pack-incus "$$PACK_CFG" "$(.incus.image.build.dir)" $(.incus.image.dir) --debug
 	: "[+] Rebuilding squashfs explicitly (verbose) fixing up the built image"
 	$(SUDO) rm -f $(.incus.image.dir)/rootfs.squashfs
-	$(SUDO) mksquashfs $(.incus.image.build.dir) $(.incus.image.dir)/rootfs.squashfs $(.incus.mksquashfs.opts)
-	$(SUDO) rm -fr $(.incus.image.build.dir)
+	$(SUDO) mksquashfs $(.incus.image.build.dir) $(.incus.image.dir)/rootfs.squashfs $(.incus.mksquashfs.opts) -info -progress
+	: $(SUDO) rm -fr $(.incus.image.build.dir)
 	$(SUDO) chown -R $(USER):$(USER) $(.incus.image.dir)
 
 # Helper phony target for remote build delegation
