@@ -6948,7 +6948,6 @@ spec:
         app.kubernetes.io/name: kdns
         helm.sh/chart: kdns-0.2.3
     spec:
-      automountServiceAccountToken: false
       containers:
       - command:
         - /bin/sh

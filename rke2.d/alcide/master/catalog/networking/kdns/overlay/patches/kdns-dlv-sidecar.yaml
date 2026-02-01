@@ -12,7 +12,6 @@ spec:
         debug.kdns.lab42/enabled: "false"
     spec:
       shareProcessNamespace: true
-      automountServiceAccountToken: false
       containers:
         - name: kdns-dlv
           image: alpine:3.19
