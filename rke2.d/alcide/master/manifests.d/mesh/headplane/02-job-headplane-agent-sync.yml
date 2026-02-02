@@ -23,6 +23,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: headplane-env
+            - configMapRef:
+                name: flox-env
           image: alpine:3.20
           name: sync
           resources:
@@ -38,6 +40,10 @@ spec:
             - mountPath: /scripts
               name: agent-sync-script
               readOnly: true
+            - mountPath: /etc/headplane-template/config.yaml
+              name: config-template
+              readOnly: true
+              subPath: config.yaml
       restartPolicy: OnFailure
       runtimeClassName: flox
       serviceAccountName: headplane
@@ -46,4 +52,7 @@ spec:
             defaultMode: 493
             name: headplane-agent-sync-script
           name: agent-sync-script
+        - name: config-template
+          secret:
+            secretName: headplane-config-tmpl
   ttlSecondsAfterFinished: 300

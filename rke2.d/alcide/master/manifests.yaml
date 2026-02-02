@@ -5999,6 +5999,20 @@ subjects:
 ---
 apiVersion: v1
 data:
+  FLOX_DISABLE_METRICS: "true"
+  FLOX_NO_TELEMETRY: "1"
+  FLOX_NONINTERACTIVE: "1"
+kind: ConfigMap
+metadata:
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|${headscale-namespace}|flox-env'
+    kpt.dev/package-layer: runtime
+    kpt.dev/package-name: flox-containerd-shim
+  name: flox-env
+  namespace: ${headscale-namespace}
+---
+apiVersion: v1
+data:
   install.sh: |
     #!/usr/bin/env -S bash -exuo pipefail
 
@@ -6165,11 +6179,19 @@ apiVersion: v1
 data:
   agent-sync.sh: |-
     #!/usr/bin/env -S bash -exuo pipefail
-    apk add --no-cache kubectl
     AUTHKEY=$(kubectl get secret headscale-client-auth -n "${HEADSCALE_NAMESPACE}" -o jsonpath='{.data.authkey}' | base64 -d)
     kubectl create secret generic headplane-agent-auth \
       -n "${HEADPLANE_NAMESPACE}" \
       --from-literal=preauthkey="${AUTHKEY}" \
+      --dry-run=client -o yaml | kubectl apply -f -
+
+    yq eval '.server.base_url = strenv(HEADPLANE_BASE_URL) |
+      .server.cookie_secure = (env(HEADPLANE_COOKIE_SECURE) | downcase == "true") |
+      .headscale.url = strenv(HEADSCALE_SERVICE_URL)' \
+      /etc/headplane-template/config.yaml > /tmp/config.$$.yaml
+    kubectl create secret generic headplane-config \
+      -n "${HEADPLANE_NAMESPACE}" \
+      --from-file=config.yaml=/tmp/config.$$.yaml \
       --dry-run=client -o yaml | kubectl apply -f -
 kind: ConfigMap
 metadata:
@@ -6182,8 +6204,11 @@ metadata:
 ---
 apiVersion: v1
 data:
+  HEADPLANE_BASE_URL: http://headplane.headplane.svc.cluster.local:3000
+  HEADPLANE_COOKIE_SECURE: "true"
   HEADPLANE_NAMESPACE: headscale-system
   HEADSCALE_NAMESPACE: headscale-system
+  HEADSCALE_SERVICE_URL: http://headscale.headscale-system.svc.cluster.local:8080
 kind: ConfigMap
 metadata:
   annotations:
@@ -6869,23 +6894,23 @@ apiVersion: v1
 kind: Secret
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: '|Secret|${headscale-namespace}|headplane-config'
+    internal.kpt.dev/upstream-identifier: '|Secret|${headscale-namespace}|headplane-config-tmpl'
     kpt.dev/package-layer: mesh
     kpt.dev/package-name: headplane
-  name: headplane-config
+  name: headplane-config-tmpl
   namespace: headscale-system
 stringData:
-  config.yaml: |
+  config.yaml: |-
     server:
       host: "0.0.0.0"
       port: 3000
-      base_url: "${headplane-base-url}" # kpt-set: ${headplane-base-url}
+      base_url: "${HEADPLANE_BASE_URL}"
       cookie_secret_path: "/etc/headplane/secrets/cookie_secret"
-      cookie_secure: ${headplane-cookie-secure} # kpt-set: ${headplane-cookie-secure}
+      cookie_secure: ${HEADPLANE_COOKIE_SECURE}
       data_path: "/var/lib/headplane"
 
     headscale:
-      url: "${headscale-service-url}" # kpt-set: ${headscale-service-url}
+      url: "${HEADSCALE_SERVICE_URL}"
       config_path: "/etc/headscale/config.yaml"
       dns_records_path: "/var/lib/headscale/extra_records.json"
       config_strict: true
@@ -7320,16 +7345,17 @@ spec:
         command:
         - headplane
         env:
-        - name: FLOX_NO_TELEMETRY
-          value: "1"
-        - name: FLOX_NONINTERACTIVE
-          value: "1"
         - name: HEADPLANE_LOAD_ENV_OVERRIDES
           value: "true"
         - name: HEADPLANE_INTEGRATION__KUBERNETES__POD_NAME
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: headplane-env
+        - configMapRef:
+            name: flox-env
         image: flox/empty:1.0.0
         name: headplane
         ports:
@@ -7402,11 +7428,9 @@ spec:
       - command:
         - headscale
         - serve
-        env:
-        - name: FLOX_NO_TELEMETRY
-          value: "1"
-        - name: FLOX_NONINTERACTIVE
-          value: "1"
+        envFrom:
+        - configMapRef:
+            name: flox-env
         image: flox/empty:1.0.0
         livenessProbe:
           httpGet:
@@ -7533,13 +7557,11 @@ spec:
             secretKeyRef:
               key: authkey
               name: headscale-client-auth
-        - name: FLOX_NO_TELEMETRY
-          value: "1"
-        - name: FLOX_NONINTERACTIVE
-          value: "1"
         envFrom:
         - configMapRef:
             name: headscale-env
+        - configMapRef:
+            name: flox-env
         image: flox/empty:1.0.0
         name: tailscale-gateway
         resources:
@@ -8440,13 +8462,11 @@ spec:
           value: "true"
         - name: TS_KUBE_SECRET
           value: ""
-        - name: FLOX_NO_TELEMETRY
-          value: "1"
-        - name: FLOX_NONINTERACTIVE
-          value: "1"
         envFrom:
         - configMapRef:
             name: headscale-env
+        - configMapRef:
+            name: flox-env
         image: flox/empty:1.0.0
         name: tailscale
         resources:
@@ -8487,6 +8507,8 @@ spec:
         envFrom:
         - configMapRef:
             name: headscale-env
+        - configMapRef:
+            name: flox-env
         image: flox/empty:1.0.0
         name: wait-for-headscale
         volumeMounts:
@@ -8499,6 +8521,8 @@ spec:
         envFrom:
         - configMapRef:
             name: headscale-env
+        - configMapRef:
+            name: flox-env
         image: flox/empty:1.0.0
         name: wait-for-authkey
         volumeMounts:
@@ -8629,57 +8653,6 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   annotations:
-    internal.kpt.dev/upstream-identifier: batch|Job|${headplane-namespace}|headplane-agent-sync
-    kpt.dev/package-layer: mesh
-    kpt.dev/package-name: headplane
-  name: headplane-agent-sync
-  namespace: ${headplane-namespace}
-spec:
-  template:
-    metadata:
-      annotations:
-        flox.dev/environment: nxmatic/headplane
-        kpt.dev/package-layer: mesh
-        kpt.dev/package-name: headplane
-    spec:
-      containers:
-      - command:
-        - /bin/sh
-        - /scripts/agent-sync.sh
-        env:
-        - name: HEADSCALE_NAMESPACE
-          value: headscale-system
-        - name: HEADPLANE_NAMESPACE
-          value: ${headplane-namespace}
-        image: alpine:3.20
-        name: sync
-        resources:
-          limits:
-            cpu: 200m
-            ephemeral-storage: 256Mi
-            memory: 128Mi
-          requests:
-            cpu: 50m
-            ephemeral-storage: 128Mi
-            memory: 64Mi
-        volumeMounts:
-        - mountPath: /scripts
-          name: agent-sync-script
-          readOnly: true
-      restartPolicy: OnFailure
-      runtimeClassName: flox
-      serviceAccountName: headplane
-      volumes:
-      - configMap:
-          defaultMode: 493
-          name: headplane-agent-sync-script
-        name: agent-sync-script
-  ttlSecondsAfterFinished: 300
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  annotations:
     internal.kpt.dev/upstream-identifier: batch|Job|${envoy-gateway-namespace}|envoy-gateway-installer
     kpt.dev/package-layer: networking
     kpt.dev/package-name: envoy-gateway
@@ -8750,6 +8723,8 @@ spec:
         envFrom:
         - configMapRef:
             name: headplane-env
+        - configMapRef:
+            name: flox-env
         image: alpine:3.20
         name: sync
         resources:
@@ -8765,6 +8740,10 @@ spec:
         - mountPath: /scripts
           name: agent-sync-script
           readOnly: true
+        - mountPath: /etc/headplane-template/config.yaml
+          name: config-template
+          readOnly: true
+          subPath: config.yaml
       restartPolicy: OnFailure
       runtimeClassName: flox
       serviceAccountName: headplane
@@ -8773,6 +8752,9 @@ spec:
           defaultMode: 493
           name: headplane-agent-sync-script
         name: agent-sync-script
+      - name: config-template
+        secret:
+          secretName: headplane-config-tmpl
   ttlSecondsAfterFinished: 300
 ---
 apiVersion: batch/v1
@@ -8796,14 +8778,11 @@ spec:
       - command:
         - bash
         - /scripts/bootstrap.sh
-        env:
-        - name: FLOX_NO_TELEMETRY
-          value: "1"
-        - name: FLOX_NONINTERACTIVE
-          value: "1"
         envFrom:
         - configMapRef:
             name: headscale-env
+        - configMapRef:
+            name: flox-env
         image: flox/empty:1.0.0
         name: bootstrap
         resources:

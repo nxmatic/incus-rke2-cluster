@@ -22,6 +22,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: headplane-env
+            - configMapRef:
+                name: flox-env
           env:
           resources:
             requests:
@@ -36,8 +38,15 @@ spec:
             - name: agent-sync-script
               mountPath: /scripts
               readOnly: true
+            - name: config-template
+              mountPath: /etc/headplane-template/config.yaml
+              subPath: config.yaml
+              readOnly: true
       volumes:
         - name: agent-sync-script
           configMap:
             name: headplane-agent-sync-script
             defaultMode: 0755
+        - name: config-template
+          secret:
+            secretName: headplane-config-tmpl

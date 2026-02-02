@@ -17,6 +17,11 @@ spec:
         command:
         - sh
         - /scripts/install.sh
+        env:
+        - name: ENVOY_GATEWAY_VERSION
+          value: ${envoy-gateway-version} # kpt-set: ${envoy-gateway-version}
+        - name: ENVOY_GATEWAY_NAMESPACE
+          value: ${envoy-gateway-namespace} # kpt-set: ${envoy-gateway-namespace}
         resources:
           requests:
             cpu: 50m
@@ -30,11 +35,6 @@ spec:
         - name: installer-script
           mountPath: /scripts
           readOnly: true
-        env:
-        - name: ENVOY_GATEWAY_VERSION
-          value: ${envoy-gateway-version} # kpt-set: ${envoy-gateway-version}
-        - name: ENVOY_GATEWAY_NAMESPACE
-          value: ${envoy-gateway-namespace} # kpt-set: ${envoy-gateway-namespace}
       volumes:
       - name: installer-script
         configMap:

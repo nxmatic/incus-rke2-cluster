@@ -67,6 +67,8 @@ spec:
         envFrom:
         - configMapRef:
             name: headscale-env
+        - configMapRef:
+            name: flox-env
         env:
         command:
         - bash
@@ -80,6 +82,8 @@ spec:
         envFrom:
         - configMapRef:
             name: headscale-env
+        - configMapRef:
+            name: flox-env
         env:
         command:
         - bash
@@ -96,6 +100,8 @@ spec:
         envFrom:
         - configMapRef:
             name: headscale-env
+        - configMapRef:
+            name: flox-env
         env:
         - name: RKE2_NODENAME
           valueFrom:
@@ -114,10 +120,6 @@ spec:
           value: "true"
         - name: TS_KUBE_SECRET
           value: ""
-        - name: FLOX_NO_TELEMETRY
-          value: "1"
-        - name: FLOX_NONINTERACTIVE
-          value: "1"
         command:
         - bash
         - /scripts/tailscale-client.sh

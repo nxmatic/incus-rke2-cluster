@@ -45,6 +45,9 @@ spec:
       containers:
       - name: headscale
         image: flox/empty:1.0.0
+        envFrom:
+        - configMapRef:
+            name: flox-env
         ports:
         - name: http
           containerPort: 8080
@@ -66,11 +69,6 @@ spec:
           mountPath: /var/lib/headscale
         - name: run
           mountPath: /var/run/headscale
-        env:
-        - name: FLOX_NO_TELEMETRY
-          value: "1"
-        - name: FLOX_NONINTERACTIVE
-          value: "1"
         command:
         - headscale
         - serve

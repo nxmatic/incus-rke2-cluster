@@ -27,14 +27,12 @@ spec:
           envFrom:
             - configMapRef:
                 name: headplane-env
+            - configMapRef:
+                name: flox-env
           ports:
             - containerPort: 3000
               name: http
           env:
-            - name: FLOX_NO_TELEMETRY
-              value: "1"
-            - name: FLOX_NONINTERACTIVE
-              value: "1"
             - name: HEADPLANE_LOAD_ENV_OVERRIDES
               value: "true"
             - name: HEADPLANE_INTEGRATION__KUBERNETES__POD_NAME

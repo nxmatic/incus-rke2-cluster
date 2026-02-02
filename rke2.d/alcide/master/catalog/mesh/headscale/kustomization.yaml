@@ -13,5 +13,5 @@ resources:
 - 06-configmap-headscale-gateway-script.yaml
 - 06-gateway-deployment.yaml
 commonAnnotations:
-  kpt.dev/package-name: headscale
   kpt.dev/package-layer: mesh
+  kpt.dev/package-name: headscale

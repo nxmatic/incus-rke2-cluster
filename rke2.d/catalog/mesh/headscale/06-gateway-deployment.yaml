@@ -40,16 +40,14 @@ spec:
         envFrom:
         - configMapRef:
             name: headscale-env
+        - configMapRef:
+            name: flox-env
         env:
         - name: TS_AUTHKEY
           valueFrom:
             secretKeyRef:
               name: headscale-client-auth
               key: authkey
-        - name: FLOX_NO_TELEMETRY
-          value: "1"
-        - name: FLOX_NONINTERACTIVE
-          value: "1"
         command:
         - bash
         - /scripts/gateway.sh

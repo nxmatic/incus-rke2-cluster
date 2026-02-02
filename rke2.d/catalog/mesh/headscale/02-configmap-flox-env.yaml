@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flox-env
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
+  annotations:
+    replicator.v1.mittwald.de/replicate-from: flox-runtime/flox-env
+data: {}

@@ -72,6 +72,11 @@ spec:
       initContainers:
       - name: wait-for-headscale
         image: flox/empty:1.0.0
+        envFrom:
+        - configMapRef:
+            name: headscale-env
+        - configMapRef:
+            name: flox-env
         command:
         - bash
         - /scripts/wait-for-headscale.sh
@@ -79,11 +84,13 @@ spec:
         - name: client-scripts
           mountPath: /scripts
           readOnly: true
+      - name: wait-for-authkey
+        image: flox/empty:1.0.0
         envFrom:
         - configMapRef:
             name: headscale-env
-      - name: wait-for-authkey
-        image: flox/empty:1.0.0
+        - configMapRef:
+            name: flox-env
         command:
         - bash
         - /scripts/wait-for-authkey.sh
@@ -93,12 +100,14 @@ spec:
         - name: client-scripts
           mountPath: /scripts
           readOnly: true
-        envFrom:
-        - configMapRef:
-            name: headscale-env
       containers:
       - name: tailscale
         image: flox/empty:1.0.0
+        envFrom:
+        - configMapRef:
+            name: headscale-env
+        - configMapRef:
+            name: flox-env
         env:
         - name: RKE2_NODENAME
           valueFrom:
@@ -117,10 +126,6 @@ spec:
           value: "true"
         - name: TS_KUBE_SECRET
           value: ""
-        - name: FLOX_NO_TELEMETRY
-          value: "1"
-        - name: FLOX_NONINTERACTIVE
-          value: "1"
         command:
         - bash
         - /scripts/tailscale-client.sh
@@ -152,9 +157,6 @@ spec:
             cpu: 200m
             memory: 256Mi
             ephemeral-storage: 256Mi
-        envFrom:
-        - configMapRef:
-            name: headscale-env
       volumes:
       - name: dev-net-tun
         hostPath:

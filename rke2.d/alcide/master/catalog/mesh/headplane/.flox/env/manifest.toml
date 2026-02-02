@@ -26,7 +26,8 @@ version = 1
   pkg-path = "coreutils"
 
   [install.headplane]
-  flake = "git+https://github.com/nxmatic/rke2lab?dir=rke2.d/catalog/mesh/headplane"
+  # flake = "git+https://github.com/nxmatic/rke2lab?dir=rke2.d/catalog/mesh/headplane"
+  store-path = "/nix/store/15ng86jmka6lff9615dyww141jj06wn9-headplane-0.6.1"
 
 
 ## Other Environment Options -----------------------------------------

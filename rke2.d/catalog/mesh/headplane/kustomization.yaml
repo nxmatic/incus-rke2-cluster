@@ -6,7 +6,7 @@ metadata:
     config.kubernetes.io/local-config: "true"  
 resources:
 - 01-secret-headplane-agent-auth.yaml
-- 01-secret-headplane-config.yaml
+- 01-secret-headplane-config-tmpl.yaml
 - 01-secret-headplane-secrets.yaml
 - 02-pvc-headplane-data.yaml
 - 03-rbac-headplane.yaml

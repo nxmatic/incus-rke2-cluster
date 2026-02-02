@@ -10,7 +10,7 @@
         "pkg-path": "coreutils"
       },
       "headplane": {
-        "flake": "git+https://github.com/nxmatic/rke2lab?dir=rke2.d/catalog/mesh/headplane"
+        "store-path": "/nix/store/15ng86jmka6lff9615dyww141jj06wn9-headplane-0.6.1"
       },
       "kubectl": {
         "pkg-path": "kubectl"
@@ -24,6 +24,18 @@
     }
   },
   "packages": [
+    {
+      "install_id": "headplane",
+      "store_path": "/nix/store/15ng86jmka6lff9615dyww141jj06wn9-headplane-0.6.1",
+      "system": "aarch64-linux",
+      "priority": 5
+    },
+    {
+      "install_id": "headplane",
+      "store_path": "/nix/store/15ng86jmka6lff9615dyww141jj06wn9-headplane-0.6.1",
+      "system": "aarch64-darwin",
+      "priority": 5
+    },
     {
       "attr_path": "bash",
       "broken": false,
@@ -227,56 +239,6 @@
       },
       "system": "aarch64-linux",
       "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "install_id": "headplane",
-      "locked-url": "git+https://github.com/nxmatic/rke2lab?dir=rke2.d/catalog/mesh/headplane&ref=refs/heads/main&rev=50c0eab8c684b1dfd099c4e986472884ede975d8",
-      "flake-description": "headplane overlay with aarch64-linux",
-      "locked-flake-attr-path": "defaultPackage.aarch64-linux",
-      "derivation": "/nix/store/ya5f9hfxzmh0zpzzfr1w6dsxxh9751cp-headplane-0.6.1.drv",
-      "outputs": {
-        "out": "/nix/store/15ng86jmka6lff9615dyww141jj06wn9-headplane-0.6.1"
-      },
-      "output-names": [
-        "out"
-      ],
-      "outputs-to-install": [
-        "out"
-      ],
-      "requested-outputs-to-install": [],
-      "package-system": "aarch64-linux",
-      "system": "aarch64-linux",
-      "name": "headplane-0.6.1",
-      "pname": "headplane",
-      "version": "0.6.1",
-      "broken": false,
-      "unfree": false,
-      "priority": 5
-    },
-    {
-      "install_id": "headplane",
-      "locked-url": "git+https://github.com/nxmatic/rke2lab?dir=rke2.d/catalog/mesh/headplane&ref=refs/heads/main&rev=50c0eab8c684b1dfd099c4e986472884ede975d8",
-      "flake-description": "headplane overlay with aarch64-linux",
-      "locked-flake-attr-path": "defaultPackage.aarch64-darwin",
-      "derivation": "/nix/store/xikj9wk2pg1sa47hcnqjnmkrx34llqfs-headplane-0.6.1.drv",
-      "outputs": {
-        "out": "/nix/store/gs0s5zj8fzmic9bc0y1dag1jmbvif2qp-headplane-0.6.1"
-      },
-      "output-names": [
-        "out"
-      ],
-      "outputs-to-install": [
-        "out"
-      ],
-      "requested-outputs-to-install": [],
-      "package-system": "aarch64-darwin",
-      "system": "aarch64-darwin",
-      "name": "headplane-0.6.1",
-      "pname": "headplane",
-      "version": "0.6.1",
-      "broken": false,
-      "unfree": false,
       "priority": 5
     }
   ]

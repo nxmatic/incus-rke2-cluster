@@ -45,13 +45,11 @@ spec:
               value: "true"
             - name: TS_KUBE_SECRET
               value: ""
-            - name: FLOX_NO_TELEMETRY
-              value: "1"
-            - name: FLOX_NONINTERACTIVE
-              value: "1"
           envFrom:
             - configMapRef:
                 name: headscale-env
+            - configMapRef:
+                name: flox-env
           image: flox/empty:1.0.0
           name: tailscale
           resources:
@@ -92,6 +90,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: headscale-env
+            - configMapRef:
+                name: flox-env
           image: flox/empty:1.0.0
           name: wait-for-headscale
           volumeMounts:
@@ -104,6 +104,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: headscale-env
+            - configMapRef:
+                name: flox-env
           image: flox/empty:1.0.0
           name: wait-for-authkey
           volumeMounts:

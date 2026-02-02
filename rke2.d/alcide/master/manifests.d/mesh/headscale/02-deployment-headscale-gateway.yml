@@ -35,13 +35,11 @@ spec:
                 secretKeyRef:
                   key: authkey
                   name: headscale-client-auth
-            - name: FLOX_NO_TELEMETRY
-              value: "1"
-            - name: FLOX_NONINTERACTIVE
-              value: "1"
           envFrom:
             - configMapRef:
                 name: headscale-env
+            - configMapRef:
+                name: flox-env
           image: flox/empty:1.0.0
           name: tailscale-gateway
           resources:

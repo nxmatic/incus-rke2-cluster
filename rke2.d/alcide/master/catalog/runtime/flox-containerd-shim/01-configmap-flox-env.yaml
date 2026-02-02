@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: # kpt-merge: ${headscale-namespace}/flox-env
+  name: flox-env
+  namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|${headscale-namespace}|flox-env'
+data:
+  FLOX_DISABLE_METRICS: "true"
+  FLOX_NO_TELEMETRY: "1"
+  FLOX_NONINTERACTIVE: "1"
