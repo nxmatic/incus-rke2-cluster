@@ -26,6 +26,9 @@ spec:
           image: flox/empty:1.0.0
           command: ["headplane"]
           args: ["serve"]
+          envFrom:
+            - configMapRef:
+                name: headplane-env
           ports:
             - containerPort: 3000
               name: http

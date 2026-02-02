@@ -4,5 +4,8 @@ metadata:
   name: headplane-env
   namespace: ${headscale-namespace} # kpt-set: ${headscale-namespace}
 data:
+  HEADPLANE_BASE_URL: ${headplane-base-url} # kpt-set: ${headplane-base-url}
+  HEADPLANE_COOKIE_SECURE: ${headplane-cookie-secure} # kpt-set: ${headplane-cookie-secure}
   HEADPLANE_NAMESPACE: ${headscale-namespace} # kpt-set: ${headscale-namespace}
   HEADSCALE_NAMESPACE: ${headscale-namespace} # kpt-set: ${headscale-namespace}
+  HEADSCALE_SERVICE_URL: ${headscale-service-url} # kpt-set: ${headscale-service-url}

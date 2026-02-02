@@ -7,7 +7,7 @@ metadata:
     storageclass.kubernetes.io/is-default-class: "true"
 provisioner: zfs.csi.openebs.io
 parameters:
-  poolname: tank/rke2/control-node/${cluster-node-name} # kpt-set: tank/rke2/control-node/${cluster-node-name}
+  poolname: tank/rke2/control-nodes/${cluster-node-name} # kpt-set: tank/rke2/control-node/${cluster-node-name}
   fstype: zfs
 reclaimPolicy: Delete
 volumeBindingMode: WaitForFirstConsumer

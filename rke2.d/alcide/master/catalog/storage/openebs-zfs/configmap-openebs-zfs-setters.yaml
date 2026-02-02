@@ -8,7 +8,6 @@ metadata: # kpt-merge: /openebs-zfs-setters
     description.kpt.dev: Sample openebs-zfs resources setters (override per cluster downstream)
     internal.kpt.dev/upstream-identifier: '|ConfigMap|default|openebs-zfs-setters'
 data:
-  zfs-poolname: tank/rke2/control-node/master # kpt-set: tank/rke2/control-node/${cluster-node-name}
-
+  zfs-poolname: tank/rke2/control-node/${cluster-node-name} # kpt-set: tank/rke2/control-node/${cluster-node-name}
   zfs-bin: /usr/sbin/zfs # kpt-set: ${zfs-bin}
   kubelet-dir: /var/lib/kubelet # kpt-set: ${kubelet-dir}
