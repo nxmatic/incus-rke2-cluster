@@ -261,12 +261,15 @@ $(.incus.project.marker.file):
 	incus admin init --preseed < $(.incus.preseed.file) || true
 	: "[+] Creating incus project $(.incus.project.name) if not exists..."
 	incus project create $(.incus.project.name) || true
-	: "[+] Ensuring profile $(NODE_PROFILE_NAME) exists in project $(.incus.project.name) (no default project dependency)"
-	if ! incus profile show --project=$(.incus.project.name) $(NODE_PROFILE_NAME) >/dev/null 2>&1; then \
-		incus profile create --project=$(.incus.project.name) $(NODE_PROFILE_NAME); \
-		incus profile device add --project=$(.incus.project.name) $(NODE_PROFILE_NAME) root disk path=/ pool=default; \
-		incus profile device add --project=$(.incus.project.name) $(NODE_PROFILE_NAME) lan0 nic nictype=bridged parent=lan-br name=lan0; \
-		incus profile device add --project=$(.incus.project.name) $(NODE_PROFILE_NAME) vmnet0 nic network=vmnet-br name=vmnet0; \
+	: "[+] Ensuring profile $(.network.node.profile.name) exists in project $(.incus.project.name) (no default project dependency)"
+	if ! incus profile show --project=$(.incus.project.name) $(.network.node.profile.name) >/dev/null 2>&1; then
+		incus profile create --project=$(.incus.project.name) $(.network.node.profile.name)
+		incus profile device add --project=$(.incus.project.name) $(.network.node.profile.name) \
+		  root disk path=/ pool=default
+		incus profile device add --project=$(.incus.project.name) $(.network.node.profile.name) \
+		  lan0 nic nictype=bridged parent=lan-br name=lan0
+		incus profile device add --project=$(.incus.project.name) $(.network.node.profile.name) \
+		  vmnet0 nic network=vmnet-br name=vmnet0
 	fi
 	touch $@
 

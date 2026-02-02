@@ -68,31 +68,10 @@ CLUSTER_NAME := $(CLUSTER_NAME)
 CLUSTER_PODS_CIDR := $(POD_NETWORK_CIDR)
 CLUSTER_SERVICES_CIDR := $(SERVICE_NETWORK_CIDR)
 CLUSTER_DOMAIN := $(CLUSTER_DOMAIN)
-## Legacy 172.31.* addressing overrides removed (@codebase)
-## The hierarchical 10.80.* / fd70:80::* assignments defined earlier are authoritative.
-## Keeping this comment block to avoid accidental reintroduction.
-
-
-# Bridge configuration moved to network.mk (@codebase)
-
-NODE_PROFILE_NAME := rke2-cluster
-
-
-## Host interface definitions & NETWORK_MODE relocated to incus/rules.mk (@codebase)
-
-## Tailscale secret loading, inet helpers moved to incus/rules.mk (@codebase)
-
-# Config Paths
-## Templates now use existing Makefile variables directly (CLUSTER_* etc.) so no extra exports required.
-
-## Incus artifact paths & NoCloud file variables moved to incus/rules.mk (@codebase)
 
 #-----------------------------
-
-## Template environment exports now performed inside incus/rules.mk (@codebase)
-
-## Cluster environment file generation handled in incus/rules.mk (@codebase)
-
+# Main Targets
+#-----------------------------
 .PHONY: all start stop delete clean shell
 
 # Make help the default target (@codebase)
